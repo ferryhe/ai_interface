@@ -2410,6 +2410,13 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
         </div>
         {sep}
 
+        {/* Port + Live URL */}
+        <div style={{ ...s, color: "#58a6ff" }} title="Port 3000 → my-rest-api.you.repl.co">
+          <span style={{ fontSize: 9 }}>◉</span>&nbsp;PORT&nbsp;3000
+          &nbsp;<span style={{ color: "#3fb950", fontSize: 9 }}>● Live</span>
+        </div>
+        {sep}
+
         {/* CPU */}
         <div style={s} title="CPU usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span title="CPU">⬡</span>&nbsp;
@@ -2568,6 +2575,21 @@ export function AIInterface() {
   const [chatTier, setChatTier] = useState<"power" | "lite" | "eco">("power");
   const [chatTierOpen, setChatTierOpen] = useState(false);
   const [chatVoiceOn, setChatVoiceOn] = useState(false);
+  const [cmdKOpen, setCmdKOpen] = useState(false);
+  const [cmdKQuery, setCmdKQuery] = useState("");
+  const [replSwitcherOpen, setReplSwitcherOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+
+  // ⌘K listener
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdKOpen(true); }
+      if (e.key === "Escape") { setCmdKOpen(false); setReplSwitcherOpen(false); setHelpOpen(false); setShowQR(false); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [customizingPanels, setCustomizingPanels] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<PanelId[]>(ALL_PANELS);
   const [running, setRunning] = useState(true);
@@ -2636,11 +2658,66 @@ export function AIInterface() {
 
       {/* TOP BAR */}
       <div style={{ height: 48, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 12px", gap: 10, flexShrink: 0 }}>
-        {/* Logo + project name */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2, flexShrink: 0 }}>
-          <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #f26522, #f5a623)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>A</div>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>AI OS</span>
+        {/* Logo + Repls switcher dropdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 2, flexShrink: 0, position: "relative" as const }}>
+          <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #f26522, #f5a623)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>A</div>
+          <button onClick={() => setReplSwitcherOpen(o => !o)}
+            style={{ background: replSwitcherOpen ? "#21262d" : "transparent", border: "none", borderRadius: 5, padding: "4px 7px", color: "#e1e4e8", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}
+            onMouseEnter={e => { if (!replSwitcherOpen) e.currentTarget.style.background = "#21262d"; }}
+            onMouseLeave={e => { if (!replSwitcherOpen) e.currentTarget.style.background = "transparent"; }}>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.1 }}>
+              <span style={{ fontSize: 9, color: "#8b949e", fontWeight: 400 }}>@you</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>my-rest-api</span>
+            </span>
+            <span style={{ fontSize: 9, color: "#8b949e" }}>▾</span>
+          </button>
+          {replSwitcherOpen && (
+            <>
+              <div onClick={() => setReplSwitcherOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 100 }} />
+              <div style={{ position: "absolute" as const, top: "calc(100% + 6px)", left: 0, width: 320, background: "#161b22", border: "1px solid #30363d", borderRadius: 10, zIndex: 101, boxShadow: "0 12px 28px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "#8b949e" }}>⌕</span>
+                  <input placeholder="Search Repls…" style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+                </div>
+                <div style={{ padding: "6px 0", maxHeight: 280, overflowY: "auto" }}>
+                  <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Recent</div>
+                  {[
+                    { name: "my-rest-api", lang: "ts", desc: "REST API with JWT auth", time: "now", active: true },
+                    { name: "react-dashboard", lang: "tsx", desc: "Admin dashboard with charts", time: "2h ago" },
+                    { name: "discord-bot", lang: "py", desc: "Slash command bot", time: "yesterday" },
+                    { name: "stripe-webhook-test", lang: "ts", desc: "Webhook receiver + replay", time: "3d ago" },
+                    { name: "ml-classifier", lang: "py", desc: "scikit-learn pipeline", time: "1w ago" },
+                  ].map((r) => (
+                    <div key={r.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: r.active ? "#1f6feb14" : "transparent", borderLeft: r.active ? "2px solid #1f6feb" : "2px solid transparent" }}
+                      onMouseEnter={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+                      onMouseLeave={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                      <FileIcon ext={r.lang} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: r.active ? "#58a6ff" : "#e1e4e8", fontWeight: r.active ? 500 : 400 }}>{r.name}</div>
+                        <div style={{ fontSize: 10, color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.desc}</div>
+                      </div>
+                      <span style={{ fontSize: 10, color: "#484f58" }}>{r.time}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: "1px solid #21262d", padding: 6, display: "flex", gap: 4 }}>
+                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ New Repl</button>
+                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Import from GitHub</button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
+
+        {/* ⌘K Command palette trigger */}
+        <button onClick={() => setCmdKOpen(true)}
+          style={{ background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: "#8b949e", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, minWidth: 200, fontFamily: "inherit", flexShrink: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = "#58a6ff")}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = "#30363d")}>
+          <span style={{ fontSize: 11 }}>⌕</span>
+          <span style={{ flex: 1, textAlign: "left" as const }}>Search files & commands…</span>
+          <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 10, color: "#8b949e", fontFamily: "monospace" }}>⌘K</span>
+        </button>
         <div style={{ width: 1, height: 20, background: "#21262d", flexShrink: 0 }} />
 
         {/* Task chips */}
@@ -2655,6 +2732,35 @@ export function AIInterface() {
 
         {/* Right controls */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+
+          {/* Checkpoints chip */}
+          <button title="12 checkpoints — click to view history"
+            style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 9px", color: "#8b949e", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3fb950"; e.currentTarget.style.color = "#3fb950"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
+            <span style={{ color: "#3fb950" }}>✓</span>
+            <span>12</span>
+            <span style={{ color: "#484f58", fontSize: 10 }}>checkpoints</span>
+          </button>
+
+          {/* Cycles chip */}
+          <button title="1,247 cycles available · click to top up"
+            style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 9px", color: "#8b949e", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#e3b341"; e.currentTarget.style.color = "#e3b341"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
+            <span style={{ color: "#e3b341" }}>⚡</span>
+            <span style={{ fontFamily: "'Fira Code', monospace" }}>1,247</span>
+          </button>
+
+          {/* Mobile QR button */}
+          <button onClick={() => setShowQR(true)} title="Preview on phone"
+            style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, width: 28, height: 28, color: "#8b949e", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#bc8cff"; e.currentTarget.style.color = "#bc8cff"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
+            ▢
+          </button>
+
+          <div style={{ width: 1, height: 20, background: "#21262d", flexShrink: 0 }} />
 
           {/* Fork button */}
           <button style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", color: "#8b949e", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
@@ -2694,6 +2800,49 @@ export function AIInterface() {
 
           {/* Panels toggle */}
           <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ Panels</button>
+
+          {/* Help / Shortcuts */}
+          <div style={{ position: "relative" as const }}>
+            <button onClick={() => setHelpOpen(o => !o)} title="Help & keyboard shortcuts"
+              style={{ background: helpOpen ? "#21262d" : "transparent", border: helpOpen ? "1px solid #30363d" : "1px solid transparent", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b949e", fontSize: 14, cursor: "pointer", fontWeight: 600 }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+              onMouseLeave={e => { if (!helpOpen) e.currentTarget.style.background = "transparent"; }}>
+              ?
+            </button>
+            {helpOpen && (
+              <>
+                <div onClick={() => setHelpOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 100 }} />
+                <div style={{ position: "absolute" as const, right: 0, top: 36, width: 280, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 101, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Keyboard shortcuts</div>
+                  {[
+                    { keys: ["⌘", "K"], label: "Command palette" },
+                    { keys: ["⌘", "P"], label: "Quick file open" },
+                    { keys: ["⌘", "I"], label: "Inline AI edit" },
+                    { keys: ["⌘", "S"], label: "Save file" },
+                    { keys: ["⌘", "↵"], label: "Run / send" },
+                    { keys: ["⌘", "/"], label: "Toggle comment" },
+                    { keys: ["⌘", "B"], label: "Toggle sidebar" },
+                    { keys: ["⌘", "J"], label: "Toggle bottom panels" },
+                    { keys: ["⇧", "⌘", "P"], label: "Command (alt)" },
+                  ].map(s => (
+                    <div key={s.label} style={{ padding: "7px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #1a1f26" }}>
+                      <span style={{ fontSize: 12, color: "#c9d1d9" }}>{s.label}</span>
+                      <span style={{ display: "flex", gap: 3 }}>
+                        {s.keys.map((k, i) => (
+                          <kbd key={i} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 6px", fontSize: 10, color: "#8b949e", fontFamily: "monospace", minWidth: 18, textAlign: "center" as const }}>{k}</kbd>
+                        ))}
+                      </span>
+                    </div>
+                  ))}
+                  <div style={{ padding: "8px 14px", display: "flex", gap: 12, borderTop: "1px solid #21262d" }}>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>📖 Docs</a>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>💬 Support</a>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>↻ Tour</a>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Notification bell */}
           <div style={{ position: "relative" as const }}>
@@ -2864,6 +3013,13 @@ export function AIInterface() {
                     <FileIcon ext="ts" />{tab}<span style={{ color: "#484f58", fontSize: 11, marginLeft: 2 }}>×</span>
                   </div>
                 ))}
+                {/* New tab + Split editor */}
+                <button title="New tab" style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>+</button>
+                <button title="Split editor right" style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>⬒</button>
                 {/* Running pill */}
                 {running && (
                   <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 12, gap: 6 }}>
@@ -2893,12 +3049,28 @@ export function AIInterface() {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 {/* Code editor */}
                 <div style={{ flex: 1, background: "#0e1117", overflow: "auto", padding: "12px 0", fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.7 }}>
-                  {CODE_CONTENT.split("\n").map((line, i) => (
-                    <div key={i} style={{ display: "flex", paddingRight: 8, background: i + 1 === cursorLine ? "#1f6feb0a" : "transparent", borderLeft: i + 1 === cursorLine ? "2px solid #1f6feb44" : "2px solid transparent" }}>
-                      <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: i + 1 === cursorLine ? "#8b949e" : "#484f58", flexShrink: 0, userSelect: "none" }}>{i + 1}</span>
-                      <span dangerouslySetInnerHTML={{ __html: syntaxHighlight(line) }} />
-                    </div>
-                  ))}
+                  {CODE_CONTENT.split("\n").map((line, i) => {
+                    const ln = i + 1;
+                    const collab = ln === 8 ? { color: "#3fb950", name: "Sara" } : ln === 21 ? { color: "#bc8cff", name: "Marcus" } : null;
+                    const hasThread = ln === 14;
+                    return (
+                      <div key={i} style={{ display: "flex", paddingRight: 8, background: ln === cursorLine ? "#1f6feb0a" : "transparent", borderLeft: ln === cursorLine ? "2px solid #1f6feb44" : "2px solid transparent", position: "relative" as const }}>
+                        <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: ln === cursorLine ? "#8b949e" : "#484f58", flexShrink: 0, userSelect: "none" }}>{ln}</span>
+                        <span style={{ position: "relative" as const, flex: 1 }}>
+                          <span dangerouslySetInnerHTML={{ __html: syntaxHighlight(line) }} />
+                          {collab && (
+                            <span style={{ position: "absolute" as const, left: `${Math.min(line.length, 30) * 7.2}px`, top: 0, display: "inline-flex", alignItems: "center", pointerEvents: "none" as const }}>
+                              <span style={{ width: 2, height: 18, background: collab.color, display: "inline-block", animation: "pulse 1.2s ease-in-out infinite" }} />
+                              <span style={{ background: collab.color, color: "#fff", fontSize: 9, padding: "1px 5px", borderRadius: "0 3px 3px 3px", fontFamily: "'Inter', sans-serif", fontWeight: 600, marginLeft: 0 }}>{collab.name}</span>
+                            </span>
+                          )}
+                          {hasThread && (
+                            <span title="1 comment thread" style={{ position: "absolute" as const, right: 8, top: 0, fontSize: 11, color: "#e3b341", cursor: "pointer", pointerEvents: "auto" as const }}>💬 1</span>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Minimap */}
@@ -3096,6 +3268,82 @@ export function AIInterface() {
           </button>
         ))}
       </div>
+
+      {/* COMMAND PALETTE (⌘K) */}
+      {cmdKOpen && (() => {
+        const all = [
+          { group: "Files", icon: "📄", items: ["src/routes/auth.ts", "src/index.ts", "src/lib/jwt.ts", "package.json", ".env", "README.md"] },
+          { group: "Commands", icon: "⚡", items: ["Run project", "Stop project", "Open shell", "Format file", "Toggle terminal", "Restart language server", "Find in files", "Git: commit all"] },
+          { group: "Agent", icon: "✦", items: ["New chat", "Plan mode: Toggle", "Switch to Power tier", "Switch to Lite tier", "Open agent settings"] },
+          { group: "Settings", icon: "⚙", items: ["Open settings", "Switch theme", "Keyboard shortcuts", "Account & billing"] },
+        ];
+        const q = cmdKQuery.toLowerCase().trim();
+        const filtered = all.map(g => ({ ...g, items: g.items.filter(it => !q || it.toLowerCase().includes(q)) })).filter(g => g.items.length > 0);
+        return (
+          <div onClick={() => setCmdKOpen(false)} style={{ position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "12vh" }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 600, maxWidth: "90vw", background: "#161b22", border: "1px solid #30363d", borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", overflow: "hidden", display: "flex", flexDirection: "column" as const, maxHeight: "70vh" }}>
+              <div style={{ padding: "14px 18px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 16, color: "#8b949e" }}>⌕</span>
+                <input autoFocus placeholder="Type a command or search files…" value={cmdKQuery} onChange={e => setCmdKQuery(e.target.value)}
+                  style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 15, fontFamily: "inherit" }} />
+                <kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, padding: "2px 8px", fontSize: 10, color: "#8b949e", fontFamily: "monospace" }}>esc</kbd>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
+                {filtered.length === 0 ? (
+                  <div style={{ padding: "30px 18px", color: "#484f58", fontSize: 13, textAlign: "center" as const }}>No results for "{cmdKQuery}"</div>
+                ) : filtered.map(g => (
+                  <div key={g.group}>
+                    <div style={{ padding: "8px 18px 4px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8, fontWeight: 600 }}>{g.group}</div>
+                    {g.items.map((it, i) => (
+                      <div key={it} style={{ padding: "7px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: g.group === filtered[0].group && i === 0 ? "#1f6feb22" : "transparent" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#1f6feb22")}
+                        onMouseLeave={e => { if (!(g.group === filtered[0].group && i === 0)) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                        <span style={{ fontSize: 13, width: 16, textAlign: "center" as const }}>{g.icon}</span>
+                        <span style={{ flex: 1, fontSize: 13, color: "#e1e4e8" }}>{it}</span>
+                        {g.group === filtered[0].group && i === 0 && <kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "1px 6px", fontSize: 10, color: "#8b949e", fontFamily: "monospace" }}>↵</kbd>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: "8px 18px", borderTop: "1px solid #21262d", display: "flex", gap: 14, fontSize: 10, color: "#484f58" }}>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↑↓</kbd> navigate</span>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↵</kbd> open</span>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>esc</kbd> close</span>
+                <span style={{ marginLeft: "auto" }}>{filtered.reduce((n, g) => n + g.items.length, 0)} results</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MOBILE QR MODAL */}
+      {showQR && (
+        <div onClick={() => setShowQR(false)} style={{ position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 24, width: 320, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#e1e4e8" }}>Preview on your phone</span>
+              <span onClick={() => setShowQR(false)} style={{ color: "#8b949e", cursor: "pointer", fontSize: 14 }}>✕</span>
+            </div>
+            {/* Fake QR code grid */}
+            <div style={{ width: 200, height: 200, background: "#fff", padding: 10, borderRadius: 6, display: "grid", gridTemplateColumns: "repeat(21, 1fr)", gap: 0 }}>
+              {Array.from({ length: 21 * 21 }).map((_, i) => {
+                const x = i % 21, y = Math.floor(i / 21);
+                const corner = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
+                const cornerInner = corner && ((x === 0 || x === 6 || x === 14 || x === 20) || (y === 0 || y === 6 || y === 14 || y === 20));
+                const filled = corner ? (cornerInner || (x > 1 && x < 5 && y > 1 && y < 5) || (x > 15 && x < 19 && y > 1 && y < 5) || (x > 1 && x < 5 && y > 15 && y < 19)) : ((i * 7919 + 31) % 3 === 0);
+                return <div key={i} style={{ background: filled ? "#000" : "#fff", aspectRatio: "1" }} />;
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "#8b949e", textAlign: "center" as const, lineHeight: 1.5 }}>
+              Scan with your phone camera<br />or open in Replit Mobile app
+            </div>
+            <div style={{ fontFamily: "'Fira Code', monospace", fontSize: 11, color: "#58a6ff", background: "#0d1117", padding: "6px 10px", borderRadius: 5, border: "1px solid #21262d", width: "100%", textAlign: "center" as const }}>
+              my-rest-api.you.repl.co
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
