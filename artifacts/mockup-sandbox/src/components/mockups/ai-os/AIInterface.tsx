@@ -83,6 +83,150 @@ router.post('/login', limiter, async (req, res) => {
 
 export default router;`;
 
+// ─── AI API DATA ──────────────────────────────────────────────────────────────
+
+type ModelProvider = {
+  id: string;
+  name: string;
+  logo: string;
+  color: string;
+  bg: string;
+  models: {
+    id: string;
+    name: string;
+    description: string;
+    context: string;
+    tags: string[];
+    featured?: boolean;
+  }[];
+};
+
+const AI_PROVIDERS: ModelProvider[] = [
+  {
+    id: "nous",
+    name: "Nous Research",
+    logo: "N",
+    color: "#a78bfa",
+    bg: "#1e1535",
+    models: [
+      { id: "hermes-3-llama-3.1-405b", name: "Hermes 3 — Llama 3.1 405B", description: "Most capable Hermes model. Excels at complex reasoning, agentic tasks, and long-context understanding.", context: "128k", tags: ["Agentic", "Reasoning"], featured: true },
+      { id: "hermes-3-llama-3.1-70b", name: "Hermes 3 — Llama 3.1 70B", description: "Fast and capable. Great balance of speed and intelligence for production workloads.", context: "128k", tags: ["Fast", "Balanced"] },
+      { id: "hermes-2-pro-llama-3-8b", name: "Hermes 2 Pro — Llama 3 8B", description: "Optimized for function calling and structured JSON output.", context: "8k", tags: ["Function Calling", "JSON"] },
+      { id: "hermes-2-mixtral-8x7b", name: "Hermes 2 — Mixtral 8×7B", description: "MoE architecture tuned for instruction following and code generation.", context: "32k", tags: ["Code", "MoE"] },
+    ],
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    logo: "⬡",
+    color: "#10a37f",
+    bg: "#0a1f1a",
+    models: [
+      { id: "gpt-4o", name: "GPT-4o", description: "Most capable multimodal model. Handles text, images, and audio natively.", context: "128k", tags: ["Multimodal", "Vision"], featured: true },
+      { id: "gpt-4o-mini", name: "GPT-4o mini", description: "Fast and cost-efficient. Ideal for high-throughput tasks and real-time applications.", context: "128k", tags: ["Fast", "Cheap"] },
+      { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "High intelligence with an updated knowledge cutoff and vision support.", context: "128k", tags: ["Vision", "Reasoning"] },
+      { id: "o1-preview", name: "o1 Preview", description: "Frontier model designed for complex multi-step reasoning and science.", context: "128k", tags: ["Reasoning", "Science"] },
+      { id: "o1-mini", name: "o1 mini", description: "Smaller, faster reasoning model optimized for STEM tasks.", context: "64k", tags: ["Reasoning", "STEM"] },
+    ],
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    logo: "◈",
+    color: "#d97757",
+    bg: "#1e1108",
+    models: [
+      { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", description: "Best combination of speed and intelligence. Excellent at coding and analysis.", context: "200k", tags: ["Coding", "Analysis"], featured: true },
+      { id: "claude-3-5-haiku", name: "Claude 3.5 Haiku", description: "Fastest and most compact Claude model for near-instant responsiveness.", context: "200k", tags: ["Fast", "Cheap"] },
+      { id: "claude-3-opus", name: "Claude 3 Opus", description: "Top-level intelligence for highly complex tasks requiring deep understanding.", context: "200k", tags: ["Reasoning", "Creative"] },
+    ],
+  },
+  {
+    id: "google",
+    name: "Google",
+    logo: "G",
+    color: "#4285f4",
+    bg: "#080e1f",
+    models: [
+      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Multimodal model with the longest context window. Processes text, images, video, and audio.", context: "2M", tags: ["Multimodal", "Long Context"], featured: true },
+      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", description: "Fast and versatile performance across a diverse variety of tasks.", context: "1M", tags: ["Fast", "Multimodal"] },
+      { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash-8B", description: "High volume, lower intelligence tasks. Optimized for cost efficiency.", context: "1M", tags: ["Cheap", "High Volume"] },
+    ],
+  },
+  {
+    id: "meta",
+    name: "Meta",
+    logo: "∞",
+    color: "#0866ff",
+    bg: "#040d1f",
+    models: [
+      { id: "llama-3.1-405b", name: "Llama 3.1 405B", description: "Most capable open-weight model. Approaches frontier closed-source models.", context: "128k", tags: ["Open Source", "Reasoning"], featured: true },
+      { id: "llama-3.1-70b", name: "Llama 3.1 70B", description: "Great balance of capability and speed for most tasks.", context: "128k", tags: ["Open Source", "Balanced"] },
+      { id: "llama-3.1-8b", name: "Llama 3.1 8B", description: "Lightweight model for on-device and edge deployments.", context: "128k", tags: ["Open Source", "Fast"] },
+      { id: "llama-3.2-vision-11b", name: "Llama 3.2 Vision 11B", description: "Multimodal model supporting image understanding tasks.", context: "128k", tags: ["Open Source", "Vision"] },
+    ],
+  },
+  {
+    id: "mistral",
+    name: "Mistral AI",
+    logo: "M",
+    color: "#ff7000",
+    bg: "#1a0d00",
+    models: [
+      { id: "mistral-large", name: "Mistral Large 2", description: "Top-tier reasoning for complex tasks. Fluent in English, French, Spanish, German, Italian.", context: "128k", tags: ["Multilingual", "Reasoning"], featured: true },
+      { id: "mistral-small", name: "Mistral Small 3", description: "State-of-the-art small model optimized for low-latency workloads.", context: "32k", tags: ["Fast", "Cheap"] },
+      { id: "mixtral-8x22b", name: "Mixtral 8×22B", description: "High-capability sparse MoE model. Excels at code and math.", context: "64k", tags: ["MoE", "Code", "Math"] },
+      { id: "codestral", name: "Codestral", description: "Purpose-built for code generation, completion, and fill-in-the-middle tasks.", context: "32k", tags: ["Code"] },
+    ],
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    logo: "D",
+    color: "#4f8ef7",
+    bg: "#060f22",
+    models: [
+      { id: "deepseek-v3", name: "DeepSeek V3", description: "Latest flagship model excelling at coding, math, and reasoning tasks.", context: "64k", tags: ["Coding", "Math"], featured: true },
+      { id: "deepseek-r1", name: "DeepSeek R1", description: "Reasoning model matching OpenAI o1 performance on math and coding benchmarks.", context: "64k", tags: ["Reasoning", "Math"] },
+      { id: "deepseek-coder-v2", name: "DeepSeek Coder V2", description: "Specialized for code completion with support for 338 programming languages.", context: "128k", tags: ["Code"] },
+    ],
+  },
+  {
+    id: "xai",
+    name: "xAI",
+    logo: "X",
+    color: "#e1e4e8",
+    bg: "#0e0e0e",
+    models: [
+      { id: "grok-2", name: "Grok 2", description: "State-of-the-art model with real-time knowledge via X/Twitter integration.", context: "128k", tags: ["Real-time", "Reasoning"], featured: true },
+      { id: "grok-2-vision", name: "Grok 2 Vision", description: "Multimodal version with image understanding capabilities.", context: "32k", tags: ["Vision", "Real-time"] },
+    ],
+  },
+  {
+    id: "cohere",
+    name: "Cohere",
+    logo: "C",
+    color: "#39d353",
+    bg: "#041209",
+    models: [
+      { id: "command-r-plus", name: "Command R+", description: "Optimized for RAG and tool use. Best-in-class retrieval augmented generation.", context: "128k", tags: ["RAG", "Tool Use"], featured: true },
+      { id: "command-r", name: "Command R", description: "Highly performant generative model for enterprise production use cases.", context: "128k", tags: ["Enterprise", "Balanced"] },
+    ],
+  },
+  {
+    id: "together",
+    name: "Together AI",
+    logo: "T",
+    color: "#f5a623",
+    bg: "#1a1000",
+    models: [
+      { id: "qwen-2.5-72b", name: "Qwen 2.5 72B Instruct", description: "Alibaba's latest frontier model. Strong multilingual and coding performance.", context: "128k", tags: ["Multilingual", "Code"], featured: true },
+      { id: "yi-large", name: "Yi Large", description: "01.AI's top model with strong performance across reasoning and knowledge tasks.", context: "32k", tags: ["Reasoning"] },
+      { id: "dbrx-instruct", name: "DBRX Instruct", description: "Databricks' mixture-of-experts model for enterprise AI applications.", context: "32k", tags: ["MoE", "Enterprise"] },
+    ],
+  },
+];
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 type Tab = "tasks" | "new" | "account";
@@ -990,6 +1134,382 @@ function DeployPanel() {
   );
 }
 
+// ─── ACCOUNT PANEL ────────────────────────────────────────────────────────────
+
+type AccountPage = "profile" | "settings" | "billing" | "ai-apis" | "api-keys";
+
+function AccountPanel() {
+  const [page, setPage] = useState<AccountPage>("ai-apis");
+  const [search, setSearch] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>("nous");
+  const [connectedKeys, setConnectedKeys] = useState<Record<string, string>>({
+    openai: "sk-proj-••••••••••••••••••••••••••••••XZ9k",
+    anthropic: "sk-ant-••••••••••••••••••••••••••••••4Yp2",
+  });
+  const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [enabledModels, setEnabledModels] = useState<Set<string>>(new Set([
+    "hermes-3-llama-3.1-405b", "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "claude-3-5-haiku",
+  ]));
+  const [activeModel, setActiveModel] = useState("hermes-3-llama-3.1-405b");
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+
+  const saveKey = (providerId: string) => {
+    const val = keyInputs[providerId];
+    if (!val?.trim()) return;
+    setSaving(providerId);
+    setTimeout(() => {
+      setConnectedKeys(prev => ({ ...prev, [providerId]: val.trim() }));
+      setKeyInputs(prev => { const n = { ...prev }; delete n[providerId]; return n; });
+      setSaving(null); setSaved(providerId);
+      setTimeout(() => setSaved(null), 2000);
+    }, 900);
+  };
+
+  const removeKey = (providerId: string) => {
+    setConnectedKeys(prev => { const n = { ...prev }; delete n[providerId]; return n; });
+  };
+
+  const toggleModel = (modelId: string) => {
+    setEnabledModels(prev => {
+      const n = new Set(prev);
+      if (n.has(modelId)) { n.delete(modelId); if (activeModel === modelId) setActiveModel(""); }
+      else n.add(modelId);
+      return n;
+    });
+  };
+
+  const allTags = Array.from(new Set(AI_PROVIDERS.flatMap(p => p.models.flatMap(m => m.tags))));
+
+  const filteredProviders = AI_PROVIDERS.map(p => ({
+    ...p,
+    models: p.models.filter(m =>
+      (!search || m.name.toLowerCase().includes(search.toLowerCase()) || p.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!filterTag || m.tags.includes(filterTag))
+    ),
+  })).filter(p => p.models.length > 0);
+
+  const NAV: { id: AccountPage; label: string; icon: string }[] = [
+    { id: "profile", label: "Profile", icon: "○" },
+    { id: "settings", label: "Settings", icon: "⚙" },
+    { id: "billing", label: "Billing", icon: "◫" },
+    { id: "ai-apis", label: "AI APIs", icon: "✦" },
+    { id: "api-keys", label: "API Keys", icon: "🔑" },
+  ];
+
+  return (
+    <div style={{ flex: 1, display: "flex", overflow: "hidden", background: "#0e1117" }}>
+      {/* Account sidebar */}
+      <div style={{ width: 220, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #21262d" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff" }}>U</div>
+            <div>
+              <div style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 13 }}>User</div>
+              <div style={{ fontSize: 11, color: "#8b949e" }}>user@example.com</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 1, padding: "8px 8px" }}>
+          {NAV.map(n => (
+            <div key={n.id} onClick={() => setPage(n.id)}
+              style={{ padding: "8px 10px", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 9, marginBottom: 2, background: page === n.id ? "#1f6feb18" : "transparent", border: page === n.id ? "1px solid #1f6feb33" : "1px solid transparent" }}
+              onMouseEnter={e => { if (page !== n.id) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+              onMouseLeave={e => { if (page !== n.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <span style={{ fontSize: 13, color: page === n.id ? "#58a6ff" : "#8b949e" }}>{n.icon}</span>
+              <span style={{ fontSize: 13, color: page === n.id ? "#e1e4e8" : "#8b949e", fontWeight: page === n.id ? 500 : 400 }}>{n.label}</span>
+              {n.id === "ai-apis" && (
+                <span style={{ marginLeft: "auto", background: "#1f6feb", borderRadius: 10, fontSize: 10, color: "#fff", padding: "1px 6px", fontWeight: 600 }}>
+                  {enabledModels.size}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "8px 8px", borderTop: "1px solid #21262d" }}>
+          <div style={{ padding: "8px 10px", borderRadius: 6, cursor: "pointer", color: "#f85149", fontSize: 13, display: "flex", gap: 9, alignItems: "center" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f8514911")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <span>↪</span> Sign out
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        {/* ── AI APIs page ── */}
+        {page === "ai-apis" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>AI Model APIs</div>
+                  <div style={{ fontSize: 12, color: "#8b949e" }}>Connect your API keys to enable models. {Object.keys(connectedKeys).length} provider{Object.keys(connectedKeys).length !== 1 ? "s" : ""} connected · {enabledModels.size} models active.</div>
+                </div>
+                {activeModel && (
+                  <div style={{ background: "#1f6feb11", border: "1px solid #1f6feb44", borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", boxShadow: "0 0 6px #3fb95077" }} />
+                    <span style={{ fontSize: 11, color: "#8b949e" }}>Active:</span>
+                    <span style={{ fontSize: 12, color: "#58a6ff", fontWeight: 500 }}>{AI_PROVIDERS.flatMap(p => p.models).find(m => m.id === activeModel)?.name || activeModel}</span>
+                  </div>
+                )}
+              </div>
+              {/* Search + filter */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const }}>
+                <div style={{ flex: 1, minWidth: 200, background: "#21262d", border: "1px solid #30363d", borderRadius: 7, display: "flex", alignItems: "center", gap: 7, padding: "6px 12px" }}>
+                  <span style={{ color: "#484f58" }}>⌕</span>
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search models or providers…"
+                    style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 13, fontFamily: "inherit" }} />
+                  {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer" }}>✕</button>}
+                </div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
+                  {["Agentic", "Coding", "Reasoning", "Vision", "Fast", "Open Source", "RAG"].map(tag => (
+                    <button key={tag} onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                      style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, cursor: "pointer", fontFamily: "inherit", background: filterTag === tag ? "#1f6feb22" : "#21262d", border: filterTag === tag ? "1px solid #1f6feb" : "1px solid #30363d", color: filterTag === tag ? "#58a6ff" : "#8b949e" }}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Provider list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {filteredProviders.map(provider => {
+                const isConnected = !!connectedKeys[provider.id];
+                const isExpanded = expandedProvider === provider.id;
+                const providerEnabledCount = provider.models.filter(m => enabledModels.has(m.id)).length;
+
+                return (
+                  <div key={provider.id} style={{ border: `1px solid ${isConnected ? "#30363d" : "#21262d"}`, borderRadius: 10, overflow: "hidden", background: "#161b22" }}>
+                    {/* Provider header */}
+                    <div
+                      onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
+                      style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: isExpanded ? "#1a2030" : "#161b22", borderBottom: isExpanded ? "1px solid #21262d" : "none" }}
+                      onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = "#1a2030"; }}
+                      onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = "#161b22"; }}
+                    >
+                      {/* Provider logo */}
+                      <div style={{ width: 34, height: 34, borderRadius: 8, background: provider.bg, border: `1px solid ${provider.color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: provider.color, fontWeight: 800, flexShrink: 0 }}>
+                        {provider.logo}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 14 }}>{provider.name}</span>
+                          {isConnected && (
+                            <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 10, color: "#3fb950", padding: "1px 7px" }}>● Connected</span>
+                          )}
+                          {providerEnabledCount > 0 && (
+                            <span style={{ background: "#1f6feb22", border: "1px solid #1f6feb44", borderRadius: 10, fontSize: 10, color: "#58a6ff", padding: "1px 7px" }}>{providerEnabledCount} active</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#484f58", marginTop: 2 }}>{provider.models.length} model{provider.models.length !== 1 ? "s" : ""}</div>
+                      </div>
+                      {/* Connect / key status */}
+                      {isConnected ? (
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <div style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 5, padding: "4px 10px", fontSize: 11, color: "#8b949e", fontFamily: "monospace" }}>
+                            {connectedKeys[provider.id]}
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); removeKey(provider.id); }}
+                            style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 8px", fontSize: 11 }}>Remove</button>
+                        </div>
+                      ) : (
+                        <button onClick={e => { e.stopPropagation(); setExpandedProvider(provider.id); }}
+                          style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "5px 14px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
+                          + Connect
+                        </button>
+                      )}
+                      <span style={{ color: "#484f58", marginLeft: 6, fontSize: 14 }}>{isExpanded ? "▾" : "▸"}</span>
+                    </div>
+
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <div style={{ padding: 16 }}>
+                        {/* API key input (if not connected) */}
+                        {!isConnected && (
+                          <div style={{ marginBottom: 14, padding: 14, background: provider.bg, border: `1px solid ${provider.color}22`, borderRadius: 8 }}>
+                            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 8 }}>
+                              Enter your <span style={{ color: provider.color }}>{provider.name}</span> API key to unlock all {provider.models.length} models.
+                              <span style={{ color: "#484f58" }}> Keys are stored locally and never shared.</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <div style={{ flex: 1, background: "#0e1117", border: `1px solid ${provider.color}44`, borderRadius: 6, display: "flex", alignItems: "center", padding: "6px 10px", gap: 7 }}>
+                                <span style={{ color: "#484f58", fontSize: 12 }}>🔑</span>
+                                <input
+                                  value={keyInputs[provider.id] || ""}
+                                  onChange={e => setKeyInputs(prev => ({ ...prev, [provider.id]: e.target.value }))}
+                                  onKeyDown={e => e.key === "Enter" && saveKey(provider.id)}
+                                  placeholder={`Paste your ${provider.name} API key…`}
+                                  type="password"
+                                  style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}
+                                />
+                              </div>
+                              <button onClick={() => saveKey(provider.id)}
+                                disabled={!keyInputs[provider.id]?.trim() || saving === provider.id}
+                                style={{ background: provider.color, border: "none", borderRadius: 6, color: "#fff", padding: "6px 16px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, minWidth: 90 }}>
+                                {saving === provider.id ? "Saving…" : saved === provider.id ? "✓ Saved!" : "Save Key"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Model cards grid */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 8 }}>
+                          {provider.models.map(model => {
+                            const isEnabled = enabledModels.has(model.id);
+                            const isActive = activeModel === model.id;
+                            return (
+                              <div key={model.id}
+                                style={{ padding: 12, borderRadius: 8, border: isActive ? `1px solid ${provider.color}88` : isEnabled ? "1px solid #30363d" : "1px solid #21262d", background: isActive ? provider.bg : isEnabled ? "#1a1f2a" : "#0e1117", position: "relative" as const, opacity: isConnected ? 1 : 0.55 }}>
+                                {model.featured && (
+                                  <div style={{ position: "absolute" as const, top: 8, right: 8, background: "#f2cc6022", border: "1px solid #f2cc6044", borderRadius: 10, fontSize: 9, color: "#f2cc60", padding: "1px 6px" }}>★ Featured</div>
+                                )}
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6, paddingRight: model.featured ? 52 : 0 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? provider.color : "#e1e4e8", lineHeight: 1.3 }}>{model.name}</div>
+                                </div>
+                                <div style={{ fontSize: 11, color: "#8b949e", lineHeight: 1.5, marginBottom: 8 }}>{model.description}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" as const }}>
+                                  <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#58a6ff", padding: "1px 6px", fontFamily: "monospace" }}>ctx {model.context}</span>
+                                  {model.tags.map(tag => (
+                                    <span key={tag} style={{ background: "#21262d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "1px 6px" }}>{tag}</span>
+                                  ))}
+                                  <div style={{ flex: 1 }} />
+                                  {isConnected && (
+                                    <div style={{ display: "flex", gap: 5 }}>
+                                      {isActive ? (
+                                        <span style={{ background: `${provider.color}22`, border: `1px solid ${provider.color}55`, borderRadius: 10, fontSize: 10, color: provider.color, padding: "2px 8px" }}>● Active</span>
+                                      ) : (
+                                        <button onClick={() => { setActiveModel(model.id); setEnabledModels(prev => new Set([...prev, model.id])); }}
+                                          style={{ background: "none", border: `1px solid ${provider.color}44`, borderRadius: 5, color: provider.color, fontSize: 10, cursor: "pointer", padding: "2px 8px" }}>Set active</button>
+                                      )}
+                                      <button onClick={() => toggleModel(model.id)}
+                                        style={{ background: isEnabled ? "#3fb95022" : "#21262d", border: isEnabled ? "1px solid #3fb95055" : "1px solid #30363d", borderRadius: 5, color: isEnabled ? "#3fb950" : "#484f58", fontSize: 10, cursor: "pointer", padding: "2px 8px" }}>
+                                        {isEnabled ? "✓ On" : "Off"}
+                                      </button>
+                                    </div>
+                                  )}
+                                  {!isConnected && (
+                                    <span style={{ fontSize: 10, color: "#484f58" }}>Requires API key</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Profile page ── */}
+        {page === "profile" && (
+          <div style={{ padding: 28, maxWidth: 560 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Profile</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, padding: 16, background: "#161b22", border: "1px solid #21262d", borderRadius: 10 }}>
+              <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>U</div>
+              <div>
+                <div style={{ fontWeight: 600, color: "#e1e4e8", marginBottom: 4 }}>User</div>
+                <div style={{ fontSize: 12, color: "#8b949e" }}>user@example.com</div>
+                <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>Member since January 2024</div>
+              </div>
+            </div>
+            {[["Display name", "User"], ["Email", "user@example.com"], ["Username", "user"]].map(([label, val]) => (
+              <div key={label} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 5 }}>{label}</div>
+                <input defaultValue={val} style={{ width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 13, padding: "8px 12px", outline: "none", boxSizing: "border-box" as const }} />
+              </div>
+            ))}
+            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "8px 20px", fontSize: 13, cursor: "pointer" }}>Save changes</button>
+          </div>
+        )}
+
+        {/* ── Settings page ── */}
+        {page === "settings" && (
+          <div style={{ padding: 28, maxWidth: 560 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Settings</div>
+            {[
+              { label: "Dark mode", desc: "Use dark theme across the interface", on: true },
+              { label: "Send anonymous usage data", desc: "Help improve the product", on: false },
+              { label: "Auto-save files", desc: "Save files automatically on change", on: true },
+              { label: "Show inline AI suggestions", desc: "Display model suggestions in the editor", on: true },
+            ].map(s => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid #21262d" }}>
+                <div>
+                  <div style={{ fontSize: 13, color: "#e1e4e8" }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>{s.desc}</div>
+                </div>
+                <div style={{ width: 38, height: 22, borderRadius: 11, background: s.on ? "#1f6feb" : "#30363d", position: "relative" as const, cursor: "pointer", flexShrink: 0 }}>
+                  <div style={{ position: "absolute" as const, top: 4, left: s.on ? 20 : 4, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Billing page ── */}
+        {page === "billing" && (
+          <div style={{ padding: 28, maxWidth: 560 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Billing</div>
+            <div style={{ padding: 16, background: "#161b22", border: "1px solid #1f6feb44", borderRadius: 10, marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#58a6ff" }}>Pro Plan</div>
+                  <div style={{ fontSize: 12, color: "#8b949e", marginTop: 4 }}>$20 / month · Renews June 3, 2026</div>
+                </div>
+                <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 11, color: "#3fb950", padding: "2px 10px" }}>Active</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 10 }}>Usage this month</div>
+            {[["AI tokens", "1.2M / 5M", 24], ["Storage", "2.3 GB / 10 GB", 23], ["Deployments", "4 / 10", 40]].map(([label, val, pct]) => (
+              <div key={label as string} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ fontSize: 12, color: "#e1e4e8" }}>{label}</span>
+                  <span style={{ fontSize: 11, color: "#8b949e" }}>{val}</span>
+                </div>
+                <div style={{ height: 4, background: "#21262d", borderRadius: 2 }}>
+                  <div style={{ height: "100%", background: "#1f6feb", borderRadius: 2, width: `${pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── API Keys page ── */}
+        {page === "api-keys" && (
+          <div style={{ padding: 28, maxWidth: 600 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 6 }}>API Keys</div>
+            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 20 }}>Use these keys to access AI OS programmatically.</div>
+            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "7px 16px", fontSize: 12, cursor: "pointer", marginBottom: 16 }}>+ Generate new key</button>
+            {[
+              { name: "Production key", key: "aios-sk-prod-••••••••••••••••••••••••••••XKp9", created: "Jan 15, 2024", last: "2h ago" },
+              { name: "Dev key", key: "aios-sk-dev-••••••••••••••••••••••••••••3Wr1", created: "Feb 8, 2024", last: "Yesterday" },
+            ].map(k => (
+              <div key={k.name} style={{ padding: 14, background: "#161b22", border: "1px solid #21262d", borderRadius: 8, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#e1e4e8", marginBottom: 4 }}>{k.name}</div>
+                  <div style={{ fontFamily: "monospace", fontSize: 12, color: "#8b949e" }}>{k.key}</div>
+                  <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>Created {k.created} · Last used {k.last}</div>
+                </div>
+                <button style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 10px", fontSize: 11 }}>Revoke</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── BUTTON STYLES ────────────────────────────────────────────────────────────
 
 function btnStyle(bg: string, color = "#8b949e", border = "#30363d"): React.CSSProperties {
@@ -1110,23 +1630,7 @@ export function AIInterface() {
         )}
 
         {/* ACCOUNT TAB */}
-        {activeTab === "account" && (
-          <div style={{ width: 260, background: "#161b22", borderRight: "1px solid #21262d", padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid #21262d" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "#fff" }}>U</div>
-              <div>
-                <div style={{ fontWeight: 600, color: "#e1e4e8" }}>User</div>
-                <div style={{ fontSize: 11, color: "#8b949e" }}>user@example.com</div>
-              </div>
-            </div>
-            {["Profile", "Settings", "Billing", "API Keys", "Sign out"].map(item => (
-              <div key={item} style={{ padding: "9px 10px", borderRadius: 6, cursor: "pointer", color: item === "Sign out" ? "#f85149" : "#e1e4e8", fontSize: 13, marginBottom: 2 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >{item}</div>
-            ))}
-          </div>
-        )}
+        {activeTab === "account" && <AccountPanel />}
 
         {/* WORKSPACE */}
         {activeTab === "new" && (
