@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
 
 const PREDEFINED_TASKS = [
   "Build a REST API with auth",
@@ -10,23 +12,18 @@ const PREDEFINED_TASKS = [
 ];
 
 const PAST_TASKS = [
-  { id: 1, title: "Build a landing page for SaaS", time: "2h ago", status: "done" },
-  { id: 2, title: "Add Stripe payment integration", time: "Yesterday", status: "done" },
-  { id: 3, title: "Fix authentication bug in Express", time: "2 days ago", status: "done" },
-  { id: 4, title: "Create admin dashboard with charts", time: "3 days ago", status: "done" },
-  { id: 5, title: "Set up CI/CD with GitHub Actions", time: "5 days ago", status: "done" },
+  { id: 1, title: "Build a landing page for SaaS", time: "2h ago" },
+  { id: 2, title: "Add Stripe payment integration", time: "Yesterday" },
+  { id: 3, title: "Fix authentication bug in Express", time: "2 days ago" },
+  { id: 4, title: "Create admin dashboard with charts", time: "3 days ago" },
+  { id: 5, title: "Set up CI/CD with GitHub Actions", time: "5 days ago" },
 ];
 
 const CHAT_MESSAGES = [
+  { id: 1, role: "user", content: "Build a REST API with authentication using Express and JWT" },
   {
-    id: 1,
-    role: "user",
-    content: "Build a REST API with authentication using Express and JWT",
-  },
-  {
-    id: 2,
-    role: "agent",
-    content: "I'll build a complete REST API with JWT authentication. Let me set up the project structure first.",
+    id: 2, role: "agent",
+    content: "I'll build a complete REST API with JWT authentication. Let me set up the project structure.",
     steps: [
       { label: "Setting up Express server", done: true },
       { label: "Installing dependencies", done: true },
@@ -34,24 +31,10 @@ const CHAT_MESSAGES = [
       { label: "Writing route handlers", done: false, active: true },
     ],
   },
-  {
-    id: 3,
-    role: "user",
-    content: "Also add rate limiting and refresh tokens",
-  },
+  { id: 3, role: "user", content: "Also add rate limiting and refresh tokens" },
 ];
 
-const CONSOLE_LINES = [
-  { type: "info", text: "> pnpm install" },
-  { type: "success", text: "Packages: +124" },
-  { type: "info", text: "> node src/index.ts" },
-  { type: "success", text: "Server running on port 3000" },
-  { type: "info", text: "GET /api/health 200 2ms" },
-  { type: "error", text: "POST /api/auth/login 401 Unauthorized" },
-  { type: "info", text: "POST /api/auth/login 200 45ms" },
-];
-
-const FILE_TREE = [
+const FILE_TREE: { name: string; type: "folder" | "file"; depth: number; open?: boolean; ext?: string; active?: boolean }[] = [
   { name: "src", type: "folder", depth: 0, open: true },
   { name: "index.ts", type: "file", depth: 1, ext: "ts" },
   { name: "routes", type: "folder", depth: 1, open: true },
@@ -100,682 +83,1138 @@ router.post('/login', limiter, async (req, res) => {
 
 export default router;`;
 
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+
 type Tab = "tasks" | "new" | "account";
-type Panel = "console" | "shell" | "webview" | "files";
+type PanelId = "console" | "shell" | "webview" | "git" | "packages" | "secrets" | "database" | "search" | "debugger" | "deploy";
+
+const ALL_PANELS: PanelId[] = ["console", "shell", "webview", "git", "packages", "secrets", "database", "search", "debugger", "deploy"];
+const PANEL_ICONS: Record<PanelId, string> = {
+  console: "▸", shell: "$", webview: "◉", git: "⎇", packages: "⬡",
+  secrets: "🔑", database: "◫", search: "⌕", debugger: "⬤", deploy: "↑",
+};
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function FileIcon({ ext }: { ext?: string }) {
-  const colors: Record<string, string> = {
-    ts: "#3178c6",
-    js: "#f7df1e",
-    json: "#cbcb41",
-    env: "#8bc34a",
-    md: "#519aba",
-  };
-  const labels: Record<string, string> = {
-    ts: "TS",
-    js: "JS",
-    json: "{}",
-    env: "ENV",
-    md: "MD",
-  };
+  const colors: Record<string, string> = { ts: "#3178c6", js: "#f7df1e", json: "#cbcb41", env: "#8bc34a", md: "#519aba" };
+  const labels: Record<string, string> = { ts: "TS", js: "JS", json: "{}", env: "ENV", md: "MD" };
   const color = ext ? colors[ext] || "#888" : "#888";
-  const label = ext ? labels[ext] || ext?.toUpperCase() || "" : "";
+  const label = ext ? labels[ext] || ext.toUpperCase() : "";
   return (
-    <span
-      style={{
-        fontSize: "9px",
-        color,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        width: 20,
-        display: "inline-block",
-        textAlign: "center",
-      }}
-    >
+    <span style={{ fontSize: "9px", color, fontWeight: 700, fontFamily: "monospace", width: 20, display: "inline-block", textAlign: "center" }}>
       {label}
     </span>
   );
 }
 
+function syntaxHighlight(line: string): string {
+  const keywords = ["import", "from", "const", "let", "async", "await", "return", "if", "export", "default", "function"];
+  let r = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  r = r.replace(/('.*?'|".*?")/g, '<span style="color:#a5d6ff">$1</span>');
+  r = r.replace(/\/\/.*/g, '<span style="color:#8b949e">$&</span>');
+  r = r.replace(/\b(\d+)\b/g, '<span style="color:#f2cc60">$1</span>');
+  keywords.forEach(kw => { r = r.replace(new RegExp(`\\b(${kw})\\b`, "g"), '<span style="color:#ff7b72">$1</span>'); });
+  return r;
+}
+
+// ─── PANEL COMPONENTS ─────────────────────────────────────────────────────────
+
+function ConsolePanel() {
+  const [lines, setLines] = useState([
+    { type: "info", text: "> pnpm install" },
+    { type: "success", text: "Packages: +124" },
+    { type: "info", text: "> node src/index.ts" },
+    { type: "success", text: "Server running on port 3000" },
+    { type: "info", text: "GET /api/health 200 2ms" },
+    { type: "error", text: "POST /api/auth/login 401 Unauthorized" },
+    { type: "success", text: "POST /api/auth/login 200 45ms" },
+  ]);
+  const [input, setInput] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const run = () => {
+    if (!input.trim()) return;
+    const cmd = input.trim();
+    const responses: Record<string, { type: string; text: string }[]> = {
+      "clear": [],
+      "ls": [{ type: "info", text: "src/  package.json  .env  node_modules/" }],
+      "pwd": [{ type: "info", text: "/home/runner/project" }],
+      "node --version": [{ type: "success", text: "v20.11.0" }],
+      "pnpm --version": [{ type: "success", text: "9.1.0" }],
+    };
+    if (cmd === "clear") { setLines([]); setInput(""); return; }
+    const out = responses[cmd] || [{ type: "error", text: `bash: ${cmd}: command not found` }];
+    setLines(prev => [...prev, { type: "info", text: `> ${cmd}` }, ...out]);
+    setInput("");
+  };
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", fontFamily: "monospace", fontSize: 12 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{ lineHeight: 1.8, color: l.type === "success" ? "#3fb950" : l.type === "error" ? "#f85149" : "#8b949e" }}>
+            <span style={{ color: "#484f58", marginRight: 8 }}>{String(i + 1).padStart(2, "0")}</span>{l.text}
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
+      <div style={{ borderTop: "1px solid #21262d", padding: "6px 12px", display: "flex", gap: 8, alignItems: "center" }}>
+        <span style={{ color: "#f26522" }}>▸</span>
+        <input
+          value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && run()}
+          placeholder="Run a command…"
+          style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ShellPanel() {
+  const [history, setHistory] = useState([
+    { prompt: true, text: "" },
+    { prompt: false, text: "Welcome to the Shell. Type commands below." },
+    { prompt: true, text: "ls -la" },
+    { prompt: false, text: "total 32\ndrwxr-xr-x  5 runner runner 4096 May  3 10:00 .\ndrwxr-xr-x 15 runner runner 4096 May  3 09:55 ..\n-rw-r--r--  1 runner runner  234 May  3 10:00 .env\n-rw-r--r--  1 runner runner 1204 May  3 09:58 package.json\ndrwxr-xr-x  3 runner runner 4096 May  3 09:57 src" },
+    { prompt: true, text: "cat .env" },
+    { prompt: false, text: "PORT=3000\nJWT_SECRET=super_secret_key\nREFRESH_SECRET=refresh_key\nDB_URL=postgresql://localhost:5432/mydb" },
+  ]);
+  const [input, setInput] = useState("");
+  const [cmdHistory, setCmdHistory] = useState<string[]>(["ls -la", "cat .env"]);
+  const [histIdx, setHistIdx] = useState(-1);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const run = () => {
+    if (!input.trim()) return;
+    const cmd = input.trim();
+    const responses: Record<string, string> = {
+      "pwd": "/home/runner/project",
+      "whoami": "runner",
+      "date": new Date().toString(),
+      "echo hello": "hello",
+      "node --version": "v20.11.0",
+      "git status": "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  modified:   src/routes/auth.ts\n\nno changes added to commit",
+      "git log --oneline -5": "7141ff8 Add auth middleware\na3b2c1d Setup Express server\n9f8e7d6 Initial commit",
+      "clear": "__clear__",
+    };
+    if (cmd === "clear") { setHistory([]); setInput(""); setCmdHistory(p => [cmd, ...p]); return; }
+    const out = responses[cmd] || `bash: ${cmd}: command not found`;
+    setHistory(prev => [...prev, { prompt: true, text: cmd }, { prompt: false, text: out }]);
+    setCmdHistory(p => [cmd, ...p]);
+    setHistIdx(-1);
+    setInput("");
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") run();
+    else if (e.key === "ArrowUp") {
+      const idx = Math.min(histIdx + 1, cmdHistory.length - 1);
+      setHistIdx(idx);
+      setInput(cmdHistory[idx] || "");
+    } else if (e.key === "ArrowDown") {
+      const idx = Math.max(histIdx - 1, -1);
+      setHistIdx(idx);
+      setInput(idx === -1 ? "" : cmdHistory[idx]);
+    }
+  };
+
+  useEffect(() => { endRef.current?.scrollIntoView(); }, [history]);
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", fontFamily: "monospace", fontSize: 12 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+        {history.map((h, i) => (
+          <div key={i}>
+            {h.prompt ? (
+              <div style={{ display: "flex", gap: 6, color: "#e1e4e8", lineHeight: 1.8 }}>
+                <span style={{ color: "#3fb950" }}>runner@ai-os</span>
+                <span>:</span>
+                <span style={{ color: "#58a6ff" }}>~/project</span>
+                <span>$ {h.text}</span>
+              </div>
+            ) : (
+              h.text.split("\n").map((line, j) => (
+                <div key={j} style={{ color: "#8b949e", lineHeight: 1.7 }}>{line}</div>
+              ))
+            )}
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 6, color: "#e1e4e8", alignItems: "center" }}>
+          <span style={{ color: "#3fb950" }}>runner@ai-os</span><span>:</span>
+          <span style={{ color: "#58a6ff" }}>~/project</span><span>$</span>
+          <input
+            value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}
+            autoFocus
+          />
+        </div>
+        <div ref={endRef} />
+      </div>
+    </div>
+  );
+}
+
+function WebviewPanel() {
+  const [url, setUrl] = useState("http://localhost:3000");
+  const [editingUrl, setEditingUrl] = useState(url);
+  const [loading, setLoading] = useState(false);
+  const [status] = useState<"running" | "stopped">("running");
+
+  const navigate = () => {
+    setLoading(true);
+    setUrl(editingUrl);
+    setTimeout(() => setLoading(false), 800);
+  };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", gap: 8, padding: "6px 10px", borderBottom: "1px solid #21262d", alignItems: "center" }}>
+        <button onClick={() => {}} style={btnStyle("#21262d")}>←</button>
+        <button onClick={() => {}} style={btnStyle("#21262d")}>→</button>
+        <button onClick={navigate} style={btnStyle("#21262d")}>{loading ? "✕" : "↺"}</button>
+        <div style={{ flex: 1, background: "#0e1117", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: status === "running" ? "#3fb950" : "#f85149", fontSize: 10 }}>●</span>
+          <input
+            value={editingUrl} onChange={e => setEditingUrl(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && navigate()}
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}
+          />
+        </div>
+        <button style={btnStyle("#1f6feb22", "#58a6ff", "#1f6feb")}>Open ↗</button>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0d11" }}>
+        {loading ? (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ color: "#f26522", fontSize: 20, marginBottom: 8 }}>◌</div>
+            <div style={{ color: "#8b949e", fontSize: 12 }}>Loading…</div>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ color: "#3fb950", fontSize: 32, marginBottom: 12 }}>◉</div>
+            <div style={{ color: "#e1e4e8", fontWeight: 600, marginBottom: 4 }}>Server running</div>
+            <div style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{url}</div>
+            <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
+              {["/api/health → 200", "/api/users → 200", "/api/auth/login → 401"].map(r => (
+                <div key={r} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, padding: "3px 10px", fontSize: 11, color: "#8b949e", fontFamily: "monospace" }}>{r}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const GIT_FILES = [
+  { path: "src/routes/auth.ts", status: "M", lines: "+47 -12" },
+  { path: "src/middleware/jwt.ts", status: "M", lines: "+23 -5" },
+  { path: "src/middleware/rateLimit.ts", status: "A", lines: "+38" },
+  { path: ".env", status: "M", lines: "+2 -1" },
+];
+
+const GIT_LOG = [
+  { hash: "7141ff8", msg: "Add auth middleware", author: "You", time: "2h ago", branch: "main" },
+  { hash: "a3b2c1d", msg: "Setup Express server", author: "You", time: "4h ago" },
+  { hash: "9f8e7d6", msg: "Add rate limiting", author: "You", time: "Yesterday" },
+  { hash: "3c4d5e6", msg: "Initial project setup", author: "You", time: "2 days ago" },
+];
+
+const DIFF_CONTENT = `@@ -1,8 +1,12 @@
+ import express from 'express';
+ import jwt from 'jsonwebtoken';
++import rateLimit from 'express-rate-limit';
+ 
+ const router = express.Router();
+ 
++const limiter = rateLimit({
++  windowMs: 15 * 60 * 1000,
++  max: 100,
++});
++
+-router.post('/login', async (req, res) => {
++router.post('/login', limiter, async (req, res) => {`;
+
+function GitPanel() {
+  const [view, setView] = useState<"changes" | "log" | "diff" | "branches">("changes");
+  const [staged, setStaged] = useState<string[]>([]);
+  const [commitMsg, setCommitMsg] = useState("");
+  const [committed, setCommitted] = useState(false);
+
+  const toggleStage = (path: string) =>
+    setStaged(s => s.includes(path) ? s.filter(p => p !== path) : [...s, path]);
+
+  const commit = () => {
+    if (!commitMsg.trim() || staged.length === 0) return;
+    setCommitted(true);
+    setTimeout(() => { setCommitted(false); setCommitMsg(""); setStaged([]); }, 2000);
+  };
+
+  const statusColor = (s: string) => s === "M" ? "#f2cc60" : s === "A" ? "#3fb950" : s === "D" ? "#f85149" : "#8b949e";
+  const statusLabel = (s: string) => s === "M" ? "modified" : s === "A" ? "added" : s === "D" ? "deleted" : s;
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
+        {(["changes", "log", "diff", "branches"] as const).map(v => (
+          <button key={v} onClick={() => setView(v)} style={{
+            padding: "6px 12px", background: "none", border: "none",
+            borderBottom: view === v ? "2px solid #f26522" : "2px solid transparent",
+            color: view === v ? "#e1e4e8" : "#8b949e", cursor: "pointer",
+            fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
+          }}>{v}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#8b949e" }}>
+          <span style={{ color: "#3fb950" }}>⎇</span> main
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+        {view === "changes" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
+              Changed files ({GIT_FILES.length})
+            </div>
+            {GIT_FILES.map(f => (
+              <div key={f.path} onClick={() => toggleStage(f.path)} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
+                borderRadius: 4, cursor: "pointer",
+                background: staged.includes(f.path) ? "#1f6feb11" : "transparent",
+                border: staged.includes(f.path) ? "1px solid #1f6feb33" : "1px solid transparent",
+              }}>
+                <div style={{ width: 14, height: 14, borderRadius: 3, border: `1px solid ${staged.includes(f.path) ? "#1f6feb" : "#30363d"}`, background: staged.includes(f.path) ? "#1f6feb" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
+                  {staged.includes(f.path) && <span style={{ color: "#fff" }}>✓</span>}
+                </div>
+                <span style={{ color: statusColor(f.status), fontWeight: 700, fontSize: 11, width: 14 }}>{f.status}</span>
+                <span style={{ flex: 1, color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}>{f.path}</span>
+                <span style={{ color: "#3fb950", fontSize: 11 }}>{f.lines}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
+                <span>Commit message</span>
+                <span style={{ color: staged.length > 0 ? "#3fb950" : "#484f58" }}>{staged.length} staged</span>
+              </div>
+              <textarea
+                value={commitMsg} onChange={e => setCommitMsg(e.target.value)}
+                placeholder="Describe your changes…"
+                style={{ width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: 8, resize: "none", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                rows={2}
+              />
+              <button
+                onClick={commit}
+                disabled={!commitMsg.trim() || staged.length === 0}
+                style={{ marginTop: 6, width: "100%", background: committed ? "#238636" : (staged.length > 0 && commitMsg.trim() ? "#1f6feb" : "#21262d"), border: "none", borderRadius: 6, color: committed ? "#fff" : (staged.length > 0 && commitMsg.trim() ? "#fff" : "#484f58"), padding: "7px 0", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+              >
+                {committed ? "✓ Committed!" : `Commit ${staged.length > 0 ? staged.length + " file" + (staged.length > 1 ? "s" : "") : ""}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view === "log" && (
+          <div>
+            {GIT_LOG.map((c, i) => (
+              <div key={c.hash} style={{ padding: "8px 0", borderBottom: "1px solid #21262d22", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? "#3fb950" : "#30363d", marginTop: 5, flexShrink: 0, border: i === 0 ? "2px solid #3fb95055" : "none" }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <span style={{ color: "#e1e4e8", fontSize: 12 }}>{c.msg}</span>
+                    {c.branch && <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 4, padding: "1px 6px", fontSize: 10, color: "#3fb950" }}>{c.branch}</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: "#58a6ff", fontFamily: "monospace" }}>{c.hash}</span>
+                    <span style={{ color: "#8b949e" }}>{c.author}</span>
+                    <span style={{ color: "#484f58" }}>{c.time}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {view === "diff" && (
+          <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.7 }}>
+            <div style={{ color: "#58a6ff", marginBottom: 8, fontSize: 11 }}>src/routes/auth.ts</div>
+            {DIFF_CONTENT.split("\n").map((line, i) => (
+              <div key={i} style={{ paddingLeft: 8, background: line.startsWith("+") ? "#23863620" : line.startsWith("-") ? "#f8514920" : "transparent", color: line.startsWith("@@") ? "#d2a8ff" : line.startsWith("+") ? "#3fb950" : line.startsWith("-") ? "#f85149" : "#8b949e" }}>
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {view === "branches" && (
+          <div>
+            {[
+              { name: "main", current: true, updated: "2h ago" },
+              { name: "feature/rate-limiting", current: false, updated: "Yesterday" },
+              { name: "feature/refresh-tokens", current: false, updated: "3 days ago" },
+            ].map(b => (
+              <div key={b.name} style={{ padding: "8px", borderRadius: 6, marginBottom: 4, background: b.current ? "#1f6feb11" : "transparent", border: b.current ? "1px solid #1f6feb33" : "1px solid transparent", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: b.current ? "#3fb950" : "#8b949e" }}>⎇</span>
+                <span style={{ flex: 1, color: b.current ? "#e1e4e8" : "#8b949e", fontSize: 12 }}>{b.name}</span>
+                {b.current && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 10, padding: "1px 6px", borderRadius: 4, border: "1px solid #3fb95044" }}>current</span>}
+                <span style={{ color: "#484f58", fontSize: 11 }}>{b.updated}</span>
+              </div>
+            ))}
+            <button style={{ marginTop: 8, width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#8b949e", padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
+              + New branch
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const PACKAGES = [
+  { name: "express", version: "4.18.2", type: "prod", size: "208 kB" },
+  { name: "jsonwebtoken", version: "9.0.2", type: "prod", size: "48 kB" },
+  { name: "express-rate-limit", version: "7.1.5", type: "prod", size: "32 kB" },
+  { name: "bcryptjs", version: "2.4.3", type: "prod", size: "44 kB" },
+  { name: "@types/express", version: "4.17.21", type: "dev", size: "118 kB" },
+  { name: "typescript", version: "5.4.2", type: "dev", size: "68 MB" },
+  { name: "vitest", version: "1.4.0", type: "dev", size: "2.1 MB" },
+];
+
+function PackagesPanel() {
+  const [search, setSearch] = useState("");
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [installed, setInstalled] = useState<string[]>([]);
+  const [addPkg, setAddPkg] = useState("");
+
+  const filtered = PACKAGES.filter(p => p.name.includes(search));
+
+  const addPackage = () => {
+    if (!addPkg.trim()) return;
+    setInstalling(addPkg.trim());
+    setTimeout(() => { setInstalled(p => [...p, addPkg.trim()]); setInstalling(null); setAddPkg(""); }, 1500);
+  };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", display: "flex", gap: 8 }}>
+        <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
+          <span style={{ color: "#484f58" }}>⌕</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search packages…"
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input value={addPkg} onChange={e => setAddPkg(e.target.value)} onKeyDown={e => e.key === "Enter" && addPackage()} placeholder="Add package…"
+            style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "inherit", width: 130 }} />
+          <button onClick={addPackage} style={btnStyle(addPkg ? "#1f6feb" : "#21262d", addPkg ? "#fff" : "#484f58")}>
+            {installing ? "…" : "+ Install"}
+          </button>
+        </div>
+      </div>
+      {installing && (
+        <div style={{ padding: "6px 12px", background: "#1f6feb11", borderBottom: "1px solid #1f6feb33", fontSize: 11, color: "#58a6ff", display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>◌</span>
+          Installing {installing}…
+        </div>
+      )}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ padding: "4px 12px 2px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, fontSize: 10, color: "#484f58", textTransform: "uppercase", letterSpacing: 1 }}>
+          <span>Package</span><span>Version</span><span>Type</span><span>Size</span>
+        </div>
+        {[...installed.map(n => ({ name: n, version: "latest", type: "prod", size: "—", isNew: true })), ...filtered].map(pkg => (
+          <div key={pkg.name} style={{ padding: "5px 12px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, alignItems: "center", borderBottom: "1px solid #21262d22" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#e1e4e8", fontSize: 12 }}>{pkg.name}</span>
+              {"isNew" in pkg && pkg.isNew && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
+            </div>
+            <span style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{pkg.version}</span>
+            <span style={{ fontSize: 10, color: pkg.type === "dev" ? "#d2a8ff" : "#58a6ff", background: pkg.type === "dev" ? "#d2a8ff11" : "#58a6ff11", borderRadius: 3, padding: "1px 5px", textAlign: "center" }}>{pkg.type}</span>
+            <span style={{ color: "#484f58", fontSize: 11 }}>{pkg.size}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const INITIAL_SECRETS = [
+  { key: "JWT_SECRET", value: "super_secret_key_xyz", revealed: false },
+  { key: "REFRESH_SECRET", value: "refresh_key_abc_123", revealed: false },
+  { key: "DB_URL", value: "postgresql://localhost:5432/mydb", revealed: false },
+  { key: "PORT", value: "3000", revealed: true },
+  { key: "NODE_ENV", value: "development", revealed: true },
+];
+
+function SecretsPanel() {
+  const [secrets, setSecrets] = useState(INITIAL_SECRETS);
+  const [newKey, setNewKey] = useState("");
+  const [newVal, setNewVal] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const toggle = (key: string) => setSecrets(s => s.map(x => x.key === key ? { ...x, revealed: !x.revealed } : x));
+  const remove = (key: string) => setSecrets(s => s.filter(x => x.key !== key));
+  const add = () => {
+    if (!newKey.trim() || !newVal.trim()) return;
+    setSecrets(s => [...s, { key: newKey.trim(), value: newVal.trim(), revealed: false }]);
+    setNewKey(""); setNewVal("");
+  };
+  const copy = (key: string) => { setCopied(key); setTimeout(() => setCopied(null), 1500); };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", display: "flex", gap: 6 }}>
+        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="KEY"
+          style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "monospace", width: 130 }} />
+        <input value={newVal} onChange={e => setNewVal(e.target.value)} placeholder="value"
+          onKeyDown={e => e.key === "Enter" && add()}
+          style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "monospace" }} />
+        <button onClick={add} style={btnStyle(newKey && newVal ? "#1f6feb" : "#21262d", newKey && newVal ? "#fff" : "#484f58")}>+ Add</button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {secrets.map(s => (
+          <div key={s.key} style={{ padding: "8px 12px", borderBottom: "1px solid #21262d22", display: "flex", gap: 8, alignItems: "center" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#21262d22")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <div style={{ width: 14, height: 14, borderRadius: 3, background: "#21262d", border: "1px solid #30363d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#3fb950" }}>✓</div>
+            <span style={{ width: 140, color: "#e1e4e8", fontSize: 12, fontFamily: "monospace", fontWeight: 500 }}>{s.key}</span>
+            <div style={{ flex: 1, background: "#0e1117", borderRadius: 4, padding: "3px 8px", fontFamily: "monospace", fontSize: 12, color: s.revealed ? "#a5d6ff" : "#484f58" }}>
+              {s.revealed ? s.value : "●".repeat(Math.min(s.value.length, 20))}
+            </div>
+            <button onClick={() => toggle(s.key)} style={iconBtn}>{s.revealed ? "👁" : "🔒"}</button>
+            <button onClick={() => copy(s.key)} style={iconBtn}>{copied === s.key ? "✓" : "⎘"}</button>
+            <button onClick={() => remove(s.key)} style={{ ...iconBtn, color: "#f85149" }}>✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DatabasePanel() {
+  const [query, setQuery] = useState("SELECT id, email, created_at FROM users LIMIT 10;");
+  const [results, setResults] = useState<null | { cols: string[]; rows: (string | number)[][] }>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"query" | "tables">("query");
+
+  const MOCK_RESULTS: Record<string, { cols: string[]; rows: (string | number)[][] }> = {
+    "SELECT id, email, created_at FROM users LIMIT 10;": {
+      cols: ["id", "email", "created_at"],
+      rows: [
+        [1, "alice@example.com", "2024-01-15 10:23:00"],
+        [2, "bob@example.com", "2024-01-16 14:05:00"],
+        [3, "charlie@example.com", "2024-02-01 09:11:00"],
+        [4, "diana@example.com", "2024-02-10 17:42:00"],
+        [5, "eve@example.com", "2024-03-05 08:30:00"],
+      ],
+    },
+    "SELECT COUNT(*) FROM users;": { cols: ["count"], rows: [[42]] },
+  };
+
+  const run = () => {
+    setRunning(true); setError(null); setResults(null);
+    setTimeout(() => {
+      const q = query.trim();
+      if (MOCK_RESULTS[q]) setResults(MOCK_RESULTS[q]);
+      else if (q.toLowerCase().startsWith("select")) setResults({ cols: ["result"], rows: [["Query executed — 0 rows returned"]] });
+      else if (q.toLowerCase().startsWith("insert") || q.toLowerCase().startsWith("update") || q.toLowerCase().startsWith("delete")) setResults({ cols: ["result"], rows: [["1 row affected"]] });
+      else setError("ERROR: syntax error at or near \"" + q.split(" ")[0] + "\"");
+      setRunning(false);
+    }, 600);
+  };
+
+  const TABLES = [
+    { name: "users", rows: 42, cols: ["id", "email", "password_hash", "created_at"] },
+    { name: "sessions", rows: 127, cols: ["id", "user_id", "token", "expires_at"] },
+    { name: "refresh_tokens", rows: 89, cols: ["id", "user_id", "token", "revoked"] },
+  ];
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
+        {(["query", "tables"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "#3fb950", gap: 4 }}>
+          <span>●</span> postgresql://localhost:5432/mydb
+        </div>
+      </div>
+
+      {tab === "query" && (
+        <>
+          <div style={{ padding: 10, borderBottom: "1px solid #21262d", position: "relative" }}>
+            <textarea value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run(); }}
+              style={{ width: "100%", background: "#0e1117", border: "1px solid #30363d", borderRadius: 6, color: "#a5d6ff", fontSize: 12, padding: "8px 10px", resize: "none", fontFamily: "monospace", outline: "none", boxSizing: "border-box" }}
+              rows={3}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+              <button onClick={run} disabled={running} style={btnStyle("#1f6feb", "#fff")}>
+                {running ? "⟳ Running…" : "▶ Run (⌘↵)"}
+              </button>
+              <span style={{ fontSize: 11, color: "#484f58" }}>Ctrl+Enter to run</span>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+            {error && <div style={{ color: "#f85149", fontSize: 12, fontFamily: "monospace", background: "#f8514911", border: "1px solid #f8514933", borderRadius: 4, padding: 8 }}>{error}</div>}
+            {results && (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>{results.cols.map(c => <th key={c} style={{ padding: "5px 10px", textAlign: "left", color: "#8b949e", borderBottom: "1px solid #30363d", fontWeight: 500, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{c}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {results.rows.map((row, i) => (
+                    <tr key={i} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                      {row.map((cell, j) => <td key={j} style={{ padding: "5px 10px", borderBottom: "1px solid #21262d22", color: "#e1e4e8", fontFamily: "monospace" }}>{cell}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {!results && !error && !running && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", marginTop: 20 }}>Run a query to see results</div>}
+          </div>
+        </>
+      )}
+
+      {tab === "tables" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+          {TABLES.map(t => (
+            <div key={t.name} style={{ marginBottom: 12, border: "1px solid #21262d", borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "6px 10px", background: "#21262d", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: "#e3b341" }}>◫</span>
+                <span style={{ color: "#e1e4e8", fontSize: 12, fontWeight: 500 }}>{t.name}</span>
+                <span style={{ color: "#484f58", fontSize: 11, marginLeft: "auto" }}>{t.rows} rows</span>
+              </div>
+              <div style={{ padding: "6px 10px" }}>
+                {t.cols.map(c => <span key={c} style={{ display: "inline-block", background: "#0e1117", border: "1px solid #30363d", borderRadius: 3, padding: "1px 6px", fontSize: 11, color: "#8b949e", fontFamily: "monospace", margin: "2px" }}>{c}</span>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchPanel() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<{ file: string; line: number; text: string; match: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [regex, setRegex] = useState(false);
+  const [replaceVal, setReplaceVal] = useState("");
+  const [showReplace, setShowReplace] = useState(false);
+
+  const SEARCH_DB = [
+    { file: "src/routes/auth.ts", line: 4, text: "const router = express.Router();", match: "router" },
+    { file: "src/routes/auth.ts", line: 12, text: "router.post('/login', limiter, async (req, res) => {", match: "router" },
+    { file: "src/routes/users.ts", line: 3, text: "const router = express.Router();", match: "router" },
+    { file: "src/index.ts", line: 8, text: "app.use('/auth', authRouter);", match: "router" },
+    { file: "src/middleware/jwt.ts", line: 1, text: "import jwt from 'jsonwebtoken';", match: "jwt" },
+    { file: "src/routes/auth.ts", line: 2, text: "import jwt from 'jsonwebtoken';", match: "jwt" },
+  ];
+
+  const search = () => {
+    if (!query.trim()) { setResults([]); return; }
+    setSearching(true);
+    setTimeout(() => {
+      const q = caseSensitive ? query : query.toLowerCase();
+      const found = SEARCH_DB.filter(r => (caseSensitive ? r.text : r.text.toLowerCase()).includes(q) || r.match.includes(q.split("").slice(0, 3).join("")));
+      setResults(found);
+      setSearching(false);
+    }, 300);
+  };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
+            <span style={{ color: "#484f58", fontSize: 13 }}>⌕</span>
+            <input value={query} onChange={e => { setQuery(e.target.value); }} onKeyDown={e => e.key === "Enter" && search()}
+              placeholder="Search in files… (Enter)"
+              style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+          </div>
+          <button onClick={() => setCaseSensitive(c => !c)} style={btnStyle(caseSensitive ? "#1f6feb22" : "#21262d", caseSensitive ? "#58a6ff" : "#8b949e", caseSensitive ? "#1f6feb" : "#30363d")} title="Case sensitive">Aa</button>
+          <button onClick={() => setRegex(r => !r)} style={btnStyle(regex ? "#1f6feb22" : "#21262d", regex ? "#58a6ff" : "#8b949e", regex ? "#1f6feb" : "#30363d")} title="Regex">.*</button>
+          <button onClick={() => setShowReplace(s => !s)} style={btnStyle(showReplace ? "#1f6feb22" : "#21262d", showReplace ? "#58a6ff" : "#8b949e", showReplace ? "#1f6feb" : "#30363d")}>⇄</button>
+        </div>
+        {showReplace && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
+              <span style={{ color: "#484f58", fontSize: 11 }}>→</span>
+              <input value={replaceVal} onChange={e => setReplaceVal(e.target.value)} placeholder="Replace with…"
+                style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+            </div>
+            <button style={btnStyle("#21262d")}>Replace</button>
+            <button style={btnStyle("#21262d")}>Replace All</button>
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+        {searching && <div style={{ color: "#8b949e", fontSize: 12, textAlign: "center", padding: 12 }}>Searching…</div>}
+        {!searching && results.length === 0 && query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>No results for "{query}"</div>}
+        {!searching && !query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>Type to search across all files</div>}
+        {results.map((r, i) => (
+          <div key={i} style={{ padding: "4px 12px", cursor: "pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#21262d22")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            {(i === 0 || results[i - 1].file !== r.file) && (
+              <div style={{ color: "#58a6ff", fontSize: 11, fontFamily: "monospace", marginTop: i > 0 ? 8 : 0, marginBottom: 3 }}>{r.file}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ color: "#484f58", fontSize: 10, fontFamily: "monospace", width: 24, textAlign: "right", flexShrink: 0 }}>{r.line}</span>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: "#8b949e" }}
+                dangerouslySetInnerHTML={{ __html: r.text.replace(query, `<span style="background:#f2cc6033;color:#f2cc60">${query}</span>`) }}
+              />
+            </div>
+          </div>
+        ))}
+        {results.length > 0 && <div style={{ color: "#484f58", fontSize: 11, padding: "8px 12px" }}>{results.length} result{results.length !== 1 ? "s" : ""}</div>}
+      </div>
+    </div>
+  );
+}
+
+const BREAKPOINTS = [
+  { file: "src/routes/auth.ts", line: 13, active: true, condition: "" },
+  { file: "src/middleware/jwt.ts", line: 7, active: false, condition: "token === null" },
+];
+
+const CALL_STACK = [
+  { fn: "authenticateUser", file: "auth.ts", line: 13 },
+  { fn: "POST /login", file: "auth.ts", line: 12 },
+  { fn: "Layer.handle", file: "express/router/layer.js", line: 95 },
+  { fn: "next", file: "express/router/route.js", line: 137 },
+];
+
+const VARIABLES = [
+  { name: "req.body", value: '{ email: "alice@…", password: "…" }', type: "object" },
+  { name: "user", value: "{ id: 1, email: 'alice@example.com' }", type: "object" },
+  { name: "accessToken", value: '"eyJhbGciOiJIUzI1NiIsInR5cCI6Ikp…"', type: "string" },
+];
+
+function DebuggerPanel() {
+  const [paused, setPaused] = useState(true);
+  const [bps, setBps] = useState(BREAKPOINTS);
+  const [tab, setTab] = useState<"vars" | "stack" | "breakpoints">("vars");
+
+  const toggleBp = (i: number) => setBps(b => b.map((x, j) => j === i ? { ...x, active: !x.active } : x));
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "6px 12px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {[
+            { icon: "▶", label: "Continue", color: paused ? "#3fb950" : "#484f58", action: () => setPaused(false) },
+            { icon: "⬤", label: "Pause", color: !paused ? "#f2cc60" : "#484f58", action: () => setPaused(true) },
+            { icon: "↷", label: "Step over", color: "#8b949e", action: () => {} },
+            { icon: "↳", label: "Step into", color: "#8b949e", action: () => {} },
+            { icon: "↑", label: "Step out", color: "#8b949e", action: () => {} },
+            { icon: "↺", label: "Restart", color: "#8b949e", action: () => setPaused(true) },
+            { icon: "■", label: "Stop", color: "#f85149", action: () => setPaused(false) },
+          ].map(({ icon, label, color, action }) => (
+            <button key={label} onClick={action} title={label}
+              style={{ background: "none", border: "none", color, cursor: "pointer", fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            >{icon}</button>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 11, color: paused ? "#f2cc60" : "#3fb950", display: "flex", gap: 4, alignItems: "center" }}>
+          <span>●</span>{paused ? "Paused at auth.ts:13" : "Running"}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
+        {(["vars", "stack", "breakpoints"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "5px 10px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 11, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+        {tab === "vars" && (
+          <div>
+            {VARIABLES.map(v => (
+              <div key={v.name} style={{ padding: "4px 8px", borderBottom: "1px solid #21262d22", display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ color: "#d2a8ff", fontSize: 12, fontFamily: "monospace", width: 140, flexShrink: 0 }}>{v.name}</span>
+                <span style={{ color: v.type === "string" ? "#a5d6ff" : "#e1e4e8", fontSize: 11, fontFamily: "monospace", flex: 1 }}>{v.value}</span>
+                <span style={{ color: "#484f58", fontSize: 10 }}>{v.type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "stack" && (
+          <div>
+            {CALL_STACK.map((f, i) => (
+              <div key={i} style={{ padding: "5px 8px", cursor: "pointer", borderBottom: "1px solid #21262d22", background: i === 0 ? "#1f6feb11" : "transparent" }}
+                onMouseEnter={e => { if (i !== 0) e.currentTarget.style.background = "#21262d22"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = i === 0 ? "#1f6feb11" : "transparent"; }}
+              >
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                  {i === 0 && <span style={{ color: "#f2cc60", fontSize: 10 }}>▶</span>}
+                  {i !== 0 && <span style={{ color: "#484f58", fontSize: 10 }}>○</span>}
+                  <span style={{ color: i === 0 ? "#e1e4e8" : "#8b949e", fontSize: 12 }}>{f.fn}</span>
+                </div>
+                <div style={{ marginLeft: 14, fontSize: 11, color: "#484f58", fontFamily: "monospace" }}>{f.file}:{f.line}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "breakpoints" && (
+          <div>
+            {bps.map((bp, i) => (
+              <div key={i} style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #21262d22" }}>
+                <button onClick={() => toggleBp(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: bp.active ? "#f85149" : "#484f58", padding: 0 }}>⬤</button>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}>{bp.file}:{bp.line}</div>
+                  {bp.condition && <div style={{ color: "#8b949e", fontSize: 11 }}>if: {bp.condition}</div>}
+                </div>
+                <button onClick={() => setBps(b => b.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer", fontSize: 12 }}>✕</button>
+              </div>
+            ))}
+            <button style={{ margin: "8px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#8b949e", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>+ Add breakpoint</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DeployPanel() {
+  const [deploying, setDeploying] = useState(false);
+  const [deployed, setDeployed] = useState(true);
+  const [logs, setLogs] = useState([
+    "✓ Build completed in 3.2s",
+    "✓ Tests passed (47/47)",
+    "✓ Docker image pushed",
+    "✓ Deployment successful",
+  ]);
+  const [tab, setTab] = useState<"overview" | "logs" | "settings">("overview");
+
+  const deploy = () => {
+    setDeploying(true);
+    setLogs(["⟳ Building…"]);
+    const steps = ["✓ Installing dependencies", "✓ Running tests", "✓ Building Docker image", "✓ Pushing to registry", "✓ Updating deployment", "✓ Health check passed — live!"];
+    steps.forEach((s, i) => setTimeout(() => {
+      setLogs(prev => [...prev, s]);
+      if (i === steps.length - 1) { setDeploying(false); setDeployed(true); }
+    }, (i + 1) * 700));
+  };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
+        {(["overview", "logs", "settings"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
+        {tab === "overview" && (
+          <div>
+            <div style={{ background: deployed ? "#3fb95011" : "#21262d", border: `1px solid ${deployed ? "#3fb95044" : "#30363d"}`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: deployed ? "#3fb950" : "#8b949e", boxShadow: deployed ? "0 0 8px #3fb95066" : "none" }} />
+                <span style={{ color: "#e1e4e8", fontWeight: 600 }}>Production</span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "#484f58" }}>Deployed 2h ago</span>
+              </div>
+              <div style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                {[
+                  ["URL", "https://my-api.replit.app"],
+                  ["Region", "US East (Virginia)"],
+                  ["Instance", "512 MB RAM · 0.5 vCPU"],
+                  ["Uptime", "99.9% (30d)"],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", gap: 8 }}>
+                    <span style={{ color: "#484f58", width: 70 }}>{k}</span>
+                    <span style={{ color: k === "URL" ? "#58a6ff" : "#8b949e" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Traffic (last 24h)</div>
+              <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 40 }}>
+                {[30, 45, 60, 35, 80, 55, 90, 70, 65, 85, 95, 75, 60, 50, 70, 88, 92, 78, 65, 82, 90, 95, 88, 72].map((h, i) => (
+                  <div key={i} style={{ flex: 1, background: `rgba(31, 111, 235, ${0.3 + h / 200})`, borderRadius: "2px 2px 0 0", height: `${h}%` }} />
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={deploy} disabled={deploying} style={{ flex: 1, background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "8px 0", fontSize: 13, cursor: deploying ? "default" : "pointer", fontFamily: "inherit", fontWeight: 500 }}>
+                {deploying ? "⟳ Deploying…" : "↑ Deploy"}
+              </button>
+              <button style={btnStyle("#21262d")}>Rollback</button>
+            </div>
+          </div>
+        )}
+
+        {tab === "logs" && (
+          <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.8 }}>
+            {logs.map((l, i) => (
+              <div key={i} style={{ color: l.startsWith("✓") ? "#3fb950" : l.startsWith("✗") ? "#f85149" : "#8b949e" }}>{l}</div>
+            ))}
+            {deploying && <div style={{ color: "#f26522", animation: "blink 1s step-end infinite" }}>_</div>}
+          </div>
+        )}
+
+        {tab === "settings" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              { label: "Auto-deploy on push", value: true },
+              { label: "Run tests before deploy", value: true },
+              { label: "Rollback on failure", value: true },
+              { label: "Always-on (prevent sleep)", value: false },
+            ].map(s => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: "#e1e4e8" }}>{s.label}</span>
+                <div style={{ width: 36, height: 20, borderRadius: 10, background: s.value ? "#1f6feb" : "#30363d", position: "relative", cursor: "pointer" }}>
+                  <div style={{ position: "absolute", top: 3, left: s.value ? 18 : 3, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── BUTTON STYLES ────────────────────────────────────────────────────────────
+
+function btnStyle(bg: string, color = "#8b949e", border = "#30363d"): React.CSSProperties {
+  return { background: bg, border: `1px solid ${border}`, borderRadius: 6, color, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const };
+}
+const iconBtn: React.CSSProperties = { background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 13, padding: "2px 4px" };
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+
 export function AIInterface() {
   const [activeTab, setActiveTab] = useState<Tab>("new");
-  const [activePanel, setActivePanel] = useState<Panel>("console");
-  const [panelHeight, setPanelHeight] = useState(200);
-  const [sidebarWidth, setSidebarWidth] = useState(220);
+  const [activePanel, setActivePanel] = useState<PanelId>("console");
+  const [panelHeight, setPanelHeight] = useState(240);
+  const [sidebarWidth, setSidebarWidth] = useState(210);
   const [chatInput, setChatInput] = useState("");
-  const [showTools, setShowTools] = useState(false);
   const [customizingPanels, setCustomizingPanels] = useState(false);
-  const [visiblePanels, setVisiblePanels] = useState<Panel[]>(["console", "shell", "webview", "files"]);
-  const dragRef = useRef<{ type: "panel" | "sidebar"; startY?: number; startX?: number; startVal?: number } | null>(null);
+  const [visiblePanels, setVisiblePanels] = useState<PanelId[]>(ALL_PANELS);
 
   const onPanelDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    dragRef.current = { type: "panel", startY: e.clientY, startVal: panelHeight };
-    const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      const delta = (dragRef.current.startY! - ev.clientY);
-      setPanelHeight(Math.max(100, Math.min(500, dragRef.current.startVal! + delta)));
-    };
-    const onUp = () => {
-      dragRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
+    const startY = e.clientY, startH = panelHeight;
+    const onMove = (ev: MouseEvent) => setPanelHeight(Math.max(100, Math.min(500, startH + startY - ev.clientY)));
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [panelHeight]);
 
   const onSidebarDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    dragRef.current = { type: "sidebar", startX: e.clientX, startVal: sidebarWidth };
-    const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      const delta = ev.clientX - dragRef.current.startX!;
-      setSidebarWidth(Math.max(160, Math.min(360, dragRef.current.startVal! + delta)));
-    };
-    const onUp = () => {
-      dragRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
+    const startX = e.clientX, startW = sidebarWidth;
+    const onMove = (ev: MouseEvent) => setSidebarWidth(Math.max(150, Math.min(360, startW + ev.clientX - startX)));
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [sidebarWidth]);
 
-  const togglePanel = (panel: Panel) => {
-    setVisiblePanels(prev =>
-      prev.includes(panel) ? prev.filter(p => p !== panel) : [...prev, panel]
-    );
+  const togglePanel = (p: PanelId) => {
+    setVisiblePanels(prev => {
+      const next = prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p];
+      if (!next.includes(activePanel) && next.length > 0) setActivePanel(next[0]);
+      return next;
+    });
+  };
+
+  const PanelContent = () => {
+    switch (activePanel) {
+      case "console": return <ConsolePanel />;
+      case "shell": return <ShellPanel />;
+      case "webview": return <WebviewPanel />;
+      case "git": return <GitPanel />;
+      case "packages": return <PackagesPanel />;
+      case "secrets": return <SecretsPanel />;
+      case "database": return <DatabasePanel />;
+      case "search": return <SearchPanel />;
+      case "debugger": return <DebuggerPanel />;
+      case "deploy": return <DeployPanel />;
+      default: return null;
+    }
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        background: "#0e1117",
-        color: "#e1e4e8",
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-        fontSize: 13,
-        overflow: "hidden",
-        userSelect: "none",
-      }}
-    >
+    <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", background: "#0e1117", color: "#e1e4e8", fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: "hidden", userSelect: "none" }}>
+
       {/* TOP BAR */}
-      <div
-        style={{
-          height: 48,
-          background: "#161b22",
-          borderBottom: "1px solid #21262d",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 16px",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 8 }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: "linear-gradient(135deg, #f26522 0%, #f5a623 100%)",
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              fontWeight: 800,
-              color: "#fff",
-            }}
-          >
-            A
-          </div>
-          <span style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 14 }}>AI OS</span>
+      <div style={{ height: 48, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 4 }}>
+          <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #f26522, #f5a623)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>A</div>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>AI OS</span>
         </div>
-
         <div style={{ width: 1, height: 20, background: "#21262d" }} />
-
-        {/* Predefined Task Chips */}
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", flex: 1, scrollbarWidth: "none" }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", flex: 1, scrollbarWidth: "none" as const }}>
           {PREDEFINED_TASKS.map((task, i) => (
-            <button
-              key={i}
-              style={{
-                background: "#21262d",
-                border: "1px solid #30363d",
-                borderRadius: 20,
-                padding: "4px 12px",
-                color: "#8b949e",
-                fontSize: 12,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={e => {
-                (e.target as HTMLElement).style.background = "#2d333b";
-                (e.target as HTMLElement).style.color = "#e1e4e8";
-                (e.target as HTMLElement).style.borderColor = "#f26522";
-              }}
-              onMouseLeave={e => {
-                (e.target as HTMLElement).style.background = "#21262d";
-                (e.target as HTMLElement).style.color = "#8b949e";
-                (e.target as HTMLElement).style.borderColor = "#30363d";
-              }}
-            >
-              {task}
-            </button>
+            <button key={i} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 20, padding: "4px 12px", color: "#8b949e", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" as const }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.cssText += ";color:#e1e4e8;border-color:#f26522"; }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.cssText += ";color:#8b949e;border-color:#30363d"; }}
+            >{task}</button>
           ))}
         </div>
-
-        {/* Top right actions */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button
-            onClick={() => setCustomizingPanels(c => !c)}
-            style={{
-              background: customizingPanels ? "#1f6feb22" : "transparent",
-              border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d",
-              borderRadius: 6,
-              padding: "5px 10px",
-              color: customizingPanels ? "#58a6ff" : "#8b949e",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            Customize
-          </button>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #6e40c9, #1f6feb)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            U
-          </div>
+          <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ Panels</button>
+          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>U</div>
         </div>
       </div>
 
-      {/* Customize Panel Row */}
+      {/* PANEL CUSTOMIZER */}
       {customizingPanels && (
-        <div
-          style={{
-            background: "#161b22",
-            borderBottom: "1px solid #21262d",
-            padding: "8px 16px",
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ color: "#8b949e", fontSize: 12, marginRight: 4 }}>Visible panels:</span>
-          {(["console", "shell", "webview", "files"] as Panel[]).map(p => (
-            <button
-              key={p}
-              onClick={() => togglePanel(p)}
-              style={{
-                background: visiblePanels.includes(p) ? "#1f6feb22" : "#21262d",
-                border: visiblePanels.includes(p) ? "1px solid #1f6feb" : "1px solid #30363d",
-                borderRadius: 4,
-                padding: "3px 10px",
-                color: visiblePanels.includes(p) ? "#58a6ff" : "#8b949e",
-                fontSize: 12,
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {p}
+        <div style={{ background: "#161b22", borderBottom: "1px solid #21262d", padding: "8px 16px", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" as const, flexShrink: 0 }}>
+          <span style={{ color: "#8b949e", fontSize: 11, marginRight: 4 }}>Toggle panels:</span>
+          {ALL_PANELS.map(p => (
+            <button key={p} onClick={() => togglePanel(p)} style={{ background: visiblePanels.includes(p) ? "#1f6feb22" : "#21262d", border: visiblePanels.includes(p) ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 4, padding: "3px 10px", color: visiblePanels.includes(p) ? "#58a6ff" : "#8b949e", fontSize: 11, cursor: "pointer", textTransform: "capitalize" as const, display: "flex", alignItems: "center", gap: 4 }}>
+              <span>{PANEL_ICONS[p]}</span> {p}
             </button>
           ))}
         </div>
       )}
 
-      {/* MAIN CONTENT AREA */}
+      {/* CONTENT */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* TABS SIDEBAR (when not on "new") */}
+        {/* TASKS TAB */}
         {activeTab === "tasks" && (
-          <div
-            style={{
-              width: 280,
-              background: "#161b22",
-              borderRight: "1px solid #21262d",
-              display: "flex",
-              flexDirection: "column",
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #21262d" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1 }}>
-                Task History
-              </span>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {PAST_TASKS.map(task => (
-                <div
-                  key={task.id}
-                  style={{
-                    padding: "10px 16px",
-                    borderBottom: "1px solid #21262d",
-                    cursor: "pointer",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                  onClick={() => setActiveTab("new")}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#3fb950", flexShrink: 0 }} />
-                    <span style={{ color: "#e1e4e8", fontSize: 13, lineHeight: 1.4, flex: 1 }}>{task.title}</span>
-                  </div>
-                  <span style={{ color: "#484f58", fontSize: 11 }}>{task.time}</span>
+          <div style={{ width: 300, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Task History</div>
+            {PAST_TASKS.map(t => (
+              <div key={t.id} style={{ padding: "10px 16px", borderBottom: "1px solid #21262d", cursor: "pointer" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                onClick={() => setActiveTab("new")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#3fb950" }} />
+                  <span style={{ color: "#e1e4e8", fontSize: 13 }}>{t.title}</span>
                 </div>
-              ))}
-            </div>
+                <span style={{ color: "#484f58", fontSize: 11 }}>{t.time}</span>
+              </div>
+            ))}
           </div>
         )}
 
+        {/* ACCOUNT TAB */}
         {activeTab === "account" && (
-          <div
-            style={{
-              width: 280,
-              background: "#161b22",
-              borderRight: "1px solid #21262d",
-              display: "flex",
-              flexDirection: "column",
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ padding: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #6e40c9, #1f6feb)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: "#fff",
-                  }}
-                >
-                  U
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: "#e1e4e8" }}>User</div>
-                  <div style={{ fontSize: 12, color: "#8b949e" }}>user@example.com</div>
-                </div>
+          <div style={{ width: 260, background: "#161b22", borderRight: "1px solid #21262d", padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid #21262d" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "#fff" }}>U</div>
+              <div>
+                <div style={{ fontWeight: 600, color: "#e1e4e8" }}>User</div>
+                <div style={{ fontSize: 11, color: "#8b949e" }}>user@example.com</div>
               </div>
-              {["Profile", "Settings", "Billing", "API Keys", "Sign out"].map(item => (
-                <div
-                  key={item}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    color: item === "Sign out" ? "#f85149" : "#e1e4e8",
-                    fontSize: 13,
-                    marginBottom: 2,
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {item}
-                </div>
-              ))}
             </div>
+            {["Profile", "Settings", "Billing", "API Keys", "Sign out"].map(item => (
+              <div key={item} style={{ padding: "9px 10px", borderRadius: 6, cursor: "pointer", color: item === "Sign out" ? "#f85149" : "#e1e4e8", fontSize: 13, marginBottom: 2 }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >{item}</div>
+            ))}
           </div>
         )}
 
         {/* WORKSPACE */}
         {activeTab === "new" && (
           <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-            {/* FILE TREE SIDEBAR */}
-            <div
-              style={{
-                width: sidebarWidth,
-                background: "#161b22",
-                borderRight: "1px solid #21262d",
-                display: "flex",
-                flexDirection: "column",
-                flexShrink: 0,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderBottom: "1px solid #21262d",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#8b949e",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                Files
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#8b949e",
-                    cursor: "pointer",
-                    fontSize: 16,
-                    padding: "0 2px",
-                    lineHeight: 1,
-                  }}
-                >
-                  +
-                </button>
+            {/* FILE SIDEBAR */}
+            <div style={{ width: sidebarWidth, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                Files <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 16 }}>+</button>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
                 {FILE_TREE.map((item, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: "3px 12px",
-                      paddingLeft: 12 + item.depth * 14,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      cursor: "pointer",
-                      background: item.active ? "#1f6feb18" : "transparent",
-                      borderLeft: item.active ? "2px solid #1f6feb" : "2px solid transparent",
-                    }}
-                    onMouseEnter={e => {
-                      if (!item.active) (e.currentTarget as HTMLElement).style.background = "#21262d";
-                    }}
-                    onMouseLeave={e => {
-                      if (!item.active) (e.currentTarget as HTMLElement).style.background = "transparent";
-                    }}
+                  <div key={i} style={{ padding: "3px 12px", paddingLeft: 12 + item.depth * 14, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: item.active ? "#1f6feb18" : "transparent", borderLeft: item.active ? "2px solid #1f6feb" : "2px solid transparent" }}
+                    onMouseEnter={e => { if (!item.active) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+                    onMouseLeave={e => { if (!item.active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                   >
-                    {item.type === "folder" ? (
-                      <span style={{ color: "#e3b341", fontSize: 12 }}>{item.open ? "▾" : "▸"}</span>
-                    ) : (
-                      <FileIcon ext={item.ext} />
-                    )}
-                    <span
-                      style={{
-                        color: item.active ? "#58a6ff" : item.type === "folder" ? "#e1e4e8" : "#8b949e",
-                        fontSize: 12,
-                        fontWeight: item.active ? 500 : 400,
-                      }}
-                    >
-                      {item.name}
-                    </span>
+                    {item.type === "folder" ? <span style={{ color: "#e3b341", fontSize: 11 }}>{item.open ? "▾" : "▸"}</span> : <FileIcon ext={item.ext} />}
+                    <span style={{ color: item.active ? "#58a6ff" : item.type === "folder" ? "#e1e4e8" : "#8b949e", fontSize: 12, fontWeight: item.active ? 500 : 400 }}>{item.name}</span>
                   </div>
                 ))}
               </div>
-
-              {/* Tools panel */}
-              <div style={{ borderTop: "1px solid #21262d", padding: "8px 0" }}>
-                {["Agent", "Search", "Git", "Deploy"].map(tool => (
-                  <div
-                    key={tool}
-                    style={{
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      color: "#8b949e",
-                      fontSize: 12,
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = "#21262d";
-                      (e.currentTarget as HTMLElement).style.color = "#e1e4e8";
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = "transparent";
-                      (e.currentTarget as HTMLElement).style.color = "#8b949e";
-                    }}
+              <div style={{ borderTop: "1px solid #21262d", padding: "6px 0" }}>
+                {[["✦", "Agent"], ["⌕", "Search"], ["⎇", "Git"], ["↑", "Deploy"], ["⬡", "Packages"]].map(([icon, label]) => (
+                  <div key={label} style={{ padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: 12 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#21262d"; (e.currentTarget as HTMLElement).style.color = "#e1e4e8"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#8b949e"; }}
+                    onClick={() => { const map: Record<string, PanelId> = { Search: "search", Git: "git", Deploy: "deploy", Packages: "packages" }; if (map[label]) setActivePanel(map[label]); }}
                   >
-                    <span style={{ fontSize: 13 }}>
-                      {tool === "Agent" ? "✦" : tool === "Search" ? "⌕" : tool === "Git" ? "⎇" : "↑"}
-                    </span>
-                    {tool}
+                    <span style={{ fontSize: 13 }}>{icon}</span>{label}
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Sidebar resize handle */}
-            <div
-              onMouseDown={onSidebarDragStart}
-              style={{
-                width: 4,
-                cursor: "col-resize",
-                background: "transparent",
-                flexShrink: 0,
-                transition: "background 0.15s",
-              }}
+            <div onMouseDown={onSidebarDragStart} style={{ width: 4, cursor: "col-resize", background: "transparent", flexShrink: 0 }}
               onMouseEnter={e => ((e.target as HTMLElement).style.background = "#1f6feb")}
               onMouseLeave={e => ((e.target as HTMLElement).style.background = "transparent")}
             />
 
-            {/* MAIN EDITOR + AGENT AREA */}
+            {/* EDITOR + AGENT */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {/* Code Editor Tabs */}
-              <div
-                style={{
-                  height: 36,
-                  background: "#161b22",
-                  borderBottom: "1px solid #21262d",
-                  display: "flex",
-                  alignItems: "stretch",
-                  flexShrink: 0,
-                }}
-              >
+              {/* Editor tabs */}
+              <div style={{ height: 36, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "stretch", flexShrink: 0 }}>
                 {["auth.ts", "index.ts", "jwt.ts"].map((tab, i) => (
-                  <div
-                    key={tab}
-                    style={{
-                      padding: "0 16px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      borderRight: "1px solid #21262d",
-                      cursor: "pointer",
-                      background: i === 0 ? "#0e1117" : "transparent",
-                      borderBottom: i === 0 ? "2px solid #f26522" : "2px solid transparent",
-                      color: i === 0 ? "#e1e4e8" : "#8b949e",
-                      fontSize: 12,
-                    }}
-                  >
-                    <FileIcon ext="ts" />
-                    {tab}
-                    <span style={{ color: "#484f58", fontSize: 11, marginLeft: 4 }}>×</span>
+                  <div key={tab} style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 6, borderRight: "1px solid #21262d", cursor: "pointer", background: i === 0 ? "#0e1117" : "transparent", borderBottom: i === 0 ? "2px solid #f26522" : "2px solid transparent", color: i === 0 ? "#e1e4e8" : "#8b949e", fontSize: 12 }}>
+                    <FileIcon ext="ts" />{tab}<span style={{ color: "#484f58", fontSize: 11, marginLeft: 2 }}>×</span>
                   </div>
                 ))}
               </div>
 
-              {/* Split: Code + Agent */}
+              {/* Code + Agent split */}
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                {/* Code Editor */}
-                <div
-                  style={{
-                    flex: 1,
-                    background: "#0e1117",
-                    overflow: "auto",
-                    padding: "16px 0",
-                    fontFamily: "'Fira Code', 'Cascadia Code', monospace",
-                    fontSize: 12,
-                    lineHeight: 1.7,
-                  }}
-                >
+                {/* Code editor */}
+                <div style={{ flex: 1, background: "#0e1117", overflow: "auto", padding: "12px 0", fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.7 }}>
                   {CODE_CONTENT.split("\n").map((line, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        paddingRight: 24,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 40,
-                          textAlign: "right",
-                          paddingRight: 16,
-                          color: "#484f58",
-                          flexShrink: 0,
-                          userSelect: "none",
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: syntaxHighlight(line),
-                        }}
-                      />
+                    <div key={i} style={{ display: "flex", paddingRight: 24 }}>
+                      <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: "#484f58", flexShrink: 0, userSelect: "none" }}>{i + 1}</span>
+                      <span dangerouslySetInnerHTML={{ __html: syntaxHighlight(line) }} />
                     </div>
                   ))}
                 </div>
 
-                {/* Agent Panel */}
-                <div
-                  style={{
-                    width: 340,
-                    background: "#161b22",
-                    borderLeft: "1px solid #21262d",
-                    display: "flex",
-                    flexDirection: "column",
-                    flexShrink: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      borderBottom: "1px solid #21262d",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        background: "linear-gradient(135deg, #f26522, #f5a623)",
-                        borderRadius: 4,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#fff",
-                      }}
-                    >
-                      ✦
-                    </div>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#e1e4e8" }}>Agent</span>
-                    <div
-                      style={{
-                        marginLeft: "auto",
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: "#3fb950",
-                        boxShadow: "0 0 6px #3fb95088",
-                      }}
-                    />
+                {/* Agent */}
+                <div style={{ width: 320, background: "#161b22", borderLeft: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 20, height: 20, background: "linear-gradient(135deg,#f26522,#f5a623)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>✦</div>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>Agent</span>
+                    <div style={{ marginLeft: "auto", width: 8, height: 8, borderRadius: "50%", background: "#3fb950", boxShadow: "0 0 6px #3fb95088" }} />
                   </div>
-
-                  {/* Chat messages */}
-                  <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ flex: 1, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
                     {CHAT_MESSAGES.map(msg => (
                       <div key={msg.id}>
                         {msg.role === "user" ? (
                           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <div
-                              style={{
-                                background: "#1f6feb",
-                                color: "#fff",
-                                padding: "8px 12px",
-                                borderRadius: "12px 12px 2px 12px",
-                                maxWidth: "85%",
-                                fontSize: 12,
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              {msg.content}
-                            </div>
+                            <div style={{ background: "#1f6feb", color: "#fff", padding: "7px 11px", borderRadius: "12px 12px 2px 12px", maxWidth: "85%", fontSize: 12, lineHeight: 1.5 }}>{msg.content}</div>
                           </div>
                         ) : (
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                background: "linear-gradient(135deg, #f26522, #f5a623)",
-                                borderRadius: 6,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: "#fff",
-                                flexShrink: 0,
-                              }}
-                            >
-                              ✦
-                            </div>
+                          <div style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                            <div style={{ width: 22, height: 22, background: "linear-gradient(135deg,#f26522,#f5a623)", borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>✦</div>
                             <div style={{ flex: 1 }}>
-                              <div
-                                style={{
-                                  background: "#21262d",
-                                  color: "#e1e4e8",
-                                  padding: "8px 12px",
-                                  borderRadius: "2px 12px 12px 12px",
-                                  fontSize: 12,
-                                  lineHeight: 1.5,
-                                  marginBottom: 8,
-                                }}
-                              >
-                                {msg.content}
-                              </div>
+                              <div style={{ background: "#21262d", color: "#e1e4e8", padding: "7px 11px", borderRadius: "2px 12px 12px 12px", fontSize: 12, lineHeight: 1.5, marginBottom: 7 }}>{msg.content}</div>
                               {msg.steps && (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                  {msg.steps.map((step, si) => (
-                                    <div
-                                      key={si}
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        padding: "4px 8px",
-                                        background: step.active ? "#1f6feb11" : "transparent",
-                                        borderRadius: 4,
-                                        border: step.active ? "1px solid #1f6feb33" : "1px solid transparent",
-                                      }}
-                                    >
-                                      <span style={{ fontSize: 12, color: step.done ? "#3fb950" : step.active ? "#f26522" : "#484f58" }}>
-                                        {step.done ? "✓" : step.active ? "◌" : "○"}
-                                      </span>
-                                      <span style={{ fontSize: 11, color: step.active ? "#e1e4e8" : step.done ? "#8b949e" : "#484f58" }}>
-                                        {step.label}
-                                      </span>
-                                      {step.active && (
-                                        <span style={{ marginLeft: "auto", fontSize: 10, color: "#f26522" }}>...</span>
-                                      )}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                  {msg.steps.map((s, si) => (
+                                    <div key={si} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 7px", background: s.active ? "#1f6feb11" : "transparent", borderRadius: 4, border: s.active ? "1px solid #1f6feb33" : "1px solid transparent" }}>
+                                      <span style={{ fontSize: 11, color: s.done ? "#3fb950" : s.active ? "#f26522" : "#484f58" }}>{s.done ? "✓" : s.active ? "◌" : "○"}</span>
+                                      <span style={{ fontSize: 11, color: s.active ? "#e1e4e8" : s.done ? "#8b949e" : "#484f58" }}>{s.label}</span>
+                                      {s.active && <span style={{ marginLeft: "auto", fontSize: 10, color: "#f26522" }}>…</span>}
                                     </div>
                                   ))}
                                 </div>
@@ -785,287 +1224,43 @@ export function AIInterface() {
                         )}
                       </div>
                     ))}
-
-                    {/* Typing indicator */}
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          background: "linear-gradient(135deg, #f26522, #f5a623)",
-                          borderRadius: 6,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: "#fff",
-                          flexShrink: 0,
-                        }}
-                      >
-                        ✦
-                      </div>
-                      <div
-                        style={{
-                          background: "#21262d",
-                          padding: "10px 14px",
-                          borderRadius: "2px 12px 12px 12px",
-                          display: "flex",
-                          gap: 4,
-                          alignItems: "center",
-                        }}
-                      >
-                        {[0, 1, 2].map(i => (
-                          <div
-                            key={i}
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: "50%",
-                              background: "#f26522",
-                              animation: `bounce ${0.6 + i * 0.1}s ease-in-out infinite alternate`,
-                              opacity: 0.6 + i * 0.1,
-                            }}
-                          />
-                        ))}
+                    <div style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                      <div style={{ width: 22, height: 22, background: "linear-gradient(135deg,#f26522,#f5a623)", borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>✦</div>
+                      <div style={{ background: "#21262d", padding: "9px 12px", borderRadius: "2px 12px 12px 12px", display: "flex", gap: 4, alignItems: "center" }}>
+                        {[0, 1, 2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: "#f26522", opacity: 0.5 + i * 0.2 }} />)}
                       </div>
                     </div>
                   </div>
-
-                  {/* Chat input */}
-                  <div
-                    style={{
-                      padding: 12,
-                      borderTop: "1px solid #21262d",
-                    }}
-                  >
-                    <div
-                      style={{
-                        background: "#21262d",
-                        borderRadius: 8,
-                        border: "1px solid #30363d",
-                        display: "flex",
-                        alignItems: "flex-end",
-                        gap: 8,
-                        padding: "8px 10px",
-                      }}
-                    >
-                      <textarea
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        placeholder="What should I build next?"
-                        style={{
-                          flex: 1,
-                          background: "transparent",
-                          border: "none",
-                          outline: "none",
-                          color: "#e1e4e8",
-                          fontSize: 12,
-                          resize: "none",
-                          fontFamily: "inherit",
-                          lineHeight: 1.5,
-                          minHeight: 20,
-                          maxHeight: 80,
-                        }}
-                        rows={1}
-                      />
-                      <button
-                        style={{
-                          background: chatInput ? "#f26522" : "#21262d",
-                          border: "none",
-                          borderRadius: 6,
-                          width: 28,
-                          height: 28,
-                          cursor: "pointer",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 14,
-                          flexShrink: 0,
-                          transition: "background 0.15s",
-                        }}
-                      >
-                        ↑
-                      </button>
+                  <div style={{ padding: 10, borderTop: "1px solid #21262d" }}>
+                    <div style={{ background: "#21262d", borderRadius: 8, border: "1px solid #30363d", display: "flex", alignItems: "flex-end", gap: 6, padding: "7px 9px" }}>
+                      <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="What should I build next?" rows={1}
+                        style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 80 }} />
+                      <button style={{ background: chatInput ? "#f26522" : "#30363d", border: "none", borderRadius: 5, width: 26, height: 26, cursor: "pointer", color: "#fff", fontSize: 13, flexShrink: 0 }}>↑</button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* BOTTOM PANELS */}
+              {/* PANELS */}
               {visiblePanels.length > 0 && (
                 <>
-                  {/* Panel resize handle */}
-                  <div
-                    onMouseDown={onPanelDragStart}
-                    style={{
-                      height: 4,
-                      cursor: "row-resize",
-                      background: "transparent",
-                      flexShrink: 0,
-                      transition: "background 0.15s",
-                    }}
+                  <div onMouseDown={onPanelDragStart} style={{ height: 4, cursor: "row-resize", background: "transparent", flexShrink: 0 }}
                     onMouseEnter={e => ((e.target as HTMLElement).style.background = "#1f6feb")}
                     onMouseLeave={e => ((e.target as HTMLElement).style.background = "transparent")}
                   />
-
-                  {/* Panel area */}
-                  <div
-                    style={{
-                      height: panelHeight,
-                      background: "#161b22",
-                      borderTop: "1px solid #21262d",
-                      display: "flex",
-                      flexDirection: "column",
-                      flexShrink: 0,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {/* Panel tabs */}
-                    <div
-                      style={{
-                        height: 36,
-                        display: "flex",
-                        alignItems: "stretch",
-                        borderBottom: "1px solid #21262d",
-                        background: "#0e1117",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {visiblePanels.map(panel => (
-                        <button
-                          key={panel}
-                          onClick={() => setActivePanel(panel)}
-                          style={{
-                            padding: "0 16px",
-                            background: "transparent",
-                            border: "none",
-                            borderBottom: activePanel === panel ? "2px solid #f26522" : "2px solid transparent",
-                            color: activePanel === panel ? "#e1e4e8" : "#8b949e",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontWeight: activePanel === panel ? 500 : 400,
-                            textTransform: "capitalize",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {panel}
+                  <div style={{ height: panelHeight, background: "#161b22", borderTop: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+                    {/* Panel tab bar */}
+                    <div style={{ height: 34, display: "flex", alignItems: "stretch", borderBottom: "1px solid #21262d", background: "#0e1117", flexShrink: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
+                      {visiblePanels.map(p => (
+                        <button key={p} onClick={() => setActivePanel(p)} style={{ padding: "0 12px", background: "transparent", border: "none", borderBottom: activePanel === p ? "2px solid #f26522" : "2px solid transparent", color: activePanel === p ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontWeight: activePanel === p ? 500 : 400, textTransform: "capitalize" as const, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" as const }}>
+                          <span style={{ fontSize: 12 }}>{PANEL_ICONS[p]}</span>{p}
                         </button>
                       ))}
                       <div style={{ flex: 1 }} />
-                      <button
-                        style={{
-                          padding: "0 12px",
-                          background: "transparent",
-                          border: "none",
-                          color: "#484f58",
-                          cursor: "pointer",
-                          fontSize: 16,
-                          fontFamily: "inherit",
-                        }}
-                        onClick={() => setPanelHeight(0)}
-                      >
-                        ×
-                      </button>
+                      <button style={{ padding: "0 10px", background: "transparent", border: "none", color: "#484f58", cursor: "pointer", fontSize: 14 }} onClick={() => setPanelHeight(0)}>×</button>
                     </div>
-
-                    {/* Panel content */}
-                    <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
-                      {activePanel === "console" && (
-                        <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.8 }}>
-                          {CONSOLE_LINES.map((line, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                color:
-                                  line.type === "success"
-                                    ? "#3fb950"
-                                    : line.type === "error"
-                                    ? "#f85149"
-                                    : "#8b949e",
-                                display: "flex",
-                                gap: 8,
-                              }}
-                            >
-                              <span style={{ color: "#484f58" }}>{String(i + 1).padStart(2, "0")}</span>
-                              {line.text}
-                            </div>
-                          ))}
-                          <div style={{ display: "flex", gap: 8, color: "#8b949e", alignItems: "center" }}>
-                            <span style={{ color: "#484f58" }}>08</span>
-                            <span style={{ color: "#f26522" }}>▸</span>
-                            <span style={{ animation: "blink 1s step-end infinite", borderRight: "1px solid #e1e4e8" }}>&nbsp;</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {activePanel === "shell" && (
-                        <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.8 }}>
-                          <div style={{ color: "#8b949e" }}>
-                            <span style={{ color: "#3fb950" }}>user@ai-os</span>
-                            <span style={{ color: "#e1e4e8" }}>:</span>
-                            <span style={{ color: "#58a6ff" }}>~/project</span>
-                            <span style={{ color: "#e1e4e8" }}>$ </span>
-                            <span>ls src/</span>
-                          </div>
-                          <div style={{ color: "#58a6ff" }}>index.ts  middleware/  routes/</div>
-                          <div style={{ color: "#8b949e", marginTop: 4 }}>
-                            <span style={{ color: "#3fb950" }}>user@ai-os</span>
-                            <span style={{ color: "#e1e4e8" }}>:</span>
-                            <span style={{ color: "#58a6ff" }}>~/project</span>
-                            <span style={{ color: "#e1e4e8" }}>$ </span>
-                            <span style={{ animation: "blink 1s step-end infinite", borderRight: "1px solid #e1e4e8" }}>&nbsp;</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {activePanel === "webview" && (
-                        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <div style={{ textAlign: "center" }}>
-                            <div style={{ color: "#3fb950", fontSize: 24, marginBottom: 8 }}>◉</div>
-                            <div style={{ color: "#e1e4e8", fontWeight: 500, marginBottom: 4 }}>Server running</div>
-                            <div style={{ color: "#8b949e", fontSize: 12 }}>localhost:3000</div>
-                            <div
-                              style={{
-                                marginTop: 12,
-                                padding: "6px 16px",
-                                background: "#1f6feb22",
-                                border: "1px solid #1f6feb",
-                                borderRadius: 6,
-                                color: "#58a6ff",
-                                fontSize: 12,
-                                cursor: "pointer",
-                                display: "inline-block",
-                              }}
-                            >
-                              Open in browser
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {activePanel === "files" && (
-                        <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.8 }}>
-                          {FILE_TREE.map((item, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                paddingLeft: item.depth * 16,
-                                color: item.type === "folder" ? "#e3b341" : "#8b949e",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              <span style={{ fontSize: 11 }}>
-                                {item.type === "folder" ? (item.open ? "▾" : "▸") : "·"}
-                              </span>
-                              {item.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <PanelContent />
                     </div>
                   </div>
                 </>
@@ -1076,80 +1271,23 @@ export function AIInterface() {
       </div>
 
       {/* BOTTOM NAV */}
-      <div
-        style={{
-          height: 52,
-          background: "#161b22",
-          borderTop: "1px solid #21262d",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 4,
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ height: 50, background: "#161b22", borderTop: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0 }}>
         {(["tasks", "new", "account"] as Tab[]).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              padding: "8px 24px",
-              background: activeTab === tab ? "#21262d" : "transparent",
-              border: activeTab === tab ? "1px solid #30363d" : "1px solid transparent",
-              borderRadius: 8,
-              color: activeTab === tab ? "#e1e4e8" : "#8b949e",
-              fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontWeight: activeTab === tab ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              transition: "all 0.15s",
-              minWidth: 80,
-              justifyContent: "center",
-            }}
-          >
-            <span style={{ fontSize: 15 }}>
-              {tab === "tasks" ? "☰" : tab === "new" ? "✦" : "○"}
-            </span>
-            <span style={{ textTransform: "capitalize" }}>{tab === "new" ? "Workspace" : tab}</span>
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: "7px 22px", background: activeTab === tab ? "#21262d" : "transparent", border: activeTab === tab ? "1px solid #30363d" : "1px solid transparent", borderRadius: 8, color: activeTab === tab ? "#e1e4e8" : "#8b949e", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: activeTab === tab ? 600 : 400, display: "flex", alignItems: "center", gap: 5, minWidth: 90, justifyContent: "center" }}>
+            <span style={{ fontSize: 14 }}>{tab === "tasks" ? "☰" : tab === "new" ? "✦" : "○"}</span>
+            <span style={{ textTransform: "capitalize" as const }}>{tab === "new" ? "Workspace" : tab}</span>
           </button>
         ))}
       </div>
 
       <style>{`
-        @keyframes bounce {
-          from { transform: translateY(0); }
-          to { transform: translateY(-4px); }
-        }
-        @keyframes blink {
-          50% { opacity: 0; }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blink { 50% { opacity: 0; } }
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
       `}</style>
     </div>
   );
-}
-
-function syntaxHighlight(line: string): string {
-  const keywords = ["import", "from", "const", "let", "async", "await", "return", "if", "export", "default", "function"];
-  let result = line
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  result = result.replace(/('.*?'|".*?")/g, '<span style="color:#a5d6ff">$1</span>');
-  result = result.replace(/\/\/.*/g, '<span style="color:#8b949e">$&</span>');
-  result = result.replace(/(\d+)/g, '<span style="color:#f2cc60">$1</span>');
-
-  keywords.forEach(kw => {
-    const re = new RegExp(`\\b(${kw})\\b`, "g");
-    result = result.replace(re, '<span style="color:#ff7b72">$1</span>');
-  });
-
-  return result;
 }
