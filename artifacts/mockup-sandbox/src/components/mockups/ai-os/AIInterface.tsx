@@ -2564,6 +2564,10 @@ export function AIInterface() {
   const [panelHeight, setPanelHeight] = useState(240);
   const [sidebarWidth, setSidebarWidth] = useState(210);
   const [chatInput, setChatInput] = useState("");
+  const [chatPlanMode, setChatPlanMode] = useState(false);
+  const [chatTier, setChatTier] = useState<"power" | "lite" | "eco">("power");
+  const [chatTierOpen, setChatTierOpen] = useState(false);
+  const [chatVoiceOn, setChatVoiceOn] = useState(false);
   const [customizingPanels, setCustomizingPanels] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<PanelId[]>(ALL_PANELS);
   const [running, setRunning] = useState(true);
@@ -2945,10 +2949,99 @@ export function AIInterface() {
                     </div>
                   </div>
                   <div style={{ padding: 10, borderTop: "1px solid #21262d" }}>
-                    <div style={{ background: "#21262d", borderRadius: 8, border: "1px solid #30363d", display: "flex", alignItems: "flex-end", gap: 6, padding: "7px 9px" }}>
-                      <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="What should I build next?" rows={1}
-                        style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 80 }} />
-                      <button style={{ background: chatInput ? "#f26522" : "#30363d", border: "none", borderRadius: 5, width: 26, height: 26, cursor: "pointer", color: "#fff", fontSize: 13, flexShrink: 0 }}>↑</button>
+                    <div style={{ background: "#21262d", borderRadius: 10, border: `1px solid ${chatPlanMode ? "#1f6feb55" : "#30363d"}`, display: "flex", flexDirection: "column", gap: 0, transition: "border-color 0.15s" }}>
+                      {/* Row 1: textarea (multi-line) */}
+                      <textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
+                        placeholder={chatPlanMode ? "Describe what to plan…" : "What should I build next?"}
+                        rows={2}
+                        style={{ background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, resize: "none", fontFamily: "inherit", lineHeight: 1.55, padding: "9px 11px 4px", minHeight: 38, maxHeight: 180 }} />
+
+                      {/* Row 2: controls */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 6px 6px" }}>
+                        {/* Attach */}
+                        <button title="Attach file"
+                          style={{ width: 26, height: 26, background: "transparent", border: "none", borderRadius: 5, color: "#8b949e", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#30363d")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                          +
+                        </button>
+
+                        {/* Plan toggle */}
+                        <button onClick={() => setChatPlanMode(!chatPlanMode)} title="Plan mode — agent proposes a plan before acting"
+                          style={{ height: 26, padding: "0 9px", background: chatPlanMode ? "#1f6feb22" : "transparent", border: `1px solid ${chatPlanMode ? "#1f6feb55" : "#30363d"}`, borderRadius: 5, color: chatPlanMode ? "#58a6ff" : "#8b949e", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11 }}>◇</span> Plan
+                          {chatPlanMode && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#58a6ff" }} />}
+                        </button>
+
+                        {/* Tier dropdown */}
+                        <div style={{ position: "relative" as const, flexShrink: 0 }}>
+                          <button onClick={() => setChatTierOpen(!chatTierOpen)}
+                            style={{ height: 26, padding: "0 8px", background: "transparent", border: "1px solid #30363d", borderRadius: 5, color: "#c9d1d9", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: chatTier === "power" ? "#f26522" : chatTier === "lite" ? "#58a6ff" : "#3fb950" }} />
+                            <span style={{ textTransform: "capitalize" as const }}>{chatTier}</span>
+                            <span style={{ fontSize: 8, color: "#8b949e", marginLeft: 1 }}>▾</span>
+                          </button>
+                          {chatTierOpen && (
+                            <>
+                              <div onClick={() => setChatTierOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 20 }} />
+                              <div style={{ position: "absolute" as const, bottom: "calc(100% + 4px)", left: 0, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 4, minWidth: 180, zIndex: 21, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                                {([
+                                  { id: "power" as const, name: "Power", model: "GPT-4o · Claude 3.5 Sonnet", color: "#f26522", desc: "Smartest, full agentic loop" },
+                                  { id: "lite"  as const, name: "Lite",  model: "GPT-4o mini · Haiku",        color: "#58a6ff", desc: "Faster, lower cost" },
+                                  { id: "eco"   as const, name: "Eco",   model: "Llama 3.1 · Hermes 3 8B",   color: "#3fb950", desc: "Cheapest, basic tasks" },
+                                ]).map(t => (
+                                  <button key={t.id} onClick={() => { setChatTier(t.id); setChatTierOpen(false); }}
+                                    style={{ width: "100%", textAlign: "left" as const, background: chatTier === t.id ? `${t.color}18` : "transparent", border: "none", borderRadius: 5, padding: "7px 9px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "flex-start", gap: 8 }}
+                                    onMouseEnter={e => { if (chatTier !== t.id) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+                                    onMouseLeave={e => { if (chatTier !== t.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, marginTop: 4, flexShrink: 0 }} />
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 12, color: "#e1e4e8", fontWeight: chatTier === t.id ? 600 : 400 }}>{t.name}</div>
+                                      <div style={{ fontSize: 10, color: t.color, marginTop: 1 }}>{t.model}</div>
+                                      <div style={{ fontSize: 10, color: "#484f58", marginTop: 1 }}>{t.desc}</div>
+                                    </div>
+                                    {chatTier === t.id && <span style={{ color: t.color, fontSize: 11, marginTop: 2 }}>✓</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1 }} />
+
+                        {/* Voice */}
+                        <button onClick={() => setChatVoiceOn(!chatVoiceOn)} title="Voice input"
+                          style={{ width: 26, height: 26, background: chatVoiceOn ? "#f8514922" : "transparent", border: `1px solid ${chatVoiceOn ? "#f8514955" : "transparent"}`, borderRadius: 5, color: chatVoiceOn ? "#f85149" : "#8b949e", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                          onMouseEnter={e => { if (!chatVoiceOn) (e.currentTarget as HTMLElement).style.background = "#30363d"; }}
+                          onMouseLeave={e => { if (!chatVoiceOn) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                          {chatVoiceOn ? "●" : "🎤"}
+                        </button>
+
+                        {/* Send */}
+                        <button title={chatPlanMode ? "Send (Plan mode)" : "Send"}
+                          style={{ background: chatInput ? (chatPlanMode ? "#1f6feb" : "#f26522") : "#30363d", border: "none", borderRadius: 5, width: 26, height: 26, cursor: chatInput ? "pointer" : "default", color: "#fff", fontSize: 13, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}>
+                          {chatPlanMode ? "◇" : "↑"}
+                        </button>
+                      </div>
+
+                      {/* Plan mode hint */}
+                      {chatPlanMode && (
+                        <div style={{ padding: "6px 11px 8px", borderTop: "1px solid #30363d", fontSize: 10, color: "#58a6ff", background: "#1f6feb0a", borderRadius: "0 0 9px 9px", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>◇</span>
+                          <span>Plan mode: agent will propose a step-by-step plan and wait for approval before executing.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tier hint below */}
+                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2px" }}>
+                      <span style={{ fontSize: 10, color: "#484f58" }}>
+                        {chatTier === "power" && "Best quality · ~$0.04/task"}
+                        {chatTier === "lite"  && "Balanced · ~$0.008/task"}
+                        {chatTier === "eco"   && "Lowest cost · ~$0.001/task"}
+                      </span>
+                      <span style={{ fontSize: 10, color: "#484f58" }}>⏎ send · ⇧⏎ newline</span>
                     </div>
                   </div>
                 </div>
