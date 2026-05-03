@@ -1697,106 +1697,84 @@ function AccountPanel() {
 // ─── AGENT CONFIG PAGE ─────────────────────────────────────────────────────────
 
 function AgentConfigPage() {
-  const [activeFramework, setActiveFramework] = useState<AgentFrameworkId>("hermes");
-  const [codeTab, setCodeTab] = useState<"system" | "call" | "result">("system");
-  const [defaultFramework, setDefaultFramework] = useState<AgentFrameworkId>("hermes");
-  const [taskConfigs, setTaskConfigs] = useState<Record<number, { modelName: string; framework: AgentFrameworkId }>>(() =>
-    Object.fromEntries(PAST_TASKS.map(t => [t.id, { modelName: t.aiConfig.modelName, framework: t.aiConfig.framework }]))
-  );
+  const [activePkg, setActivePkg] = useState("langchain");
   const [editingTask, setEditingTask] = useState<number | null>(null);
-  const fw = AGENT_FRAMEWORKS.find(f => f.id === activeFramework)!;
+  const [taskConfigs, setTaskConfigs] = useState<Record<number, { pkg: string; model: string; protocol: AgentFrameworkId }>>(() =>
+    Object.fromEntries(PAST_TASKS.map(t => [t.id, {
+      pkg: t.aiConfig.framework === "hermes" ? "hermes-native" : t.aiConfig.framework === "openai-fn" ? "langchain" : t.aiConfig.framework === "anthropic-tools" ? "langchain" : "langchain",
+      model: t.aiConfig.modelName,
+      protocol: t.aiConfig.framework,
+    }]))
+  );
+  const [defaultPkg, setDefaultPkg] = useState("langchain");
+  const pkg = AGENT_PACKAGES.find(p => p.id === activePkg)!;
 
-  const codeMap: Record<typeof codeTab, string> = {
-    system: fw.systemFormat,
-    call: fw.toolCallFormat,
-    result: fw.toolResultFormat,
-  };
-
-  const PIPELINE_STEPS = [
-    { label: "Task prompt", icon: "💬", color: "#8b949e" },
-    { label: "LLM API call", icon: "⬡", color: "#58a6ff" },
-    { label: "Parse tool call", icon: "⚙", color: "#e3b341" },
-    { label: "Execute tool", icon: "▶", color: fw.color },
-    { label: "Inject result", icon: "↩", color: "#3fb950" },
-    { label: "Loop / done", icon: "⟳", color: "#bc8cff" },
+  const ARCH_LAYERS = [
+    { label: "Task Input", sub: "user prompt + context + history", color: "#8b949e", icon: "💬" },
+    { label: "Agent Framework", sub: pkg.name + " — orchestration loop, memory, tools", color: pkg.color, icon: pkg.logo },
+    { label: "Tool Calling Protocol", sub: pkg.protocols.map(p => AGENT_FRAMEWORKS.find(f => f.id === p)?.name).join(" / "), color: "#e3b341", icon: "⬡" },
+    { label: "LLM Provider API", sub: "OpenAI / Anthropic / Together AI / Ollama", color: "#58a6ff", icon: "◈" },
+    { label: "Tool Executor", sub: "shell · file_read · file_write · browser · deploy", color: "#3fb950", icon: "▶" },
   ];
 
-  const FRAMEWORK_MODELS: Record<AgentFrameworkId, string[]> = {
-    "replit": ["Any model"],
-    "hermes": ["Hermes 3 405B", "Hermes 3 70B", "Hermes 3 8B", "Hermes 2 Pro"],
-    "openai-fn": ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1 Preview"],
-    "anthropic-tools": ["Claude 3.5 Sonnet", "Claude 3.5 Haiku", "Claude 3 Opus"],
-    "custom": ["Any model"],
+  const PKG_MODELS: Record<string, string[]> = {
+    "langchain":          ["GPT-4o", "GPT-4o mini", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "Hermes 3 70B"],
+    "vercel-ai":          ["GPT-4o", "GPT-4o mini", "Claude 3.5 Sonnet", "Claude 3.5 Haiku", "Gemini 1.5 Flash"],
+    "hermes-native":      ["Hermes 3 405B", "Hermes 3 70B", "Hermes 3 8B", "Hermes 2 Pro"],
+    "openai-assistants":  ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo"],
+    "crewai":             ["GPT-4o", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "Llama 3.1 70B"],
+    "autogen":            ["GPT-4o", "GPT-4o mini", "Claude 3.5 Sonnet"],
   };
+
+  const highlightCode = (code: string, color: string) =>
+    code
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/(\/\/ .*)/g, '<span style="color:#484f58;font-style:italic">$1</span>')
+      .replace(/(#.*)/g, '<span style="color:#484f58;font-style:italic">$1</span>')
+      .replace(/\b(import|from|const|let|async|await|new|return|while|if|break|for|of|true|false|class)\b/g, `<span style="color:${color}">$1</span>`)
+      .replace(/("[^"]*")/g, '<span style="color:#a5d6ff">$1</span>')
+      .replace(/(`[^`]*`)/g, '<span style="color:#a5d6ff">$1</span>')
+      .replace(/(&lt;\/?[\w_]+&gt;)/g, `<span style="color:#bc8cff">$1</span>`);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
       {/* Header */}
       <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>Agent Configuration</div>
-        <div style={{ fontSize: 12, color: "#8b949e" }}>
-          Choose how AI API calls are orchestrated into agents. Each task can use a different framework and model.
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>Agent = Package</div>
+        <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.6 }}>
+          An agent is not just a prompt — it's a software package: an orchestration loop, tool registry, memory management, and error handling.
+          The LLM API is just one layer. Pick the framework package that fits your stack.
         </div>
       </div>
 
-      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 24 }}>
 
-        {/* ── Pipeline diagram ── */}
+        {/* ── Architecture Stack ── */}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12, fontSize: 11 }}>
-            API → Agent Pipeline
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
+            Agent Architecture Stack
           </div>
-          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 10, padding: "16px 20px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto" }}>
-              {PIPELINE_STEPS.map((step, i) => (
-                <div key={step.label} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: `${step.color}18`, border: `1.5px solid ${step.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                      {step.icon}
-                    </div>
-                    <span style={{ fontSize: 10, color: "#8b949e", textAlign: "center", lineHeight: 1.3 }}>{step.label}</span>
+          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 10, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 0 }}>
+            {ARCH_LAYERS.map((layer, i) => (
+              <div key={layer.label}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: `${layer.color}18`, border: `1.5px solid ${layer.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                    {layer.icon}
                   </div>
-                  {i < PIPELINE_STEPS.length - 1 && (
-                    <div style={{ width: 28, height: 1.5, background: `linear-gradient(90deg, ${step.color}44, ${PIPELINE_STEPS[i + 1].color}44)`, flexShrink: 0, margin: "0 2px", marginBottom: 20 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: layer.color }}>{layer.label}</div>
+                    <div style={{ fontSize: 11, color: "#484f58", marginTop: 1 }}>{layer.sub}</div>
+                  </div>
+                  {i === 1 && (
+                    <span style={{ background: `${pkg.color}18`, border: `1px solid ${pkg.color}44`, borderRadius: 6, fontSize: 10, color: pkg.color, padding: "2px 8px" }}>
+                      selected: {pkg.name}
+                    </span>
                   )}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Framework selector ── */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
-            Framework
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {AGENT_FRAMEWORKS.map(f => (
-              <div key={f.id}
-                onClick={() => setActiveFramework(f.id)}
-                style={{ background: activeFramework === f.id ? f.bg : "#161b22", border: `1.5px solid ${activeFramework === f.id ? f.color : "#21262d"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { if (activeFramework !== f.id) (e.currentTarget as HTMLElement).style.borderColor = `${f.color}55`; }}
-                onMouseLeave={e => { if (activeFramework !== f.id) (e.currentTarget as HTMLElement).style.borderColor = "#21262d"; }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: `${f.color}22`, border: `1px solid ${f.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: f.color, fontWeight: 800 }}>
-                    {f.logo}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: activeFramework === f.id ? "#e1e4e8" : "#8b949e" }}>{f.name}</div>
-                    {f.native && <div style={{ fontSize: 10, color: f.color, background: `${f.color}18`, borderRadius: 3, padding: "0 5px", display: "inline-block", marginTop: 1 }}>native tokens</div>}
-                  </div>
-                </div>
-                <div style={{ fontSize: 10, color: "#484f58", lineHeight: 1.4 }}>{f.tagline}</div>
-                {activeFramework === f.id && defaultFramework !== f.id && (
-                  <button onClick={e => { e.stopPropagation(); setDefaultFramework(f.id); }}
-                    style={{ marginTop: 8, width: "100%", background: `${f.color}22`, border: `1px solid ${f.color}44`, borderRadius: 5, color: f.color, fontSize: 10, padding: "4px 0", cursor: "pointer", fontFamily: "inherit" }}>
-                    Set as default
-                  </button>
-                )}
-                {defaultFramework === f.id && (
-                  <div style={{ marginTop: 8, fontSize: 10, color: f.color, display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 8 }}>●</span> Default
+                {i < ARCH_LAYERS.length - 1 && (
+                  <div style={{ display: "flex", alignItems: "center", paddingLeft: 15 }}>
+                    <div style={{ width: 2, height: 14, background: `linear-gradient(${layer.color}44, ${ARCH_LAYERS[i+1].color}44)` }} />
+                    <span style={{ marginLeft: 8, fontSize: 9, color: "#484f58" }}>↓</span>
                   </div>
                 )}
               </div>
@@ -1804,120 +1782,175 @@ function AgentConfigPage() {
           </div>
         </div>
 
-        {/* ── Selected framework detail ── */}
-        <div style={{ background: "#161b22", border: `1px solid ${fw.color}33`, borderRadius: 10, overflow: "hidden" }}>
-          {/* Header */}
+        {/* ── Package cards ── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
+            Framework Packages
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {AGENT_PACKAGES.map(p => (
+              <div key={p.id} onClick={() => setActivePkg(p.id)}
+                style={{ background: activePkg === p.id ? p.bg : "#161b22", border: `1.5px solid ${activePkg === p.id ? p.color : "#21262d"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer" }}
+                onMouseEnter={e => { if (activePkg !== p.id) (e.currentTarget as HTMLElement).style.borderColor = `${p.color}44`; }}
+                onMouseLeave={e => { if (activePkg !== p.id) (e.currentTarget as HTMLElement).style.borderColor = "#21262d"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 6, background: `${p.color}22`, border: `1px solid ${p.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: p.color, fontWeight: 800, flexShrink: 0 }}>
+                    {p.logo}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: activePkg === p.id ? "#e1e4e8" : "#c9d1d9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{p.name}</div>
+                    <div style={{ fontSize: 9, color: "#484f58" }}>{p.stars} · {p.language === "ts" ? "TypeScript" : p.language === "py" ? "Python" : "TS + Python"}</div>
+                  </div>
+                  {defaultPkg === p.id && <span style={{ fontSize: 8, color: p.color }}>● default</span>}
+                </div>
+                <div style={{ fontSize: 10, color: "#484f58", lineHeight: 1.4 }}>{p.tagline}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Selected package detail ── */}
+        <div style={{ background: "#161b22", border: `1px solid ${pkg.color}33`, borderRadius: 10, overflow: "hidden" }}>
+          {/* Package header */}
           <div style={{ padding: "14px 18px", borderBottom: "1px solid #21262d", display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: `${fw.color}22`, border: `1px solid ${fw.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: fw.color, fontWeight: 800, flexShrink: 0 }}>
-              {fw.logo}
+            <div style={{ width: 38, height: 38, borderRadius: 9, background: `${pkg.color}22`, border: `1px solid ${pkg.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: pkg.color, fontWeight: 800, flexShrink: 0 }}>
+              {pkg.logo}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "#e1e4e8" }}>{fw.name}</span>
-                {fw.native && <span style={{ background: `${fw.color}22`, border: `1px solid ${fw.color}44`, borderRadius: 10, fontSize: 10, color: fw.color, padding: "1px 7px" }}>native tokens</span>}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" as const }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#e1e4e8" }}>{pkg.name}</span>
+                <span style={{ background: "#21262d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "1px 6px", fontFamily: "monospace" }}>{pkg.stars}</span>
+                <span style={{ background: pkg.language === "py" ? "#3a7a5022" : "#1f6feb22", border: `1px solid ${pkg.language === "py" ? "#3a7a5044" : "#1f6feb44"}`, borderRadius: 4, fontSize: 10, color: pkg.language === "py" ? "#3fb950" : "#58a6ff", padding: "1px 6px" }}>
+                  {pkg.language === "ts" ? "TypeScript" : pkg.language === "py" ? "Python" : "TS + Python"}
+                </span>
               </div>
-              <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.5 }}>{fw.description}</div>
+              <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.5, marginBottom: 8 }}>{pkg.description}</div>
+              {/* Install command */}
+              <div style={{ background: "#0e1117", border: "1px solid #30363d", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: "#484f58", fontSize: 11 }}>$</span>
+                <code style={{ fontSize: 11, color: `${pkg.color}`, fontFamily: "'Fira Code', monospace", flex: 1 }}>{pkg.install}</code>
+                <button style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer", fontSize: 11 }}>⎘</button>
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-            {/* Left: code format */}
+          <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 0 }}>
+            {/* Left: code snippet */}
             <div style={{ borderRight: "1px solid #21262d" }}>
-              <div style={{ display: "flex", borderBottom: "1px solid #21262d" }}>
-                {(["system", "call", "result"] as const).map(tab => (
-                  <button key={tab} onClick={() => setCodeTab(tab)}
-                    style={{ flex: 1, padding: "8px 0", background: codeTab === tab ? "#0e1117" : "transparent", border: "none", borderBottom: codeTab === tab ? `2px solid ${fw.color}` : "2px solid transparent", color: codeTab === tab ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>
-                    {tab === "system" ? "System prompt" : tab === "call" ? "Tool call" : "Tool result"}
-                  </button>
-                ))}
+              <div style={{ padding: "8px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 500 }}>agent.{pkg.language === "py" ? "py" : "ts"}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "#484f58" }}>complete agent implementation</span>
               </div>
-              <pre style={{ margin: 0, padding: "12px 14px", fontFamily: "'Fira Code', monospace", fontSize: 10.5, color: "#8b949e", lineHeight: 1.6, background: "#0e1117", overflowX: "auto", maxHeight: 220 }}>
-                <code dangerouslySetInnerHTML={{ __html: codeMap[codeTab]
-                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-                  .replace(/(".*?")/g, '<span style="color:#a5d6ff">$1</span>')
-                  .replace(/(&lt;\/?[\w_]+&gt;)/g, `<span style="color:${fw.color}">$1</span>`)
-                  .replace(/(\/\/ .*)/g, '<span style="color:#484f58">$1</span>')
-                }} />
-              </pre>
+              <div style={{ position: "relative" as const, maxHeight: 360, overflow: "auto" }}>
+                <pre style={{ margin: 0, padding: "14px 16px", fontFamily: "'Fira Code', monospace", fontSize: 10.5, color: "#8b949e", lineHeight: 1.65, background: "#0a0d11" }}>
+                  <code dangerouslySetInnerHTML={{ __html: highlightCode(pkg.codeSnippet, pkg.color) }} />
+                </pre>
+              </div>
             </div>
 
-            {/* Right: loop steps + pros */}
-            <div style={{ padding: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Execution loop</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-                {fw.loopSteps.map((step, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: `${fw.color}22`, border: `1px solid ${fw.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: fw.color, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-                    <span style={{ fontSize: 12, color: i === fw.loopSteps.length - 1 ? fw.color : "#8b949e" }}>{step}</span>
-                    {i < fw.loopSteps.length - 1 && <div style={{ width: 1, height: 8, background: `${fw.color}33`, position: "absolute", marginLeft: 9, marginTop: 22 }} />}
-                  </div>
-                ))}
+            {/* Right: layers + capabilities + packages */}
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Internal layers */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Package Layers</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {pkg.layers.map((layer, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8 }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, background: `${pkg.color}22`, border: `1px solid ${pkg.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: pkg.color, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: "#c9d1d9" }}>{layer.name}</div>
+                        <div style={{ fontSize: 10, color: "#484f58", lineHeight: 1.3 }}>{layer.detail}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Supported models</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {FRAMEWORK_MODELS[fw.id].map(m => (
-                  <span key={m} style={{ background: `${fw.color}11`, border: `1px solid ${fw.color}33`, borderRadius: 4, fontSize: 10, color: fw.color, padding: "2px 7px" }}>{m}</span>
-                ))}
+
+              {/* npm packages */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>npm packages</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {pkg.pkgs.map(p => (
+                    <code key={p} style={{ fontSize: 10, color: pkg.color, background: `${pkg.color}0d`, border: `1px solid ${pkg.color}22`, borderRadius: 4, padding: "2px 7px", fontFamily: "'Fira Code', monospace", display: "block" }}>{p}</code>
+                  ))}
+                </div>
               </div>
-              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {fw.pros.map(p => (
-                  <span key={p} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "2px 7px" }}>✓ {p}</span>
-                ))}
+
+              {/* Capabilities */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Capabilities</div>
+                <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 5 }}>
+                  {pkg.capabilities.map(c => (
+                    <span key={c} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "2px 7px" }}>✓ {c}</span>
+                  ))}
+                </div>
               </div>
+
+              {/* Set as default */}
+              {defaultPkg !== pkg.id ? (
+                <button onClick={() => setDefaultPkg(pkg.id)}
+                  style={{ background: `${pkg.color}18`, border: `1px solid ${pkg.color}44`, borderRadius: 6, color: pkg.color, fontSize: 11, padding: "6px 0", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
+                  ★ Set as default framework
+                </button>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: `${pkg.color}11`, border: `1px solid ${pkg.color}33`, borderRadius: 6 }}>
+                  <span style={{ fontSize: 8, color: pkg.color }}>●</span>
+                  <span style={{ fontSize: 11, color: pkg.color, fontWeight: 500 }}>Default framework</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── Per-task config ── */}
+        {/* ── Per-task configuration ── */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
             Per-task Configuration
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {PAST_TASKS.map(task => {
               const cfg = taskConfigs[task.id];
-              const taskFw = AGENT_FRAMEWORKS.find(f => f.id === cfg.framework)!;
+              const taskPkg = AGENT_PACKAGES.find(p => p.id === cfg.pkg) || AGENT_PACKAGES[0];
               const isEditing = editingTask === task.id;
               return (
-                <div key={task.id} style={{ background: "#161b22", border: `1px solid ${isEditing ? taskFw.color + "55" : "#21262d"}`, borderRadius: 8, overflow: "hidden" }}>
+                <div key={task.id} style={{ background: "#161b22", border: `1px solid ${isEditing ? taskPkg.color + "55" : "#21262d"}`, borderRadius: 8, overflow: "hidden" }}>
                   <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
                     onClick={() => setEditingTask(isEditing ? null : task.id)}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3fb950", flexShrink: 0 }} />
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 13, color: "#e1e4e8" }}>{task.title}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {/* Framework badge */}
-                      <span style={{ background: `${taskFw.color}18`, border: `1px solid ${taskFw.color}44`, borderRadius: 10, fontSize: 10, color: taskFw.color, padding: "2px 8px" }}>
-                        {taskFw.logo} {taskFw.name}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <span style={{ background: `${taskPkg.color}18`, border: `1px solid ${taskPkg.color}44`, borderRadius: 10, fontSize: 10, color: taskPkg.color, padding: "1px 7px" }}>
+                        {taskPkg.logo} {taskPkg.name}
                       </span>
-                      {/* Model badge */}
-                      <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 10, fontSize: 10, color: "#8b949e", padding: "2px 8px" }}>
-                        {cfg.modelName}
+                      <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 10, fontSize: 10, color: "#8b949e", padding: "1px 7px" }}>
+                        {cfg.model}
                       </span>
                       <span style={{ color: "#484f58", fontSize: 11 }}>{isEditing ? "▾" : "▸"}</span>
                     </div>
                   </div>
 
                   {isEditing && (
-                    <div style={{ padding: "12px 14px", borderTop: "1px solid #21262d", background: "#0e1117", display: "flex", gap: 20, alignItems: "flex-start" }}>
-                      {/* Framework selector */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 8 }}>Agent Framework</div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {AGENT_FRAMEWORKS.map(f => (
-                            <button key={f.id} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], framework: f.id } }))}
-                              style={{ background: cfg.framework === f.id ? `${f.color}22` : "#21262d", border: `1px solid ${cfg.framework === f.id ? f.color : "#30363d"}`, borderRadius: 6, padding: "5px 11px", fontSize: 11, color: cfg.framework === f.id ? f.color : "#8b949e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
-                              <span style={{ fontWeight: 700 }}>{f.logo}</span> {f.name}
+                    <div style={{ padding: "14px 14px", borderTop: "1px solid #21262d", background: "#0e1117" }}>
+                      {/* Package row */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>Framework Package</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                          {AGENT_PACKAGES.map(p => (
+                            <button key={p.id} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], pkg: p.id, model: PKG_MODELS[p.id]?.[0] || cfg.model } }))}
+                              style={{ background: cfg.pkg === p.id ? `${p.color}22` : "#161b22", border: `1px solid ${cfg.pkg === p.id ? p.color : "#30363d"}`, borderRadius: 6, padding: "5px 11px", fontSize: 11, color: cfg.pkg === p.id ? p.color : "#8b949e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                              <span>{p.logo}</span> {p.name}
                             </button>
                           ))}
                         </div>
                       </div>
-                      {/* Model selector */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 8 }}>Model</div>
-                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          {FRAMEWORK_MODELS[cfg.framework].map(m => (
-                            <button key={m} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], modelName: m } }))}
-                              style={{ background: cfg.modelName === m ? `${taskFw.color}22` : "#21262d", border: `1px solid ${cfg.modelName === m ? taskFw.color : "#30363d"}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: cfg.modelName === m ? taskFw.color : "#8b949e", cursor: "pointer", fontFamily: "inherit" }}>
+                      {/* Model row */}
+                      <div>
+                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>Model</div>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
+                          {(PKG_MODELS[cfg.pkg] || PKG_MODELS["langchain"]).map(m => (
+                            <button key={m} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], model: m } }))}
+                              style={{ background: cfg.model === m ? `${taskPkg.color}22` : "#161b22", border: `1px solid ${cfg.model === m ? taskPkg.color : "#30363d"}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: cfg.model === m ? taskPkg.color : "#8b949e", cursor: "pointer", fontFamily: "inherit" }}>
                               {m}
                             </button>
                           ))}
@@ -1935,6 +1968,389 @@ function AgentConfigPage() {
     </div>
   );
 }
+
+// ─── AGENT PACKAGES ───────────────────────────────────────────────────────────
+
+type AgentPackage = {
+  id: string; name: string; color: string; bg: string; logo: string;
+  tagline: string; description: string; install: string; language: "ts" | "py" | "both";
+  pkgs: string[]; stars: string;
+  codeSnippet: string;
+  protocols: AgentFrameworkId[];
+  capabilities: string[];
+  layers: { name: string; detail: string }[];
+};
+
+const AGENT_PACKAGES: AgentPackage[] = [
+  {
+    id: "langchain",
+    name: "LangChain",
+    color: "#1db954",
+    bg: "#071410",
+    logo: "🦜",
+    tagline: "Provider-agnostic chains & agents",
+    description: "The most widely-used agent framework. Ships with tool abstractions, memory backends, RAG chains, and a massive ecosystem of integrations.",
+    install: "npm install langchain @langchain/core @langchain/openai",
+    language: "both",
+    pkgs: ["langchain", "@langchain/core", "@langchain/openai", "@langchain/anthropic", "@langchain/community"],
+    stars: "96k ★",
+    codeSnippet: `import { ChatOpenAI } from "@langchain/openai";
+import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
+import { DynamicTool } from "@langchain/core/tools";
+import { BufferMemory } from "langchain/memory";
+
+// 1. LLM backend
+const llm = new ChatOpenAI({ model: "gpt-4o", temperature: 0 });
+
+// 2. Tool registry
+const tools = [
+  new DynamicTool({
+    name: "shell",
+    description: "Run a shell command and return output",
+    func: async (cmd: string) => exec(cmd).toString(),
+  }),
+  new DynamicTool({
+    name: "write_file",
+    description: "Write content to a file. Input: 'path|content'",
+    func: async (input: string) => {
+      const [path, content] = input.split("|");
+      fs.writeFileSync(path, content);
+      return "Written: " + path;
+    },
+  }),
+];
+
+// 3. Memory
+const memory = new BufferMemory({ memoryKey: "chat_history" });
+
+// 4. Orchestration loop (built into AgentExecutor)
+const agent = await createOpenAIFunctionsAgent({ llm, tools, prompt });
+const executor = new AgentExecutor({ agent, tools, memory, maxIterations: 15 });
+
+// 5. Run
+const result = await executor.invoke({ input: "Build a REST API with auth" });
+console.log(result.output);`,
+    protocols: ["openai-fn", "anthropic-tools"],
+    capabilities: ["Memory", "RAG chains", "Multi-agent", "Streaming", "LangSmith tracing", "Tool calling", "Structured output"],
+    layers: [
+      { name: "Orchestration", detail: "AgentExecutor runs the plan→act→observe loop" },
+      { name: "Tool Registry", detail: "DynamicTool / StructuredTool with JSON schema" },
+      { name: "Memory", detail: "BufferMemory / ConversationSummaryMemory / VectorStoreMemory" },
+      { name: "LLM Interface", detail: "ChatOpenAI / ChatAnthropic / ChatGoogleGenerativeAI" },
+    ],
+  },
+  {
+    id: "vercel-ai",
+    name: "Vercel AI SDK",
+    color: "#e1e4e8",
+    bg: "#0d0f12",
+    logo: "▲",
+    tagline: "Type-safe streaming agents for TypeScript",
+    description: "Vercel's modern AI SDK. Best-in-class streaming with RSC, Zod-typed tool parameters, multi-step agent loops, and React hooks out of the box.",
+    install: "npm install ai @ai-sdk/openai zod",
+    language: "ts",
+    pkgs: ["ai", "@ai-sdk/openai", "@ai-sdk/anthropic", "@ai-sdk/google", "zod"],
+    stars: "13k ★",
+    codeSnippet: `import { generateText, tool, type CoreMessage } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+import { execSync } from "child_process";
+import { readFileSync, writeFileSync } from "fs";
+
+// 1. Zod-typed tool definitions (the "package" of capabilities)
+const agentTools = {
+  shell: tool({
+    description: "Run a shell command",
+    parameters: z.object({ cmd: z.string().describe("Shell command to execute") }),
+    execute: async ({ cmd }) => execSync(cmd, { encoding: "utf-8" }),
+  }),
+  readFile: tool({
+    description: "Read a file",
+    parameters: z.object({ path: z.string() }),
+    execute: async ({ path }) => readFileSync(path, "utf-8"),
+  }),
+  writeFile: tool({
+    description: "Write content to a file",
+    parameters: z.object({ path: z.string(), content: z.string() }),
+    execute: async ({ path, content }) => {
+      writeFileSync(path, content);
+      return "Saved: " + path;
+    },
+  }),
+};
+
+// 2. Multi-step agent loop (maxSteps handles the loop automatically)
+const { text, steps, toolCalls } = await generateText({
+  model: openai("gpt-4o"),
+  maxSteps: 20,           // auto-loops until done or max steps
+  tools: agentTools,
+  system: "You are a coding agent. Use tools to complete the task.",
+  prompt: "Build a REST API with JWT authentication",
+  onStepFinish: ({ toolCalls, toolResults }) => {
+    console.log("Step complete:", toolCalls, toolResults);
+  },
+});`,
+    protocols: ["openai-fn", "anthropic-tools"],
+    capabilities: ["Streaming RSC", "Type-safe Zod tools", "Multi-step loop", "React hooks (useChat)", "Edge runtime", "Structured output"],
+    layers: [
+      { name: "Orchestration", detail: "generateText/streamText with maxSteps auto-loops" },
+      { name: "Tool Registry", detail: "tool() with Zod schemas — fully type-safe" },
+      { name: "Streaming", detail: "Server-sent events, RSC, useChat / useCompletion hooks" },
+      { name: "LLM Interface", detail: "@ai-sdk/openai | @ai-sdk/anthropic | @ai-sdk/google" },
+    ],
+  },
+  {
+    id: "hermes-native",
+    name: "Hermes Native",
+    color: "#bc8cff",
+    bg: "#0e0818",
+    logo: "H",
+    tagline: "Raw loop + <tool_call> tokens — no framework",
+    description: "No framework at all. Hermes models are natively trained on tool calling tokens. Write the orchestration loop yourself in ~50 lines. Full control, zero overhead.",
+    install: "npm install openai  # via Together AI or any OpenAI-compatible endpoint",
+    language: "ts",
+    pkgs: ["openai"],
+    stars: "— (raw API)",
+    codeSnippet: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.together.xyz/v1",
+  apiKey: process.env.TOGETHER_API_KEY,
+});
+
+// 1. Tool definitions as JSON schema (in system prompt)
+const TOOLS = [
+  { name: "shell", description: "Run shell command",
+    parameters: { type: "object", properties: { cmd: { type: "string" } }, required: ["cmd"] } },
+  { name: "write_file", description: "Write a file",
+    parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path","content"] } },
+];
+
+const messages: any[] = [
+  { role: "system", content: \`<tools>\n\${JSON.stringify(TOOLS, null, 2)}\n</tools>\nYou are a coding agent.\` },
+  { role: "user", content: "Build a REST API with auth" },
+];
+
+// 2. Orchestration loop — YOU own this
+while (true) {
+  const res = await client.chat.completions.create({
+    model: "NousResearch/Hermes-3-Llama-3.1-405B-Turbo",
+    messages, temperature: 0, max_tokens: 4096,
+  });
+  const text = res.choices[0].message.content ?? "";
+  messages.push({ role: "assistant", content: text });
+
+  // 3. Parse native <tool_call> tokens
+  const match = text.match(/<tool_call>([\\s\\S]*?)<\\/tool_call>/);
+  if (!match) break; // no tool call → agent is done
+
+  const { name, arguments: args } = JSON.parse(match[1]);
+
+  // 4. Execute tool
+  const result = await executeTool(name, args);
+
+  // 5. Inject <tool_response> and loop
+  messages.push({ role: "user", content:
+    \`<tool_response>{"name":"\${name}","content":\${JSON.stringify(result)}}</tool_response>\` });
+}`,
+    protocols: ["hermes"],
+    capabilities: ["Native token format", "Zero overhead", "Full loop control", "Open weights", "Self-hostable", "Parallel tool calls"],
+    layers: [
+      { name: "Orchestration", detail: "Your own while-loop — full control" },
+      { name: "Tool Registry", detail: "Plain array of JSON Schema objects in system prompt" },
+      { name: "Protocol", detail: "Native <tool_call> / <tool_response> XML tokens" },
+      { name: "LLM Interface", detail: "OpenAI-compatible client → Together AI / vLLM / Ollama" },
+    ],
+  },
+  {
+    id: "openai-assistants",
+    name: "OpenAI Assistants",
+    color: "#3fb950",
+    bg: "#061410",
+    logo: "⊕",
+    tagline: "Managed threads, runs & built-in tools",
+    description: "OpenAI's managed agent infrastructure. Persistent threads handle context automatically. Built-in code interpreter, file search, and function calling with no loop to manage.",
+    install: "npm install openai",
+    language: "ts",
+    pkgs: ["openai"],
+    stars: "— (managed)",
+    codeSnippet: `import OpenAI from "openai";
+
+const openai = new OpenAI();
+
+// 1. Create assistant with tool package
+const assistant = await openai.beta.assistants.create({
+  name: "Coding Agent",
+  model: "gpt-4o",
+  instructions: "You are an expert coding agent. Complete tasks fully.",
+  tools: [
+    { type: "code_interpreter" },          // built-in: runs Python
+    { type: "file_search" },               // built-in: RAG over uploaded files
+    {
+      type: "function",                    // custom function tools
+      function: {
+        name: "shell",
+        description: "Run a shell command",
+        parameters: {
+          type: "object",
+          properties: { cmd: { type: "string" } },
+          required: ["cmd"],
+        },
+      },
+    },
+  ],
+});
+
+// 2. Thread = persistent conversation (auto context management)
+const thread = await openai.beta.threads.create();
+await openai.beta.threads.messages.create(thread.id, {
+  role: "user",
+  content: "Build a REST API with auth",
+});
+
+// 3. Run = OpenAI manages the loop
+const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
+  assistant_id: assistant.id,
+});
+
+// 4. Handle required_action (function tool calls)
+if (run.status === "requires_action") {
+  const toolOutputs = await Promise.all(
+    run.required_action!.submit_tool_outputs.tool_calls.map(async tc => ({
+      tool_call_id: tc.id,
+      output: await executeTool(tc.function.name, JSON.parse(tc.function.arguments)),
+    }))
+  );
+  await openai.beta.threads.runs.submitToolOutputsAndPoll(thread.id, run.id, { tool_outputs: toolOutputs });
+}`,
+    protocols: ["openai-fn"],
+    capabilities: ["Managed threads", "Auto context", "Code interpreter", "File search", "Persistent state", "Streaming runs"],
+    layers: [
+      { name: "Orchestration", detail: "OpenAI-managed run loop — no while-loop needed" },
+      { name: "Tool Registry", detail: "functions[] + built-in code_interpreter + file_search" },
+      { name: "Memory", detail: "Threads = persistent conversation, managed automatically" },
+      { name: "LLM Interface", detail: "OpenAI models only (gpt-4o, o1, etc.)" },
+    ],
+  },
+  {
+    id: "crewai",
+    name: "CrewAI",
+    color: "#f2cc60",
+    bg: "#141008",
+    logo: "⚓",
+    tagline: "Multi-agent crews with role-based delegation",
+    description: "Multi-agent framework where specialized agents collaborate in crews. Define a Coder, Reviewer, and Tester — each with their own LLM, tools, and goal.",
+    install: "pip install crewai crewai-tools",
+    language: "py",
+    pkgs: ["crewai", "crewai-tools", "langchain-openai", "langchain-anthropic"],
+    stars: "25k ★",
+    codeSnippet: `from crewai import Agent, Task, Crew, Process
+from crewai_tools import FileReadTool, FileWriterTool, CodeInterpreterTool
+
+# 1. Define specialized agents (each is its own LLM + tools package)
+coder = Agent(
+  role="Senior Software Engineer",
+  goal="Write clean, production-ready TypeScript code",
+  backstory="10 years building Node.js APIs. Expert in Express and JWT.",
+  tools=[CodeInterpreterTool(), FileWriterTool()],
+  llm="gpt-4o",
+  verbose=True,
+  allow_delegation=True,
+)
+
+reviewer = Agent(
+  role="Code Reviewer & Security Auditor",
+  goal="Ensure code quality, security, and test coverage",
+  backstory="Former FAANG security engineer. Zero tolerance for vulnerabilities.",
+  tools=[FileReadTool()],
+  llm="claude-3-5-sonnet-20241022",
+)
+
+# 2. Define tasks
+build = Task(
+  description="Build a complete REST API with JWT auth in TypeScript",
+  expected_output="Working src/ directory with all route handlers and tests",
+  agent=coder,
+)
+review = Task(
+  description="Review the code for security issues and suggest fixes",
+  expected_output="Security report + fixed code if issues found",
+  agent=reviewer,
+  context=[build],   # reviewer gets coder's output
+)
+
+# 3. Crew = orchestrated multi-agent system
+crew = Crew(
+  agents=[coder, reviewer],
+  tasks=[build, review],
+  process=Process.sequential,   # or Process.hierarchical
+  memory=True,
+  verbose=True,
+)
+result = crew.kickoff()`,
+    protocols: ["openai-fn", "anthropic-tools"],
+    capabilities: ["Multi-agent", "Role-based", "Task context passing", "Process.sequential/hierarchical", "Memory", "Delegation"],
+    layers: [
+      { name: "Orchestration", detail: "Crew.kickoff() — sequential or hierarchical process" },
+      { name: "Agent Layer", detail: "Each Agent has its own LLM, tools, goal, memory" },
+      { name: "Task Graph", detail: "Tasks with context[] — outputs flow between agents" },
+      { name: "LLM Interface", detail: "Any LangChain-supported LLM per agent" },
+    ],
+  },
+  {
+    id: "autogen",
+    name: "AutoGen",
+    color: "#58a6ff",
+    bg: "#060e1a",
+    logo: "◈",
+    tagline: "Microsoft: conversational multi-agent + code exec",
+    description: "Microsoft's framework for building multi-agent conversations. Human-in-the-loop, automated code execution, and nested conversations between specialized agents.",
+    install: "pip install autogen-agentchat autogen-ext[openai]",
+    language: "py",
+    pkgs: ["autogen-agentchat", "autogen-ext[openai]", "autogen-ext[anthropic]"],
+    stars: "39k ★",
+    codeSnippet: `from autogen_agentchat.agents import AssistantAgent, CodeExecutorAgent
+from autogen_agentchat.teams import RoundRobinGroupChat, SelectorGroupChat
+from autogen_agentchat.conditions import MaxMessageTermination
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
+# 1. LLM client
+model = OpenAIChatCompletionClient(model="gpt-4o", temperature=0)
+
+# 2. Specialized agents — each is a full sub-package
+assistant = AssistantAgent(
+  name="coding_assistant",
+  model_client=model,
+  system_message="""You are a senior software engineer.
+Write code and use the code executor to run it.
+Always verify your code works before reporting done.""",
+)
+
+executor = CodeExecutorAgent(
+  name="code_executor",
+  code_executor=LocalCommandLineCodeExecutor(work_dir="./workspace"),
+)
+
+# 3. Team = orchestrated group conversation
+team = RoundRobinGroupChat(
+  participants=[assistant, executor],
+  termination_condition=MaxMessageTermination(max_messages=20),
+)
+
+# 4. Run the multi-agent task
+async for message in team.run_stream(task="Build a REST API with auth"):
+  print(f"[{message.source}]: {message.content}")`,
+    protocols: ["openai-fn"],
+    capabilities: ["Multi-agent chat", "Code executor", "Human-in-loop", "Group orchestration", "Streaming", "Nested conversations"],
+    layers: [
+      { name: "Orchestration", detail: "RoundRobinGroupChat / SelectorGroupChat team loop" },
+      { name: "Agent Layer", detail: "AssistantAgent + CodeExecutorAgent + UserProxyAgent" },
+      { name: "Code Execution", detail: "LocalCommandLineCodeExecutor / DockerCommandLineExecutor" },
+      { name: "LLM Interface", detail: "OpenAIChatCompletionClient / AnthropicChatCompletionClient" },
+    ],
+  },
+];
 
 // ─── BUTTON STYLES ────────────────────────────────────────────────────────────
 
