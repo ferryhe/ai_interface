@@ -1517,6 +1517,203 @@ function btnStyle(bg: string, color = "#8b949e", border = "#30363d"): React.CSSP
 }
 const iconBtn: React.CSSProperties = { background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 13, padding: "2px 4px" };
 
+// ─── STATUS BAR ────────────────────────────────────────────────────────────────
+
+type Metrics = { cpu: number; ram: number; netUp: number; netDown: number; ping: number };
+
+function MiniSparkline({ value, color }: { value: number; color: string }) {
+  const bars = [value * 0.6, value * 0.8, value * 0.5, value * 0.9, value * 0.7, value];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 1, height: 10, verticalAlign: "middle" }}>
+      {bars.map((h, i) => (
+        <span key={i} style={{ width: 2, background: color, borderRadius: 1, height: `${Math.max(2, (h / 100) * 10)}px`, opacity: 0.5 + i * 0.08 }} />
+      ))}
+    </span>
+  );
+}
+
+function StatusBar({ metrics, running, errors, warnings, activePanel, setActivePanel, visiblePanels }:
+  { metrics: Metrics; running: boolean; errors: number; warnings: number; activePanel: PanelId; setActivePanel: (p: PanelId) => void; visiblePanels: PanelId[] }
+) {
+  const s: React.CSSProperties = { display: "flex", alignItems: "center", gap: 2, padding: "0 8px", height: "100%", cursor: "pointer", borderRadius: 2, fontSize: 11, color: "#8b949e", whiteSpace: "nowrap" as const };
+  const sep = <span style={{ color: "#21262d", margin: "0 2px" }}>│</span>;
+
+  return (
+    <div style={{ height: 22, background: "#0d1117", borderTop: "1px solid #21262d", display: "flex", alignItems: "center", flexShrink: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
+      {/* Left cluster */}
+      <div style={{ display: "flex", alignItems: "center", height: "100%", borderRight: "1px solid #21262d", paddingRight: 4 }}>
+        {/* Git branch */}
+        <div style={s} onClick={() => setActivePanel("git")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span style={{ color: "#3fb950" }}>⎇</span>&nbsp;main
+        </div>
+        {sep}
+        {/* Errors / warnings */}
+        <div style={{ ...s, color: errors > 0 ? "#f85149" : "#8b949e" }} onClick={() => setActivePanel("console")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span style={{ color: errors > 0 ? "#f85149" : "#484f58" }}>✗</span>&nbsp;{errors}
+          &nbsp;<span style={{ color: warnings > 0 ? "#f2cc60" : "#484f58" }}>⚠</span>&nbsp;{warnings}
+        </div>
+        {sep}
+        {/* Language */}
+        <div style={{ ...s, color: "#58a6ff" }}>TypeScript</div>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Right cluster — resource metrics */}
+      <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+        {/* Run status */}
+        <div style={{ ...s, color: running ? "#3fb950" : "#484f58", paddingLeft: 10 }}>
+          <span style={{ fontSize: 8, marginRight: 4, color: running ? "#3fb950" : "#484f58" }}>●</span>
+          {running ? "Running" : "Stopped"}
+        </div>
+        {sep}
+
+        {/* CPU */}
+        <div style={s} title="CPU usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span title="CPU">⬡</span>&nbsp;
+          <span style={{ color: metrics.cpu > 70 ? "#f85149" : metrics.cpu > 40 ? "#f2cc60" : "#8b949e" }}>{metrics.cpu.toFixed(0)}%</span>
+          &nbsp;<MiniSparkline value={metrics.cpu} color={metrics.cpu > 70 ? "#f85149" : metrics.cpu > 40 ? "#f2cc60" : "#3fb950"} />
+        </div>
+        {sep}
+
+        {/* RAM */}
+        <div style={s} title="Memory usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span>▣</span>&nbsp;
+          <span style={{ color: metrics.ram > 80 ? "#f85149" : "#8b949e" }}>{(metrics.ram * 5.12).toFixed(0)} MB</span>
+          &nbsp;<MiniSparkline value={metrics.ram} color="#58a6ff" />
+        </div>
+        {sep}
+
+        {/* Network */}
+        <div style={s} title="Network I/O" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span style={{ color: "#3fb950" }}>↑</span>&nbsp;<span>{metrics.netUp.toFixed(1)}&nbsp;KB/s</span>
+          &nbsp;<span style={{ color: "#58a6ff" }}>↓</span>&nbsp;<span>{metrics.netDown.toFixed(1)}&nbsp;KB/s</span>
+        </div>
+        {sep}
+
+        {/* Disk */}
+        <div style={s} title="Disk usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span>◫</span>&nbsp;2.3&nbsp;GB
+        </div>
+        {sep}
+
+        {/* Connection / ping */}
+        <div style={{ ...s, color: "#3fb950" }} title="Connection status" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+          <span style={{ fontSize: 8 }}>●</span>&nbsp;{metrics.ping}&nbsp;ms
+        </div>
+        {sep}
+
+        {/* Cursor pos */}
+        <div style={s}>Ln&nbsp;13,&nbsp;Col&nbsp;8</div>
+        {sep}
+
+        {/* Encoding */}
+        <div style={s}>UTF-8</div>
+        {sep}
+
+        {/* Indentation */}
+        <div style={s}>Spaces:&nbsp;2</div>
+        {sep}
+
+        {/* Line endings */}
+        <div style={{ ...s, paddingRight: 12 }}>LF</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MINIMAP ───────────────────────────────────────────────────────────────────
+
+function Minimap({ code }: { code: string }) {
+  const lines = code.split("\n");
+  return (
+    <div style={{ width: 60, background: "#0a0d11", borderLeft: "1px solid #21262d", overflow: "hidden", flexShrink: 0, opacity: 0.7 }}>
+      {lines.map((line, i) => {
+        const indent = line.match(/^(\s*)/)?.[1].length || 0;
+        const content = line.trim();
+        return (
+          <div key={i} style={{ height: 3, paddingLeft: indent * 1.2, display: "flex", alignItems: "center" }}>
+            {content && (
+              <div style={{
+                height: 1.5,
+                width: Math.min(content.length * 1.4, 50 - indent * 1.2),
+                background: content.startsWith("//") ? "#484f58" :
+                  /^(import|export|const|let|return|router)/.test(content) ? "#ff7b72" :
+                  /^(\{|\})/.test(content) ? "#e3b341" :
+                  "#8b949e",
+                borderRadius: 1,
+                opacity: 0.7,
+              }} />
+            )}
+          </div>
+        );
+      })}
+      {/* Viewport indicator */}
+      <div style={{ position: "absolute" as const, top: 8, right: 0, width: 60, height: 60, background: "#58a6ff11", border: "1px solid #58a6ff22", pointerEvents: "none" }} />
+    </div>
+  );
+}
+
+// ─── LEFT ICON RAIL ────────────────────────────────────────────────────────────
+
+type RailItem = { icon: string; label: string; panel?: PanelId; action?: string };
+
+const RAIL_TOP: RailItem[] = [
+  { icon: "☰", label: "Files" },
+  { icon: "⌕", label: "Search", panel: "search" },
+  { icon: "⎇", label: "Source Control", panel: "git" },
+  { icon: "⬤", label: "Debugger", panel: "debugger" },
+  { icon: "⬡", label: "Packages", panel: "packages" },
+];
+const RAIL_BOTTOM: RailItem[] = [
+  { icon: "◫", label: "Database", panel: "database" },
+  { icon: "🔑", label: "Secrets", panel: "secrets" },
+  { icon: "↑", label: "Deploy", panel: "deploy" },
+];
+
+function LeftRail({ activePanel, setActivePanel, visiblePanels }:
+  { activePanel: PanelId; setActivePanel: (p: PanelId) => void; visiblePanels: PanelId[] }
+) {
+  const [tooltip, setTooltip] = useState<string | null>(null);
+  const railBtn = (item: RailItem) => {
+    const isActive = item.panel && item.panel === activePanel && visiblePanels.includes(item.panel);
+    return (
+      <div key={item.label} style={{ position: "relative" as const }}>
+        <div
+          onClick={() => item.panel && setActivePanel(item.panel)}
+          onMouseEnter={() => setTooltip(item.label)}
+          onMouseLeave={() => setTooltip(null)}
+          style={{
+            width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", fontSize: 16, color: isActive ? "#e1e4e8" : "#8b949e",
+            background: isActive ? "#21262d" : "transparent",
+            borderLeft: isActive ? "2px solid #f26522" : "2px solid transparent",
+            transition: "all 0.1s",
+          }}
+          onMouseDown={e => { (e.currentTarget as HTMLElement).style.color = "#e1e4e8"; }}
+        >
+          {item.icon}
+        </div>
+        {tooltip === item.label && (
+          <div style={{ position: "absolute" as const, left: 44, top: "50%", transform: "translateY(-50%)", background: "#30363d", border: "1px solid #444c56", borderRadius: 4, padding: "3px 8px", fontSize: 11, color: "#e1e4e8", whiteSpace: "nowrap" as const, zIndex: 100, pointerEvents: "none" }}>
+            {item.label}
+          </div>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div style={{ width: 40, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 4 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {RAIL_TOP.map(railBtn)}
+      </div>
+      <div style={{ paddingBottom: 8, display: "flex", flexDirection: "column" }}>
+        {RAIL_BOTTOM.map(railBtn)}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export function AIInterface() {
@@ -1527,6 +1724,24 @@ export function AIInterface() {
   const [chatInput, setChatInput] = useState("");
   const [customizingPanels, setCustomizingPanels] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<PanelId[]>(ALL_PANELS);
+  const [running, setRunning] = useState(true);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [notifCount] = useState(3);
+  const [metrics, setMetrics] = useState<Metrics>({ cpu: 14, ram: 48, netUp: 2.1, netDown: 0.4, ping: 12 });
+  const [cursorLine] = useState(13);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMetrics(prev => ({
+        cpu: Math.max(5, Math.min(95, prev.cpu + (Math.random() - 0.5) * 8)),
+        ram: Math.max(30, Math.min(90, prev.ram + (Math.random() - 0.5) * 4)),
+        netUp: Math.max(0, prev.netUp + (Math.random() - 0.5) * 1.2),
+        netDown: Math.max(0, prev.netDown + (Math.random() - 0.5) * 0.6),
+        ping: Math.max(8, Math.min(80, prev.ping + (Math.random() - 0.5) * 6)),
+      }));
+    }, 1800);
+    return () => clearInterval(id);
+  }, []);
 
   const onPanelDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1574,12 +1789,15 @@ export function AIInterface() {
     <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", background: "#0e1117", color: "#e1e4e8", fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: "hidden", userSelect: "none" }}>
 
       {/* TOP BAR */}
-      <div style={{ height: 48, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 4 }}>
+      <div style={{ height: 48, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 12px", gap: 10, flexShrink: 0 }}>
+        {/* Logo + project name */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2, flexShrink: 0 }}>
           <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #f26522, #f5a623)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>A</div>
           <span style={{ fontWeight: 600, fontSize: 14 }}>AI OS</span>
         </div>
-        <div style={{ width: 1, height: 20, background: "#21262d" }} />
+        <div style={{ width: 1, height: 20, background: "#21262d", flexShrink: 0 }} />
+
+        {/* Task chips */}
         <div style={{ display: "flex", gap: 6, overflowX: "auto", flex: 1, scrollbarWidth: "none" as const }}>
           {PREDEFINED_TASKS.map((task, i) => (
             <button key={i} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 20, padding: "4px 12px", color: "#8b949e", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" as const }}
@@ -1588,8 +1806,84 @@ export function AIInterface() {
             >{task}</button>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+
+        {/* Right controls */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+
+          {/* Fork button */}
+          <button style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", color: "#8b949e", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+            onMouseEnter={e => { (e.currentTarget.style.borderColor = "#58a6ff"); (e.currentTarget.style.color = "#58a6ff"); }}
+            onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}>
+            <span style={{ fontSize: 11 }}>⑂</span> Fork
+          </button>
+
+          {/* Share / Invite */}
+          <button style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", color: "#8b949e", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+            onMouseEnter={e => { (e.currentTarget.style.borderColor = "#3fb950"); (e.currentTarget.style.color = "#3fb950"); }}
+            onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}>
+            <span>⤡</span> Share
+          </button>
+
+          {/* Multiplayer avatars */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {[["#1f6feb","J"],["#3fb950","S"],["#bc8cff","M"]].map(([bg, initl], i) => (
+              <div key={i} style={{ width: 24, height: 24, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", cursor: "pointer", border: "2px solid #161b22", marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i, boxShadow: "0 0 0 1px #30363d" }}
+                title={`User ${initl}`}>{initl}</div>
+            ))}
+          </div>
+
+          <div style={{ width: 1, height: 20, background: "#21262d" }} />
+
+          {/* Run / Stop */}
+          <button
+            onClick={() => setRunning(r => !r)}
+            style={{ background: running ? "#1a3a1a" : "#0d3a1a", border: `1px solid ${running ? "#3fb95066" : "#3fb950"}`, borderRadius: 6, padding: "5px 14px", color: running ? "#f85149" : "#3fb950", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, minWidth: 80, justifyContent: "center" }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            {running ? <><span style={{ fontSize: 10 }}>■</span> Stop</> : <><span style={{ fontSize: 10 }}>▶</span> Run</>}
+          </button>
+
+          <div style={{ width: 1, height: 20, background: "#21262d" }} />
+
+          {/* Panels toggle */}
           <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ Panels</button>
+
+          {/* Notification bell */}
+          <div style={{ position: "relative" as const }}>
+            <button onClick={() => setShowNotifs(s => !s)} style={{ background: showNotifs ? "#21262d" : "transparent", border: showNotifs ? "1px solid #30363d" : "1px solid transparent", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b949e", fontSize: 15, cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+              onMouseLeave={e => { if (!showNotifs) e.currentTarget.style.background = "transparent"; }}>
+              🔔
+            </button>
+            {notifCount > 0 && (
+              <div style={{ position: "absolute" as const, top: 3, right: 3, width: 14, height: 14, background: "#f85149", borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, border: "2px solid #161b22", pointerEvents: "none" }}>{notifCount}</div>
+            )}
+            {showNotifs && (
+              <div style={{ position: "absolute" as const, right: 0, top: 36, width: 280, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 200, boxShadow: "0 8px 24px #00000066", overflow: "hidden" }}>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 12, fontWeight: 600, color: "#e1e4e8", display: "flex", justifyContent: "space-between" }}>
+                  Notifications <span style={{ color: "#8b949e", fontWeight: 400, cursor: "pointer" }} onClick={() => setShowNotifs(false)}>✕</span>
+                </div>
+                {[
+                  { icon: "✦", text: "Agent finished writing route handlers", time: "2m ago", color: "#f26522" },
+                  { icon: "⬡", text: "express@4.19.2 available (update)", time: "15m ago", color: "#58a6ff" },
+                  { icon: "⎇", text: "main branch pushed — 3 commits ahead", time: "1h ago", color: "#3fb950" },
+                ].map((n, i) => (
+                  <div key={i} style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", gap: 10, cursor: "pointer" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                    <div style={{ fontSize: 14, color: n.color, flexShrink: 0, marginTop: 1 }}>{n.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#e1e4e8", lineHeight: 1.4 }}>{n.text}</div>
+                      <div style={{ fontSize: 11, color: "#484f58", marginTop: 2 }}>{n.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Avatar */}
           <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>U</div>
         </div>
       </div>
@@ -1635,10 +1929,19 @@ export function AIInterface() {
         {/* WORKSPACE */}
         {activeTab === "new" && (
           <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+            {/* LEFT ICON RAIL */}
+            <LeftRail activePanel={activePanel} setActivePanel={setActivePanel} visiblePanels={visiblePanels} />
+
             {/* FILE SIDEBAR */}
             <div style={{ width: sidebarWidth, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
               <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                Files <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 16 }}>+</button>
+                Files
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="New File">+</button>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="New Folder">⊞</button>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "0 2px" }} title="Collapse All">⊟</button>
+                </div>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
                 {FILE_TREE.map((item, i) => (
@@ -1672,12 +1975,35 @@ export function AIInterface() {
 
             {/* EDITOR + AGENT */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {/* Editor tabs */}
+              {/* Editor tabs + Run indicator */}
               <div style={{ height: 36, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "stretch", flexShrink: 0 }}>
                 {["auth.ts", "index.ts", "jwt.ts"].map((tab, i) => (
                   <div key={tab} style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 6, borderRight: "1px solid #21262d", cursor: "pointer", background: i === 0 ? "#0e1117" : "transparent", borderBottom: i === 0 ? "2px solid #f26522" : "2px solid transparent", color: i === 0 ? "#e1e4e8" : "#8b949e", fontSize: 12 }}>
                     <FileIcon ext="ts" />{tab}<span style={{ color: "#484f58", fontSize: 11, marginLeft: 2 }}>×</span>
                   </div>
+                ))}
+                {/* Running pill */}
+                {running && (
+                  <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", paddingRight: 12, gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#0d2a0d", border: "1px solid #3fb95044", borderRadius: 10, padding: "2px 10px", fontSize: 11, color: "#3fb950" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3fb950", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
+                      node src/index.ts
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Breadcrumbs */}
+              <div style={{ height: 24, background: "#0e1117", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 12px", gap: 4, flexShrink: 0 }}>
+                {["src", "routes", "auth.ts"].map((crumb, i, arr) => (
+                  <span key={crumb} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ color: i === arr.length - 1 ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer" }}
+                      onMouseEnter={e => { if (i < arr.length - 1) (e.currentTarget as HTMLElement).style.color = "#58a6ff"; }}
+                      onMouseLeave={e => { if (i < arr.length - 1) (e.currentTarget as HTMLElement).style.color = "#8b949e"; }}>
+                      {i === 0 ? "📁 " : i === 1 ? "📁 " : <FileIcon ext="ts" />}{crumb}
+                    </span>
+                    {i < arr.length - 1 && <span style={{ color: "#484f58", fontSize: 10 }}>›</span>}
+                  </span>
                 ))}
               </div>
 
@@ -1686,11 +2012,16 @@ export function AIInterface() {
                 {/* Code editor */}
                 <div style={{ flex: 1, background: "#0e1117", overflow: "auto", padding: "12px 0", fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.7 }}>
                   {CODE_CONTENT.split("\n").map((line, i) => (
-                    <div key={i} style={{ display: "flex", paddingRight: 24 }}>
-                      <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: "#484f58", flexShrink: 0, userSelect: "none" }}>{i + 1}</span>
+                    <div key={i} style={{ display: "flex", paddingRight: 8, background: i + 1 === cursorLine ? "#1f6feb0a" : "transparent", borderLeft: i + 1 === cursorLine ? "2px solid #1f6feb44" : "2px solid transparent" }}>
+                      <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: i + 1 === cursorLine ? "#8b949e" : "#484f58", flexShrink: 0, userSelect: "none" }}>{i + 1}</span>
                       <span dangerouslySetInnerHTML={{ __html: syntaxHighlight(line) }} />
                     </div>
                   ))}
+                </div>
+
+                {/* Minimap */}
+                <div style={{ position: "relative" as const }}>
+                  <Minimap code={CODE_CONTENT} />
                 </div>
 
                 {/* Agent */}
@@ -1774,6 +2105,17 @@ export function AIInterface() {
         )}
       </div>
 
+      {/* STATUS BAR */}
+      <StatusBar
+        metrics={metrics}
+        running={running}
+        errors={0}
+        warnings={2}
+        activePanel={activePanel}
+        setActivePanel={setActivePanel}
+        visiblePanels={visiblePanels}
+      />
+
       {/* BOTTOM NAV */}
       <div style={{ height: 50, background: "#161b22", borderTop: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0 }}>
         {(["tasks", "new", "account"] as Tab[]).map(tab => (
@@ -1787,6 +2129,7 @@ export function AIInterface() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes blink { 50% { opacity: 0; } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
