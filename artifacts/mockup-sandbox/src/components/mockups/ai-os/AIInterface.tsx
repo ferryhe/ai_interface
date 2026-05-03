@@ -478,8 +478,17 @@ function ConsolePanel() {
     <div style={{ height: "100%", display: "flex", flexDirection: "column", fontFamily: "monospace", fontSize: 12 }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
         {lines.map((l, i) => (
-          <div key={i} style={{ lineHeight: 1.8, color: l.type === "success" ? "#3fb950" : l.type === "error" ? "#f85149" : "#8b949e" }}>
-            <span style={{ color: "#484f58", marginRight: 8 }}>{String(i + 1).padStart(2, "0")}</span>{l.text}
+          <div key={i} style={{ lineHeight: 1.8, color: l.type === "success" ? "#3fb950" : l.type === "error" ? "#f85149" : "#8b949e", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#484f58" }}>{String(i + 1).padStart(2, "0")}</span>
+            <span style={{ flex: 1 }}>{l.text}</span>
+            {l.type === "error" && (
+              <button title="Ask Agent to fix this error"
+                style={{ background: "#f2652222", border: "1px solid #f2652266", borderRadius: 4, padding: "1px 8px", color: "#f26522", fontSize: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#f2652244"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#f2652222"; }}>
+                <span>✦</span> Fix with Agent
+              </button>
+            )}
           </div>
         ))}
         <div ref={endRef} />
@@ -2384,9 +2393,12 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
     <div style={{ height: 22, background: "#0d1117", borderTop: "1px solid #21262d", display: "flex", alignItems: "center", flexShrink: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
       {/* Left cluster */}
       <div style={{ display: "flex", alignItems: "center", height: "100%", borderRight: "1px solid #21262d", paddingRight: 4 }}>
-        {/* Git branch */}
-        <div style={s} onClick={() => setActivePanel("git")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        {/* Git branch + GitHub sync */}
+        <div style={s} onClick={() => setActivePanel("git")} title="GitHub: 3 ahead · 1 behind" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span style={{ color: "#3fb950" }}>⎇</span>&nbsp;main
+          &nbsp;<span style={{ color: "#3fb950" }}>↑3</span>
+          &nbsp;<span style={{ color: "#f2cc60" }}>↓1</span>
+          &nbsp;<span style={{ color: "#484f58", fontSize: 9 }}>GitHub</span>
         </div>
         {sep}
         {/* Errors / warnings */}
@@ -2580,6 +2592,12 @@ export function AIInterface() {
   const [replSwitcherOpen, setReplSwitcherOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "midnight" | "high-contrast">("dark");
+  const [alwaysOn, setAlwaysOn] = useState(false);
+  const [boost, setBoost] = useState(false);
+  const [layout, setLayout] = useState<"default" | "minimal" | "focus">("default");
+  const [replSwitcherTab, setReplSwitcherTab] = useState<"recent" | "templates">("recent");
 
   // ⌘K listener
   useEffect(() => {
@@ -2677,28 +2695,64 @@ export function AIInterface() {
               <div style={{ position: "absolute" as const, top: "calc(100% + 6px)", left: 0, width: 320, background: "#161b22", border: "1px solid #30363d", borderRadius: 10, zIndex: 101, boxShadow: "0 12px 28px rgba(0,0,0,0.6)", overflow: "hidden" }}>
                 <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 11, color: "#8b949e" }}>⌕</span>
-                  <input placeholder="Search Repls…" style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+                  <input placeholder="Search Repls & templates…" style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+                </div>
+                {/* Tab switcher: Recent / Templates */}
+                <div style={{ display: "flex", borderBottom: "1px solid #21262d" }}>
+                  {(["recent", "templates"] as const).map(t => (
+                    <button key={t} onClick={() => setReplSwitcherTab(t)} style={{ flex: 1, background: "transparent", border: "none", borderBottom: replSwitcherTab === t ? "2px solid #f26522" : "2px solid transparent", padding: "8px 0", color: replSwitcherTab === t ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const, fontWeight: replSwitcherTab === t ? 600 : 400 }}>
+                      {t}
+                    </button>
+                  ))}
                 </div>
                 <div style={{ padding: "6px 0", maxHeight: 280, overflowY: "auto" }}>
-                  <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Recent</div>
-                  {[
-                    { name: "my-rest-api", lang: "ts", desc: "REST API with JWT auth", time: "now", active: true },
-                    { name: "react-dashboard", lang: "tsx", desc: "Admin dashboard with charts", time: "2h ago" },
-                    { name: "discord-bot", lang: "py", desc: "Slash command bot", time: "yesterday" },
-                    { name: "stripe-webhook-test", lang: "ts", desc: "Webhook receiver + replay", time: "3d ago" },
-                    { name: "ml-classifier", lang: "py", desc: "scikit-learn pipeline", time: "1w ago" },
-                  ].map((r) => (
-                    <div key={r.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: r.active ? "#1f6feb14" : "transparent", borderLeft: r.active ? "2px solid #1f6feb" : "2px solid transparent" }}
-                      onMouseEnter={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
-                      onMouseLeave={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                      <FileIcon ext={r.lang} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: r.active ? "#58a6ff" : "#e1e4e8", fontWeight: r.active ? 500 : 400 }}>{r.name}</div>
-                        <div style={{ fontSize: 10, color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.desc}</div>
-                      </div>
-                      <span style={{ fontSize: 10, color: "#484f58" }}>{r.time}</span>
-                    </div>
-                  ))}
+                  {replSwitcherTab === "recent" ? (
+                    <>
+                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Recent</div>
+                      {[
+                        { name: "my-rest-api", lang: "ts", desc: "REST API with JWT auth", time: "now", active: true },
+                        { name: "react-dashboard", lang: "tsx", desc: "Admin dashboard with charts", time: "2h ago" },
+                        { name: "discord-bot", lang: "py", desc: "Slash command bot", time: "yesterday" },
+                        { name: "stripe-webhook-test", lang: "ts", desc: "Webhook receiver + replay", time: "3d ago" },
+                        { name: "ml-classifier", lang: "py", desc: "scikit-learn pipeline", time: "1w ago" },
+                      ].map((r) => (
+                        <div key={r.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: r.active ? "#1f6feb14" : "transparent", borderLeft: r.active ? "2px solid #1f6feb" : "2px solid transparent" }}
+                          onMouseEnter={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+                          onMouseLeave={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                          <FileIcon ext={r.lang} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: r.active ? "#58a6ff" : "#e1e4e8", fontWeight: r.active ? 500 : 400 }}>{r.name}</div>
+                            <div style={{ fontSize: 10, color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.desc}</div>
+                          </div>
+                          <span style={{ fontSize: 10, color: "#484f58" }}>{r.time}</span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Featured</div>
+                      {[
+                        { name: "Next.js + Postgres", icon: "▲", color: "#fff", desc: "Full-stack starter with Drizzle", uses: "12.4k" },
+                        { name: "FastAPI + React", icon: "🐍", color: "#3fb950", desc: "Python backend + Vite frontend", uses: "8.7k" },
+                        { name: "Discord Bot (TS)", icon: "🤖", color: "#5865F2", desc: "Slash commands + Drizzle", uses: "5.2k" },
+                        { name: "Telegram Mini App", icon: "✈", color: "#0088cc", desc: "Vue 3 + WebApp SDK", uses: "3.1k" },
+                        { name: "AI Agent (LangChain)", icon: "🦜", color: "#bc8cff", desc: "Tools, memory, streaming", uses: "9.8k" },
+                        { name: "Stripe Checkout", icon: "💳", color: "#635bff", desc: "Subscriptions + webhooks", uses: "4.6k" },
+                        { name: "Static blog (Astro)", icon: "🚀", color: "#f26522", desc: "Markdown + RSS + sitemap", uses: "2.9k" },
+                      ].map((tpl) => (
+                        <div key={tpl.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#21262d")}
+                          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}>
+                          <span style={{ width: 24, height: 24, borderRadius: 5, background: "#21262d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: tpl.color, flexShrink: 0 }}>{tpl.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: "#e1e4e8" }}>{tpl.name}</div>
+                            <div style={{ fontSize: 10, color: "#484f58", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{tpl.desc}</div>
+                          </div>
+                          <span style={{ fontSize: 10, color: "#484f58" }}>⑂ {tpl.uses}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
                 <div style={{ borderTop: "1px solid #21262d", padding: 6, display: "flex", gap: 4 }}>
                   <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ New Repl</button>
@@ -2800,6 +2854,82 @@ export function AIInterface() {
 
           {/* Panels toggle */}
           <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ Panels</button>
+
+          {/* Settings ⚙ */}
+          <div style={{ position: "relative" as const }}>
+            <button onClick={() => setSettingsOpen(o => !o)} title="Workspace settings"
+              style={{ background: settingsOpen ? "#21262d" : "transparent", border: settingsOpen ? "1px solid #30363d" : "1px solid transparent", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b949e", fontSize: 14, cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
+              onMouseLeave={e => { if (!settingsOpen) e.currentTarget.style.background = "transparent"; }}>
+              ⚙
+            </button>
+            {settingsOpen && (
+              <>
+                <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 100 }} />
+                <div style={{ position: "absolute" as const, right: 0, top: 36, width: 300, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 101, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Workspace</div>
+
+                  {/* Always-On */}
+                  <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #1a1f26" }}>
+                    <span style={{ fontSize: 14 }}>⏻</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>Always-On</div>
+                      <div style={{ fontSize: 10, color: "#484f58" }}>Keep Repl running 24/7 · 5 cycles/day</div>
+                    </div>
+                    <button onClick={() => setAlwaysOn(a => !a)} style={{ width: 32, height: 18, background: alwaysOn ? "#3fb950" : "#30363d", border: "none", borderRadius: 9, cursor: "pointer", position: "relative" as const, padding: 0 }}>
+                      <span style={{ position: "absolute" as const, top: 2, left: alwaysOn ? 16 : 2, width: 14, height: 14, background: "#fff", borderRadius: "50%", transition: "left 0.15s" }} />
+                    </button>
+                  </div>
+
+                  {/* Boost */}
+                  <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #1a1f26" }}>
+                    <span style={{ fontSize: 14, color: boost ? "#f26522" : "#8b949e" }}>⚡</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>Boost</div>
+                      <div style={{ fontSize: 10, color: "#484f58" }}>4 vCPU · 8 GB RAM · 20 cycles/hr</div>
+                    </div>
+                    <button onClick={() => setBoost(b => !b)} style={{ width: 32, height: 18, background: boost ? "#f26522" : "#30363d", border: "none", borderRadius: 9, cursor: "pointer", position: "relative" as const, padding: 0 }}>
+                      <span style={{ position: "absolute" as const, top: 2, left: boost ? 16 : 2, width: 14, height: 14, background: "#fff", borderRadius: "50%", transition: "left 0.15s" }} />
+                    </button>
+                  </div>
+
+                  {/* Theme */}
+                  <div style={{ padding: "9px 14px", borderBottom: "1px solid #1a1f26" }}>
+                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>Theme</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {(["dark", "midnight", "high-contrast"] as const).map(t => (
+                        <button key={t} onClick={() => setTheme(t)} style={{ flex: 1, background: theme === t ? "#1f6feb22" : "#21262d", border: theme === t ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 5, padding: "5px 6px", color: theme === t ? "#58a6ff" : "#8b949e", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const }}>
+                          {t === "high-contrast" ? "Contrast" : t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Layout */}
+                  <div style={{ padding: "9px 14px", borderBottom: "1px solid #1a1f26" }}>
+                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>Layout</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {(["default", "minimal", "focus"] as const).map(l => (
+                        <button key={l} onClick={() => setLayout(l)} style={{ flex: 1, background: layout === l ? "#1f6feb22" : "#21262d", border: layout === l ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 5, padding: "5px 6px", color: layout === l ? "#58a6ff" : "#8b949e", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const }}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "8px 14px", display: "flex", flexDirection: "column" as const, gap: 4 }}>
+                    {["Account & Billing", "Editor preferences", "Connected services", "Privacy & data", "Sign out"].map(it => (
+                      <div key={it} style={{ fontSize: 12, color: it === "Sign out" ? "#f85149" : "#c9d1d9", padding: "4px 0", cursor: "pointer" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "#58a6ff")}
+                        onMouseLeave={e => (e.currentTarget.style.color = it === "Sign out" ? "#f85149" : "#c9d1d9")}>
+                        {it}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Help / Shortcuts */}
           <div style={{ position: "relative" as const }}>
@@ -2986,13 +3116,25 @@ export function AIInterface() {
                 ))}
               </div>
               <div style={{ borderTop: "1px solid #21262d", padding: "6px 0" }}>
-                {[["✦", "Agent"], ["⌕", "Search"], ["⎇", "Git"], ["↑", "Deploy"], ["⬡", "Packages"]].map(([icon, label]) => (
-                  <div key={label} style={{ padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: 12 }}
+                {[
+                  ["✦", "Agent", null, null],
+                  ["⌕", "Search", null, null],
+                  ["⎇", "Git", null, "3↑"],
+                  ["↑", "Deploy", null, "Live"],
+                  ["⬡", "Packages", null, null],
+                  ["≡", "Outline", null, "12"],
+                  ["💬", "Threads", null, "2"],
+                  ["▣", "Storage", null, null],
+                  ["☆", "Bounties", null, "$$"],
+                ].map(([icon, label, _, badge]) => (
+                  <div key={label as string} style={{ padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: 12 }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#21262d"; (e.currentTarget as HTMLElement).style.color = "#e1e4e8"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#8b949e"; }}
-                    onClick={() => { const map: Record<string, PanelId> = { Search: "search", Git: "git", Deploy: "deploy", Packages: "packages" }; if (map[label]) setActivePanel(map[label]); }}
+                    onClick={() => { const map: Record<string, PanelId> = { Search: "search", Git: "git", Deploy: "deploy", Packages: "packages" }; if (map[label as string]) setActivePanel(map[label as string]); }}
                   >
-                    <span style={{ fontSize: 13 }}>{icon}</span>{label}
+                    <span style={{ fontSize: 13, width: 14, textAlign: "center" as const }}>{icon}</span>
+                    <span style={{ flex: 1 }}>{label}</span>
+                    {badge && <span style={{ fontSize: 9, color: label === "Git" ? "#3fb950" : label === "Deploy" ? "#3fb950" : label === "Bounties" ? "#e3b341" : "#58a6ff", background: "#21262d", border: "1px solid #30363d", borderRadius: 8, padding: "0 5px" }}>{badge as string}</span>}
                   </div>
                 ))}
               </div>
@@ -3053,11 +3195,18 @@ export function AIInterface() {
                     const ln = i + 1;
                     const collab = ln === 8 ? { color: "#3fb950", name: "Sara" } : ln === 21 ? { color: "#bc8cff", name: "Marcus" } : null;
                     const hasThread = ln === 14;
+                    const ghostText = ln === cursorLine ? "  // TODO: validate with zod schema before lookup" : null;
                     return (
                       <div key={i} style={{ display: "flex", paddingRight: 8, background: ln === cursorLine ? "#1f6feb0a" : "transparent", borderLeft: ln === cursorLine ? "2px solid #1f6feb44" : "2px solid transparent", position: "relative" as const }}>
                         <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: ln === cursorLine ? "#8b949e" : "#484f58", flexShrink: 0, userSelect: "none" }}>{ln}</span>
                         <span style={{ position: "relative" as const, flex: 1 }}>
                           <span dangerouslySetInnerHTML={{ __html: syntaxHighlight(line) }} />
+                          {ghostText && (
+                            <span style={{ color: "#484f58", fontStyle: "italic" as const, opacity: 0.75 }}>
+                              {ghostText}
+                              <span style={{ marginLeft: 10, fontSize: 9, padding: "1px 5px", border: "1px solid #30363d", borderRadius: 3, color: "#8b949e", fontStyle: "normal" as const, background: "#161b22" }}>✦ AI · Tab to accept</span>
+                            </span>
+                          )}
                           {collab && (
                             <span style={{ position: "absolute" as const, left: `${Math.min(line.length, 30) * 7.2}px`, top: 0, display: "inline-flex", alignItems: "center", pointerEvents: "none" as const }}>
                               <span style={{ width: 2, height: 18, background: collab.color, display: "inline-block", animation: "pulse 1.2s ease-in-out infinite" }} />
