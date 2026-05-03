@@ -861,7 +861,7 @@ function PackagesPanel() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "#e1e4e8", fontSize: 12 }}>{pkg.name}</span>
-              {"isNew" in pkg && pkg.isNew && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
+              {Boolean((pkg as { isNew?: boolean }).isNew) && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
             </div>
             <span style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{pkg.version}</span>
             <span style={{ fontSize: 10, color: pkg.type === "dev" ? "#d2a8ff" : "#58a6ff", background: pkg.type === "dev" ? "#d2a8ff11" : "#58a6ff11", borderRadius: 3, padding: "1px 5px", textAlign: "center" }}>{pkg.type}</span>
