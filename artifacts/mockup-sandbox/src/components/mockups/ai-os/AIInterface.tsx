@@ -11,12 +11,191 @@ const PREDEFINED_TASKS = [
   "Add dark mode",
 ];
 
-const PAST_TASKS = [
-  { id: 1, title: "Build a landing page for SaaS", time: "2h ago" },
-  { id: 2, title: "Add Stripe payment integration", time: "Yesterday" },
-  { id: 3, title: "Fix authentication bug in Express", time: "2 days ago" },
-  { id: 4, title: "Create admin dashboard with charts", time: "3 days ago" },
-  { id: 5, title: "Set up CI/CD with GitHub Actions", time: "5 days ago" },
+type AgentFrameworkId = "replit" | "hermes" | "openai-fn" | "anthropic-tools" | "custom";
+
+const PAST_TASKS: {
+  id: number; title: string; time: string; status: "done" | "running" | "failed";
+  aiConfig: { providerId: string; modelId: string; modelName: string; framework: AgentFrameworkId };
+}[] = [
+  { id: 1, title: "Build a landing page for SaaS", time: "2h ago", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-405b", modelName: "Hermes 3 405B", framework: "hermes" } },
+  { id: 2, title: "Add Stripe payment integration", time: "Yesterday", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o", modelName: "GPT-4o", framework: "openai-fn" } },
+  { id: 3, title: "Fix authentication bug in Express", time: "2 days ago", status: "done", aiConfig: { providerId: "anthropic", modelId: "claude-3-5-sonnet", modelName: "Claude 3.5 Sonnet", framework: "anthropic-tools" } },
+  { id: 4, title: "Create admin dashboard with charts", time: "3 days ago", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-70b", modelName: "Hermes 3 70B", framework: "hermes" } },
+  { id: 5, title: "Set up CI/CD with GitHub Actions", time: "5 days ago", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o-mini", modelName: "GPT-4o mini", framework: "replit" } },
+];
+
+type AgentFramework = {
+  id: AgentFrameworkId;
+  name: string;
+  tagline: string;
+  color: string;
+  bg: string;
+  logo: string;
+  description: string;
+  systemFormat: string;
+  toolCallFormat: string;
+  toolResultFormat: string;
+  loopSteps: string[];
+  pros: string[];
+  native: boolean;
+};
+
+const AGENT_FRAMEWORKS: AgentFramework[] = [
+  {
+    id: "replit",
+    name: "Replit Agent",
+    tagline: "Orchestrated planning loop",
+    color: "#f26522",
+    bg: "#1a1008",
+    logo: "R",
+    description: "Replit's own agent framework. Uses a structured planning loop where the agent reasons about the task, uses tools via a custom parse step, verifies the result, and checkpoints progress.",
+    systemFormat: `You are an AI coding agent.
+Available tools:
+- shell(cmd): run shell command
+- read_file(path): read file
+- write_file(path, content): write file
+- browser(url): open web page
+- deploy(): deploy project
+
+Respond with tool calls using:
+<tool>tool_name: argument</tool>`,
+    toolCallFormat: `<tool>shell: pnpm install express</tool>
+<tool>write_file: src/index.ts
+import express from 'express'...
+</tool>`,
+    toolResultFormat: `<tool_result>
+{"status": "ok", "output": "added 47 packages"}
+</tool_result>`,
+    loopSteps: ["Plan task", "Call tools", "Parse response", "Execute tool", "Feed result back", "Verify + checkpoint"],
+    pros: ["Deep Replit integration", "Automatic checkpoints", "File system access", "Streaming output"],
+    native: false,
+  },
+  {
+    id: "hermes",
+    name: "Hermes Agent",
+    tagline: "Native <tool_call> tokens",
+    color: "#bc8cff",
+    bg: "#120a20",
+    logo: "H",
+    description: "Nous Research Hermes models are trained natively on tool calling with special XML tokens. No prompt engineering needed — the model intrinsically understands function calling format.",
+    systemFormat: `<tools>
+[
+  {
+    "name": "shell",
+    "description": "Run a shell command",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "cmd": {"type": "string"}
+      },
+      "required": ["cmd"]
+    }
+  }
+]
+</tools>
+You are a helpful coding assistant.`,
+    toolCallFormat: `<tool_call>
+{"name": "shell", "arguments": {"cmd": "pnpm install express"}}
+</tool_call>`,
+    toolResultFormat: `<tool_response>
+{"name": "shell", "content": {"status": "ok", "output": "added 47 packages"}}
+</tool_response>`,
+    loopSteps: ["Send <tools> schema", "Model outputs <tool_call>", "Parse XML token", "Execute function", "Inject <tool_response>", "Model continues"],
+    pros: ["Natively trained format", "Parallel tool calls", "Low hallucination rate", "Open weights"],
+    native: true,
+  },
+  {
+    id: "openai-fn",
+    name: "OpenAI Functions",
+    tagline: "tools[] + finish_reason",
+    color: "#3fb950",
+    bg: "#0a1a0e",
+    logo: "⊕",
+    description: "OpenAI's structured tool calling via the Chat Completions API. Pass tool definitions as JSON Schema — the model returns structured tool_calls that you execute and feed back as role: tool messages.",
+    systemFormat: `// Request body
+{
+  "model": "gpt-4o",
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "shell",
+      "description": "Run shell command",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cmd": {"type": "string"}
+        }
+      }
+    }
+  }],
+  "tool_choice": "auto"
+}`,
+    toolCallFormat: `// Response (finish_reason: "tool_calls")
+{
+  "tool_calls": [{
+    "id": "call_abc123",
+    "type": "function",
+    "function": {
+      "name": "shell",
+      "arguments": "{\"cmd\":\"pnpm install\"}"
+    }
+  }]
+}`,
+    toolResultFormat: `// Follow-up message
+{
+  "role": "tool",
+  "tool_call_id": "call_abc123",
+  "content": "added 47 packages"
+}`,
+    loopSteps: ["Send tools[] schema", "Receive tool_calls", "Parse JSON args", "Execute function", "Post role:tool message", "Loop until done"],
+    pros: ["Industry standard", "Parallel calls", "Structured args", "Works with all OpenAI models"],
+    native: false,
+  },
+  {
+    id: "anthropic-tools",
+    name: "Anthropic Tools",
+    tagline: "tool_use content blocks",
+    color: "#d97706",
+    bg: "#1a1206",
+    logo: "✦",
+    description: "Anthropic Claude's tool use via content blocks. Tools are defined with input_schema, and the model returns tool_use blocks in the content array when it wants to call a function.",
+    systemFormat: `// Request body
+{
+  "model": "claude-3-5-sonnet",
+  "tools": [{
+    "name": "shell",
+    "description": "Run a shell command",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "cmd": {"type": "string"}
+      },
+      "required": ["cmd"]
+    }
+  }]
+}`,
+    toolCallFormat: `// Response (stop_reason: "tool_use")
+{
+  "content": [{
+    "type": "tool_use",
+    "id": "toolu_01A09q90qw90lq",
+    "name": "shell",
+    "input": {"cmd": "pnpm install express"}
+  }]
+}`,
+    toolResultFormat: `// Follow-up user message
+{
+  "role": "user",
+  "content": [{
+    "type": "tool_result",
+    "tool_use_id": "toolu_01A09q90qw90lq",
+    "content": "added 47 packages"
+  }]
+}`,
+    loopSteps: ["Send tools + input_schema", "Receive tool_use block", "Extract input JSON", "Execute function", "Post tool_result block", "Continue until text"],
+    pros: ["Clean content blocks", "Built-in thinking", "Extended context", "Vision + tools combined"],
+    native: false,
+  },
 ];
 
 const CHAT_MESSAGES = [
@@ -1136,7 +1315,7 @@ function DeployPanel() {
 
 // ─── ACCOUNT PANEL ────────────────────────────────────────────────────────────
 
-type AccountPage = "profile" | "settings" | "billing" | "ai-apis" | "api-keys";
+type AccountPage = "profile" | "settings" | "billing" | "ai-apis" | "api-keys" | "agent-config";
 
 function AccountPanel() {
   const [page, setPage] = useState<AccountPage>("ai-apis");
@@ -1197,6 +1376,7 @@ function AccountPanel() {
     { id: "billing", label: "Billing", icon: "◫" },
     { id: "ai-apis", label: "AI APIs", icon: "✦" },
     { id: "api-keys", label: "API Keys", icon: "🔑" },
+    { id: "agent-config", label: "Agent Config", icon: "⬡" },
   ];
 
   return (
@@ -1505,6 +1685,252 @@ function AccountPanel() {
             ))}
           </div>
         )}
+
+        {/* ── Agent Config page ── */}
+        {page === "agent-config" && <AgentConfigPage />}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── AGENT CONFIG PAGE ─────────────────────────────────────────────────────────
+
+function AgentConfigPage() {
+  const [activeFramework, setActiveFramework] = useState<AgentFrameworkId>("hermes");
+  const [codeTab, setCodeTab] = useState<"system" | "call" | "result">("system");
+  const [defaultFramework, setDefaultFramework] = useState<AgentFrameworkId>("hermes");
+  const [taskConfigs, setTaskConfigs] = useState<Record<number, { modelName: string; framework: AgentFrameworkId }>>(() =>
+    Object.fromEntries(PAST_TASKS.map(t => [t.id, { modelName: t.aiConfig.modelName, framework: t.aiConfig.framework }]))
+  );
+  const [editingTask, setEditingTask] = useState<number | null>(null);
+  const fw = AGENT_FRAMEWORKS.find(f => f.id === activeFramework)!;
+
+  const codeMap: Record<typeof codeTab, string> = {
+    system: fw.systemFormat,
+    call: fw.toolCallFormat,
+    result: fw.toolResultFormat,
+  };
+
+  const PIPELINE_STEPS = [
+    { label: "Task prompt", icon: "💬", color: "#8b949e" },
+    { label: "LLM API call", icon: "⬡", color: "#58a6ff" },
+    { label: "Parse tool call", icon: "⚙", color: "#e3b341" },
+    { label: "Execute tool", icon: "▶", color: fw.color },
+    { label: "Inject result", icon: "↩", color: "#3fb950" },
+    { label: "Loop / done", icon: "⟳", color: "#bc8cff" },
+  ];
+
+  const FRAMEWORK_MODELS: Record<AgentFrameworkId, string[]> = {
+    "replit": ["Any model"],
+    "hermes": ["Hermes 3 405B", "Hermes 3 70B", "Hermes 3 8B", "Hermes 2 Pro"],
+    "openai-fn": ["GPT-4o", "GPT-4o mini", "GPT-4 Turbo", "o1 Preview"],
+    "anthropic-tools": ["Claude 3.5 Sonnet", "Claude 3.5 Haiku", "Claude 3 Opus"],
+    "custom": ["Any model"],
+  };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      {/* Header */}
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>Agent Configuration</div>
+        <div style={{ fontSize: 12, color: "#8b949e" }}>
+          Choose how AI API calls are orchestrated into agents. Each task can use a different framework and model.
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+        {/* ── Pipeline diagram ── */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12, fontSize: 11 }}>
+            API → Agent Pipeline
+          </div>
+          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 10, padding: "16px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto" }}>
+              {PIPELINE_STEPS.map((step, i) => (
+                <div key={step.label} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 80 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: `${step.color}18`, border: `1.5px solid ${step.color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                      {step.icon}
+                    </div>
+                    <span style={{ fontSize: 10, color: "#8b949e", textAlign: "center", lineHeight: 1.3 }}>{step.label}</span>
+                  </div>
+                  {i < PIPELINE_STEPS.length - 1 && (
+                    <div style={{ width: 28, height: 1.5, background: `linear-gradient(90deg, ${step.color}44, ${PIPELINE_STEPS[i + 1].color}44)`, flexShrink: 0, margin: "0 2px", marginBottom: 20 }} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Framework selector ── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+            Framework
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            {AGENT_FRAMEWORKS.map(f => (
+              <div key={f.id}
+                onClick={() => setActiveFramework(f.id)}
+                style={{ background: activeFramework === f.id ? f.bg : "#161b22", border: `1.5px solid ${activeFramework === f.id ? f.color : "#21262d"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { if (activeFramework !== f.id) (e.currentTarget as HTMLElement).style.borderColor = `${f.color}55`; }}
+                onMouseLeave={e => { if (activeFramework !== f.id) (e.currentTarget as HTMLElement).style.borderColor = "#21262d"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: `${f.color}22`, border: `1px solid ${f.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: f.color, fontWeight: 800 }}>
+                    {f.logo}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: activeFramework === f.id ? "#e1e4e8" : "#8b949e" }}>{f.name}</div>
+                    {f.native && <div style={{ fontSize: 10, color: f.color, background: `${f.color}18`, borderRadius: 3, padding: "0 5px", display: "inline-block", marginTop: 1 }}>native tokens</div>}
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: "#484f58", lineHeight: 1.4 }}>{f.tagline}</div>
+                {activeFramework === f.id && defaultFramework !== f.id && (
+                  <button onClick={e => { e.stopPropagation(); setDefaultFramework(f.id); }}
+                    style={{ marginTop: 8, width: "100%", background: `${f.color}22`, border: `1px solid ${f.color}44`, borderRadius: 5, color: f.color, fontSize: 10, padding: "4px 0", cursor: "pointer", fontFamily: "inherit" }}>
+                    Set as default
+                  </button>
+                )}
+                {defaultFramework === f.id && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: f.color, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 8 }}>●</span> Default
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Selected framework detail ── */}
+        <div style={{ background: "#161b22", border: `1px solid ${fw.color}33`, borderRadius: 10, overflow: "hidden" }}>
+          {/* Header */}
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid #21262d", display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: `${fw.color}22`, border: `1px solid ${fw.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: fw.color, fontWeight: 800, flexShrink: 0 }}>
+              {fw.logo}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#e1e4e8" }}>{fw.name}</span>
+                {fw.native && <span style={{ background: `${fw.color}22`, border: `1px solid ${fw.color}44`, borderRadius: 10, fontSize: 10, color: fw.color, padding: "1px 7px" }}>native tokens</span>}
+              </div>
+              <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.5 }}>{fw.description}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+            {/* Left: code format */}
+            <div style={{ borderRight: "1px solid #21262d" }}>
+              <div style={{ display: "flex", borderBottom: "1px solid #21262d" }}>
+                {(["system", "call", "result"] as const).map(tab => (
+                  <button key={tab} onClick={() => setCodeTab(tab)}
+                    style={{ flex: 1, padding: "8px 0", background: codeTab === tab ? "#0e1117" : "transparent", border: "none", borderBottom: codeTab === tab ? `2px solid ${fw.color}` : "2px solid transparent", color: codeTab === tab ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" }}>
+                    {tab === "system" ? "System prompt" : tab === "call" ? "Tool call" : "Tool result"}
+                  </button>
+                ))}
+              </div>
+              <pre style={{ margin: 0, padding: "12px 14px", fontFamily: "'Fira Code', monospace", fontSize: 10.5, color: "#8b949e", lineHeight: 1.6, background: "#0e1117", overflowX: "auto", maxHeight: 220 }}>
+                <code dangerouslySetInnerHTML={{ __html: codeMap[codeTab]
+                  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                  .replace(/(".*?")/g, '<span style="color:#a5d6ff">$1</span>')
+                  .replace(/(&lt;\/?[\w_]+&gt;)/g, `<span style="color:${fw.color}">$1</span>`)
+                  .replace(/(\/\/ .*)/g, '<span style="color:#484f58">$1</span>')
+                }} />
+              </pre>
+            </div>
+
+            {/* Right: loop steps + pros */}
+            <div style={{ padding: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Execution loop</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                {fw.loopSteps.map((step, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: `${fw.color}22`, border: `1px solid ${fw.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: fw.color, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ fontSize: 12, color: i === fw.loopSteps.length - 1 ? fw.color : "#8b949e" }}>{step}</span>
+                    {i < fw.loopSteps.length - 1 && <div style={{ width: 1, height: 8, background: `${fw.color}33`, position: "absolute", marginLeft: 9, marginTop: 22 }} />}
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Supported models</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {FRAMEWORK_MODELS[fw.id].map(m => (
+                  <span key={m} style={{ background: `${fw.color}11`, border: `1px solid ${fw.color}33`, borderRadius: 4, fontSize: 10, color: fw.color, padding: "2px 7px" }}>{m}</span>
+                ))}
+              </div>
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {fw.pros.map(p => (
+                  <span key={p} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "2px 7px" }}>✓ {p}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Per-task config ── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+            Per-task Configuration
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {PAST_TASKS.map(task => {
+              const cfg = taskConfigs[task.id];
+              const taskFw = AGENT_FRAMEWORKS.find(f => f.id === cfg.framework)!;
+              const isEditing = editingTask === task.id;
+              return (
+                <div key={task.id} style={{ background: "#161b22", border: `1px solid ${isEditing ? taskFw.color + "55" : "#21262d"}`, borderRadius: 8, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                    onClick={() => setEditingTask(isEditing ? null : task.id)}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3fb950", flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, color: "#e1e4e8" }}>{task.title}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {/* Framework badge */}
+                      <span style={{ background: `${taskFw.color}18`, border: `1px solid ${taskFw.color}44`, borderRadius: 10, fontSize: 10, color: taskFw.color, padding: "2px 8px" }}>
+                        {taskFw.logo} {taskFw.name}
+                      </span>
+                      {/* Model badge */}
+                      <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 10, fontSize: 10, color: "#8b949e", padding: "2px 8px" }}>
+                        {cfg.modelName}
+                      </span>
+                      <span style={{ color: "#484f58", fontSize: 11 }}>{isEditing ? "▾" : "▸"}</span>
+                    </div>
+                  </div>
+
+                  {isEditing && (
+                    <div style={{ padding: "12px 14px", borderTop: "1px solid #21262d", background: "#0e1117", display: "flex", gap: 20, alignItems: "flex-start" }}>
+                      {/* Framework selector */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 8 }}>Agent Framework</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {AGENT_FRAMEWORKS.map(f => (
+                            <button key={f.id} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], framework: f.id } }))}
+                              style={{ background: cfg.framework === f.id ? `${f.color}22` : "#21262d", border: `1px solid ${cfg.framework === f.id ? f.color : "#30363d"}`, borderRadius: 6, padding: "5px 11px", fontSize: 11, color: cfg.framework === f.id ? f.color : "#8b949e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ fontWeight: 700 }}>{f.logo}</span> {f.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Model selector */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 8 }}>Model</div>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          {FRAMEWORK_MODELS[cfg.framework].map(m => (
+                            <button key={m} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], modelName: m } }))}
+                              style={{ background: cfg.modelName === m ? `${taskFw.color}22` : "#21262d", border: `1px solid ${cfg.modelName === m ? taskFw.color : "#30363d"}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: cfg.modelName === m ? taskFw.color : "#8b949e", cursor: "pointer", fontFamily: "inherit" }}>
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -1905,21 +2331,57 @@ export function AIInterface() {
 
         {/* TASKS TAB */}
         {activeTab === "tasks" && (
-          <div style={{ width: 300, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Task History</div>
-            {PAST_TASKS.map(t => (
-              <div key={t.id} style={{ padding: "10px 16px", borderBottom: "1px solid #21262d", cursor: "pointer" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                onClick={() => setActiveTab("new")}
+          <div style={{ flex: 1, background: "#0e1117", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Task History</span>
+              <button
+                onClick={() => setActiveTab("account")}
+                style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 5, color: "#8b949e", fontSize: 11, padding: "3px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                onMouseEnter={e => { (e.currentTarget.style.borderColor = "#bc8cff"); (e.currentTarget.style.color = "#bc8cff"); }}
+                onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#3fb950" }} />
-                  <span style={{ color: "#e1e4e8", fontSize: 13 }}>{t.title}</span>
-                </div>
-                <span style={{ color: "#484f58", fontSize: 11 }}>{t.time}</span>
-              </div>
-            ))}
+                <span>⬡</span> Agent Config
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {PAST_TASKS.map(t => {
+                const fw = AGENT_FRAMEWORKS.find(f => f.id === t.aiConfig.framework)!;
+                return (
+                  <div key={t.id} style={{ padding: "11px 16px", borderBottom: "1px solid #21262d" }}>
+                    {/* Title row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}
+                      onClick={() => setActiveTab("new")}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.cursor = "pointer"}
+                    >
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: t.status === "done" ? "#3fb950" : t.status === "running" ? "#f26522" : "#f85149", flexShrink: 0 }} />
+                      <span style={{ color: "#e1e4e8", fontSize: 13, flex: 1 }}>{t.title}</span>
+                      <span style={{ color: "#484f58", fontSize: 11, flexShrink: 0 }}>{t.time}</span>
+                    </div>
+                    {/* AI config badges */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 14 }}>
+                      {/* Framework badge */}
+                      <span style={{ background: `${fw.color}18`, border: `1px solid ${fw.color}44`, borderRadius: 10, fontSize: 10, color: fw.color, padding: "1px 7px", display: "flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontWeight: 700 }}>{fw.logo}</span> {fw.name}
+                      </span>
+                      {/* Model badge */}
+                      <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 10, fontSize: 10, color: "#8b949e", padding: "1px 7px" }}>
+                        {t.aiConfig.modelName}
+                      </span>
+                      {/* Configure button */}
+                      <button
+                        onClick={() => setActiveTab("account")}
+                        style={{ marginLeft: "auto", background: "transparent", border: "1px solid #30363d", borderRadius: 5, color: "#484f58", fontSize: 10, padding: "1px 7px", cursor: "pointer" }}
+                        onMouseEnter={e => { (e.currentTarget.style.borderColor = fw.color); (e.currentTarget.style.color = fw.color); }}
+                        onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#484f58"); }}
+                      >
+                        ⚙ Configure
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
