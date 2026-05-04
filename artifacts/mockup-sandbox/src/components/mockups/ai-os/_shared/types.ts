@@ -12,6 +12,17 @@ export type TimelineKind =
 
 export type InspectorView = "changes" | "code" | "logs" | "preview";
 
+export type MainDockView = "preview" | "agent" | "deploy" | "tool" | "tasks";
+
+export type ToolSlotId =
+  | "git"
+  | "console"
+  | "secrets"
+  | "database"
+  | "packages"
+  | "search"
+  | "debugger";
+
 export interface AgentTask {
   id: string;
   title: string;

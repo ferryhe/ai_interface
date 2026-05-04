@@ -88,7 +88,7 @@ export function CommandBar({
         .command-bar-shell {
           position: static;
           z-index: 20;
-          padding: 10px 336px 8px 16px;
+          padding: 10px 18px 8px;
           border-top: 1px solid ${colors.border};
           background: ${colors.surface};
         }

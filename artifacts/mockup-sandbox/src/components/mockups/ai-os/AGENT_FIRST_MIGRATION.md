@@ -38,12 +38,13 @@ The mockup preview plugin ignores `_` folders, so these files support the module
 
 Build a complete static interactive mockup with:
 
-- Task/project rail as the left navigation.
-- Agent timeline as the central surface.
-- Bottom command bar as the main user input.
-- Context panel on the right for preview, changes, permissions, and runtime state.
-- Inspector drawer for files, logs, and code details.
-- Basic state changes for task selection, command input, plan mode, and inspector visibility.
+- Agent timeline as the default central surface.
+- Bottom command bar as the Agent page's main user input.
+- Bottom dock for major pages: Preview, Agent, Deploy, switchable Tool, and Tasks.
+- Stop/Run control outside the page stack.
+- Switchable fifth tool slot, initially Git, with Console, Secrets, Database, Packages, Search, and Debugger available through the right switcher.
+- Inspector drawer for deeper files, logs, code, and preview details.
+- Basic state changes for task selection, command input, plan mode, dock page switching, tool switching, and inspector visibility.
 
 ## Out of scope
 

@@ -334,6 +334,16 @@ export function AgentTimeline({
         }
 
         @media (max-width: 620px) {
+          .agent-main-header {
+            align-items: stretch;
+            flex-direction: column;
+            padding: 14px 12px 12px;
+          }
+
+          .agent-main-header h1 {
+            font-size: 22px !important;
+          }
+
           .agent-main-header > div:last-child {
             width: 100%;
             display: grid !important;
