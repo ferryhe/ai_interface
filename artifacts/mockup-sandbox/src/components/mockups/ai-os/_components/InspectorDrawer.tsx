@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Code2, Eye, FileText, GitBranch, Terminal, X } from "lucide-react";
 
 import { colors, fontFamily, monoFamily } from "../_shared/theme";
@@ -27,6 +28,18 @@ function viewIcon(view: InspectorView) {
   return <Eye size={14} />;
 }
 
+const focusableSelector =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+    (element) => {
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    },
+  );
+}
+
 export function InspectorDrawer({
   open,
   view,
@@ -36,19 +49,98 @@ export function InspectorDrawer({
   onChangeView,
   onClose,
 }: InspectorDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusFirstControl = window.setTimeout(() => {
+      const drawer = drawerRef.current;
+      if (!drawer) return;
+
+      const firstFocusable = getFocusableElements(drawer)[0];
+      (firstFocusable ?? drawer).focus();
+    }, 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const drawer = drawerRef.current;
+      if (!drawer) return;
+
+      const focusable = getFocusableElements(drawer);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.clearTimeout(focusFirstControl);
+      document.removeEventListener("keydown", onKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <div className="inspector-backdrop">
-      <aside className="inspector-drawer">
+    <div
+      className="inspector-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <aside
+        ref={drawerRef}
+        className="inspector-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inspector-title"
+        tabIndex={-1}
+      >
         <header className="inspector-header">
           <div>
             <div style={{ color: colors.faint, fontSize: 11 }}>Inspector</div>
-            <div style={{ color: colors.text, fontWeight: 800 }}>
+            <div
+              id="inspector-title"
+              style={{ color: colors.text, fontWeight: 800 }}
+            >
               Agent implementation details
             </div>
           </div>
-          <button type="button" onClick={onClose} className="close-drawer">
+          <button
+            type="button"
+            onClick={onClose}
+            className="close-drawer"
+            aria-label="Close inspector"
+          >
             <X size={16} />
           </button>
         </header>

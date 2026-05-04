@@ -63,17 +63,28 @@ export function BottomDock({
     view: MainDockView,
     label: string,
     icon: ReactNode,
-  ) => (
-    <button
-      type="button"
-      className={activeView === view ? "dock-button active" : "dock-button"}
-      onClick={() => onSelectView(view)}
-      title={label}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
+  ) => {
+    const className = [
+      "dock-button",
+      activeView === view ? "active" : "",
+      view === "agent" ? "agent-dock-button" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={() => onSelectView(view)}
+        title={label}
+        aria-label={label}
+      >
+        {icon}
+        <span>{label}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="bottom-dock-shell">
@@ -82,6 +93,7 @@ export function BottomDock({
         className={running ? "stop-button running" : "stop-button"}
         onClick={onToggleRunning}
         title={running ? "Stop" : "Start"}
+        aria-label={running ? "Stop app" : "Start app"}
       >
         <Square size={19} fill="currentColor" />
         <span>{running ? "Stop" : "Run"}</span>
@@ -106,6 +118,7 @@ export function BottomDock({
           className={toolSwitcherOpen ? "switcher-button active" : "switcher-button"}
           onClick={onToggleToolSwitcher}
           title="Switch tool page"
+          aria-label="Switch tool page"
         >
           <Globe2 size={20} />
         </button>
@@ -128,6 +141,7 @@ export function BottomDock({
                 type="button"
                 className={currentTool === tool ? "tool-option active" : "tool-option"}
                 onClick={() => onSelectTool(tool)}
+                aria-label={`Switch tool to ${toolLabels[tool]}`}
               >
                 <ToolIcon tool={tool} size={16} />
                 {toolLabels[tool]}
@@ -193,7 +207,7 @@ export function BottomDock({
           box-shadow: inset 0 -3px 0 ${colors.blue};
         }
 
-        .dock-button.active:nth-child(2) {
+        .dock-button.active.agent-dock-button {
           color: ${colors.violet};
           box-shadow: inset 0 -3px 0 ${colors.violet};
         }

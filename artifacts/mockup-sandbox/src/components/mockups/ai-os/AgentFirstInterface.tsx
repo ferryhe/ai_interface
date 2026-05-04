@@ -56,6 +56,8 @@ export function AgentFirstInterface() {
   }
 
   const events = timelineEvents[selectedTask.id] ?? [];
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const legacyHref = `${basePath}/preview/ai-os/AIInterface`;
   const viewTitle =
     activeView === "agent"
       ? "Agent"
@@ -108,7 +110,7 @@ export function AgentFirstInterface() {
             <span className={running ? "runtime-pill live" : "runtime-pill"}>
               {running ? "Running" : "Stopped"}
             </span>
-            <a className="legacy-link" href="/preview/ai-os/AIInterface">
+            <a className="legacy-link" href={legacyHref}>
               Legacy
               <ExternalLink size={12} />
             </a>
@@ -140,6 +142,7 @@ export function AgentFirstInterface() {
               selectedTaskId={selectedTask.id}
               onSelectTask={(taskId) => {
                 setSelectedTaskId(taskId);
+                setSessionNote(null);
                 setActiveView("agent");
               }}
             />

@@ -24,7 +24,15 @@ export function CommandBar({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            const nativeEvent = event.nativeEvent as KeyboardEvent & {
+              isComposing?: boolean;
+            };
+
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !nativeEvent.isComposing
+            ) {
               event.preventDefault();
               onSubmit();
             }
@@ -50,27 +58,44 @@ export function CommandBar({
           }}
         />
         <div className="command-actions">
-          <button type="button" title="Attach file" className="icon-command">
+          <button
+            type="button"
+            title="Attach file"
+            aria-label="Attach file"
+            className="icon-command"
+          >
             <Paperclip size={16} />
           </button>
           <button
             type="button"
             title="Toggle plan mode"
+            aria-pressed={planMode}
             onClick={onTogglePlanMode}
             className={planMode ? "mode-command active" : "mode-command"}
           >
             <WandSparkles size={15} />
             Plan
           </button>
-          <button type="button" title="Agent settings" className="icon-command">
+          <button
+            type="button"
+            title="Agent settings"
+            aria-label="Agent settings"
+            className="icon-command"
+          >
             <SlidersHorizontal size={16} />
           </button>
-          <button type="button" title="Voice input" className="icon-command">
+          <button
+            type="button"
+            title="Voice input"
+            aria-label="Voice input"
+            className="icon-command"
+          >
             <Mic size={16} />
           </button>
           <button
             type="button"
             title="Send"
+            aria-label="Send message"
             onClick={onSubmit}
             className="send-command"
             disabled={!value.trim()}

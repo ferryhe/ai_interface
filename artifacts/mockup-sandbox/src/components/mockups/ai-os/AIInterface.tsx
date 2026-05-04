@@ -804,7 +804,15 @@ function GitPanel() {
   );
 }
 
-const PACKAGES = [
+type PackageRow = {
+  name: string;
+  version: string;
+  type: "prod" | "dev";
+  size: string;
+  isNew?: boolean;
+};
+
+const PACKAGES: PackageRow[] = [
   { name: "express", version: "4.18.2", type: "prod", size: "208 kB" },
   { name: "jsonwebtoken", version: "9.0.2", type: "prod", size: "48 kB" },
   { name: "express-rate-limit", version: "7.1.5", type: "prod", size: "32 kB" },
@@ -821,6 +829,10 @@ function PackagesPanel() {
   const [addPkg, setAddPkg] = useState("");
 
   const filtered = PACKAGES.filter(p => p.name.includes(search));
+  const packageRows: PackageRow[] = [
+    ...installed.map((n): PackageRow => ({ name: n, version: "latest", type: "prod", size: "—", isNew: true })),
+    ...filtered,
+  ];
 
   const addPackage = () => {
     if (!addPkg.trim()) return;
@@ -854,14 +866,14 @@ function PackagesPanel() {
         <div style={{ padding: "4px 12px 2px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, fontSize: 10, color: "#484f58", textTransform: "uppercase", letterSpacing: 1 }}>
           <span>Package</span><span>Version</span><span>Type</span><span>Size</span>
         </div>
-        {[...installed.map(n => ({ name: n, version: "latest", type: "prod", size: "—", isNew: true })), ...filtered].map(pkg => (
+        {packageRows.map(pkg => (
           <div key={pkg.name} style={{ padding: "5px 12px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, alignItems: "center", borderBottom: "1px solid #21262d22" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "#e1e4e8", fontSize: 12 }}>{pkg.name}</span>
-              {Boolean((pkg as { isNew?: boolean }).isNew) && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
+              {pkg.isNew && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
             </div>
             <span style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{pkg.version}</span>
             <span style={{ fontSize: 10, color: pkg.type === "dev" ? "#d2a8ff" : "#58a6ff", background: pkg.type === "dev" ? "#d2a8ff11" : "#58a6ff11", borderRadius: 3, padding: "1px 5px", textAlign: "center" }}>{pkg.type}</span>
