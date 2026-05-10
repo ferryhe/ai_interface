@@ -73,7 +73,6 @@ export interface CreateModuleRunRequest {
   /** @minLength 1 */
   externalRunId: string;
   pipelineRunId?: string;
-  threadId?: string;
   title?: string;
   status?: ModuleRunStatus;
   inputJson?: JsonObject;

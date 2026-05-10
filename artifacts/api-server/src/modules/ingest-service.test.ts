@@ -52,6 +52,35 @@ test("rejects unknown module ids before storing a run", async () => {
   assert.equal(repository.moduleRuns.length, 0);
 });
 
+test("rejects unknown pipeline runs before storing a run", async () => {
+  const repository = new InMemoryModuleRunRepository();
+
+  await assert.rejects(
+    () =>
+      createModuleRun(repository, {
+        moduleId: "web_listening",
+        externalRunId: "listen-002",
+        pipelineRunId: "11111111-1111-1111-1111-111111111111",
+      }),
+    /Pipeline run not found: 11111111-1111-1111-1111-111111111111/,
+  );
+
+  assert.equal(repository.moduleRuns.length, 0);
+});
+
+test("stores known pipeline run ids", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  repository.pipelineRunIds.add("11111111-1111-1111-1111-111111111111");
+
+  const { run } = await createModuleRun(repository, {
+    moduleId: "web_listening",
+    externalRunId: "listen-003",
+    pipelineRunId: "11111111-1111-1111-1111-111111111111",
+  });
+
+  assert.equal(run.pipelineRunId, "11111111-1111-1111-1111-111111111111");
+});
+
 test("records events against an existing module run", async () => {
   const repository = new InMemoryModuleRunRepository();
   const { run } = await createModuleRun(repository, {

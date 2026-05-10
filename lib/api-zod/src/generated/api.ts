@@ -50,7 +50,6 @@ export const CreateModuleRunBody = zod.object({
   ]),
   externalRunId: zod.string().min(1),
   pipelineRunId: zod.string().uuid().optional(),
-  threadId: zod.string().uuid().optional(),
   title: zod.string().optional(),
   status: zod
     .enum(["pending", "running", "succeeded", "failed", "cancelled"])

@@ -1,9 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import {
   artifactsTable,
   db,
   moduleCatalogTable,
   moduleRunsTable,
+  pipelineRunsTable,
   runEventsTable,
 } from "@workspace/db";
 
@@ -142,6 +143,18 @@ export class DbModuleRunRepository implements ModuleRunRepository {
     const rows = await db
       .insert(moduleRunsTable)
       .values(input)
+      .onConflictDoUpdate({
+        target: [moduleRunsTable.moduleId, moduleRunsTable.externalRunId],
+        set: {
+          pipelineRunId: sql`coalesce(excluded.pipeline_run_id, ${moduleRunsTable.pipelineRunId})`,
+          title: sql`coalesce(excluded.title, ${moduleRunsTable.title})`,
+          status: input.status,
+          inputJson: sql`coalesce(excluded.input_json, ${moduleRunsTable.inputJson})`,
+          outputJson: sql`coalesce(excluded.output_json, ${moduleRunsTable.outputJson})`,
+          metadata: sql`coalesce(excluded.metadata, ${moduleRunsTable.metadata})`,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
 
     return mapModuleRun(firstOrThrow(rows, "module run"));
@@ -177,6 +190,16 @@ export class DbModuleRunRepository implements ModuleRunRepository {
       .limit(1);
 
     return rows[0] ? mapModuleRun(rows[0]) : null;
+  }
+
+  async pipelineRunExists(id: string): Promise<boolean> {
+    const rows = await db
+      .select({ id: pipelineRunsTable.id })
+      .from(pipelineRunsTable)
+      .where(eq(pipelineRunsTable.id, id))
+      .limit(1);
+
+    return rows.length > 0;
   }
 
   async createRunEvent(input: {

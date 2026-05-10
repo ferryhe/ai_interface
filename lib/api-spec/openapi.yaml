@@ -290,9 +290,6 @@ components:
         pipelineRunId:
           type: string
           format: uuid
-        threadId:
-          type: string
-          format: uuid
         title:
           type: string
         status:

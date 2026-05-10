@@ -10,6 +10,10 @@ Updated: 2026-05-10
 
 ## Current State
 
+- Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
+- Module run creation now uses DB conflict upsert on `(module_id, external_run_id)` to keep idempotent ingest race-safe.
+- `threadId` was removed from the public create-module-run contract until thread linkage has storage semantics.
+- `pipelineRunId` now has explicit existence validation before module runs are stored.
 - Added the superseding Agent Module OS + Postgres memory plan.
 - Added contract fixtures for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
 - Added module registry, ingest service, DB-backed repository, and API routes for module runs, events, artifacts, and module catalog.
@@ -21,6 +25,11 @@ Updated: 2026-05-10
 
 ## Verification
 
+- Follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 6 tests.
+- Follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Follow-up validation: `corepack pnpm run typecheck:libs` passed.
+- Follow-up validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Follow-up validation: `PORT=3000 BASE_PATH=/ corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - `corepack pnpm --filter @workspace/api-server run test` passed.
 - `corepack pnpm run typecheck:libs` passed.
 - `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
@@ -36,4 +45,4 @@ Updated: 2026-05-10
 
 ## Next Action
 
-- Commit, push, and open a PR for `codex/agent-module-os-memory`.
+- Monitor PR #4 normally; the scheduled one-time follow-up has been completed.

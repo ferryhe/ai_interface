@@ -51,6 +51,7 @@ interface CreateModuleRunRecordInput {
 }
 
 interface UpdateModuleRunRecordInput {
+  pipelineRunId?: string | null;
   title?: string | null;
   status?: ModuleRunStatus;
   summary?: string | null;
@@ -145,6 +146,7 @@ export interface ModuleRunRepository {
     id: string,
     input: UpdateModuleRunRecordInput,
   ): Promise<ModuleRunRecord>;
+  pipelineRunExists(id: string): Promise<boolean>;
   findModuleRunById(id: string): Promise<ModuleRunRecord | null>;
   createRunEvent(input: CreateRunEventRecordInput): Promise<RunEventRecord>;
   createArtifact(input: CreateArtifactRecordInput): Promise<ArtifactRecord>;
@@ -157,6 +159,7 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
   readonly moduleRuns: ModuleRunRecord[] = [];
   readonly runEvents: RunEventRecord[] = [];
   readonly artifacts: ArtifactRecord[] = [];
+  readonly pipelineRunIds = new Set<string>();
 
   async findModuleRunByExternalId(
     moduleId: ModuleId,
@@ -209,6 +212,10 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
     return this.moduleRuns.find((run) => run.id === id) ?? null;
   }
 
+  async pipelineRunExists(id: string): Promise<boolean> {
+    return this.pipelineRunIds.has(id);
+  }
+
   async createRunEvent(
     input: CreateRunEventRecordInput,
   ): Promise<RunEventRecord> {
@@ -256,6 +263,13 @@ export async function createModuleRun(
     throw new Error(`Unknown moduleId: ${input.moduleId}`);
   }
 
+  if (input.pipelineRunId) {
+    const pipelineRunExists = await repository.pipelineRunExists(input.pipelineRunId);
+    if (!pipelineRunExists) {
+      throw new Error(`Pipeline run not found: ${input.pipelineRunId}`);
+    }
+  }
+
   const existing = await repository.findModuleRunByExternalId(
     input.moduleId,
     input.externalRunId,
@@ -263,6 +277,7 @@ export async function createModuleRun(
 
   if (existing) {
     const updated = await repository.updateModuleRun(existing.id, {
+      pipelineRunId: input.pipelineRunId ?? existing.pipelineRunId,
       title: input.title ?? existing.title,
       status: input.status ?? existing.status,
       inputJson: input.inputJson ?? existing.inputJson,
