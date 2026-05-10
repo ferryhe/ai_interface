@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: modules
+    description: Module catalog and ingest operations
 paths:
   /healthz:
     get:
@@ -24,7 +26,183 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /modules:
+    get:
+      operationId: listModules
+      tags: [modules]
+      summary: List registered modules
+      description: Returns the module catalog available to Agent.
+      responses:
+        "200":
+          description: Registered module catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleListResponse"
+  /module-runs:
+    post:
+      operationId: createModuleRun
+      tags: [modules]
+      summary: Create or update a module run
+      description: Idempotently creates or updates a module run by moduleId and externalRunId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleRunRequest"
+      responses:
+        "200":
+          description: Existing module run updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRunIngestResponse"
+        "201":
+          description: New module run created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRunIngestResponse"
+        "400":
+          description: Invalid ingest payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}:
+    get:
+      operationId: getModuleRun
+      tags: [modules]
+      summary: Get a module run
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Module run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRunDetail"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateModuleRun
+      tags: [modules]
+      summary: Update a module run
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateModuleRunRequest"
+      responses:
+        "200":
+          description: Updated module run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleRun"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}/events:
+    post:
+      operationId: createModuleRunEvent
+      tags: [modules]
+      summary: Append a module run event
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRunEventRequest"
+      responses:
+        "201":
+          description: Event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunEvent"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}/artifacts:
+    post:
+      operationId: createModuleRunArtifact
+      tags: [modules]
+      summary: Store a module artifact
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateArtifactRequest"
+      responses:
+        "201":
+          description: Artifact stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Artifact"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /artifacts/{artifactId}:
+    get:
+      operationId: getArtifact
+      tags: [modules]
+      summary: Get an artifact
+      parameters:
+        - $ref: "#/components/parameters/ArtifactId"
+      responses:
+        "200":
+          description: Artifact detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Artifact"
+        "404":
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ArtifactId:
+      name: artifactId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +211,338 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    JsonObject:
+      type: object
+      additionalProperties: true
+    ModuleId:
+      type: string
+      enum:
+        - web_listening
+        - doc_to_md
+        - md_to_rag
+        - rag_to_agent
+    ModuleCategory:
+      type: string
+      enum:
+        - source
+        - transform
+        - index
+        - agent
+    ModuleRunStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - succeeded
+        - failed
+        - cancelled
+    RunEventSeverity:
+      type: string
+      enum:
+        - info
+        - warning
+        - error
+    ModuleDefinition:
+      type: object
+      properties:
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        displayName:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: "#/components/schemas/ModuleCategory"
+        resultKinds:
+          type: array
+          items:
+            type: string
+      required:
+        - moduleId
+        - displayName
+        - description
+        - category
+        - resultKinds
+    ModuleListResponse:
+      type: object
+      properties:
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleDefinition"
+      required:
+        - modules
+    CreateModuleRunRequest:
+      type: object
+      properties:
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        externalRunId:
+          type: string
+          minLength: 1
+        pipelineRunId:
+          type: string
+          format: uuid
+        threadId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/ModuleRunStatus"
+        inputJson:
+          $ref: "#/components/schemas/JsonObject"
+        outputJson:
+          $ref: "#/components/schemas/JsonObject"
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - moduleId
+        - externalRunId
+    UpdateModuleRunRequest:
+      type: object
+      properties:
+        title:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ModuleRunStatus"
+        summary:
+          type:
+            - string
+            - "null"
+        outputJson:
+          $ref: "#/components/schemas/JsonObject"
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    ModuleRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pipelineRunId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        externalRunId:
+          type: string
+        title:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ModuleRunStatus"
+        inputJson:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        outputJson:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        summary:
+          type:
+            - string
+            - "null"
+        metadata:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        startedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        completedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pipelineRunId
+        - moduleId
+        - externalRunId
+        - title
+        - status
+        - inputJson
+        - outputJson
+        - summary
+        - metadata
+        - startedAt
+        - completedAt
+        - createdAt
+        - updatedAt
+    ModuleRunIngestResponse:
+      type: object
+      properties:
+        created:
+          type: boolean
+        run:
+          $ref: "#/components/schemas/ModuleRun"
+      required:
+        - created
+        - run
+    RunEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        moduleRunId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        title:
+          type:
+            - string
+            - "null"
+        message:
+          type:
+            - string
+            - "null"
+        severity:
+          $ref: "#/components/schemas/RunEventSeverity"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - moduleRunId
+        - eventType
+        - title
+        - message
+        - severity
+        - payload
+        - createdAt
+    CreateRunEventRequest:
+      type: object
+      properties:
+        eventType:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          $ref: "#/components/schemas/RunEventSeverity"
+        payload:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - eventType
+    Artifact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        artifactKind:
+          type: string
+        title:
+          type: string
+        contentText:
+          type:
+            - string
+            - "null"
+        contentJson:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        sourceModuleId:
+          $ref: "#/components/schemas/ModuleId"
+        sourceRunId:
+          type: string
+          format: uuid
+        parentArtifactId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        provenance:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - artifactKind
+        - title
+        - contentText
+        - contentJson
+        - sourceModuleId
+        - sourceRunId
+        - parentArtifactId
+        - provenance
+        - createdAt
+        - updatedAt
+    CreateArtifactRequest:
+      type: object
+      properties:
+        artifactKind:
+          type: string
+        title:
+          type: string
+        contentText:
+          type: string
+        contentJson:
+          $ref: "#/components/schemas/JsonObject"
+        parentArtifactId:
+          type: string
+          format: uuid
+        provenance:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - artifactKind
+        - title
+    ModuleRunDetail:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/ModuleRun"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunEvent"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Artifact"
+      required:
+        - run
+        - events
+        - artifacts
 

@@ -8,3 +8,166 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface JsonObject {
+  [key: string]: unknown;
+}
+
+export type ModuleId = (typeof ModuleId)[keyof typeof ModuleId];
+
+export const ModuleId = {
+  web_listening: "web_listening",
+  doc_to_md: "doc_to_md",
+  md_to_rag: "md_to_rag",
+  rag_to_agent: "rag_to_agent",
+} as const;
+
+export type ModuleCategory =
+  (typeof ModuleCategory)[keyof typeof ModuleCategory];
+
+export const ModuleCategory = {
+  source: "source",
+  transform: "transform",
+  index: "index",
+  agent: "agent",
+} as const;
+
+export type ModuleRunStatus =
+  (typeof ModuleRunStatus)[keyof typeof ModuleRunStatus];
+
+export const ModuleRunStatus = {
+  pending: "pending",
+  running: "running",
+  succeeded: "succeeded",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export type RunEventSeverity =
+  (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
+
+export const RunEventSeverity = {
+  info: "info",
+  warning: "warning",
+  error: "error",
+} as const;
+
+export interface ModuleDefinition {
+  moduleId: ModuleId;
+  displayName: string;
+  description: string;
+  category: ModuleCategory;
+  resultKinds: string[];
+}
+
+export interface ModuleListResponse {
+  modules: ModuleDefinition[];
+}
+
+export interface CreateModuleRunRequest {
+  moduleId: ModuleId;
+  /** @minLength 1 */
+  externalRunId: string;
+  pipelineRunId?: string;
+  threadId?: string;
+  title?: string;
+  status?: ModuleRunStatus;
+  inputJson?: JsonObject;
+  outputJson?: JsonObject;
+  metadata?: JsonObject;
+}
+
+export interface UpdateModuleRunRequest {
+  /** @nullable */
+  title?: string | null;
+  status?: ModuleRunStatus;
+  /** @nullable */
+  summary?: string | null;
+  outputJson?: JsonObject;
+  metadata?: JsonObject;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface ModuleRun {
+  id: string;
+  /** @nullable */
+  pipelineRunId: string | null;
+  moduleId: ModuleId;
+  externalRunId: string;
+  /** @nullable */
+  title: string | null;
+  status: ModuleRunStatus;
+  inputJson: JsonObject | null;
+  outputJson: JsonObject | null;
+  /** @nullable */
+  summary: string | null;
+  metadata: JsonObject | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModuleRunIngestResponse {
+  created: boolean;
+  run: ModuleRun;
+}
+
+export interface RunEvent {
+  id: string;
+  moduleRunId: string;
+  eventType: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  message: string | null;
+  severity: RunEventSeverity;
+  payload: JsonObject | null;
+  createdAt: string;
+}
+
+export interface CreateRunEventRequest {
+  eventType: string;
+  title?: string;
+  message?: string;
+  severity?: RunEventSeverity;
+  payload?: JsonObject;
+}
+
+export interface Artifact {
+  id: string;
+  artifactKind: string;
+  title: string;
+  /** @nullable */
+  contentText: string | null;
+  contentJson: JsonObject | null;
+  sourceModuleId: ModuleId;
+  sourceRunId: string;
+  /** @nullable */
+  parentArtifactId: string | null;
+  provenance: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateArtifactRequest {
+  artifactKind: string;
+  title: string;
+  contentText?: string;
+  contentJson?: JsonObject;
+  parentArtifactId?: string;
+  provenance?: JsonObject;
+}
+
+export interface ModuleRunDetail {
+  run: ModuleRun;
+  events: RunEvent[];
+  artifacts: Artifact[];
+}

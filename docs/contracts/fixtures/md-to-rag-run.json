@@ -1,0 +1,15 @@
+{
+  "moduleId": "md_to_rag",
+  "externalRunId": "md-to-rag-2026-05-10T21-38-00Z",
+  "title": "Index onboarding knowledge",
+  "status": "succeeded",
+  "inputJson": {
+    "markdownDocumentId": "md_7a1d",
+    "chunkSize": 900
+  },
+  "outputJson": {
+    "ragIndexId": "rag_23cb",
+    "chunks": 24,
+    "embeddedChunks": 24
+  }
+}

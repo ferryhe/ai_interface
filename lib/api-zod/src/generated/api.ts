@@ -14,3 +14,258 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns the module catalog available to Agent.
+ * @summary List registered modules
+ */
+export const ListModulesResponse = zod.object({
+  modules: zod.array(
+    zod.object({
+      moduleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      displayName: zod.string(),
+      description: zod.string(),
+      category: zod.enum(["source", "transform", "index", "agent"]),
+      resultKinds: zod.array(zod.string()),
+    }),
+  ),
+});
+
+/**
+ * Idempotently creates or updates a module run by moduleId and externalRunId.
+ * @summary Create or update a module run
+ */
+
+export const CreateModuleRunBody = zod.object({
+  moduleId: zod.enum([
+    "web_listening",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+  ]),
+  externalRunId: zod.string().min(1),
+  pipelineRunId: zod.string().uuid().optional(),
+  threadId: zod.string().uuid().optional(),
+  title: zod.string().optional(),
+  status: zod
+    .enum(["pending", "running", "succeeded", "failed", "cancelled"])
+    .optional(),
+  inputJson: zod.record(zod.string(), zod.unknown()).optional(),
+  outputJson: zod.record(zod.string(), zod.unknown()).optional(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const CreateModuleRunResponse = zod.object({
+  created: zod.boolean(),
+  run: zod.object({
+    id: zod.string().uuid(),
+    pipelineRunId: zod.string().uuid().nullable(),
+    moduleId: zod.enum([
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+    ]),
+    externalRunId: zod.string(),
+    title: zod.string().nullable(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    inputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    outputJson: zod.union([
+      zod.record(zod.string(), zod.unknown()),
+      zod.null(),
+    ]),
+    summary: zod.string().nullable(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    startedAt: zod.coerce.date().nullable(),
+    completedAt: zod.coerce.date().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Get a module run
+ */
+export const GetModuleRunParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const GetModuleRunResponse = zod.object({
+  run: zod.object({
+    id: zod.string().uuid(),
+    pipelineRunId: zod.string().uuid().nullable(),
+    moduleId: zod.enum([
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+    ]),
+    externalRunId: zod.string(),
+    title: zod.string().nullable(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    inputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    outputJson: zod.union([
+      zod.record(zod.string(), zod.unknown()),
+      zod.null(),
+    ]),
+    summary: zod.string().nullable(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    startedAt: zod.coerce.date().nullable(),
+    completedAt: zod.coerce.date().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  events: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      moduleRunId: zod.string().uuid(),
+      eventType: zod.string(),
+      title: zod.string().nullable(),
+      message: zod.string().nullable(),
+      severity: zod.enum(["info", "warning", "error"]),
+      payload: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  artifacts: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      artifactKind: zod.string(),
+      title: zod.string(),
+      contentText: zod.string().nullable(),
+      contentJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      sourceModuleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      sourceRunId: zod.string().uuid(),
+      parentArtifactId: zod.string().uuid().nullable(),
+      provenance: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update a module run
+ */
+export const UpdateModuleRunParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const UpdateModuleRunBody = zod.object({
+  title: zod.string().nullish(),
+  status: zod
+    .enum(["pending", "running", "succeeded", "failed", "cancelled"])
+    .optional(),
+  summary: zod.string().nullish(),
+  outputJson: zod.record(zod.string(), zod.unknown()).optional(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  startedAt: zod.coerce.date().optional(),
+  completedAt: zod.coerce.date().optional(),
+});
+
+export const UpdateModuleRunResponse = zod.object({
+  id: zod.string().uuid(),
+  pipelineRunId: zod.string().uuid().nullable(),
+  moduleId: zod.enum([
+    "web_listening",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+  ]),
+  externalRunId: zod.string(),
+  title: zod.string().nullable(),
+  status: zod.enum(["pending", "running", "succeeded", "failed", "cancelled"]),
+  inputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+  outputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+  summary: zod.string().nullable(),
+  metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+  startedAt: zod.coerce.date().nullable(),
+  completedAt: zod.coerce.date().nullable(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Append a module run event
+ */
+export const CreateModuleRunEventParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const CreateModuleRunEventBody = zod.object({
+  eventType: zod.string(),
+  title: zod.string().optional(),
+  message: zod.string().optional(),
+  severity: zod.enum(["info", "warning", "error"]).optional(),
+  payload: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+/**
+ * @summary Store a module artifact
+ */
+export const CreateModuleRunArtifactParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const CreateModuleRunArtifactBody = zod.object({
+  artifactKind: zod.string(),
+  title: zod.string(),
+  contentText: zod.string().optional(),
+  contentJson: zod.record(zod.string(), zod.unknown()).optional(),
+  parentArtifactId: zod.string().uuid().optional(),
+  provenance: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+/**
+ * @summary Get an artifact
+ */
+export const GetArtifactParams = zod.object({
+  artifactId: zod.coerce.string().uuid(),
+});
+
+export const GetArtifactResponse = zod.object({
+  id: zod.string().uuid(),
+  artifactKind: zod.string(),
+  title: zod.string(),
+  contentText: zod.string().nullable(),
+  contentJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+  sourceModuleId: zod.enum([
+    "web_listening",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+  ]),
+  sourceRunId: zod.string().uuid(),
+  parentArtifactId: zod.string().uuid().nullable(),
+  provenance: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});

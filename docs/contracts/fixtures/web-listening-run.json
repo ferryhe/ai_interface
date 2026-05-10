@@ -1,0 +1,15 @@
+{
+  "moduleId": "web_listening",
+  "externalRunId": "web-listening-2026-05-10T21-30-00Z",
+  "title": "Monitor docs.example.com",
+  "status": "succeeded",
+  "inputJson": {
+    "url": "https://docs.example.com",
+    "depth": 2
+  },
+  "outputJson": {
+    "pagesVisited": 18,
+    "snapshotsCreated": 18,
+    "changesDetected": 3
+  }
+}
