@@ -1,0 +1,15 @@
+{
+  "moduleId": "rag_to_agent",
+  "externalRunId": "rag-to-agent-2026-05-10T21-42-00Z",
+  "title": "Generate onboarding assistant",
+  "status": "succeeded",
+  "inputJson": {
+    "ragIndexId": "rag_23cb",
+    "agentName": "Onboarding Guide"
+  },
+  "outputJson": {
+    "agentConfigId": "agent_cfg_51aa",
+    "tools": ["search_onboarding_knowledge"],
+    "validation": "passed"
+  }
+}

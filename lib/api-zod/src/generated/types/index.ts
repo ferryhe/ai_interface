@@ -6,4 +6,21 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./artifact";
+export * from "./createArtifactRequest";
+export * from "./createModuleRunRequest";
+export * from "./createRunEventRequest";
+export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./jsonObject";
+export * from "./moduleCategory";
+export * from "./moduleDefinition";
+export * from "./moduleId";
+export * from "./moduleListResponse";
+export * from "./moduleRun";
+export * from "./moduleRunDetail";
+export * from "./moduleRunIngestResponse";
+export * from "./moduleRunStatus";
+export * from "./runEvent";
+export * from "./runEventSeverity";
+export * from "./updateModuleRunRequest";

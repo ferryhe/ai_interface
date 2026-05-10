@@ -1,0 +1,54 @@
+# ai_interface Project Status
+
+Updated: 2026-05-10
+
+## Active Work
+
+- Branch: `codex/agent-module-os-memory`
+- Scope: Implement the AI Agent Module OS plan inside `ai_interface` only.
+- Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
+
+## Current State
+
+- Replit Run button/workflow now starts the mockup sandbox on port 8080 and opens the Agent Module OS page by default.
+- Mockup sandbox root can render `ai-os/AgentFirstInterface` when `VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface` is set.
+- Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
+- Module run creation now uses DB conflict upsert on `(module_id, external_run_id)` to keep idempotent ingest race-safe.
+- `threadId` was removed from the public create-module-run contract until thread linkage has storage semantics.
+- `pipelineRunId` now has explicit existence validation before module runs are stored.
+- Added the superseding Agent Module OS + Postgres memory plan.
+- Added contract fixtures for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
+- Added module registry, ingest service, DB-backed repository, and API routes for module runs, events, artifacts, and module catalog.
+- DB-backed ingest now upserts the static module catalog before storing module runs/artifacts, so first-time external module POSTs have the required foreign-key rows.
+- Added Drizzle schema for agent threads/messages, module catalog, pipeline runs, module runs, run events, artifacts, and typed data records.
+- Updated OpenAPI spec and regenerated API client/Zod outputs.
+- Reworked the mockup sandbox AI OS screen into a Replit-like Agent-first console with Agent, Modules, Progress, Data, and Deploy views.
+- Updated Windows native optional package overrides so local Vite/Rollup builds can run on this workspace.
+
+## Verification
+
+- Run action validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Run action validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Run action validation: `.replit` parsed as TOML with `runButton = "Project"`, `Agent Module OS` workflow, and port 8080 mapped to external 80.
+- Run action browser smoke: `http://127.0.0.1:8080/` rendered `Agent Module OS` with all four module IDs and no console warnings/errors.
+- Follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 6 tests.
+- Follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Follow-up validation: `corepack pnpm run typecheck:libs` passed.
+- Follow-up validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Follow-up validation: `PORT=3000 BASE_PATH=/ corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- `corepack pnpm --filter @workspace/api-server run test` passed.
+- `corepack pnpm run typecheck:libs` passed.
+- `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- `corepack pnpm --filter @workspace/api-server run build` passed.
+- `PORT=3000 BASE_PATH=/ corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed after the DB repository update.
+- Browser smoke opened `http://127.0.0.1:3000/preview/ai-os/AgentFirstInterface`, verified Agent/Modules/Progress/Data/Deploy navigation by DOM, and found no console errors or warnings.
+
+## Notes
+
+- `corepack pnpm run typecheck` on this Windows host starts correctly but the root script invokes bare `pnpm`, which is not available on PATH in this shell; equivalent library and artifact/script typechecks were run directly with `corepack pnpm` and passed.
+- Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
+
+## Next Action
+
+- PR #4 now includes Replit run action setup for the Agent Module OS page.

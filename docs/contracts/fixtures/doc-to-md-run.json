@@ -1,0 +1,15 @@
+{
+  "moduleId": "doc_to_md",
+  "externalRunId": "doc-to-md-2026-05-10T21-34-00Z",
+  "title": "Convert onboarding PDF",
+  "status": "succeeded",
+  "inputJson": {
+    "sourceDocumentId": "doc_9f2a",
+    "filename": "onboarding.pdf"
+  },
+  "outputJson": {
+    "markdownDocumentId": "md_7a1d",
+    "warnings": ["1 scanned page required OCR"],
+    "wordCount": 4821
+  }
+}

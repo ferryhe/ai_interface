@@ -5,18 +5,34 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  Artifact,
+  CreateArtifactRequest,
+  CreateModuleRunRequest,
+  CreateRunEventRequest,
+  ErrorResponse,
+  HealthStatus,
+  ModuleListResponse,
+  ModuleRun,
+  ModuleRunDetail,
+  ModuleRunIngestResponse,
+  RunEvent,
+  UpdateModuleRunRequest,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -92,6 +108,605 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the module catalog available to Agent.
+ * @summary List registered modules
+ */
+export const getListModulesUrl = () => {
+  return `/api/modules`;
+};
+
+export const listModules = async (
+  options?: RequestInit,
+): Promise<ModuleListResponse> => {
+  return customFetch<ModuleListResponse>(getListModulesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListModulesQueryKey = () => {
+  return [`/api/modules`] as const;
+};
+
+export const getListModulesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listModules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listModules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListModulesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listModules>>> = ({
+    signal,
+  }) => listModules({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listModules>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListModulesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listModules>>
+>;
+export type ListModulesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List registered modules
+ */
+
+export function useListModules<
+  TData = Awaited<ReturnType<typeof listModules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listModules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListModulesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Idempotently creates or updates a module run by moduleId and externalRunId.
+ * @summary Create or update a module run
+ */
+export const getCreateModuleRunUrl = () => {
+  return `/api/module-runs`;
+};
+
+export const createModuleRun = async (
+  createModuleRunRequest: CreateModuleRunRequest,
+  options?: RequestInit,
+): Promise<ModuleRunIngestResponse> => {
+  return customFetch<ModuleRunIngestResponse>(getCreateModuleRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createModuleRunRequest),
+  });
+};
+
+export const getCreateModuleRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRun>>,
+    TError,
+    { data: BodyType<CreateModuleRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createModuleRun>>,
+  TError,
+  { data: BodyType<CreateModuleRunRequest> },
+  TContext
+> => {
+  const mutationKey = ["createModuleRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createModuleRun>>,
+    { data: BodyType<CreateModuleRunRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createModuleRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateModuleRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createModuleRun>>
+>;
+export type CreateModuleRunMutationBody = BodyType<CreateModuleRunRequest>;
+export type CreateModuleRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create or update a module run
+ */
+export const useCreateModuleRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRun>>,
+    TError,
+    { data: BodyType<CreateModuleRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createModuleRun>>,
+  TError,
+  { data: BodyType<CreateModuleRunRequest> },
+  TContext
+> => {
+  return useMutation(getCreateModuleRunMutationOptions(options));
+};
+
+/**
+ * @summary Get a module run
+ */
+export const getGetModuleRunUrl = (runId: string) => {
+  return `/api/module-runs/${runId}`;
+};
+
+export const getModuleRun = async (
+  runId: string,
+  options?: RequestInit,
+): Promise<ModuleRunDetail> => {
+  return customFetch<ModuleRunDetail>(getGetModuleRunUrl(runId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetModuleRunQueryKey = (runId: string) => {
+  return [`/api/module-runs/${runId}`] as const;
+};
+
+export const getGetModuleRunQueryOptions = <
+  TData = Awaited<ReturnType<typeof getModuleRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  runId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getModuleRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetModuleRunQueryKey(runId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getModuleRun>>> = ({
+    signal,
+  }) => getModuleRun(runId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!runId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getModuleRun>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetModuleRunQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getModuleRun>>
+>;
+export type GetModuleRunQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a module run
+ */
+
+export function useGetModuleRun<
+  TData = Awaited<ReturnType<typeof getModuleRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  runId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getModuleRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetModuleRunQueryOptions(runId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a module run
+ */
+export const getUpdateModuleRunUrl = (runId: string) => {
+  return `/api/module-runs/${runId}`;
+};
+
+export const updateModuleRun = async (
+  runId: string,
+  updateModuleRunRequest: UpdateModuleRunRequest,
+  options?: RequestInit,
+): Promise<ModuleRun> => {
+  return customFetch<ModuleRun>(getUpdateModuleRunUrl(runId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateModuleRunRequest),
+  });
+};
+
+export const getUpdateModuleRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateModuleRun>>,
+    TError,
+    { runId: string; data: BodyType<UpdateModuleRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateModuleRun>>,
+  TError,
+  { runId: string; data: BodyType<UpdateModuleRunRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateModuleRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateModuleRun>>,
+    { runId: string; data: BodyType<UpdateModuleRunRequest> }
+  > = (props) => {
+    const { runId, data } = props ?? {};
+
+    return updateModuleRun(runId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateModuleRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateModuleRun>>
+>;
+export type UpdateModuleRunMutationBody = BodyType<UpdateModuleRunRequest>;
+export type UpdateModuleRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a module run
+ */
+export const useUpdateModuleRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateModuleRun>>,
+    TError,
+    { runId: string; data: BodyType<UpdateModuleRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateModuleRun>>,
+  TError,
+  { runId: string; data: BodyType<UpdateModuleRunRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateModuleRunMutationOptions(options));
+};
+
+/**
+ * @summary Append a module run event
+ */
+export const getCreateModuleRunEventUrl = (runId: string) => {
+  return `/api/module-runs/${runId}/events`;
+};
+
+export const createModuleRunEvent = async (
+  runId: string,
+  createRunEventRequest: CreateRunEventRequest,
+  options?: RequestInit,
+): Promise<RunEvent> => {
+  return customFetch<RunEvent>(getCreateModuleRunEventUrl(runId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRunEventRequest),
+  });
+};
+
+export const getCreateModuleRunEventMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunEvent>>,
+    TError,
+    { runId: string; data: BodyType<CreateRunEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createModuleRunEvent>>,
+  TError,
+  { runId: string; data: BodyType<CreateRunEventRequest> },
+  TContext
+> => {
+  const mutationKey = ["createModuleRunEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createModuleRunEvent>>,
+    { runId: string; data: BodyType<CreateRunEventRequest> }
+  > = (props) => {
+    const { runId, data } = props ?? {};
+
+    return createModuleRunEvent(runId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateModuleRunEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createModuleRunEvent>>
+>;
+export type CreateModuleRunEventMutationBody = BodyType<CreateRunEventRequest>;
+export type CreateModuleRunEventMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Append a module run event
+ */
+export const useCreateModuleRunEvent = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunEvent>>,
+    TError,
+    { runId: string; data: BodyType<CreateRunEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createModuleRunEvent>>,
+  TError,
+  { runId: string; data: BodyType<CreateRunEventRequest> },
+  TContext
+> => {
+  return useMutation(getCreateModuleRunEventMutationOptions(options));
+};
+
+/**
+ * @summary Store a module artifact
+ */
+export const getCreateModuleRunArtifactUrl = (runId: string) => {
+  return `/api/module-runs/${runId}/artifacts`;
+};
+
+export const createModuleRunArtifact = async (
+  runId: string,
+  createArtifactRequest: CreateArtifactRequest,
+  options?: RequestInit,
+): Promise<Artifact> => {
+  return customFetch<Artifact>(getCreateModuleRunArtifactUrl(runId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createArtifactRequest),
+  });
+};
+
+export const getCreateModuleRunArtifactMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunArtifact>>,
+    TError,
+    { runId: string; data: BodyType<CreateArtifactRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createModuleRunArtifact>>,
+  TError,
+  { runId: string; data: BodyType<CreateArtifactRequest> },
+  TContext
+> => {
+  const mutationKey = ["createModuleRunArtifact"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createModuleRunArtifact>>,
+    { runId: string; data: BodyType<CreateArtifactRequest> }
+  > = (props) => {
+    const { runId, data } = props ?? {};
+
+    return createModuleRunArtifact(runId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateModuleRunArtifactMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createModuleRunArtifact>>
+>;
+export type CreateModuleRunArtifactMutationBody =
+  BodyType<CreateArtifactRequest>;
+export type CreateModuleRunArtifactMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Store a module artifact
+ */
+export const useCreateModuleRunArtifact = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunArtifact>>,
+    TError,
+    { runId: string; data: BodyType<CreateArtifactRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createModuleRunArtifact>>,
+  TError,
+  { runId: string; data: BodyType<CreateArtifactRequest> },
+  TContext
+> => {
+  return useMutation(getCreateModuleRunArtifactMutationOptions(options));
+};
+
+/**
+ * @summary Get an artifact
+ */
+export const getGetArtifactUrl = (artifactId: string) => {
+  return `/api/artifacts/${artifactId}`;
+};
+
+export const getArtifact = async (
+  artifactId: string,
+  options?: RequestInit,
+): Promise<Artifact> => {
+  return customFetch<Artifact>(getGetArtifactUrl(artifactId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetArtifactQueryKey = (artifactId: string) => {
+  return [`/api/artifacts/${artifactId}`] as const;
+};
+
+export const getGetArtifactQueryOptions = <
+  TData = Awaited<ReturnType<typeof getArtifact>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  artifactId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getArtifact>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetArtifactQueryKey(artifactId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getArtifact>>> = ({
+    signal,
+  }) => getArtifact(artifactId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!artifactId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getArtifact>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetArtifactQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getArtifact>>
+>;
+export type GetArtifactQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get an artifact
+ */
+
+export function useGetArtifact<
+  TData = Awaited<ReturnType<typeof getArtifact>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  artifactId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getArtifact>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetArtifactQueryOptions(artifactId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
