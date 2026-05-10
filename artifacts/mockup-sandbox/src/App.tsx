@@ -96,6 +96,10 @@ function getPreviewExamplePath(): string {
   return `${basePath}/preview/ComponentName`;
 }
 
+function getDefaultPreviewPath(): string | null {
+  return import.meta.env.VITE_DEFAULT_PREVIEW?.trim() || null;
+}
+
 function Gallery() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
@@ -125,7 +129,7 @@ function getPreviewPath(): string | null {
       ? pathname.slice(basePath.length) || "/"
       : pathname;
   const match = local.match(/^\/preview\/(.+)$/);
-  return match ? match[1] : null;
+  return match ? match[1] : getDefaultPreviewPath();
 }
 
 function App() {

@@ -10,6 +10,8 @@ Updated: 2026-05-10
 
 ## Current State
 
+- Replit Run button/workflow now starts the mockup sandbox on port 8080 and opens the Agent Module OS page by default.
+- Mockup sandbox root can render `ai-os/AgentFirstInterface` when `VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface` is set.
 - Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
 - Module run creation now uses DB conflict upsert on `(module_id, external_run_id)` to keep idempotent ingest race-safe.
 - `threadId` was removed from the public create-module-run contract until thread linkage has storage semantics.
@@ -25,6 +27,10 @@ Updated: 2026-05-10
 
 ## Verification
 
+- Run action validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Run action validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Run action validation: `.replit` parsed as TOML with `runButton = "Project"`, `Agent Module OS` workflow, and port 8080 mapped to external 80.
+- Run action browser smoke: `http://127.0.0.1:8080/` rendered `Agent Module OS` with all four module IDs and no console warnings/errors.
 - Follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 6 tests.
 - Follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Follow-up validation: `corepack pnpm run typecheck:libs` passed.
@@ -45,4 +51,4 @@ Updated: 2026-05-10
 
 ## Next Action
 
-- Monitor PR #4 normally; the scheduled one-time follow-up has been completed.
+- PR #4 now includes Replit run action setup for the Agent Module OS page.
