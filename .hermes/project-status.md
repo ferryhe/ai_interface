@@ -417,7 +417,16 @@ Updated: 2026-05-11
 - Portal refresh status visibility validation: `git diff --check` passed with CRLF warnings only.
 - Portal refresh status visibility HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
 - Portal refresh status visibility browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so DOM/console smoke could not run in this heartbeat.
+- PR #30 was merged into `main` on 2026-05-11 at merge commit `c468aeb`; this branch starts the Portal auto-refresh pause-state slice from latest `main`.
+- Portal auto-refresh now labels the control as idle, active, paused, or off so users can tell whether automatic polling is actually running.
+- Portal auto-refresh pause-state spec reviewer: passed, with no missing plan requirements.
+- Portal auto-refresh pause-state code quality reviewer: approved, with no blocking issues.
+- Portal auto-refresh pause-state validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal auto-refresh pause-state validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal auto-refresh pause-state validation: `git diff --check` passed with CRLF warnings only.
+- Portal auto-refresh pause-state HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
+- Portal auto-refresh pause-state browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so DOM/console smoke could not run in this heartbeat.
 
 ## Next Action
 
-- Push/open the Portal refresh status visibility PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal auto-refresh pause-state PR, then perform the scheduled follow-up for checks and remote review comments.
