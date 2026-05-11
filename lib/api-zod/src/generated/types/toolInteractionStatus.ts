@@ -15,4 +15,5 @@ export const ToolInteractionStatus = {
   waiting_for_data: "waiting_for_data",
   blocked: "blocked",
   resumable: "resumable",
+  resumed: "resumed",
 } as const;

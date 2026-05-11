@@ -240,6 +240,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}/resume:
+    post:
+      operationId: resumeModuleRunExecution
+      tags: [modules]
+      summary: Resume execution for a module run
+      description: Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Resume accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolInteractionResponse"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: No resumable interaction or adapter resume unsupported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /artifacts/{artifactId}:
     get:
       operationId: getArtifact
@@ -582,6 +609,7 @@ components:
         - waiting_for_data
         - blocked
         - resumable
+        - resumed
     ToolInteractionOption:
       type: object
       properties:

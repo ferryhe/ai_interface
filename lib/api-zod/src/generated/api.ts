@@ -393,6 +393,97 @@ export const SubmitModuleRunFeedbackResponse = zod.object({
       "waiting_for_data",
       "blocked",
       "resumable",
+      "resumed",
+    ]),
+    kind: zod.enum(["question", "approval", "data_request", "blocked"]),
+    title: zod.string(),
+    message: zod.string(),
+    prompt: zod.string().nullable(),
+    options: zod.array(
+      zod.object({
+        id: zod.string(),
+        label: zod.string(),
+        description: zod.string().optional(),
+        value: zod.record(zod.string(), zod.unknown()).optional(),
+      }),
+    ),
+    artifactIds: zod.array(zod.string()),
+    resumeHandle: zod.string().nullable(),
+    requestedBy: zod.string().nullable(),
+    requestedAt: zod.coerce.date(),
+    metadata: zod.record(zod.string(), zod.unknown()),
+    respondedAt: zod.coerce.date().optional(),
+    response: zod
+      .object({
+        responseText: zod.string().optional(),
+        selectedOptionId: zod.string().optional(),
+        approved: zod.boolean().optional(),
+        artifactIds: zod.array(zod.string()),
+        resumeHandle: zod.string().optional(),
+        metadata: zod.record(zod.string(), zod.unknown()),
+      })
+      .optional(),
+  }),
+});
+
+/**
+ * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+ * @summary Resume execution for a module run
+ */
+export const ResumeModuleRunExecutionParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const ResumeModuleRunExecutionResponse = zod.object({
+  run: zod.object({
+    id: zod.string().uuid(),
+    pipelineRunId: zod.string().uuid().nullable(),
+    moduleId: zod.enum([
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+    ]),
+    externalRunId: zod.string(),
+    title: zod.string().nullable(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    inputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    outputJson: zod.union([
+      zod.record(zod.string(), zod.unknown()),
+      zod.null(),
+    ]),
+    summary: zod.string().nullable(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    startedAt: zod.coerce.date().nullable(),
+    completedAt: zod.coerce.date().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  event: zod.object({
+    id: zod.string().uuid(),
+    moduleRunId: zod.string().uuid(),
+    eventType: zod.string(),
+    title: zod.string().nullable(),
+    message: zod.string().nullable(),
+    severity: zod.enum(["info", "warning", "error"]),
+    payload: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+  }),
+  interaction: zod.object({
+    interactionId: zod.string().uuid(),
+    status: zod.enum([
+      "waiting_for_user",
+      "waiting_for_approval",
+      "waiting_for_data",
+      "blocked",
+      "resumable",
+      "resumed",
     ]),
     kind: zod.enum(["question", "approval", "data_request", "blocked"]),
     title: zod.string(),

@@ -127,7 +127,8 @@ export type ToolInteractionStatus =
   | "waiting_for_approval"
   | "waiting_for_data"
   | "blocked"
-  | "resumable";
+  | "resumable"
+  | "resumed";
 
 export interface ToolInteractionOption {
   id: string;
@@ -219,6 +220,11 @@ export interface ModuleRunRepository {
     id: string,
     input: UpdateModuleRunRecordInput,
   ): Promise<ModuleRunRecord>;
+  consumeResumableInteraction(
+    id: string,
+    interactionId: string,
+    interaction: ToolInteraction,
+  ): Promise<ModuleRunRecord | null>;
   pipelineRunExists(id: string): Promise<boolean>;
   findModuleRunById(id: string): Promise<ModuleRunRecord | null>;
   createRunEvent(input: CreateRunEventRecordInput): Promise<RunEventRecord>;
@@ -276,6 +282,34 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
     const updated: ModuleRunRecord = {
       ...current,
       ...input,
+      updatedAt: new Date(),
+    };
+    this.moduleRuns[index] = updated;
+    return updated;
+  }
+
+  async consumeResumableInteraction(
+    id: string,
+    interactionId: string,
+    interaction: ToolInteraction,
+  ): Promise<ModuleRunRecord | null> {
+    const index = this.moduleRuns.findIndex((run) => run.id === id);
+    if (index === -1) {
+      return null;
+    }
+
+    const current = this.moduleRuns[index]!;
+    const currentInteraction = getCurrentInteraction(current);
+    if (
+      currentInteraction?.interactionId !== interactionId ||
+      currentInteraction.status !== "resumable"
+    ) {
+      return null;
+    }
+
+    const updated: ModuleRunRecord = {
+      ...current,
+      metadata: getMetadataWithInteraction(current.metadata, interaction),
       updatedAt: new Date(),
     };
     this.moduleRuns[index] = updated;
@@ -471,7 +505,7 @@ function interactionStatusForKind(
   return "waiting_for_user";
 }
 
-function getMetadataWithInteraction(
+export function getMetadataWithInteraction(
   metadata: JsonObject | null,
   interaction: ToolInteraction,
 ): JsonObject {
@@ -500,7 +534,7 @@ function isToolInteractionKind(value: unknown): value is ToolInteractionKind {
   );
 }
 
-function isToolInteractionStatus(
+export function isToolInteractionStatus(
   value: unknown,
 ): value is ToolInteractionStatus {
   return (
@@ -508,7 +542,8 @@ function isToolInteractionStatus(
     value === "waiting_for_approval" ||
     value === "waiting_for_data" ||
     value === "blocked" ||
-    value === "resumable"
+    value === "resumable" ||
+    value === "resumed"
   );
 }
 
@@ -617,7 +652,9 @@ function isToolInteraction(value: unknown): value is ToolInteraction {
   return true;
 }
 
-function getCurrentInteraction(run: ModuleRunRecord): ToolInteraction | null {
+export function getCurrentInteraction(
+  run: ModuleRunRecord,
+): ToolInteraction | null {
   const interaction = run.metadata?.["interaction"];
   return isToolInteraction(interaction) ? interaction : null;
 }

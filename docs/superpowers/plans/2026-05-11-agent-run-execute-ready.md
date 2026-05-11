@@ -10,7 +10,7 @@ This PR wires the safe executor skeleton from PR #10 into `createAgentRun` behin
 - Default remains `plan_only`.
 - `execute_ready` runs only non-approval module runs whose adapter readiness is configured.
 - Missing adapter env stays pending with a warning event from the safe executor.
-- Approval-required steps stay pending and get an explicit skip event.
+- Approval-required steps stay pending and get an explicit approval-required event.
 - Execution uses `FakeToolAdapterExecutor` only.
 
 Real CLI execution, real HTTP adapter execution, background queues, streaming, and frontend UI changes stay out of scope.
