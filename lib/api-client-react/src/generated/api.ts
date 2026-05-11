@@ -368,6 +368,7 @@ export const useCreateModuleRun = <
 };
 
 /**
+ * Returns module run detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get a module run
  */
 export const getGetModuleRunUrl = (runId: string) => {
@@ -989,6 +990,7 @@ export const useResumeModuleRunExecution = <
 };
 
 /**
+ * Returns artifact detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get an artifact
  */
 export const getGetArtifactUrl = (artifactId: string) => {
@@ -1163,6 +1165,7 @@ export const useCreateAgentRun = <
 };
 
 /**
+ * Returns Agent run detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get an Agent runtime run
  */
 export const getGetAgentRunUrl = (pipelineRunId: string) => {

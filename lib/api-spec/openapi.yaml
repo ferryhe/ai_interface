@@ -96,8 +96,14 @@ paths:
       operationId: getModuleRun
       tags: [modules]
       summary: Get a module run
+      description: >-
+        Returns module run detail. Portal-origin reads send
+        `X-AI-Interface-Surface: agent-portal` and require a verified Portal
+        token through `X-Portal-Token` or `Authorization: Bearer <token>`.
       parameters:
         - $ref: "#/components/parameters/RunId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       responses:
         "200":
           description: Module run detail
@@ -105,6 +111,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleRunDetail"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Module run not found
           content:
@@ -299,8 +311,14 @@ paths:
       operationId: getArtifact
       tags: [modules]
       summary: Get an artifact
+      description: >-
+        Returns artifact detail. Portal-origin reads send
+        `X-AI-Interface-Surface: agent-portal` and require a verified Portal
+        token through `X-Portal-Token` or `Authorization: Bearer <token>`.
       parameters:
         - $ref: "#/components/parameters/ArtifactId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       responses:
         "200":
           description: Artifact detail
@@ -308,6 +326,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Artifact"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Artifact not found
           content:
@@ -364,8 +388,14 @@ paths:
       operationId: getAgentRun
       tags: [agent-runs]
       summary: Get an Agent runtime run
+      description: >-
+        Returns Agent run detail. Portal-origin reads send
+        `X-AI-Interface-Surface: agent-portal` and require a verified Portal
+        token through `X-Portal-Token` or `Authorization: Bearer <token>`.
       parameters:
         - $ref: "#/components/parameters/PipelineRunId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       responses:
         "200":
           description: Agent run detail
@@ -373,6 +403,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunDetail"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Agent run not found
           content:

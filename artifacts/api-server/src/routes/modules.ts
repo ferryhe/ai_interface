@@ -99,6 +99,17 @@ export function createModulesRouter(
       return;
     }
 
+    if (isPortalRuntimeRequest(req)) {
+      const access = await requirePortalRuntimeAccess(
+        req,
+        agentConfigRepository,
+      );
+      if (!access.allowed) {
+        res.status(403).json(errorResponse(access.error));
+        return;
+      }
+    }
+
     try {
       const detail = await getModuleRunDetail(repository, params.data.runId);
       const data = GetModuleRunResponse.parse(detail);
@@ -293,6 +304,17 @@ export function createModulesRouter(
     if (!params.success) {
       res.status(400).json(errorResponse(params.error.message));
       return;
+    }
+
+    if (isPortalRuntimeRequest(req)) {
+      const access = await requirePortalRuntimeAccess(
+        req,
+        agentConfigRepository,
+      );
+      if (!access.allowed) {
+        res.status(403).json(errorResponse(access.error));
+        return;
+      }
     }
 
     const artifact = await repository.findArtifactById(params.data.artifactId);

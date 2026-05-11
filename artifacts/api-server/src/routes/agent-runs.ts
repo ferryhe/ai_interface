@@ -82,6 +82,14 @@ export function createAgentRunsRouter(
       return;
     }
 
+    if (isPortalRuntimeRequest(req)) {
+      const access = await requirePortalRuntimeAccess(req, configRepository);
+      if (!access.allowed) {
+        res.status(403).json(errorResponse(access.error));
+        return;
+      }
+    }
+
     try {
       const detail = await getAgentRunDetail(
         runtimeRepository,

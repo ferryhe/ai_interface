@@ -12,6 +12,7 @@ import {
 import {
   createModuleRun,
   InMemoryModuleRunRepository,
+  recordModuleRunArtifact,
   requestModuleRunInteraction,
   submitModuleRunFeedback,
 } from "../modules/ingest-service";
@@ -213,4 +214,149 @@ test("modules route accepts Portal resume with a published matching case-insensi
       process.env["RAG_TO_AGENT_API_BASE_URL"] = previousBaseUrl;
     }
   }
+});
+
+test("modules route rejects Portal module-run reads without a verified token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/module-runs/${run.id}`, {
+      headers: { "X-AI-Interface-Surface": "agent-portal" },
+    }),
+  );
+
+  assert.equal(response.status, 403);
+});
+
+test("modules route accepts Portal module-run reads with a published matching token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, {
+    publishSettings: {
+      status: "published",
+      portalAccessMode: "token",
+      setPortalToken: "portal-secret-token",
+      versionLabel: "agent-v1",
+    },
+  });
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/module-runs/${run.id}`, {
+      headers: {
+        "X-AI-Interface-Surface": "agent-portal",
+        Authorization: "Bearer portal-secret-token",
+      },
+    }),
+  );
+
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(text.includes("portal-secret-token"), false);
+});
+
+test("modules route keeps non-Portal module-run reads available without a portal token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/module-runs/${run.id}`),
+  );
+
+  assert.equal(response.status, 200);
+});
+
+test("modules route rejects Portal artifact reads without a verified token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+  const artifact = await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: "markdown",
+    title: "Converted markdown",
+    contentText: "# Converted",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/artifacts/${artifact.id}`, {
+      headers: { "X-AI-Interface-Surface": "agent-portal" },
+    }),
+  );
+
+  assert.equal(response.status, 403);
+});
+
+test("modules route accepts Portal artifact reads with a published matching token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, {
+    publishSettings: {
+      status: "published",
+      portalAccessMode: "token",
+      setPortalToken: "portal-secret-token",
+      versionLabel: "agent-v1",
+    },
+  });
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+  const artifact = await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: "markdown",
+    title: "Converted markdown",
+    contentText: "# Converted",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/artifacts/${artifact.id}`, {
+      headers: {
+        "X-AI-Interface-Surface": "agent-portal",
+        "X-Portal-Token": "portal-secret-token",
+      },
+    }),
+  );
+
+  const text = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(text.includes("portal-secret-token"), false);
+});
+
+test("modules route keeps non-Portal artifact reads available without a portal token", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `portal-read-test-${randomUUID()}`,
+    title: "Convert document",
+  });
+  const artifact = await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: "markdown",
+    title: "Converted markdown",
+    contentText: "# Converted",
+  });
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/artifacts/${artifact.id}`),
+  );
+
+  assert.equal(response.status, 200);
 });

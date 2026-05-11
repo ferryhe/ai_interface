@@ -149,10 +149,26 @@ export const CreateModuleRunResponse = zod.object({
 });
 
 /**
+ * Returns module run detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get a module run
  */
 export const GetModuleRunParams = zod.object({
   runId: zod.coerce.string().uuid(),
+});
+
+export const GetModuleRunHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
 });
 
 export const GetModuleRunResponse = zod.object({
@@ -547,10 +563,26 @@ export const ResumeModuleRunExecutionResponse = zod.object({
 });
 
 /**
+ * Returns artifact detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get an artifact
  */
 export const GetArtifactParams = zod.object({
   artifactId: zod.coerce.string().uuid(),
+});
+
+export const GetArtifactHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
 });
 
 export const GetArtifactResponse = zod.object({
@@ -706,10 +738,26 @@ export const CreateAgentRunResponse = zod.object({
 });
 
 /**
+ * Returns Agent run detail. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Get an Agent runtime run
  */
 export const GetAgentRunParams = zod.object({
   pipelineRunId: zod.coerce.string().uuid(),
+});
+
+export const GetAgentRunHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
 });
 
 export const GetAgentRunResponse = zod.object({

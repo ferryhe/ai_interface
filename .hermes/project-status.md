@@ -337,7 +337,26 @@ Updated: 2026-05-11
 - PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 62 tests.
 - PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Started the Portal runtime read access guard slice on `codex/portal-runtime-read-access-guard`.
+- Portal-origin reads for Agent run detail, module run detail, and artifact detail now require the published Portal token, while non-Portal/admin reads remain available.
+- OpenAPI documents Portal runtime headers and `403` responses for the guarded read endpoints; API outputs were regenerated.
+- Portal runtime read access guard TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected with the three new Portal-origin read denial tests returning `200 !== 403`.
+- Portal runtime read access guard validation: `corepack pnpm --filter @workspace/api-server run test` passed with 71 tests.
+- Portal runtime read access guard validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Portal runtime read access guard validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Portal runtime read access guard validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Portal runtime read access guard validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime read access guard validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime read access guard note: `git update-index --refresh` was attempted only to refresh status metadata, but this sandbox could not create `.git/index.lock` (`Permission denied`); no commit/stage action was attempted.
+- Portal runtime read access guard spec reviewer: passed, with no missing plan requirements.
+- Portal runtime read access guard code quality reviewer: approved, with no blocking issues and no generated client call-shape break.
+- Portal runtime read access guard controller validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Portal runtime read access guard controller validation: `corepack pnpm --filter @workspace/api-server run test` passed with 71 tests.
+- Portal runtime read access guard controller validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Portal runtime read access guard controller validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Portal runtime read access guard controller validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime read access guard controller validation: `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 
-- Push PR #24 follow-up fixes, merge if clean, then continue the autonomous PR chain from latest `main`.
+- Push/open the Portal runtime read access guard PR, then perform the scheduled follow-up for checks and remote review comments.
