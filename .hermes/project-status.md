@@ -44,6 +44,7 @@ Updated: 2026-05-11
 - Added a backend Agent Runtime seam: `POST /api/agent-runs` stores a thread/message/pipeline run, plans enabled business skills, creates module runs, and reports OpenAI connection status.
 - Added a deterministic missing-key planner for local/test mode and an OpenAI Responses planner seam for configured `OPENAI_API_KEY`.
 - Added a business skill registry with external adapter metadata for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
+- Opened PR #7 for `codex/agent-runtime-skill-orchestrator`: https://github.com/ferryhe/ai_interface/pull/7
 
 ## Verification
 
@@ -115,6 +116,7 @@ Updated: 2026-05-11
 - Agent runtime validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Agent runtime validation: `corepack pnpm run typecheck:libs` passed.
 - Agent runtime validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Agent runtime validation: `git diff --check` passed with CRLF warnings only.
 - Agent runtime codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI clients/Zod outputs, then failed only because the script invokes bare `pnpm`; equivalent `corepack pnpm run typecheck:libs` passed.
 
 ## Notes
@@ -124,4 +126,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Finish diff hygiene, commit, push, and open a PR for `codex/agent-runtime-skill-orchestrator`.
+- Watch PR #7 checks and review/Copilot comments; perform the scheduled follow-up pass and apply only confirmed-safe fixes.
