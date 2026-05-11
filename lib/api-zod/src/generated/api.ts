@@ -244,6 +244,133 @@ export const CreateModuleRunArtifactBody = zod.object({
 });
 
 /**
+ * Stores an interaction request from an external tool and marks the run metadata as waiting for user feedback, approval, data, or unblock input.
+ * @summary Request user feedback for a module run
+ */
+export const CreateModuleRunInteractionParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const CreateModuleRunInteractionBody = zod.object({
+  kind: zod.enum(["question", "approval", "data_request", "blocked"]),
+  title: zod.string(),
+  message: zod.string(),
+  prompt: zod.string().optional(),
+  options: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        label: zod.string(),
+        description: zod.string().optional(),
+        value: zod.record(zod.string(), zod.unknown()).optional(),
+      }),
+    )
+    .optional(),
+  artifactIds: zod.array(zod.string()).optional(),
+  resumeHandle: zod.string().optional(),
+  requestedBy: zod.string().optional(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+/**
+ * Records user or Agent feedback for the active interaction and marks the module run as resumable.
+ * @summary Submit user feedback for a module run
+ */
+export const SubmitModuleRunFeedbackParams = zod.object({
+  runId: zod.coerce.string().uuid(),
+});
+
+export const SubmitModuleRunFeedbackBody = zod.object({
+  responseText: zod.string().optional(),
+  selectedOptionId: zod.string().optional(),
+  approved: zod.boolean().optional(),
+  artifactIds: zod.array(zod.string()).optional(),
+  resumeHandle: zod.string().optional(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const SubmitModuleRunFeedbackResponse = zod.object({
+  run: zod.object({
+    id: zod.string().uuid(),
+    pipelineRunId: zod.string().uuid().nullable(),
+    moduleId: zod.enum([
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+    ]),
+    externalRunId: zod.string(),
+    title: zod.string().nullable(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    inputJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    outputJson: zod.union([
+      zod.record(zod.string(), zod.unknown()),
+      zod.null(),
+    ]),
+    summary: zod.string().nullable(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    startedAt: zod.coerce.date().nullable(),
+    completedAt: zod.coerce.date().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  event: zod.object({
+    id: zod.string().uuid(),
+    moduleRunId: zod.string().uuid(),
+    eventType: zod.string(),
+    title: zod.string().nullable(),
+    message: zod.string().nullable(),
+    severity: zod.enum(["info", "warning", "error"]),
+    payload: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+  }),
+  interaction: zod.object({
+    interactionId: zod.string().uuid(),
+    status: zod.enum([
+      "waiting_for_user",
+      "waiting_for_approval",
+      "waiting_for_data",
+      "blocked",
+      "resumable",
+    ]),
+    kind: zod.enum(["question", "approval", "data_request", "blocked"]),
+    title: zod.string(),
+    message: zod.string(),
+    prompt: zod.string().nullable(),
+    options: zod.array(
+      zod.object({
+        id: zod.string(),
+        label: zod.string(),
+        description: zod.string().optional(),
+        value: zod.record(zod.string(), zod.unknown()).optional(),
+      }),
+    ),
+    artifactIds: zod.array(zod.string()),
+    resumeHandle: zod.string().nullable(),
+    requestedBy: zod.string().nullable(),
+    requestedAt: zod.coerce.date(),
+    metadata: zod.record(zod.string(), zod.unknown()),
+    respondedAt: zod.coerce.date().optional(),
+    response: zod
+      .object({
+        responseText: zod.string().optional(),
+        selectedOptionId: zod.string().optional(),
+        approved: zod.boolean().optional(),
+        artifactIds: zod.array(zod.string()),
+        resumeHandle: zod.string().optional(),
+        metadata: zod.record(zod.string(), zod.unknown()),
+      })
+      .optional(),
+  }),
+});
+
+/**
  * @summary Get an artifact
  */
 export const GetArtifactParams = zod.object({

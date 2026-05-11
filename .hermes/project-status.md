@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/agent-runtime-skill-orchestrator`
-- Scope: Implement the first backend Agent Runtime seam inside `ai_interface` only.
+- Branch: `codex/tool-adapter-feedback-loop`
+- Scope: Add the first generic tool interaction/feedback contract so external tools can pause for user input and resume.
 - Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
 
 ## Current State
@@ -46,6 +46,12 @@ Updated: 2026-05-11
 - Added a business skill registry with external adapter metadata for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
 - Opened PR #7 for `codex/agent-runtime-skill-orchestrator`: https://github.com/ferryhe/ai_interface/pull/7
 - PR #7 Copilot review returned three actionable comments; all were addressed by making approval overrides consistent across plan/module event/status data and preserving internal thread metadata `source`.
+- PR #7 was merged into `main` on 2026-05-11.
+- Started `codex/tool-adapter-feedback-loop` from latest `main`.
+- Added a backend tool interaction/feedback contract: modules can request user questions, approvals, data, or unblock input; feedback marks the interaction `resumable`.
+- Added public API endpoints for `POST /api/module-runs/{runId}/interactions` and `POST /api/module-runs/{runId}/feedback`.
+- Opened PR #8 for `codex/tool-adapter-feedback-loop`: https://github.com/ferryhe/ai_interface/pull/8
+- PR #8 Copilot review returned one actionable comment; it was addressed by fully validating stored `metadata.interaction` before accepting feedback, so malformed/stale metadata is treated as no active interaction.
 
 ## Verification
 
@@ -123,6 +129,17 @@ Updated: 2026-05-11
 - PR #7 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - PR #7 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
 - PR #7 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- Tool feedback loop TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `requestModuleRunInteraction` was implemented.
+- Tool feedback loop validation: `corepack pnpm --filter @workspace/api-server run test` passed with 19 tests.
+- Tool feedback loop validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Tool feedback loop validation: `corepack pnpm run typecheck:libs` passed.
+- Tool feedback loop validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Tool feedback loop validation: `git diff --check` passed with CRLF warnings only.
+- Tool feedback loop codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI clients/Zod outputs, then failed only because the script invokes bare `pnpm`; equivalent `corepack pnpm run typecheck:libs` passed.
+- PR #8 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run test` passed with 20 tests.
+- PR #8 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #8 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
+- PR #8 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -131,4 +148,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Watch PR #7 checks and review/Copilot comments; perform the scheduled follow-up pass and apply only confirmed-safe fixes.
+- Push the PR #8 Copilot fix, merge PR #8 once GitHub accepts it, then start the autonomous multi-PR runtime/UI/memory/executor chain from latest `main`.

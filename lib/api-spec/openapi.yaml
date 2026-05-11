@@ -171,6 +171,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}/interactions:
+    post:
+      operationId: createModuleRunInteraction
+      tags: [modules]
+      summary: Request user feedback for a module run
+      description: Stores an interaction request from an external tool and marks the run metadata as waiting for user feedback, approval, data, or unblock input.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateToolInteractionRequest"
+      responses:
+        "201":
+          description: Interaction request recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolInteractionResponse"
+        "404":
+          description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /module-runs/{runId}/feedback:
+    post:
+      operationId: submitModuleRunFeedback
+      tags: [modules]
+      summary: Submit user feedback for a module run
+      description: Records user or Agent feedback for the active interaction and marks the module run as resumable.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitToolFeedbackRequest"
+      responses:
+        "200":
+          description: Feedback recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolInteractionResponse"
+        "404":
+          description: Module run or active interaction not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /artifacts/{artifactId}:
     get:
       operationId: getArtifact
@@ -360,6 +414,171 @@ components:
         - info
         - warning
         - error
+    ToolInteractionKind:
+      type: string
+      enum:
+        - question
+        - approval
+        - data_request
+        - blocked
+    ToolInteractionStatus:
+      type: string
+      enum:
+        - waiting_for_user
+        - waiting_for_approval
+        - waiting_for_data
+        - blocked
+        - resumable
+    ToolInteractionOption:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        value:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - id
+        - label
+    ToolInteractionFeedback:
+      type: object
+      properties:
+        responseText:
+          type: string
+        selectedOptionId:
+          type: string
+        approved:
+          type: boolean
+        artifactIds:
+          type: array
+          items:
+            type: string
+        resumeHandle:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - artifactIds
+        - metadata
+    ToolInteraction:
+      type: object
+      properties:
+        interactionId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ToolInteractionStatus"
+        kind:
+          $ref: "#/components/schemas/ToolInteractionKind"
+        title:
+          type: string
+        message:
+          type: string
+        prompt:
+          type:
+            - string
+            - "null"
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolInteractionOption"
+        artifactIds:
+          type: array
+          items:
+            type: string
+        resumeHandle:
+          type:
+            - string
+            - "null"
+        requestedBy:
+          type:
+            - string
+            - "null"
+        requestedAt:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+        respondedAt:
+          type: string
+          format: date-time
+        response:
+          $ref: "#/components/schemas/ToolInteractionFeedback"
+      required:
+        - interactionId
+        - status
+        - kind
+        - title
+        - message
+        - prompt
+        - options
+        - artifactIds
+        - resumeHandle
+        - requestedBy
+        - requestedAt
+        - metadata
+    CreateToolInteractionRequest:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/ToolInteractionKind"
+        title:
+          type: string
+        message:
+          type: string
+        prompt:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolInteractionOption"
+        artifactIds:
+          type: array
+          items:
+            type: string
+        resumeHandle:
+          type: string
+        requestedBy:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - kind
+        - title
+        - message
+    SubmitToolFeedbackRequest:
+      type: object
+      properties:
+        responseText:
+          type: string
+        selectedOptionId:
+          type: string
+        approved:
+          type: boolean
+        artifactIds:
+          type: array
+          items:
+            type: string
+        resumeHandle:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+    ToolInteractionResponse:
+      type: object
+      properties:
+        run:
+          $ref: "#/components/schemas/ModuleRun"
+        event:
+          $ref: "#/components/schemas/RunEvent"
+        interaction:
+          $ref: "#/components/schemas/ToolInteraction"
+      required:
+        - run
+        - event
+        - interaction
     AgentProvider:
       type: string
       enum:

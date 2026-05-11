@@ -26,6 +26,7 @@ import type {
   CreateArtifactRequest,
   CreateModuleRunRequest,
   CreateRunEventRequest,
+  CreateToolInteractionRequest,
   ErrorResponse,
   HealthStatus,
   ModuleListResponse,
@@ -33,6 +34,8 @@ import type {
   ModuleRunDetail,
   ModuleRunIngestResponse,
   RunEvent,
+  SubmitToolFeedbackRequest,
+  ToolInteractionResponse,
   UpdateAgentConfigRequest,
   UpdateModuleRunRequest,
 } from "./api.schemas";
@@ -632,6 +635,190 @@ export const useCreateModuleRunArtifact = <
   TContext
 > => {
   return useMutation(getCreateModuleRunArtifactMutationOptions(options));
+};
+
+/**
+ * Stores an interaction request from an external tool and marks the run metadata as waiting for user feedback, approval, data, or unblock input.
+ * @summary Request user feedback for a module run
+ */
+export const getCreateModuleRunInteractionUrl = (runId: string) => {
+  return `/api/module-runs/${runId}/interactions`;
+};
+
+export const createModuleRunInteraction = async (
+  runId: string,
+  createToolInteractionRequest: CreateToolInteractionRequest,
+  options?: RequestInit,
+): Promise<ToolInteractionResponse> => {
+  return customFetch<ToolInteractionResponse>(
+    getCreateModuleRunInteractionUrl(runId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createToolInteractionRequest),
+    },
+  );
+};
+
+export const getCreateModuleRunInteractionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunInteraction>>,
+    TError,
+    { runId: string; data: BodyType<CreateToolInteractionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createModuleRunInteraction>>,
+  TError,
+  { runId: string; data: BodyType<CreateToolInteractionRequest> },
+  TContext
+> => {
+  const mutationKey = ["createModuleRunInteraction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createModuleRunInteraction>>,
+    { runId: string; data: BodyType<CreateToolInteractionRequest> }
+  > = (props) => {
+    const { runId, data } = props ?? {};
+
+    return createModuleRunInteraction(runId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateModuleRunInteractionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createModuleRunInteraction>>
+>;
+export type CreateModuleRunInteractionMutationBody =
+  BodyType<CreateToolInteractionRequest>;
+export type CreateModuleRunInteractionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Request user feedback for a module run
+ */
+export const useCreateModuleRunInteraction = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createModuleRunInteraction>>,
+    TError,
+    { runId: string; data: BodyType<CreateToolInteractionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createModuleRunInteraction>>,
+  TError,
+  { runId: string; data: BodyType<CreateToolInteractionRequest> },
+  TContext
+> => {
+  return useMutation(getCreateModuleRunInteractionMutationOptions(options));
+};
+
+/**
+ * Records user or Agent feedback for the active interaction and marks the module run as resumable.
+ * @summary Submit user feedback for a module run
+ */
+export const getSubmitModuleRunFeedbackUrl = (runId: string) => {
+  return `/api/module-runs/${runId}/feedback`;
+};
+
+export const submitModuleRunFeedback = async (
+  runId: string,
+  submitToolFeedbackRequest: SubmitToolFeedbackRequest,
+  options?: RequestInit,
+): Promise<ToolInteractionResponse> => {
+  return customFetch<ToolInteractionResponse>(
+    getSubmitModuleRunFeedbackUrl(runId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(submitToolFeedbackRequest),
+    },
+  );
+};
+
+export const getSubmitModuleRunFeedbackMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitModuleRunFeedback>>,
+    TError,
+    { runId: string; data: BodyType<SubmitToolFeedbackRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitModuleRunFeedback>>,
+  TError,
+  { runId: string; data: BodyType<SubmitToolFeedbackRequest> },
+  TContext
+> => {
+  const mutationKey = ["submitModuleRunFeedback"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitModuleRunFeedback>>,
+    { runId: string; data: BodyType<SubmitToolFeedbackRequest> }
+  > = (props) => {
+    const { runId, data } = props ?? {};
+
+    return submitModuleRunFeedback(runId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitModuleRunFeedbackMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitModuleRunFeedback>>
+>;
+export type SubmitModuleRunFeedbackMutationBody =
+  BodyType<SubmitToolFeedbackRequest>;
+export type SubmitModuleRunFeedbackMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Submit user feedback for a module run
+ */
+export const useSubmitModuleRunFeedback = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitModuleRunFeedback>>,
+    TError,
+    { runId: string; data: BodyType<SubmitToolFeedbackRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitModuleRunFeedback>>,
+  TError,
+  { runId: string; data: BodyType<SubmitToolFeedbackRequest> },
+  TContext
+> => {
+  return useMutation(getSubmitModuleRunFeedbackMutationOptions(options));
 };
 
 /**
