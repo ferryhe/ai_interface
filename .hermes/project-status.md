@@ -245,6 +245,7 @@ Updated: 2026-05-11
 - PR #17 was merged into `main` on 2026-05-11 at merge commit `438ba6b`; this branch starts the next autonomous Portal data detail slice from latest `main`.
 - Added the Portal Artifact Detail Drawer plan for a frontend-only Portal wire-up to existing module-run detail and artifact detail endpoints.
 - Portal Data can now open local demo record details and, for API-backed records, guarded module-run detail and artifact detail drawers.
+- Opened PR #18 for `codex/portal-artifact-detail-drawer`: https://github.com/ferryhe/ai_interface/pull/18
 
 ## Notes
 
@@ -255,4 +256,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Implement, verify, commit, push, and open the Portal artifact detail drawer PR; then update the follow-up automation to check the new PR.
+- Follow up PR #18 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
