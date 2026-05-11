@@ -273,6 +273,7 @@ Updated: 2026-05-11
 - `publish_settings` now has a default JSONB value on the Agent config schema for backfill-friendly existing rows.
 - Admin Publish now loads/saves publish settings through `/api/agent-config` and keeps a local fallback when `/api` is offline.
 - Updated OpenAPI and regenerated API Zod/React client outputs for publish settings. `setPortalToken` is request-only on `UpdateAgentConfigRequest`.
+- Opened PR #22 for `codex/publish-settings-api`: https://github.com/ferryhe/ai_interface/pull/22
 
 ## Notes
 
@@ -296,4 +297,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Commit, push, and open a PR for `codex/publish-settings-api`; then schedule the 15-minute follow-up to inspect checks and Copilot comments.
+- Follow up on PR #22 checks and Copilot comments after GitHub has had time to process the branch.
