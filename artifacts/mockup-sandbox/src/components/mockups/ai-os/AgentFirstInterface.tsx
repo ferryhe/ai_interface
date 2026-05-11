@@ -2355,6 +2355,14 @@ function SkillDetailGrid({ guide }: { guide: CapabilityGuide }) {
   );
 }
 
+const portalVisibleViews = [
+  ["Chat", "Ask the published Agent to run or continue work."],
+  ["Steps", "See which module is running, blocked, or complete."],
+  ["Data", "Inspect generated records and artifacts."],
+  ["Sources", "Trace evidence back to source material."],
+  ["Result", "Review final handoff, agent config, and readiness."],
+];
+
 function PublishView() {
   return (
     <section className="page-panel">
@@ -2363,9 +2371,15 @@ function PublishView() {
           <h1>Publish agent</h1>
           <p>The final agent becomes available after the RAG index and validation records are stored.</p>
         </div>
-        <button type="button" className="primary-action">
+        <button
+          type="button"
+          className="primary-action"
+          onClick={() =>
+            window.location.assign(previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"))
+          }
+        >
           <UploadCloud size={15} />
-          Publish
+          Open Portal preview
         </button>
       </div>
 
@@ -2374,6 +2388,62 @@ function PublishView() {
         <PublishStep label="Agent config" value="Draft ready" status="waiting" />
         <PublishStep label="Validation" value="Queued" status="queued" />
         <PublishStep label="Endpoint" value="Not published" status="waiting" />
+      </div>
+
+      <div className="publish-access-grid">
+        <section className="publish-access-card">
+          <span className="publish-card-kicker">Portal access</span>
+          <h2>Token unlocks the frontstage workspace</h2>
+          <p>
+            Published users enter with a portal token, then work inside Chat, Steps, Data, Sources, and
+            Result.
+          </p>
+          <div className="publish-token-row">
+            <code>portal-demo-token</code>
+            <button
+              type="button"
+              onClick={() =>
+                window.location.assign(previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"))
+              }
+            >
+              View as user
+            </button>
+          </div>
+          <em>Demo token only. Production token validation belongs on the server.</em>
+        </section>
+
+        <section className="publish-access-card">
+          <span className="publish-card-kicker">Frontstage visible</span>
+          <h2>Users keep progress and data visibility</h2>
+          <div className="publish-portal-view-list">
+            {portalVisibleViews.map(([label, detail]) => (
+              <span key={label}>
+                <strong>{label}</strong>
+                <em>{detail}</em>
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="publish-access-card">
+          <span className="publish-card-kicker">Admin-only</span>
+          <h2>Configure stays backstage</h2>
+          <p>
+            Provider, model, business skills, general skills, memory, safety, and publish gates remain admin
+            controls.
+          </p>
+          <div className="publish-admin-boundary">
+            <span>
+              <ShieldCheck size={14} /> Configure runtime
+            </span>
+            <span>
+              <Database size={14} /> Manage memory writes
+            </span>
+            <span>
+              <Settings2 size={14} /> Control skill permissions
+            </span>
+          </div>
+        </section>
       </div>
     </section>
   );
@@ -4003,6 +4073,90 @@ const styles = `
     font-size: 12px;
   }
 
+  .publish-access-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .publish-access-card {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.42);
+    border-radius: 8px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .publish-card-kicker {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .publish-access-card h2 {
+    font-size: 15px;
+    margin: 0;
+  }
+
+  .publish-access-card p,
+  .publish-access-card em {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .publish-token-row,
+  .publish-admin-boundary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .publish-token-row code {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 6px;
+    padding: 7px 9px;
+    color: var(--text);
+    background: rgba(2, 6, 23, 0.48);
+  }
+
+  .publish-token-row button {
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    background: rgba(96, 165, 250, 0.12);
+    color: #bfdbfe;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+
+  .publish-portal-view-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .publish-portal-view-list span,
+  .publish-admin-boundary span {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    padding: 8px;
+    background: rgba(2, 6, 23, 0.28);
+  }
+
+  .publish-portal-view-list strong,
+  .publish-admin-boundary span {
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .publish-portal-view-list em {
+    display: block;
+    margin-top: 3px;
+  }
+
   .composer-shell {
     border-top: 1px solid #1e2936;
     background: #0d1219;
@@ -4135,6 +4289,10 @@ const styles = `
 
     .publish-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .publish-access-grid {
+      grid-template-columns: 1fr;
     }
 
     .runtime-meta-grid {

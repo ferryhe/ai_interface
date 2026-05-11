@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-result-handoff-detail`
-- Scope: Frontend Portal result handoff detail drawer for final agent outputs.
+- Branch: `codex/publish-portal-access-panel`
+- Scope: Frontend Publish page access/visibility panel for the frontstage Portal.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -262,6 +262,10 @@ Updated: 2026-05-11
 - Added the Portal Result Handoff Detail plan for a frontend-only Result view handoff drawer backed by existing module-run detail and artifact detail fetches.
 - Portal Result can now open local handoff details and, for API-backed records, guarded result handoff drawers with module-run events and artifacts.
 - Opened PR #20 for `codex/portal-result-handoff-detail`: https://github.com/ferryhe/ai_interface/pull/20
+- PR #20 was merged into `main` on 2026-05-11 at merge commit `bd20ff4`; this branch starts the next frontend Publish-to-Portal access slice from latest `main`.
+- Publish now explains the frontstage Portal token handoff, what end users see after publish, and which Configure controls remain admin-only.
+- Publish header and token access actions open `ai-os/AgentPortalInterface?token=portal-demo-token` through the existing mockup `previewUrl` route contract.
+- Opened PR #21 for `codex/publish-portal-access-panel`: https://github.com/ferryhe/ai_interface/pull/21
 
 ## Notes
 
@@ -269,7 +273,11 @@ Updated: 2026-05-11
 - Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
 - Controller re-ran the Agent Run API wire smoke in the in-app Browser `iab` target; direct textarea fill/type hit the browser clipboard limitation, so the smoke used keypress input plus DOM navigation and console checks. Screenshot capture still timed out.
 - Portal runtime progress browser smoke used keypress input because direct textarea fill/type hit the same in-app browser clipboard limitation.
+- Publish Portal access validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Publish Portal access validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Publish Portal access validation: `git diff --check` passed with CRLF warnings only.
+- Publish Portal access browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Publish Portal access/Frontstage visible/Admin-only sections, verified `View as user` navigates to `AgentPortalInterface?token=portal-demo-token`, and found no console warnings/errors.
 
 ## Next Action
 
-- Follow up PR #20 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
+- Follow up PR #21 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
