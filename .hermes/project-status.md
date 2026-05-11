@@ -298,6 +298,7 @@ Updated: 2026-05-11
 - Portal token verification review validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Portal token verification review validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Portal token verification review validation: `git diff --check` passed with CRLF warnings only.
+- Opened PR #23 for `codex/portal-token-verification-api`: https://github.com/ferryhe/ai_interface/pull/23
 - `corepack pnpm run typecheck` on this Windows host starts correctly but the root script invokes bare `pnpm`, which is not available on PATH in this shell; equivalent library and artifact/script typechecks were run directly with `corepack pnpm` and passed.
 - Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
 - Controller re-ran the Agent Run API wire smoke in the in-app Browser `iab` target; direct textarea fill/type hit the browser clipboard limitation, so the smoke used keypress input plus DOM navigation and console checks. Screenshot capture still timed out.
@@ -318,4 +319,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Commit, push, and open a PR for `codex/portal-token-verification-api`; then follow up on checks and Copilot comments after GitHub has processed the branch.
+- Follow up on PR #23 checks and Copilot comments after GitHub has processed the branch.
