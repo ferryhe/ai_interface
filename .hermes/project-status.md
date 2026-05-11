@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/safe-tool-executor-skeleton`
-- Scope: Add a safe backend tool executor skeleton that can skip unconfigured adapters or run a fake adapter without external side effects.
+- Branch: `codex/agent-run-execute-ready`
+- Scope: Add an optional Agent run `execute_ready` mode that kicks off safe fake execution for ready, non-approval module runs.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -63,6 +63,9 @@ Updated: 2026-05-11
 - Added the Safe Tool Executor Skeleton plan for a backend-only execution seam that checks adapter readiness, skips unconfigured adapters, and supports deterministic fake execution without calling sibling repos, CLIs, or HTTP services.
 - Implemented the Safe Tool Executor Skeleton backend seam: single-adapter readiness helper, deterministic fake executor, redacted missing-env skips, success/failure module-run updates, thrown-executor failure capture, and execution events without CLI/HTTP/process execution.
 - PR #10 Copilot review returned two actionable comments; both were addressed by making executor results terminal-only and passing a copied adapter definition into executor implementations so registry state cannot be mutated across runs.
+- PR #10 was merged into `main`; this branch starts the next autonomous runtime slice from latest `main`.
+- Added the Agent Run Execute-Ready Mode plan for a backend/API contract that lets `POST /api/agent-runs` optionally execute ready module runs through the safe fake executor while preserving plan-only as the default.
+- Implemented `executionMode` on Agent run creation. Default `plan_only` preserves pending module runs; `execute_ready` uses `FakeToolAdapterExecutor` through `executeModuleRunWithAdapter` for non-approval runs, records approval-required skips, preserves safe missing-env skips, refreshes module runs, and updates pipeline status/metadata.
 
 ## Verification
 
@@ -174,6 +177,14 @@ Updated: 2026-05-11
 - PR #10 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
 - PR #10 Copilot comment validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(|import\(" artifacts\api-server\src\tool-adapters` found no matches.
 - PR #10 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- Execute-ready TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `executionMode` metadata/execution behavior existed.
+- Execute-ready codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI client/Zod outputs, then failed only because the script invokes bare `pnpm`.
+- Execute-ready validation: `corepack pnpm --filter @workspace/api-server run test` passed with 36 tests, including mixed ready-plus-approval step coverage.
+- Execute-ready validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Execute-ready validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Execute-ready validation: `corepack pnpm run typecheck:libs` passed after codegen.
+- Execute-ready validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(|import\(" artifacts\api-server\src\agent-runtime artifacts\api-server\src\tool-adapters` found no matches.
+- Execute-ready validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -182,4 +193,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Push PR #10 Copilot fixes, recheck remote comments/checks, merge when clean, then continue to the next autonomous runtime slice.
+- Review the uncommitted execute-ready slice, then the parent agent can commit/push/open the PR when ready; this implementer run stopped before commit/push by instruction.

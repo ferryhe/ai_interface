@@ -22,12 +22,18 @@ import {
   listEnabledBusinessSkillDefinitions,
   type BusinessSkillDefinition,
 } from "./skill-registry";
+import {
+  executeModuleRunWithAdapter,
+  FakeToolAdapterExecutor,
+} from "../tool-adapters/executor";
 
 export type AgentRuntimeStatus =
   | "planned"
   | "missing_key"
   | "needs_approval"
   | "failed";
+
+export type AgentRunExecutionMode = "plan_only" | "execute_ready";
 
 export type AgentMessageRole = "user" | "agent" | "system" | "tool";
 
@@ -123,6 +129,7 @@ export interface CreateAgentRunInput {
   threadId?: string;
   title?: string;
   metadata?: JsonObject;
+  executionMode?: AgentRunExecutionMode;
 }
 
 export interface AgentRunResponse {
@@ -152,6 +159,50 @@ function trimTitle(value: string): string {
 function normalizeJsonObject(value: unknown): JsonObject {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as JsonObject;
+}
+
+function executionMetadata(
+  metadata: JsonObject | null,
+  status: "approval_required",
+): JsonObject {
+  return {
+    ...(metadata ?? {}),
+    adapterExecutionStatus: status,
+  };
+}
+
+function pipelineStatusForModuleRuns(
+  moduleRuns: ModuleRunRecord[],
+): ModuleRunStatus {
+  if (moduleRuns.some((run) => run.status === "failed")) return "failed";
+  if (
+    moduleRuns.length > 0 &&
+    moduleRuns.every((run) => run.status === "succeeded")
+  ) {
+    return "succeeded";
+  }
+  if (
+    moduleRuns.some((run) => run.status === "succeeded") &&
+    moduleRuns.some((run) => run.status === "pending")
+  ) {
+    return "running";
+  }
+  if (moduleRuns.some((run) => run.status === "running")) return "running";
+  return "pending";
+}
+
+function activeModuleIdForPipelineRun(
+  moduleRuns: ModuleRunRecord[],
+): ModuleId | null {
+  return (
+    moduleRuns.find((run) => run.status !== "succeeded")?.moduleId ?? null
+  );
+}
+
+function countExecutedModuleRuns(moduleRuns: ModuleRunRecord[]): number {
+  return moduleRuns.filter(
+    (run) => run.status === "succeeded" || run.status === "failed",
+  ).length;
 }
 
 function normalizePlan(
@@ -456,6 +507,7 @@ export async function createAgentRun(
   } = {},
 ): Promise<AgentRunResponse> {
   const env = options.env ?? process.env;
+  const executionMode = input.executionMode ?? "plan_only";
   const config = await getAgentConfig(configRepository);
   const connection = getConnectionStatus(env);
   const enabledSkills = listEnabledBusinessSkillDefinitions(
@@ -582,21 +634,73 @@ export async function createAgentRun(
     moduleRuns.push(run);
   }
 
-  const status: AgentRuntimeStatus =
+  let status: AgentRuntimeStatus =
     connection.status === "missing_key"
       ? "missing_key"
       : effectivePlan.steps.some((step) => step.requiresApproval)
         ? "needs_approval"
         : "planned";
 
+  let skippedApprovalModuleRunCount = 0;
+  let responseModuleRuns = moduleRuns;
+  if (executionMode === "execute_ready") {
+    const executor = new FakeToolAdapterExecutor();
+    for (const [index, run] of moduleRuns.entries()) {
+      const step = effectivePlan.steps[index];
+      if (!step) continue;
+
+      if (step.requiresApproval) {
+        skippedApprovalModuleRunCount += 1;
+        const definition = getBusinessSkillDefinition(step.moduleId);
+        await repository.updateModuleRun(run.id, {
+          status: "pending",
+          metadata: executionMetadata(run.metadata, "approval_required"),
+        });
+        await recordModuleRunEvent(repository, run.id, {
+          eventType: "tool.execution.approval_required",
+          title: "Adapter execution requires approval",
+          message: `Approval is required before executing ${step.moduleId}.`,
+          severity: "info",
+          payload: {
+            adapterId: definition.adapter.adapterId,
+            moduleId: step.moduleId,
+            externalRunId: run.externalRunId,
+          },
+        });
+        continue;
+      }
+
+      await executeModuleRunWithAdapter(repository, run.id, executor, { env });
+    }
+
+    responseModuleRuns = await repository.listModuleRunsByPipelineRunId(
+      pipelineRun.id,
+    );
+  }
+
+  const executedModuleRunCount =
+    executionMode === "execute_ready"
+      ? countExecutedModuleRuns(responseModuleRuns)
+      : 0;
+  const pipelineStatus =
+    executionMode === "execute_ready"
+      ? pipelineStatusForModuleRuns(responseModuleRuns)
+      : "pending";
+  if (pipelineStatus === "failed") {
+    status = "failed";
+  }
+
   pipelineRun = await repository.updatePipelineRun(pipelineRun.id, {
-    status: "pending",
-    activeModuleId: moduleRuns[0]?.moduleId ?? null,
+    status: pipelineStatus,
+    activeModuleId: activeModuleIdForPipelineRun(responseModuleRuns),
     metadata: {
       source: "agent-runtime",
       runtimeStatus: status,
       connectionStatus: connection.status,
       plannedStepCount: moduleRuns.length,
+      executionMode,
+      executedModuleRunCount,
+      skippedApprovalModuleRunCount,
     },
   });
 
@@ -607,7 +711,7 @@ export async function createAgentRun(
     metadata: {
       pipelineRunId: pipelineRun.id,
       runtimeStatus: status,
-      plannedModuleRunIds: moduleRuns.map((run) => run.id),
+      plannedModuleRunIds: responseModuleRuns.map((run) => run.id),
     },
   });
 
@@ -618,7 +722,7 @@ export async function createAgentRun(
     userMessage,
     agentMessage,
     pipelineRun,
-    moduleRuns,
+    moduleRuns: responseModuleRuns,
     plan: effectivePlan,
   };
 }

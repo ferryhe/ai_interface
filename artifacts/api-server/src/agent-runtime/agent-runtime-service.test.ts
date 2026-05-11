@@ -13,6 +13,31 @@ import {
   type AgentPlanner,
 } from "./agent-runtime-service";
 
+function singleDocToMarkdownPlanner(input: {
+  requiresApproval?: boolean;
+} = {}): AgentPlanner {
+  return {
+    async createPlan() {
+      return {
+        summary: "Convert source docs.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: {
+              sourceArtifactIds: ["artifact-source-1"],
+              engine: "opendataloader",
+            },
+            requiresApproval: input.requiresApproval ?? false,
+          },
+        ],
+      };
+    },
+  };
+}
+
 test("creates a deterministic missing-key plan and stores module runs", async () => {
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
   const configRepository = new InMemoryAgentConfigRepository();
@@ -173,6 +198,289 @@ test("uses an injected planner when OpenAI is configured", async () => {
     sourceArtifactIds: ["artifact-source-1"],
     engine: "opendataloader",
   });
+});
+
+test("defaults to plan-only mode and leaves configured module runs pending", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document.",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+      },
+      planner: singleDocToMarkdownPlanner(),
+    },
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.pipelineRun.status, "pending");
+  assert.equal(result.pipelineRun.metadata?.["executionMode"], "plan_only");
+  assert.equal(result.pipelineRun.metadata?.["executedModuleRunCount"], 0);
+  assert.equal(
+    result.pipelineRun.metadata?.["skippedApprovalModuleRunCount"],
+    0,
+  );
+  assert.equal(result.moduleRuns.length, 1);
+  assert.equal(result.moduleRuns[0]?.status, "pending");
+  assert.equal(result.moduleRuns[0]?.outputJson, null);
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    undefined,
+  );
+  assert.equal(
+    runtimeRepository.runEvents.some(
+      (event) => event.eventType === "tool.execution.fake_completed",
+    ),
+    false,
+  );
+});
+
+test("execute_ready runs configured non-approval module runs with the fake adapter", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document.",
+      executionMode: "execute_ready",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+      },
+      planner: singleDocToMarkdownPlanner(),
+    },
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.pipelineRun.status, "succeeded");
+  assert.equal(result.pipelineRun.activeModuleId, null);
+  assert.equal(result.pipelineRun.metadata?.["executionMode"], "execute_ready");
+  assert.equal(result.pipelineRun.metadata?.["executedModuleRunCount"], 1);
+  assert.equal(
+    result.pipelineRun.metadata?.["skippedApprovalModuleRunCount"],
+    0,
+  );
+  assert.equal(result.moduleRuns.length, 1);
+  assert.equal(result.moduleRuns[0]?.status, "succeeded");
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    "succeeded",
+  );
+  assert.deepEqual(result.moduleRuns[0]?.outputJson, {
+    adapterId: "doc_to_md.http.v1",
+    moduleId: "doc_to_md",
+    externalRunId: result.moduleRuns[0]?.externalRunId,
+    inputJson: {
+      sourceArtifactIds: ["artifact-source-1"],
+      engine: "opendataloader",
+    },
+    simulated: true,
+  });
+  assert.equal(
+    runtimeRepository.runEvents.some(
+      (event) => event.eventType === "tool.execution.fake_completed",
+    ),
+    true,
+  );
+  assert.equal(JSON.stringify(result).includes("doc.example.internal"), false);
+});
+
+test("execute_ready skips approval-required runs without calling the executor", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document.",
+      executionMode: "execute_ready",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+      },
+      planner: singleDocToMarkdownPlanner({ requiresApproval: true }),
+    },
+  );
+
+  assert.equal(result.status, "needs_approval");
+  assert.equal(result.pipelineRun.status, "pending");
+  assert.equal(result.pipelineRun.metadata?.["executionMode"], "execute_ready");
+  assert.equal(result.pipelineRun.metadata?.["executedModuleRunCount"], 0);
+  assert.equal(
+    result.pipelineRun.metadata?.["skippedApprovalModuleRunCount"],
+    1,
+  );
+  assert.equal(result.moduleRuns.length, 1);
+  assert.equal(result.moduleRuns[0]?.status, "pending");
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    "approval_required",
+  );
+  assert.equal(result.moduleRuns[0]?.startedAt, null);
+  assert.equal(result.moduleRuns[0]?.outputJson, null);
+  assert.equal(
+    runtimeRepository.runEvents.some(
+      (event) => event.eventType === "tool.execution.fake_completed",
+    ),
+    false,
+  );
+  const approvalEvent = runtimeRepository.runEvents.find(
+    (event) => event.eventType === "tool.execution.approval_required",
+  );
+  assert.ok(approvalEvent);
+  assert.equal(approvalEvent.moduleRunId, result.moduleRuns[0]?.id);
+  assert.deepEqual(approvalEvent.payload, {
+    adapterId: "doc_to_md.http.v1",
+    moduleId: "doc_to_md",
+    externalRunId: result.moduleRuns[0]?.externalRunId,
+  });
+});
+
+test("execute_ready with missing adapter env records a redacted skip and stays pending", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document.",
+      executionMode: "execute_ready",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_TOKEN: "secret-token",
+      },
+      planner: singleDocToMarkdownPlanner(),
+    },
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.pipelineRun.status, "pending");
+  assert.equal(result.pipelineRun.metadata?.["executionMode"], "execute_ready");
+  assert.equal(result.pipelineRun.metadata?.["executedModuleRunCount"], 0);
+  assert.equal(
+    result.pipelineRun.metadata?.["skippedApprovalModuleRunCount"],
+    0,
+  );
+  assert.equal(result.moduleRuns.length, 1);
+  assert.equal(result.moduleRuns[0]?.status, "pending");
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    "skipped",
+  );
+  assert.deepEqual(
+    result.moduleRuns[0]?.metadata?.["adapterMissingRequiredEnv"],
+    ["DOC_TO_MD_API_BASE_URL"],
+  );
+  const skipEvent = runtimeRepository.runEvents.find(
+    (event) => event.eventType === "tool.execution.skipped",
+  );
+  assert.ok(skipEvent);
+  assert.deepEqual(skipEvent.payload?.["missingRequiredEnv"], [
+    "DOC_TO_MD_API_BASE_URL",
+  ]);
+  assert.equal(JSON.stringify(result).includes("secret-token"), false);
+  assert.equal(JSON.stringify(skipEvent).includes("secret-token"), false);
+});
+
+test("execute_ready executes ready steps while leaving approval steps pending", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Convert a document and publish an agent.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: false,
+          },
+          {
+            moduleId: "rag_to_agent",
+            title: "Publish generated agent",
+            action: "Create and publish the generated agent config.",
+            input: { agentConfigArtifactId: "agent-config-1" },
+            requiresApproval: true,
+          },
+        ],
+      };
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document and prepare an agent.",
+      executionMode: "execute_ready",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+        RAG_TO_AGENT_API_BASE_URL: "https://agent.example.internal",
+      },
+      planner,
+    },
+  );
+
+  assert.equal(result.status, "needs_approval");
+  assert.equal(result.pipelineRun.status, "running");
+  assert.equal(result.pipelineRun.activeModuleId, "rag_to_agent");
+  assert.equal(result.pipelineRun.metadata?.["executedModuleRunCount"], 1);
+  assert.equal(
+    result.pipelineRun.metadata?.["skippedApprovalModuleRunCount"],
+    1,
+  );
+  assert.deepEqual(
+    result.moduleRuns.map((run) => [run.moduleId, run.status]),
+    [
+      ["doc_to_md", "succeeded"],
+      ["rag_to_agent", "pending"],
+    ],
+  );
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    "succeeded",
+  );
+  assert.equal(
+    result.moduleRuns[1]?.metadata?.["adapterExecutionStatus"],
+    "approval_required",
+  );
+  assert.equal(
+    runtimeRepository.runEvents.filter(
+      (event) => event.eventType === "tool.execution.fake_completed",
+    ).length,
+    1,
+  );
+  assert.equal(
+    runtimeRepository.runEvents.filter(
+      (event) => event.eventType === "tool.execution.approval_required",
+    ).length,
+    1,
+  );
+  assert.equal(JSON.stringify(result).includes("doc.example.internal"), false);
+  assert.equal(JSON.stringify(result).includes("agent.example.internal"), false);
 });
 
 test("applies configured approval overrides consistently", async () => {

@@ -962,6 +962,11 @@ components:
         - missing_key
         - needs_approval
         - failed
+    AgentRunExecutionMode:
+      type: string
+      enum:
+        - plan_only
+        - execute_ready
     AgentMessageRole:
       type: string
       enum:
@@ -1120,6 +1125,8 @@ components:
           type: string
         metadata:
           $ref: "#/components/schemas/JsonObject"
+        executionMode:
+          $ref: "#/components/schemas/AgentRunExecutionMode"
       required:
         - message
     AgentRunResponse:
