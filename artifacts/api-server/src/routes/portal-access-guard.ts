@@ -17,10 +17,8 @@ function readPortalToken(req: Request): string {
   if (tokenHeader) return tokenHeader;
 
   const authorization = firstHeaderValue(req.headers.authorization).trim();
-  const bearerPrefix = "Bearer ";
-  if (authorization.startsWith(bearerPrefix)) {
-    return authorization.slice(bearerPrefix.length).trim();
-  }
+  const [scheme, ...tokenParts] = authorization.split(/\s+/);
+  if (scheme?.toLowerCase() === "bearer") return tokenParts.join(" ").trim();
 
   return "";
 }

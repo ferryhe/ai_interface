@@ -333,7 +333,11 @@ Updated: 2026-05-11
 - Portal runtime access guard validation: `git diff --check` passed with CRLF warnings only.
 - Portal runtime access guard browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified Chat/Steps/Data/Sources/Result navigation, and found no console warnings/errors.
 - Portal runtime access guard note: `corepack pnpm --filter @workspace/api-server exec tsx --test ...` still fails in this Windows shell because `pnpm exec` does not resolve `tsx`; the package `test` script covers the focused route suites and passed.
+- PR #24 Copilot follow-up returned three actionable comments; all were addressed by making `Authorization: bearer <token>` parsing case-insensitive and centralizing DB-backed lazy repository loading behind one shared route helper.
+- PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 62 tests.
+- PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- PR #24 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 
 ## Next Action
 
-- Open PR for `codex/portal-runtime-access-guard`, then follow up on checks and Copilot comments after GitHub has processed the branch.
+- Push PR #24 follow-up fixes, merge if clean, then continue the autonomous PR chain from latest `main`.

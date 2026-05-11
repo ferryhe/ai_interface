@@ -164,7 +164,7 @@ test("modules route rejects Portal resume without a token before consuming feedb
   );
 });
 
-test("modules route accepts Portal resume with a published matching bearer token", async () => {
+test("modules route accepts Portal resume with a published matching case-insensitive bearer token", async () => {
   const repository = new InMemoryModuleRunRepository();
   const configRepository = new InMemoryAgentConfigRepository();
   const runId = await createInteractiveRun(repository);
@@ -192,7 +192,7 @@ test("modules route accepts Portal resume with a published matching bearer token
         fetch(`${baseUrl}/module-runs/${runId}/resume`, {
           method: "POST",
           headers: {
-            Authorization: "Bearer portal-secret-token",
+            Authorization: "bearer portal-secret-token",
             "X-AI-Interface-Surface": "agent-portal",
           },
         }),

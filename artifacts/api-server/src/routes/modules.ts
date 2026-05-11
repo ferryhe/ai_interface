@@ -42,85 +42,27 @@ import {
   isPortalRuntimeRequest,
   requirePortalRuntimeAccess,
 } from "./portal-access-guard";
+import { createLazyRepository } from "./lazy-repository";
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
 }
 
-function createLazyDbModuleRunRepository(): ModuleRunRepository {
-  let repository: ModuleRunRepository | null = null;
-
-  async function getRepository(): Promise<ModuleRunRepository> {
-    if (repository) return repository;
+const lazyModuleRunRepository = createLazyRepository<ModuleRunRepository>(
+  async () => {
     const { DbModuleRunRepository } = await import("../modules/db-repository");
-    repository = new DbModuleRunRepository();
-    return repository;
-  }
+    return new DbModuleRunRepository();
+  },
+);
 
-  return {
-    async findModuleRunByExternalId(moduleId, externalRunId) {
-      return (await getRepository()).findModuleRunByExternalId(
-        moduleId,
-        externalRunId,
-      );
-    },
-    async createModuleRun(input) {
-      return (await getRepository()).createModuleRun(input);
-    },
-    async updateModuleRun(id, input) {
-      return (await getRepository()).updateModuleRun(id, input);
-    },
-    async consumeResumableInteraction(id, interactionId, interaction) {
-      return (await getRepository()).consumeResumableInteraction(
-        id,
-        interactionId,
-        interaction,
-      );
-    },
-    async pipelineRunExists(id) {
-      return (await getRepository()).pipelineRunExists(id);
-    },
-    async findModuleRunById(id) {
-      return (await getRepository()).findModuleRunById(id);
-    },
-    async createRunEvent(input) {
-      return (await getRepository()).createRunEvent(input);
-    },
-    async createArtifact(input) {
-      return (await getRepository()).createArtifact(input);
-    },
-    async findArtifactById(id) {
-      return (await getRepository()).findArtifactById(id);
-    },
-    async listRunEvents(moduleRunId) {
-      return (await getRepository()).listRunEvents(moduleRunId);
-    },
-    async listRunArtifacts(moduleRunId) {
-      return (await getRepository()).listRunArtifacts(moduleRunId);
-    },
-  };
-}
-
-function createLazyDbAgentConfigRepository(): AgentConfigRepository {
-  let repository: AgentConfigRepository | null = null;
-
-  async function getRepository(): Promise<AgentConfigRepository> {
-    if (repository) return repository;
-    const { DbAgentConfigRepository } =
-      await import("../agent-config/db-repository");
-    repository = new DbAgentConfigRepository();
-    return repository;
-  }
-
-  return {
-    async findConfig(configKey) {
-      return (await getRepository()).findConfig(configKey);
-    },
-    async upsertConfig(input) {
-      return (await getRepository()).upsertConfig(input);
-    },
-  };
-}
+const lazyConfigRepository = createLazyRepository<AgentConfigRepository>(
+  async () => {
+    const { DbAgentConfigRepository } = await import(
+      "../agent-config/db-repository"
+    );
+    return new DbAgentConfigRepository();
+  },
+);
 
 export function createModulesRouter(
   repository: ModuleRunRepository,
@@ -369,8 +311,8 @@ export function createModulesRouter(
 }
 
 const router = createModulesRouter(
-  createLazyDbModuleRunRepository(),
-  createLazyDbAgentConfigRepository(),
+  lazyModuleRunRepository,
+  lazyConfigRepository,
 );
 
 export default router;
