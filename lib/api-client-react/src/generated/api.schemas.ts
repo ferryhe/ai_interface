@@ -372,6 +372,14 @@ export const AgentRuntimeStatus = {
   failed: "failed",
 } as const;
 
+export type AgentRunExecutionMode =
+  (typeof AgentRunExecutionMode)[keyof typeof AgentRunExecutionMode];
+
+export const AgentRunExecutionMode = {
+  plan_only: "plan_only",
+  execute_ready: "execute_ready",
+} as const;
+
 export type AgentMessageRole =
   (typeof AgentMessageRole)[keyof typeof AgentMessageRole];
 
@@ -444,6 +452,7 @@ export interface CreateAgentRunRequest {
   threadId?: string;
   title?: string;
   metadata?: JsonObject;
+  executionMode?: AgentRunExecutionMode;
 }
 
 export interface AgentRunResponse {

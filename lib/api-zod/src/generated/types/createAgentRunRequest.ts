@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentRunExecutionMode } from "./agentRunExecutionMode";
 import type { JsonObject } from "./jsonObject";
 
 export interface CreateAgentRunRequest {
@@ -13,4 +14,5 @@ export interface CreateAgentRunRequest {
   threadId?: string;
   title?: string;
   metadata?: JsonObject;
+  executionMode?: AgentRunExecutionMode;
 }

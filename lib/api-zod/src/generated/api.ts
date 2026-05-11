@@ -461,6 +461,7 @@ export const CreateAgentRunBody = zod.object({
   threadId: zod.string().uuid().optional(),
   title: zod.string().optional(),
   metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  executionMode: zod.enum(["plan_only", "execute_ready"]).optional(),
 });
 
 export const CreateAgentRunResponse = zod.object({

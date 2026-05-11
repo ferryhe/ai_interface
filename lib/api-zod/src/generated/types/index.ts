@@ -18,6 +18,7 @@ export * from "./agentMessageRole";
 export * from "./agentProvider";
 export * from "./agentReasoningEffort";
 export * from "./agentRunDetail";
+export * from "./agentRunExecutionMode";
 export * from "./agentRunResponse";
 export * from "./agentRuntimeConnection";
 export * from "./agentRuntimePlan";
