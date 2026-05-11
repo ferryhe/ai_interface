@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/frontend-runtime-feedback-actions`
-- Scope: Frontend runtime interaction metadata and resume actions for the admin mockup console.
+- Branch: `codex/portal-runtime-progress-api`
+- Scope: Frontend Portal runtime progress API visibility for published users.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -217,13 +217,24 @@ Updated: 2026-05-11
 - Frontend runtime feedback-actions validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Frontend runtime feedback-actions validation: `git diff --check` passed with CRLF warnings only.
 - Frontend runtime feedback-actions browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified local mock `Resume` routes to `doc_to_md`, Progress shows runtime action status text, Modules shows the interaction title/message/resume handle, and found no console warnings/errors.
+- Portal runtime progress validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime progress validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal runtime progress validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime progress browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, submitted the composer with no backend API, verified local fallback status plus Steps/Data/Sources/Result views, verified the admin token dialog opens, and found no console warnings/errors.
+- PR #15 was merged into `main` on 2026-05-11 at merge commit `982bb3f`; this branch starts the next autonomous Portal runtime visibility slice from latest `main`.
+- Added the Portal Runtime Progress API plan for a frontend-only Portal wire-up to the existing Agent Run API.
+- The frontstage Portal composer now attempts `POST /api/agent-runs` with `executionMode: "execute_ready"` and `metadata.source = "agent-portal"`.
+- Successful Portal API responses are mapped into Chat, Steps, Data, Sources, Result readiness, and the context rail while local demo data remains the fallback.
+- Portal Agent Run API responses are guarded before render; malformed 2xx responses fall back to the local demo instead of crashing.
+- API-backed Portal steps use run-specific ids so repeated module runs do not duplicate React keys or confuse active step selection.
 
 ## Notes
 
 - `corepack pnpm run typecheck` on this Windows host starts correctly but the root script invokes bare `pnpm`, which is not available on PATH in this shell; equivalent library and artifact/script typechecks were run directly with `corepack pnpm` and passed.
 - Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
 - Controller re-ran the Agent Run API wire smoke in the in-app Browser `iab` target; direct textarea fill/type hit the browser clipboard limitation, so the smoke used keypress input plus DOM navigation and console checks. Screenshot capture still timed out.
+- Portal runtime progress browser smoke used keypress input because direct textarea fill/type hit the same in-app browser clipboard limitation.
 
 ## Next Action
 
-- Commit, push, and open the frontend runtime feedback-actions PR; then run the standard PR follow-up for checks and Copilot comments.
+- Verify, commit, push, and open the Portal runtime progress API PR; then update the follow-up automation to check the new PR.
