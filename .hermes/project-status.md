@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-runtime-auth-failure-ux`
-- Scope: Portal runtime `401`/`403` responses now return users to the token gate instead of falling back to local demo behavior.
+- Branch: `codex/portal-agent-run-refresh`
+- Scope: Frontstage Portal users can refresh an API-backed Agent run from `GET /api/agent-runs/{pipelineRunId}` after the original submit.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -369,7 +369,21 @@ Updated: 2026-05-11
 - Portal runtime auth failure UX controller validation: `git diff --check` passed with CRLF warnings only.
 - Portal runtime auth failure UX browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified local demo unlock plus Chat/Steps/Data/Sources/Result navigation, opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the token lock screen, and found no console warnings/errors.
 - Portal runtime auth failure UX browser note: screenshot capture timed out in the current in-app browser connection, so rendered validation used DOM navigation and console checks.
+- PR #26 was merged into `main` on 2026-05-11; this branch starts the Portal Agent run refresh slice from latest `main`.
+- Portal now exposes a refresh control for API-backed runs and uses `GET /api/agent-runs/{pipelineRunId}` with Portal runtime headers to update Steps/Data/Sources/Result.
+- Runtime `401`/`403` refresh responses reuse the Portal auth-denial lock behavior; network/offline refresh failures keep the current API view.
+- Portal Agent run refresh validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal Agent run refresh validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal Agent run refresh validation: `git diff --check` passed with CRLF warnings only.
+- Portal Agent run refresh spec reviewer: passed, with no missing plan requirements.
+- Portal Agent run refresh code quality reviewer found a valid refresh/submit race where an older refresh could overwrite a newer submitted run.
+- Portal Agent run refresh fix: `submitPortalPrompt` and the Chat Send button now treat `refreshing` as a busy state.
+- Portal Agent run refresh code quality re-review: approved after the refresh/submit race fix.
+- Portal Agent run refresh controller validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal Agent run refresh controller validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal Agent run refresh controller validation: `git diff --check` passed with CRLF warnings only.
+- Portal Agent run refresh browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so rendered smoke could not run in this heartbeat.
 
 ## Next Action
 
-- Push/open the Portal runtime auth failure UX PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal Agent run refresh PR, then perform the scheduled follow-up for checks and remote review comments.

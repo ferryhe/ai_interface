@@ -19,6 +19,7 @@ import {
   LockKeyhole,
   MessageSquareText,
   Radio,
+  RefreshCw,
   Send,
   Settings2,
   ShieldCheck,
@@ -33,6 +34,7 @@ type AgentConnectionStatus = "configured" | "missing_key" | "offline";
 type PortalRunSubmitState =
   | "local"
   | "submitting"
+  | "refreshing"
   | "saved"
   | "offline"
   | "failed";
@@ -513,6 +515,7 @@ function statusText(status: PortalStatus): string {
 
 function portalRunStateLabel(state: PortalRunSubmitState): string {
   if (state === "submitting") return "Submitting";
+  if (state === "refreshing") return "Refreshing";
   if (state === "saved") return "API saved";
   if (state === "offline") return "API offline";
   if (state === "failed") return "API failed";
@@ -1280,7 +1283,9 @@ export function AgentPortalInterface() {
   }
 
   async function submitPortalPrompt(): Promise<void> {
-    if (portalRunState === "submitting") return;
+    if (portalRunState === "submitting" || portalRunState === "refreshing") {
+      return;
+    }
     const prompt = draft.trim();
     if (!prompt) return;
 
@@ -1358,6 +1363,81 @@ export function AgentPortalInterface() {
       setActiveStep(portalSteps[2].id);
       setPortalRunState("offline");
       setPortalRunStatusText("API offline - showing local demo");
+    }
+  }
+
+  async function refreshPortalRun(): Promise<void> {
+    if (
+      !latestPortalRun ||
+      portalRunState === "submitting" ||
+      portalRunState === "refreshing"
+    ) {
+      return;
+    }
+
+    const pipelineRunId = latestPortalRun.response.pipelineRun.id;
+    setPortalRunState("refreshing");
+    setPortalRunStatusText(`Refreshing run ${shortRunId(pipelineRunId)}`);
+
+    try {
+      const response = await fetch(
+        `/api/agent-runs/${encodeURIComponent(pipelineRunId)}`,
+        {
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
+        setPortalRunState("failed");
+        setPortalRunStatusText(
+          `Refresh failed for run ${shortRunId(pipelineRunId)}`,
+        );
+        return;
+      }
+
+      let data: unknown;
+      try {
+        data = (await response.json()) as unknown;
+      } catch {
+        setPortalRunState("failed");
+        setPortalRunStatusText(
+          `Refresh returned an unexpected response for ${shortRunId(
+            pipelineRunId,
+          )}`,
+        );
+        return;
+      }
+
+      if (!isPortalAgentRunApiResponse(data)) {
+        setPortalRunState("failed");
+        setPortalRunStatusText(
+          `Refresh returned an unexpected response for ${shortRunId(
+            pipelineRunId,
+          )}`,
+        );
+        return;
+      }
+
+      const uiState = toPortalUiState(data);
+      setLatestPortalRun(uiState);
+      setActiveStep((current) =>
+        uiState.steps.some((step) => step.id === current)
+          ? current
+          : (uiState.steps[0]?.id ?? portalSteps[0].id),
+      );
+      setPortalRunState("saved");
+      setPortalRunStatusText(`Refreshed run ${shortRunId(data.pipelineRun.id)}`);
+    } catch {
+      setPortalRunState("offline");
+      setPortalRunStatusText(
+        `Refresh unavailable for run ${shortRunId(
+          pipelineRunId,
+        )} - keeping current view`,
+      );
     }
   }
 
@@ -1813,6 +1893,19 @@ export function AgentPortalInterface() {
                 <Radio size={15} />
                 {portalRunStateLabel(portalRunState)}
               </div>
+              <button
+                type="button"
+                className="portal-refresh-button"
+                disabled={
+                  !latestPortalRun ||
+                  portalRunState === "submitting" ||
+                  portalRunState === "refreshing"
+                }
+                onClick={() => void refreshPortalRun()}
+              >
+                <RefreshCw size={15} />
+                Refresh
+              </button>
             </div>
           </header>
 
@@ -2071,7 +2164,11 @@ function ChatView({
         />
         <button
           type="button"
-          disabled={!draft.trim() || runState === "submitting"}
+          disabled={
+            !draft.trim() ||
+            runState === "submitting" ||
+            runState === "refreshing"
+          }
           onClick={onSubmit}
         >
           <Send size={16} />
@@ -3290,6 +3387,28 @@ const styles = `
     white-space: nowrap;
   }
 
+  .portal-refresh-button {
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #101721;
+    color: #d8e8ff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .portal-refresh-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
   .portal-status-pill,
   .portal-status-badge {
     width: fit-content;
@@ -3365,7 +3484,8 @@ const styles = `
     color: #ff7b86;
   }
 
-  .portal-run-pill.submitting {
+  .portal-run-pill.submitting,
+  .portal-run-pill.refreshing {
     border-color: #31506f;
     background: #10233a;
     color: #67b7ff;
