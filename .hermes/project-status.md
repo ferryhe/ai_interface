@@ -58,6 +58,7 @@ Updated: 2026-05-11
 - Agent-created module runs now include adapter metadata needed by later executor/resume PRs.
 - Added `GET /api/tool-adapters` and regenerated API Zod/React clients.
 - Opened PR #9 for `codex/adapter-metadata-config-contract`: https://github.com/ferryhe/ai_interface/pull/9
+- PR #9 Copilot review returned two actionable comments; both were addressed by adding braces around a multi-line conditional and renaming adapter-derived module-run metadata keys to `adapterSupportsResume` and `adapterReadinessHint`.
 
 ## Verification
 
@@ -151,6 +152,11 @@ Updated: 2026-05-11
 - Adapter metadata validation: `corepack pnpm run typecheck:libs` passed.
 - Adapter metadata validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - Adapter metadata validation: `git diff --check` passed with CRLF warnings only.
+- PR #9 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run test` passed with 24 tests.
+- PR #9 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #9 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
+- PR #9 Copilot comment validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- PR #9 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 

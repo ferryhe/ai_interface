@@ -234,8 +234,9 @@ function extractResponseText(payload: unknown): string {
     if (!Array.isArray(content)) continue;
     for (const part of content) {
       const partRecord = normalizeJsonObject(part);
-      if (typeof partRecord["text"] === "string")
+      if (typeof partRecord["text"] === "string") {
         fragments.push(partRecord["text"]);
+      }
     }
   }
   return fragments.join("\n");
@@ -561,8 +562,8 @@ export async function createAgentRun(
         adapterTimeoutMs: definition.adapter.timeoutMs,
         adapterMaxOutputBytes: definition.adapter.maxOutputBytes,
         adapterAllowedCommands: definition.adapter.allowedCommands,
-        supportsResume: definition.adapter.supportsResume,
-        readinessHint: definition.adapter.readinessHint,
+        adapterSupportsResume: definition.adapter.supportsResume,
+        adapterReadinessHint: definition.adapter.readinessHint,
         canonicalEntrypoints: definition.canonicalEntrypoints,
         outputContracts: definition.outputContracts,
         sourceRepo: definition.adapter.sourceRepo,

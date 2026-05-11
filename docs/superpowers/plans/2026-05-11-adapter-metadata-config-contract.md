@@ -318,7 +318,11 @@ assert.equal(
   "web_listening.cli.v1",
 );
 assert.equal(result.moduleRuns[0]?.metadata?.["adapterKind"], "cli");
-assert.equal(result.moduleRuns[0]?.metadata?.["supportsResume"], true);
+assert.equal(result.moduleRuns[0]?.metadata?.["adapterSupportsResume"], true);
+assert.equal(
+  result.moduleRuns[0]?.metadata?.["adapterReadinessHint"],
+  "Set WEB_LISTENING_CLI_PATH to enable CLI handoffs.",
+);
 assert.equal(
   result.moduleRuns[1]?.metadata?.["adapterId"],
   "doc_to_md.http.v1",
@@ -368,8 +372,8 @@ In `artifacts/api-server/src/agent-runtime/agent-runtime-service.ts`, inside the
         adapterTimeoutMs: definition.adapter.timeoutMs,
         adapterMaxOutputBytes: definition.adapter.maxOutputBytes,
         adapterAllowedCommands: definition.adapter.allowedCommands,
-        supportsResume: definition.adapter.supportsResume,
-        readinessHint: definition.adapter.readinessHint,
+        adapterSupportsResume: definition.adapter.supportsResume,
+        adapterReadinessHint: definition.adapter.readinessHint,
 ```
 
 - [ ] **Step 5: Verify runtime tests pass**
