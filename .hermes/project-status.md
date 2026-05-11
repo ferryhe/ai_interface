@@ -38,6 +38,7 @@ Updated: 2026-05-11
 - Added preview mode switching between the admin console and frontstage Portal: admin shows `View Portal`, and the Portal shows `Admin Console`.
 - Frontstage-to-admin switching now requires a submitted admin token; empty admin token closes the gate and keeps the user in the Portal.
 - PR #6 Copilot review comments were evaluated and addressed with narrow Portal fixes: query-token shortcuts are explicitly marked demo-only, access/admin token fields are masked with autocomplete disabled, and the decorative step marker is aria-hidden.
+- After the PR #6 Copilot fix push, GitHub reported PR #6 as open and mergeable with no checks reported; one decorative-marker thread became outdated, while the two token-related threads remain unresolved remotely but are addressed in code.
 
 ## Verification
 
@@ -104,6 +105,7 @@ Updated: 2026-05-11
 - PR #6 Copilot comment validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - PR #6 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 - PR #6 Copilot comment browser smoke verified the Portal and Admin token fields are password inputs with autocomplete off, demo-token status/copy is visible, the decorative step marker is nonsemantic, admin token still enters the admin console, and no console warnings/errors were reported.
+- PR #6 Copilot post-push remote check: `gh pr view 6 --json number,url,state,mergeable,headRefName,baseRefName,title,reviewDecision,statusCheckRollup` reported OPEN/MERGEABLE with no checks; thread-aware review fetch still listed two unresolved token threads and one outdated decorative-marker thread.
 
 ## Notes
 
