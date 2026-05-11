@@ -87,6 +87,10 @@ interface PortalSource {
   step: string;
   freshness: string;
   summary: string;
+  runId?: string;
+  artifactId?: string;
+  evidenceTitle: string;
+  evidenceDetail: string;
 }
 
 interface PortalMessage {
@@ -302,6 +306,8 @@ const portalSources: PortalSource[] = [
     step: "Listen",
     freshness: "Snapshot captured 2 min ago",
     summary: "Primary onboarding page used to detect copy and setup flow changes.",
+    evidenceTitle: "Watched URL snapshot",
+    evidenceDetail: "The Listen step captured page text and change metadata before downstream conversion.",
   },
   {
     id: "s2",
@@ -310,6 +316,8 @@ const portalSources: PortalSource[] = [
     step: "Convert",
     freshness: "Converted 1 min ago",
     summary: "Original user guide converted into Markdown before chunking.",
+    evidenceTitle: "Converted source document",
+    evidenceDetail: "The Convert step normalized the original guide into Markdown before chunking.",
   },
   {
     id: "s3",
@@ -318,6 +326,8 @@ const portalSources: PortalSource[] = [
     step: "Index",
     freshness: "96 chunks indexed",
     summary: "Retrieval memory that will power the published Agent answers.",
+    evidenceTitle: "RAG memory collection",
+    evidenceDetail: "The Index step stores chunks and retrieval metadata for the published Agent.",
   },
 ];
 
@@ -737,6 +747,13 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
       step: step.label,
       freshness: `Updated ${formatApiTime(run.updatedAt)}`,
       summary: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
+      runId: run.id,
+      evidenceTitle: run.title ?? step.label,
+      evidenceDetail: metadataString(
+        run.metadata,
+        "adapterReadinessHint",
+        "Open details to inspect stored events and artifacts.",
+      ),
     };
   });
   const completedCount = steps.filter((step) => step.status === "complete").length;
@@ -769,12 +786,16 @@ export function AgentPortalInterface() {
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
   const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<Record<string, string>>({});
   const [selectedDataRecordId, setSelectedDataRecordId] = useState<string | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [portalDetailStates, setPortalDetailStates] = useState<Record<string, PortalDetailState>>({});
   const [portalRunDetails, setPortalRunDetails] = useState<Record<string, PortalModuleRunDetail>>({});
   const [selectedArtifactByRunId, setSelectedArtifactByRunId] = useState<Record<string, string>>({});
   const [portalArtifactDetails, setPortalArtifactDetails] = useState<Record<string, PortalArtifact>>({});
   const [portalDetailStatusText, setPortalDetailStatusText] = useState(
     "Open a data record to inspect stored module artifacts",
+  );
+  const [portalSourceStatusText, setPortalSourceStatusText] = useState(
+    "Open a source to inspect evidence and provenance",
   );
   const portalActionInFlightRef = useRef<Set<string>>(new Set());
 
@@ -844,12 +865,14 @@ export function AgentPortalInterface() {
     setFeedbackDrafts({});
     setSelectedInteractionOptions({});
     setSelectedDataRecordId(null);
+    setSelectedSourceId(null);
     setPortalDetailStates({});
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
     setPortalArtifactDetails({});
     setPortalActionStatusText("Feedback actions are local until API run data is available");
     setPortalDetailStatusText("Open a data record to inspect stored module artifacts");
+    setPortalSourceStatusText("Open a source to inspect evidence and provenance");
     setPortalRunState("submitting");
     setPortalRunStatusText("Submitting to Agent Run API");
     setActiveView("steps");
@@ -1031,7 +1054,49 @@ export function AgentPortalInterface() {
     }
   }
 
-  async function openArtifact(runId: string, artifact: PortalArtifact): Promise<void> {
+  async function openSource(source: PortalSource): Promise<void> {
+    setSelectedSourceId(source.id);
+
+    if (!source.runId) {
+      setPortalSourceStatusText("Local demo source - no API module run is connected");
+      return;
+    }
+
+    const runId = source.runId;
+    if (portalRunDetails[runId]) {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
+      setPortalSourceStatusText(`Loaded evidence for ${source.label}`);
+      return;
+    }
+
+    setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
+    setPortalSourceStatusText(`Loading evidence for ${source.label}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
+      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalModuleRunDetail(data)) {
+        throw new Error("Module run detail API returned unexpected shape");
+      }
+
+      setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+      }));
+      setPortalSourceStatusText(`Loaded evidence for ${source.label}`);
+    } catch {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
+      setPortalSourceStatusText(`Evidence API failed for ${source.label}`);
+    }
+  }
+
+  async function openArtifact(
+    runId: string,
+    artifact: PortalArtifact,
+    statusTarget: "data" | "source" = "data",
+  ): Promise<void> {
     setSelectedArtifactByRunId((current) => ({ ...current, [runId]: artifact.id }));
     if (portalArtifactDetails[artifact.id]) return;
 
@@ -1042,6 +1107,10 @@ export function AgentPortalInterface() {
       if (!isPortalArtifact(data)) throw new Error("Artifact API returned unexpected shape");
       setPortalArtifactDetails((current) => ({ ...current, [artifact.id]: data }));
     } catch {
+      if (statusTarget === "source") {
+        setPortalSourceStatusText(`Artifact API failed for ${artifact.title}`);
+        return;
+      }
       setPortalDetailStatusText(`Artifact API failed for ${artifact.title}`);
     }
   }
@@ -1179,7 +1248,19 @@ export function AgentPortalInterface() {
               onOpenArtifact={openArtifact}
             />
           )}
-          {activeView === "sources" && <SourcesView sources={displayedSources} />}
+          {activeView === "sources" && (
+            <SourcesView
+              sources={displayedSources}
+              selectedSourceId={selectedSourceId}
+              detailStates={portalDetailStates}
+              runDetails={portalRunDetails}
+              selectedArtifactByRunId={selectedArtifactByRunId}
+              artifactDetails={portalArtifactDetails}
+              sourceStatusText={portalSourceStatusText}
+              onOpenSource={openSource}
+              onOpenArtifact={(runId, artifact) => openArtifact(runId, artifact, "source")}
+            />
+          )}
           {activeView === "result" && (
             <ResultView
               readiness={displayedReadiness}
@@ -1749,7 +1830,31 @@ function PortalDataDetailDrawer({
   );
 }
 
-function SourcesView({ sources }: { sources: PortalSource[] }) {
+function SourcesView({
+  sources,
+  selectedSourceId,
+  detailStates,
+  runDetails,
+  selectedArtifactByRunId,
+  artifactDetails,
+  sourceStatusText,
+  onOpenSource,
+  onOpenArtifact,
+}: {
+  sources: PortalSource[];
+  selectedSourceId: string | null;
+  detailStates: Record<string, PortalDetailState>;
+  runDetails: Record<string, PortalModuleRunDetail>;
+  selectedArtifactByRunId: Record<string, string>;
+  artifactDetails: Record<string, PortalArtifact>;
+  sourceStatusText: string;
+  onOpenSource: (source: PortalSource) => Promise<void>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
+}) {
+  const selectedSource = sources.find((source) => source.id === selectedSourceId) ?? null;
+  const selectedRunId = selectedSource?.runId;
+  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+
   return (
     <section className="portal-view" aria-label="Portal sources">
       <div className="portal-section-heading">
@@ -1758,7 +1863,10 @@ function SourcesView({ sources }: { sources: PortalSource[] }) {
       </div>
       <div className="portal-source-grid">
         {sources.map((source) => (
-          <article key={source.id} className="portal-source-card">
+          <article
+            key={source.id}
+            className={selectedSourceId === source.id ? "portal-source-card active" : "portal-source-card"}
+          >
             <div>
               <Link2 size={16} />
               <span>{source.type}</span>
@@ -1766,10 +1874,136 @@ function SourcesView({ sources }: { sources: PortalSource[] }) {
             <strong>{source.label}</strong>
             <p>{source.summary}</p>
             <em>{source.step} · {source.freshness}</em>
+            <button
+              type="button"
+              aria-label={`Inspect evidence for ${source.label}`}
+              onClick={() => void onOpenSource(source)}
+            >
+              Inspect evidence
+            </button>
           </article>
         ))}
       </div>
+      <p className="portal-action-status-text">{sourceStatusText}</p>
+      <PortalSourceEvidenceDrawer
+        source={selectedSource}
+        detail={selectedRunDetail}
+        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
+        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        artifactDetails={artifactDetails}
+        onOpenArtifact={onOpenArtifact}
+      />
     </section>
+  );
+}
+
+function PortalSourceEvidenceDrawer({
+  source,
+  detail,
+  detailState,
+  selectedArtifactId,
+  artifactDetails,
+  onOpenArtifact,
+}: {
+  source: PortalSource | null;
+  detail: PortalModuleRunDetail | null;
+  detailState: PortalDetailState;
+  selectedArtifactId: string | undefined;
+  artifactDetails: Record<string, PortalArtifact>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
+}) {
+  if (!source) {
+    return (
+      <aside className="portal-source-drawer">
+        <p>Select a source to inspect evidence.</p>
+      </aside>
+    );
+  }
+
+  if (!source.runId) {
+    return (
+      <aside className="portal-source-drawer">
+        <span className="portal-kicker">Local evidence</span>
+        <strong>{source.evidenceTitle}</strong>
+        <p>{source.evidenceDetail}</p>
+        <em>{source.step} · {source.freshness}</em>
+      </aside>
+    );
+  }
+
+  const runId = source.runId;
+
+  if (detailState === "loading") {
+    return (
+      <aside className="portal-source-drawer">
+        <p>Loading source evidence...</p>
+      </aside>
+    );
+  }
+
+  if (detailState === "failed") {
+    return (
+      <aside className="portal-source-drawer">
+        <p>Evidence API failed for this source.</p>
+      </aside>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <aside className="portal-source-drawer">
+        <p>Open this source to load evidence.</p>
+      </aside>
+    );
+  }
+
+  const selectedArtifact = selectedArtifactId
+    ? artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    : null;
+  const artifactPreview =
+    selectedArtifact?.contentText ??
+    (selectedArtifact
+      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      : null);
+
+  return (
+    <aside className="portal-source-drawer">
+      <span className="portal-kicker">API evidence</span>
+      <strong>{source.evidenceTitle}</strong>
+      <p>{detail.run.summary ?? source.evidenceDetail}</p>
+      <div className="portal-source-evidence-grid">
+        <div>
+          <em>Provenance events</em>
+          {detail.events.length === 0 ? (
+            <p>No events stored yet.</p>
+          ) : (
+            detail.events.map((event) => (
+              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+            ))
+          )}
+        </div>
+        <div>
+          <em>Evidence artifacts</em>
+          {detail.artifacts.length === 0 ? (
+            <p>No artifacts stored yet.</p>
+          ) : (
+            detail.artifacts.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                className={selectedArtifactId === artifact.id ? "active" : ""}
+                onClick={() => void onOpenArtifact(runId, artifact)}
+              >
+                {artifact.title}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+      {detailState === "empty" && <p>No evidence records were stored for this module run yet.</p>}
+      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+    </aside>
   );
 }
 
@@ -1917,6 +2151,7 @@ const styles = `
   .portal-record-row p,
   .portal-detail-drawer p,
   .portal-source-card p,
+  .portal-source-drawer p,
   .portal-result-summary p {
     color: #a5b1c2;
     line-height: 1.55;
@@ -1975,7 +2210,9 @@ const styles = `
   .portal-interaction-panel textarea,
   .portal-filter-row button,
   .portal-record-row button,
-  .portal-detail-columns button {
+  .portal-detail-columns button,
+  .portal-source-card button,
+  .portal-source-evidence-grid button {
     font: inherit;
   }
 
@@ -2698,11 +2935,96 @@ const styles = `
     padding: 13px;
   }
 
+  .portal-source-card.active {
+    border-color: #4f9cff;
+    background: #122033;
+  }
+
   .portal-source-card div {
     display: flex;
     align-items: center;
     gap: 7px;
     color: #67b7ff;
+  }
+
+  .portal-source-card button {
+    width: fit-content;
+    min-height: 30px;
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #10233a;
+    color: #d8e8ff;
+    cursor: pointer;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .portal-source-drawer {
+    min-width: 0;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0b1118;
+    display: grid;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .portal-source-drawer strong {
+    color: #edf3fb;
+    line-height: 1.35;
+  }
+
+  .portal-source-drawer em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 650;
+  }
+
+  .portal-source-evidence-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .portal-source-evidence-grid div {
+    min-width: 0;
+    border: 1px solid #1e2936;
+    border-radius: 8px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .portal-source-evidence-grid span {
+    color: #aeb8c6;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-source-evidence-grid button {
+    min-width: 0;
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #101721;
+    color: #aeb8c6;
+    cursor: pointer;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-source-evidence-grid button.active {
+    border-color: #4f9cff;
+    background: #10233a;
+    color: #edf3fb;
   }
 
   .portal-result-panel {
@@ -2894,7 +3216,8 @@ const styles = `
     .portal-source-grid,
     .portal-result-panel,
     .portal-readiness-grid,
-    .portal-detail-columns {
+    .portal-detail-columns,
+    .portal-source-evidence-grid {
       grid-template-columns: 1fr;
     }
 
