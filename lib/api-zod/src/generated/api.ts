@@ -268,3 +268,211 @@ export const GetArtifactResponse = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
+
+/**
+ * Returns the persisted Agent control plane configuration and OpenAI API key status.
+ * @summary Get Agent configuration
+ */
+
+export const GetAgentConfigResponse = zod.object({
+  config: zod.object({
+    id: zod.string().uuid(),
+    configKey: zod.string(),
+    provider: zod.enum(["openai"]),
+    endpoint: zod.enum(["responses", "agents_sdk"]),
+    modelId: zod.string(),
+    reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
+    systemPrompt: zod.string(),
+    businessSkillSettings: zod.array(
+      zod.object({
+        moduleId: zod.enum([
+          "web_listening",
+          "doc_to_md",
+          "md_to_rag",
+          "rag_to_agent",
+        ]),
+        enabled: zod.boolean(),
+        approvalRequired: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+        canWriteDatabase: zod.boolean(),
+      }),
+    ),
+    generalSkillSettings: zod.array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+      }),
+    ),
+    memorySettings: zod.object({
+      shortTermEnabled: zod.boolean(),
+      longTermEnabled: zod.boolean(),
+      promotionMode: zod.enum(["manual", "agent_suggested"]),
+      ragCollection: zod.string(),
+      retentionDays: zod.number().min(1),
+    }),
+    safetySettings: zod.object({
+      requireApprovalForExternalActions: zod.boolean(),
+      requireApprovalForPublishing: zod.boolean(),
+      allowSelfLearning: zod.boolean(),
+      maxToolSteps: zod.number().min(1),
+    }),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  connection: zod.object({
+    status: zod.enum(["configured", "missing_key"]),
+  }),
+});
+
+/**
+ * @summary Update Agent configuration
+ */
+
+export const UpdateAgentConfigBody = zod.object({
+  provider: zod.enum(["openai"]).optional(),
+  endpoint: zod.enum(["responses", "agents_sdk"]).optional(),
+  modelId: zod.string().optional(),
+  reasoningEffort: zod
+    .enum(["none", "low", "medium", "high", "xhigh"])
+    .optional(),
+  systemPrompt: zod.string().optional(),
+  businessSkillSettings: zod
+    .array(
+      zod.object({
+        moduleId: zod.enum([
+          "web_listening",
+          "doc_to_md",
+          "md_to_rag",
+          "rag_to_agent",
+        ]),
+        enabled: zod.boolean(),
+        approvalRequired: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+        canWriteDatabase: zod.boolean(),
+      }),
+    )
+    .optional(),
+  generalSkillSettings: zod
+    .array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+      }),
+    )
+    .optional(),
+  memorySettings: zod
+    .object({
+      shortTermEnabled: zod.boolean(),
+      longTermEnabled: zod.boolean(),
+      promotionMode: zod.enum(["manual", "agent_suggested"]),
+      ragCollection: zod.string(),
+      retentionDays: zod.number().min(1),
+    })
+    .optional(),
+  safetySettings: zod
+    .object({
+      requireApprovalForExternalActions: zod.boolean(),
+      requireApprovalForPublishing: zod.boolean(),
+      allowSelfLearning: zod.boolean(),
+      maxToolSteps: zod.number().min(1),
+    })
+    .optional(),
+});
+
+export const UpdateAgentConfigResponse = zod.object({
+  config: zod.object({
+    id: zod.string().uuid(),
+    configKey: zod.string(),
+    provider: zod.enum(["openai"]),
+    endpoint: zod.enum(["responses", "agents_sdk"]),
+    modelId: zod.string(),
+    reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
+    systemPrompt: zod.string(),
+    businessSkillSettings: zod.array(
+      zod.object({
+        moduleId: zod.enum([
+          "web_listening",
+          "doc_to_md",
+          "md_to_rag",
+          "rag_to_agent",
+        ]),
+        enabled: zod.boolean(),
+        approvalRequired: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+        canWriteDatabase: zod.boolean(),
+      }),
+    ),
+    generalSkillSettings: zod.array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+      }),
+    ),
+    memorySettings: zod.object({
+      shortTermEnabled: zod.boolean(),
+      longTermEnabled: zod.boolean(),
+      promotionMode: zod.enum(["manual", "agent_suggested"]),
+      ragCollection: zod.string(),
+      retentionDays: zod.number().min(1),
+    }),
+    safetySettings: zod.object({
+      requireApprovalForExternalActions: zod.boolean(),
+      requireApprovalForPublishing: zod.boolean(),
+      allowSelfLearning: zod.boolean(),
+      maxToolSteps: zod.number().min(1),
+    }),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  connection: zod.object({
+    status: zod.enum(["configured", "missing_key"]),
+  }),
+});
+
+/**
+ * Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+ * @summary Test Agent provider connection
+ */
+export const TestAgentConfigConnectionResponse = zod.object({
+  status: zod.enum(["configured", "missing_key"]),
+  checkedAt: zod.coerce.date(),
+});

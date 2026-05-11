@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: modules
     description: Module catalog and ingest operations
+  - name: agent-config
+    description: Agent control plane configuration
 paths:
   /healthz:
     get:
@@ -187,6 +189,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /agent-config:
+    get:
+      operationId: getAgentConfig
+      tags: [agent-config]
+      summary: Get Agent configuration
+      description: Returns the persisted Agent control plane configuration and OpenAI API key status.
+      responses:
+        "200":
+          description: Agent configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentConfigResponse"
+    put:
+      operationId: updateAgentConfig
+      tags: [agent-config]
+      summary: Update Agent configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAgentConfigRequest"
+      responses:
+        "200":
+          description: Updated Agent configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentConfigResponse"
+        "400":
+          description: Invalid configuration payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agent-config/test-connection:
+    post:
+      operationId: testAgentConfigConnection
+      tags: [agent-config]
+      summary: Test Agent provider connection
+      description: Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+      responses:
+        "200":
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentConnectionTestResponse"
 components:
   parameters:
     RunId:
@@ -249,6 +300,229 @@ components:
         - info
         - warning
         - error
+    AgentProvider:
+      type: string
+      enum:
+        - openai
+    AgentEndpoint:
+      type: string
+      enum:
+        - responses
+        - agents_sdk
+    AgentReasoningEffort:
+      type: string
+      enum:
+        - none
+        - low
+        - medium
+        - high
+        - xhigh
+    AgentConnectionStatus:
+      type: string
+      enum:
+        - configured
+        - missing_key
+    MemoryPromotionMode:
+      type: string
+      enum:
+        - manual
+        - agent_suggested
+    GeneralSkillId:
+      type: string
+      enum:
+        - web_search
+        - browser
+        - github
+        - notion
+        - lark
+        - file_tools
+    BusinessSkillSetting:
+      type: object
+      properties:
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        enabled:
+          type: boolean
+        approvalRequired:
+          type: boolean
+        canUseNetwork:
+          type: boolean
+        canWriteDatabase:
+          type: boolean
+      required:
+        - moduleId
+        - enabled
+        - approvalRequired
+        - canUseNetwork
+        - canWriteDatabase
+    GeneralSkillSetting:
+      type: object
+      properties:
+        skillId:
+          $ref: "#/components/schemas/GeneralSkillId"
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        installed:
+          type: boolean
+        installOnDemand:
+          type: boolean
+        requiresApproval:
+          type: boolean
+        canUseNetwork:
+          type: boolean
+      required:
+        - skillId
+        - name
+        - description
+        - enabled
+        - installed
+        - installOnDemand
+        - requiresApproval
+        - canUseNetwork
+    AgentMemorySettings:
+      type: object
+      properties:
+        shortTermEnabled:
+          type: boolean
+        longTermEnabled:
+          type: boolean
+        promotionMode:
+          $ref: "#/components/schemas/MemoryPromotionMode"
+        ragCollection:
+          type: string
+        retentionDays:
+          type: integer
+          minimum: 1
+      required:
+        - shortTermEnabled
+        - longTermEnabled
+        - promotionMode
+        - ragCollection
+        - retentionDays
+    AgentSafetySettings:
+      type: object
+      properties:
+        requireApprovalForExternalActions:
+          type: boolean
+        requireApprovalForPublishing:
+          type: boolean
+        allowSelfLearning:
+          type: boolean
+        maxToolSteps:
+          type: integer
+          minimum: 1
+      required:
+        - requireApprovalForExternalActions
+        - requireApprovalForPublishing
+        - allowSelfLearning
+        - maxToolSteps
+    AgentConfig:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        configKey:
+          type: string
+        provider:
+          $ref: "#/components/schemas/AgentProvider"
+        endpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        modelId:
+          type: string
+        reasoningEffort:
+          $ref: "#/components/schemas/AgentReasoningEffort"
+        systemPrompt:
+          type: string
+        businessSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessSkillSetting"
+        generalSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneralSkillSetting"
+        memorySettings:
+          $ref: "#/components/schemas/AgentMemorySettings"
+        safetySettings:
+          $ref: "#/components/schemas/AgentSafetySettings"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - configKey
+        - provider
+        - endpoint
+        - modelId
+        - reasoningEffort
+        - systemPrompt
+        - businessSkillSettings
+        - generalSkillSettings
+        - memorySettings
+        - safetySettings
+        - createdAt
+        - updatedAt
+    AgentConnectionStatusPayload:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentConnectionStatus"
+      required:
+        - status
+    AgentConfigResponse:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/AgentConfig"
+        connection:
+          $ref: "#/components/schemas/AgentConnectionStatusPayload"
+      required:
+        - config
+        - connection
+    UpdateAgentConfigRequest:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/AgentProvider"
+        endpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        modelId:
+          type: string
+        reasoningEffort:
+          $ref: "#/components/schemas/AgentReasoningEffort"
+        systemPrompt:
+          type: string
+        businessSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessSkillSetting"
+        generalSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneralSkillSetting"
+        memorySettings:
+          $ref: "#/components/schemas/AgentMemorySettings"
+        safetySettings:
+          $ref: "#/components/schemas/AgentSafetySettings"
+    AgentConnectionTestResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentConnectionStatus"
+        checkedAt:
+          type: string
+          format: date-time
+      required:
+        - status
+        - checkedAt
     ModuleDefinition:
       type: object
       properties:

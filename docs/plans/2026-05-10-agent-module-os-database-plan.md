@@ -50,7 +50,7 @@ Idempotency is keyed by `moduleId + externalRunId`. Repeating `POST /api/module-
 - `Modules`: module hub plus module detail pages.
 - `Progress`: cross-module run timeline and background task state.
 - `Data`: database explorer for snapshots, Markdown docs, chunks, RAG records, and generated agents.
-- `Deploy`: final agent availability and publish/handoff state.
+- `Publish`: final agent availability, access tokens, and publish/handoff state.
 
 ## Verification
 
