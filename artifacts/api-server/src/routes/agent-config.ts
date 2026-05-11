@@ -29,9 +29,14 @@ function configResponse(config: AgentConfigRecord) {
 }
 
 router.get("/agent-config", async (_req, res) => {
-  const config = await getAgentConfig(repository);
-  const data = GetAgentConfigResponse.parse(configResponse(config));
-  res.json(data);
+  try {
+    const config = await getAgentConfig(repository);
+    const data = GetAgentConfigResponse.parse(configResponse(config));
+    res.json(data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json(errorResponse(message));
+  }
 });
 
 router.put("/agent-config", async (req, res) => {

@@ -1136,12 +1136,20 @@ function ConfigureView({
           </div>
           <p className="config-explainer">{configureGuides.provider}</p>
           <div className="config-field">
-            <label>Provider</label>
-            <div className="locked-value">OpenAI</div>
+            <span className="config-field-label" id="agent-provider-label">
+              Provider
+            </span>
+            <div className="locked-value" aria-labelledby="agent-provider-label">OpenAI</div>
           </div>
           <div className="config-field">
-            <label>Endpoint</label>
-            <div className="segmented-control">
+            <span className="config-field-label" id="agent-endpoint-label">
+              Endpoint
+            </span>
+            <div
+              className="segmented-control"
+              role="group"
+              aria-labelledby="agent-endpoint-label"
+            >
               {(["responses", "agents_sdk"] as AgentEndpoint[]).map((endpoint) => (
                 <button
                   key={endpoint}
@@ -1174,8 +1182,9 @@ function ConfigureView({
           </div>
           <p className="config-explainer">{configureGuides.model}</p>
           <div className="config-field">
-            <label>Model</label>
+            <label htmlFor="agent-model-select">Model</label>
             <select
+              id="agent-model-select"
               value={config.modelId}
               onChange={(event) => onUpdateConfig({ modelId: event.target.value })}
             >
@@ -1186,8 +1195,14 @@ function ConfigureView({
             </select>
           </div>
           <div className="config-field">
-            <label>Reasoning</label>
-            <div className="segmented-control">
+            <span className="config-field-label" id="agent-reasoning-label">
+              Reasoning
+            </span>
+            <div
+              className="segmented-control"
+              role="group"
+              aria-labelledby="agent-reasoning-label"
+            >
               {(["low", "medium", "high", "xhigh"] as AgentReasoningEffort[]).map((effort) => (
                 <button
                   key={effort}
@@ -1201,8 +1216,9 @@ function ConfigureView({
             </div>
           </div>
           <div className="config-field">
-            <label>System prompt</label>
+            <label htmlFor="agent-system-prompt">System prompt</label>
             <textarea
+              id="agent-system-prompt"
               value={config.systemPrompt}
               onChange={(event) => onUpdateConfig({ systemPrompt: event.target.value })}
               rows={4}
@@ -1383,8 +1399,9 @@ function ConfigureView({
             Long-term Postgres memory
           </label>
           <div className="config-field">
-            <label>Promotion</label>
+            <label htmlFor="agent-memory-promotion">Promotion</label>
             <select
+              id="agent-memory-promotion"
               value={config.memorySettings.promotionMode}
               onChange={(event) =>
                 onUpdateMemory({ promotionMode: event.target.value as MemoryPromotionMode })
@@ -1396,15 +1413,17 @@ function ConfigureView({
           </div>
           <div className="config-two-column">
             <div className="config-field">
-              <label>Collection</label>
+              <label htmlFor="agent-memory-collection">Collection</label>
               <input
+                id="agent-memory-collection"
                 value={config.memorySettings.ragCollection}
                 onChange={(event) => onUpdateMemory({ ragCollection: event.target.value })}
               />
             </div>
             <div className="config-field">
-              <label>Retention days</label>
+              <label htmlFor="agent-memory-retention-days">Retention days</label>
               <input
+                id="agent-memory-retention-days"
                 type="number"
                 min={1}
                 max={3650}
@@ -1455,8 +1474,9 @@ function ConfigureView({
             Allow self-learning
           </label>
           <div className="config-field">
-            <label>Max tool steps</label>
+            <label htmlFor="agent-max-tool-steps">Max tool steps</label>
             <input
+              id="agent-max-tool-steps"
               type="number"
               min={1}
               max={64}
@@ -2582,7 +2602,8 @@ const styles = `
     min-width: 0;
   }
 
-  .config-field label {
+  .config-field label,
+  .config-field-label {
     color: #8290a3;
     font-size: 11px;
     font-weight: 800;

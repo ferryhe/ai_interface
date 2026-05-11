@@ -31,6 +31,7 @@ Updated: 2026-05-11
 - Split Configure skills into business module skills and lightweight general skills. Business skills remain the fixed module chain; general skills track installed/available status, on-demand install allowance, approval, and network flags.
 - Added detailed Configure explanations: a capability map, section-level explainers, and per-skill purpose/trigger/action/result/boundary guidance so users can understand what each feature does.
 - Reworked Configure skill explanations into compact per-row `?` help controls and added switch guides for business/general skill toggles.
+- PR #5 follow-up found two actionable Copilot comments and applied narrow fixes: `GET /api/agent-config` now returns a 500 `ErrorResponse` on unexpected failures, and Configure form controls now have programmatic label associations.
 
 ## Verification
 
@@ -70,6 +71,13 @@ Updated: 2026-05-11
 - Skill help popover validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Skill help popover validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Skill help popover browser smoke opened `http://127.0.0.1:8081/`, verified Business Skills and General Skills switch guides, confirmed details are hidden until a per-row `?` is opened, and found no console warnings/errors.
+- PR #5 follow-up: GitHub reported PR #5 OPEN, mergeable, merge state clean, with no checks reported on the branch.
+- PR #5 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 9 tests.
+- PR #5 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #5 follow-up validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- PR #5 follow-up validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- PR #5 follow-up validation: `git diff --check` passed with CRLF warnings only.
+- PR #5 follow-up browser smoke opened `http://127.0.0.1:8081/`, verified Configure labels can locate Model/System prompt/Promotion/Collection/Retention days/Max tool steps controls, verified Endpoint/Reasoning groups are named, and found no console warnings/errors.
 
 ## Notes
 
