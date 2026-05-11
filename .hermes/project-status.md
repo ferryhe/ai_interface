@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/frontend-agent-portal`
-- Scope: Implement the frontstage Agent Portal preview inside `ai_interface` only.
+- Branch: `codex/agent-runtime-skill-orchestrator`
+- Scope: Implement the first backend Agent Runtime seam inside `ai_interface` only.
 - Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
 
 ## Current State
@@ -39,6 +39,11 @@ Updated: 2026-05-11
 - Frontstage-to-admin switching now requires a submitted admin token; empty admin token closes the gate and keeps the user in the Portal.
 - PR #6 Copilot review comments were evaluated and addressed with narrow Portal fixes: query-token shortcuts are explicitly marked demo-only, access/admin token fields are masked with autocomplete disabled, and the decorative step marker is aria-hidden.
 - After the PR #6 Copilot fix push, GitHub reported PR #6 as open and mergeable with no checks reported; one decorative-marker thread became outdated, while the two token-related threads remain unresolved remotely but are addressed in code.
+- PR #6 was merged into `main`; this branch starts the next slice from latest `main`.
+- Added the Agent Runtime Skill Orchestrator plan, based on the referenced `web_listening`, `doc_to_md`, `c-ross-2`, and `ai_actuary` public contracts without copying or depending on external repo code.
+- Added a backend Agent Runtime seam: `POST /api/agent-runs` stores a thread/message/pipeline run, plans enabled business skills, creates module runs, and reports OpenAI connection status.
+- Added a deterministic missing-key planner for local/test mode and an OpenAI Responses planner seam for configured `OPENAI_API_KEY`.
+- Added a business skill registry with external adapter metadata for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
 
 ## Verification
 
@@ -106,6 +111,11 @@ Updated: 2026-05-11
 - PR #6 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 - PR #6 Copilot comment browser smoke verified the Portal and Admin token fields are password inputs with autocomplete off, demo-token status/copy is visible, the decorative step marker is nonsemantic, admin token still enters the admin console, and no console warnings/errors were reported.
 - PR #6 Copilot post-push remote check: `gh pr view 6 --json number,url,state,mergeable,headRefName,baseRefName,title,reviewDecision,statusCheckRollup` reported OPEN/MERGEABLE with no checks; thread-aware review fetch still listed two unresolved token threads and one outdated decorative-marker thread.
+- Agent runtime validation: `corepack pnpm --filter @workspace/api-server run test` passed with 14 tests.
+- Agent runtime validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Agent runtime validation: `corepack pnpm run typecheck:libs` passed.
+- Agent runtime validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Agent runtime codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI clients/Zod outputs, then failed only because the script invokes bare `pnpm`; equivalent `corepack pnpm run typecheck:libs` passed.
 
 ## Notes
 
@@ -114,4 +124,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Keep PR #6 updated and monitor GitHub checks/review comments.
+- Finish diff hygiene, commit, push, and open a PR for `codex/agent-runtime-skill-orchestrator`.

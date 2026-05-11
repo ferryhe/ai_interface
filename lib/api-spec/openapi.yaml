@@ -14,6 +14,8 @@ tags:
     description: Module catalog and ingest operations
   - name: agent-config
     description: Agent control plane configuration
+  - name: agent-runs
+    description: Agent runtime planning and module orchestration
 paths:
   /healthz:
     get:
@@ -189,6 +191,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /agent-runs:
+    post:
+      operationId: createAgentRun
+      tags: [agent-runs]
+      summary: Create an Agent runtime plan
+      description: Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentRunRequest"
+      responses:
+        "200":
+          description: Agent run planned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunResponse"
+        "201":
+          description: Agent run planned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunResponse"
+        "400":
+          description: Invalid Agent run request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agent-runs/{pipelineRunId}:
+    get:
+      operationId: getAgentRun
+      tags: [agent-runs]
+      summary: Get an Agent runtime run
+      parameters:
+        - $ref: "#/components/parameters/PipelineRunId"
+      responses:
+        "200":
+          description: Agent run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunDetail"
+        "404":
+          description: Agent run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /agent-config:
     get:
       operationId: getAgentConfig
@@ -249,6 +302,13 @@ components:
         format: uuid
     ArtifactId:
       name: artifactId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PipelineRunId:
+      name: pipelineRunId
       in: path
       required: true
       schema:
@@ -523,6 +583,223 @@ components:
       required:
         - status
         - checkedAt
+    AgentRuntimeStatus:
+      type: string
+      enum:
+        - planned
+        - missing_key
+        - needs_approval
+        - failed
+    AgentMessageRole:
+      type: string
+      enum:
+        - user
+        - agent
+        - system
+        - tool
+    AgentRuntimeConnection:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentConnectionStatus"
+      required:
+        - status
+    AgentThread:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+        metadata:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - status
+        - metadata
+        - createdAt
+        - updatedAt
+    AgentMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        threadId:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/AgentMessageRole"
+        content:
+          type: string
+        metadata:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - threadId
+        - role
+        - content
+        - metadata
+        - createdAt
+    PipelineRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        threadId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/ModuleRunStatus"
+        activeModuleId:
+          oneOf:
+            - $ref: "#/components/schemas/ModuleId"
+            - type: "null"
+        metadata:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - threadId
+        - title
+        - status
+        - activeModuleId
+        - metadata
+        - createdAt
+        - updatedAt
+    AgentRuntimePlanStep:
+      type: object
+      properties:
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        title:
+          type: string
+        action:
+          type: string
+        input:
+          $ref: "#/components/schemas/JsonObject"
+        requiresApproval:
+          type: boolean
+      required:
+        - moduleId
+        - title
+        - action
+        - input
+        - requiresApproval
+    AgentRuntimePlan:
+      type: object
+      properties:
+        summary:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimePlanStep"
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+        - summary
+        - steps
+        - warnings
+    CreateAgentRunRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+        threadId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/JsonObject"
+      required:
+        - message
+    AgentRunResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentRuntimeStatus"
+        connection:
+          $ref: "#/components/schemas/AgentRuntimeConnection"
+        thread:
+          $ref: "#/components/schemas/AgentThread"
+        userMessage:
+          $ref: "#/components/schemas/AgentMessage"
+        agentMessage:
+          $ref: "#/components/schemas/AgentMessage"
+        pipelineRun:
+          $ref: "#/components/schemas/PipelineRun"
+        moduleRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleRun"
+        plan:
+          $ref: "#/components/schemas/AgentRuntimePlan"
+      required:
+        - status
+        - connection
+        - thread
+        - userMessage
+        - agentMessage
+        - pipelineRun
+        - moduleRuns
+        - plan
+    AgentRunDetail:
+      type: object
+      properties:
+        thread:
+          $ref: "#/components/schemas/AgentThread"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentMessage"
+        pipelineRun:
+          $ref: "#/components/schemas/PipelineRun"
+        moduleRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleRun"
+      required:
+        - thread
+        - messages
+        - pipelineRun
+        - moduleRuns
     ModuleDefinition:
       type: object
       properties:

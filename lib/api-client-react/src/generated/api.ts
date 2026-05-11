@@ -19,7 +19,10 @@ import type {
 import type {
   AgentConfigResponse,
   AgentConnectionTestResponse,
+  AgentRunDetail,
+  AgentRunResponse,
   Artifact,
+  CreateAgentRunRequest,
   CreateArtifactRequest,
   CreateModuleRunRequest,
   CreateRunEventRequest,
@@ -710,6 +713,181 @@ export function useGetArtifact<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetArtifactQueryOptions(artifactId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+ * @summary Create an Agent runtime plan
+ */
+export const getCreateAgentRunUrl = () => {
+  return `/api/agent-runs`;
+};
+
+export const createAgentRun = async (
+  createAgentRunRequest: CreateAgentRunRequest,
+  options?: RequestInit,
+): Promise<AgentRunResponse> => {
+  return customFetch<AgentRunResponse>(getCreateAgentRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAgentRunRequest),
+  });
+};
+
+export const getCreateAgentRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAgentRun>>,
+    TError,
+    { data: BodyType<CreateAgentRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAgentRun>>,
+  TError,
+  { data: BodyType<CreateAgentRunRequest> },
+  TContext
+> => {
+  const mutationKey = ["createAgentRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAgentRun>>,
+    { data: BodyType<CreateAgentRunRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAgentRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAgentRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAgentRun>>
+>;
+export type CreateAgentRunMutationBody = BodyType<CreateAgentRunRequest>;
+export type CreateAgentRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create an Agent runtime plan
+ */
+export const useCreateAgentRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAgentRun>>,
+    TError,
+    { data: BodyType<CreateAgentRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAgentRun>>,
+  TError,
+  { data: BodyType<CreateAgentRunRequest> },
+  TContext
+> => {
+  return useMutation(getCreateAgentRunMutationOptions(options));
+};
+
+/**
+ * @summary Get an Agent runtime run
+ */
+export const getGetAgentRunUrl = (pipelineRunId: string) => {
+  return `/api/agent-runs/${pipelineRunId}`;
+};
+
+export const getAgentRun = async (
+  pipelineRunId: string,
+  options?: RequestInit,
+): Promise<AgentRunDetail> => {
+  return customFetch<AgentRunDetail>(getGetAgentRunUrl(pipelineRunId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAgentRunQueryKey = (pipelineRunId: string) => {
+  return [`/api/agent-runs/${pipelineRunId}`] as const;
+};
+
+export const getGetAgentRunQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAgentRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  pipelineRunId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAgentRunQueryKey(pipelineRunId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgentRun>>> = ({
+    signal,
+  }) => getAgentRun(pipelineRunId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!pipelineRunId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentRun>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAgentRunQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAgentRun>>
+>;
+export type GetAgentRunQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get an Agent runtime run
+ */
+
+export function useGetAgentRun<
+  TData = Awaited<ReturnType<typeof getAgentRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  pipelineRunId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentRunQueryOptions(pipelineRunId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
