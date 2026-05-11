@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { moduleRegistry, type ModuleId } from "../modules/registry";
 
@@ -59,6 +59,21 @@ export interface AgentPublishSettings {
   portalTokenUpdatedAt: string | null;
   publishedAt: string | null;
   versionLabel: string;
+}
+
+export type PortalAccessStatus =
+  | "authorized"
+  | "missing_token"
+  | "invalid_token"
+  | "not_published";
+
+export interface PortalAccessVerification {
+  status: PortalAccessStatus;
+  authorized: boolean;
+  publishStatus: AgentPublishStatus;
+  versionLabel: string;
+  portalTokenLast4: string | null;
+  checkedAt: string;
 }
 
 export type PublicAgentPublishSettings = Omit<
@@ -233,6 +248,14 @@ function hashPortalToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
+function hashesMatch(actualHash: string, expectedHash: string): boolean {
+  if (actualHash.length !== expectedHash.length) return false;
+  return timingSafeEqual(
+    Buffer.from(actualHash, "hex"),
+    Buffer.from(expectedHash, "hex"),
+  );
+}
+
 function mergePublishSettings(
   current: AgentPublishSettings,
   input?: UpdateAgentPublishSettingsInput,
@@ -352,6 +375,31 @@ export async function updateAgentConfig(
       input.publishSettings,
     ),
   });
+}
+
+export async function verifyPortalAccess(
+  repository: AgentConfigRepository,
+  tokenInput: string,
+): Promise<PortalAccessVerification> {
+  const config = await getAgentConfig(repository);
+  const settings = config.publishSettings;
+  const base = {
+    authorized: false,
+    publishStatus: settings.status,
+    versionLabel: settings.versionLabel,
+    portalTokenLast4: settings.portalTokenLast4,
+    checkedAt: new Date().toISOString(),
+  };
+  const token = tokenInput.trim();
+
+  if (!token) return { ...base, status: "missing_token" };
+  if (settings.status !== "published") return { ...base, status: "not_published" };
+  if (!settings.portalTokenHash) return { ...base, status: "invalid_token" };
+  if (!hashesMatch(hashPortalToken(token), settings.portalTokenHash)) {
+    return { ...base, status: "invalid_token" };
+  }
+
+  return { ...base, status: "authorized", authorized: true };
 }
 
 export function getConnectionStatus(

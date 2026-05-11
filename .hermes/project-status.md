@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/publish-settings-api`
-- Scope: DB/API-backed Publish settings and Portal token metadata for the admin Publish surface.
+- Branch: `codex/portal-token-verification-api`
+- Scope: Server-backed Portal token verification and frontstage token gate API wire-up.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -274,9 +274,30 @@ Updated: 2026-05-11
 - Admin Publish now loads/saves publish settings through `/api/agent-config` and keeps a local fallback when `/api` is offline.
 - Updated OpenAPI and regenerated API Zod/React client outputs for publish settings. `setPortalToken` is request-only on `UpdateAgentConfigRequest`.
 - Opened PR #22 for `codex/publish-settings-api`: https://github.com/ferryhe/ai_interface/pull/22
+- PR #22 was merged into `main` on 2026-05-11 at merge commit `115b1e7`; this branch starts the Portal token verification slice from latest `main`.
+- Added `POST /api/portal-auth/verify` so the frontstage Portal can check submitted tokens against stored Publish settings without returning token hashes or plaintext tokens.
+- Portal token gate now calls the verification API when available and falls back to clearly labeled local demo access when `/api` is offline.
 
 ## Notes
 
+- Portal token verification TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `verifyPortalAccess` existed.
+- Portal token verification validation: `corepack pnpm --filter @workspace/api-server run test` passed with 55 tests.
+- Portal token verification validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Portal token verification validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed after using a distinct `PortalAccessVerificationResponse` component schema to avoid an Orval/Zod operation-response export name collision.
+- Portal token verification validation: `corepack pnpm run typecheck:libs` passed.
+- Portal token verification validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal token verification validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal token verification validation: `git diff --check` passed with CRLF warnings only.
+- Portal token verification HTTP smoke: local Vite preview for `ai-os/AgentPortalInterface` returned HTTP 200 at `http://127.0.0.1:8080/preview/ai-os/AgentPortalInterface`.
+- Portal token verification browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the locked token screen and disabled empty-token submit, verified `?token=portal-demo-token` opens the Portal in local demo/offline mode when `/api` is unavailable, clicked Chat/Steps/Data/Sources/Result, and found no console warnings/errors.
+- Portal token verification review fix: local demo unlock fallback is now limited to network/offline `fetch` failures; HTTP non-ok and malformed API payloads remain locked with failed status text.
+- Portal token verification route review fix: added route-level tests for invalid body, missing token, unpublished, wrong token, authorized token, and response redaction of plaintext token/hash metadata.
+- Portal token verification follow-up fix: mockup-only HTML fallback from the Vite dev server is treated as API-unavailable only after `/api/health` also fails to look like JSON, while a healthy API with a bad `portal-auth` response remains locked.
+- Portal token verification review validation: `corepack pnpm --filter @workspace/api-server run test` passed with 55 tests.
+- Portal token verification review validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Portal token verification review validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal token verification review validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal token verification review validation: `git diff --check` passed with CRLF warnings only.
 - `corepack pnpm run typecheck` on this Windows host starts correctly but the root script invokes bare `pnpm`, which is not available on PATH in this shell; equivalent library and artifact/script typechecks were run directly with `corepack pnpm` and passed.
 - Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
 - Controller re-ran the Agent Run API wire smoke in the in-app Browser `iab` target; direct textarea fill/type hit the browser clipboard limitation, so the smoke used keypress input plus DOM navigation and console checks. Screenshot capture still timed out.
@@ -297,4 +318,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Follow up on PR #22 checks and Copilot comments after GitHub has had time to process the branch.
+- Commit, push, and open a PR for `codex/portal-token-verification-api`; then follow up on checks and Copilot comments after GitHub has processed the branch.

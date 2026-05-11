@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   Bot,
   CheckCircle2,
@@ -24,6 +31,20 @@ type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type JsonObject = Record<string, unknown>;
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
 type PortalRunSubmitState = "local" | "submitting" | "saved" | "offline" | "failed";
+type PortalAccessState =
+  | "idle"
+  | "checking"
+  | "authorized"
+  | "missing_token"
+  | "invalid_token"
+  | "not_published"
+  | "offline"
+  | "failed";
+type PortalAccessStatus =
+  | "authorized"
+  | "missing_token"
+  | "invalid_token"
+  | "not_published";
 type PortalInteractionStatus =
   | "waiting_for_user"
   | "waiting_for_approval"
@@ -191,6 +212,15 @@ interface PortalAgentRunApiResponse {
 interface PortalToolInteractionApiResponse {
   run: PortalAgentRunApiModuleRun;
   interaction: PortalToolInteraction;
+}
+
+interface PortalAccessVerificationResponse {
+  status: PortalAccessStatus;
+  authorized: boolean;
+  publishStatus: "draft" | "published" | "paused";
+  versionLabel: string;
+  portalTokenLast4: string | null;
+  checkedAt: string;
 }
 
 interface PortalRunUiState {
@@ -449,6 +479,17 @@ function portalRunStateLabel(state: PortalRunSubmitState): string {
   return "Local demo";
 }
 
+function portalAccessStateLabel(state: PortalAccessState): string {
+  if (state === "checking") return "Checking";
+  if (state === "authorized") return "API authorized";
+  if (state === "missing_token") return "Token required";
+  if (state === "invalid_token") return "Invalid token";
+  if (state === "not_published") return "Not published";
+  if (state === "offline") return "Demo offline";
+  if (state === "failed") return "Verification failed";
+  return "Locked";
+}
+
 function metadataString(metadata: JsonObject | null, key: string, fallback: string): string {
   const value = metadata?.[key];
   return typeof value === "string" ? value : fallback;
@@ -464,6 +505,35 @@ function isNullableJsonObject(value: unknown): value is JsonObject | null {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
+}
+
+function isPortalAccessStatus(value: unknown): value is PortalAccessStatus {
+  return (
+    value === "authorized" ||
+    value === "missing_token" ||
+    value === "invalid_token" ||
+    value === "not_published"
+  );
+}
+
+function isPublishStatus(
+  value: unknown,
+): value is PortalAccessVerificationResponse["publishStatus"] {
+  return value === "draft" || value === "published" || value === "paused";
+}
+
+function isPortalAccessVerificationResponse(
+  value: unknown,
+): value is PortalAccessVerificationResponse {
+  if (!isJsonObject(value)) return false;
+  return (
+    isPortalAccessStatus(value["status"]) &&
+    typeof value["authorized"] === "boolean" &&
+    isPublishStatus(value["publishStatus"]) &&
+    typeof value["versionLabel"] === "string" &&
+    isNullableString(value["portalTokenLast4"]) &&
+    typeof value["checkedAt"] === "string"
+  );
 }
 
 function isModuleId(value: unknown): value is ModuleId {
@@ -842,10 +912,18 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
 }
 
 export function AgentPortalInterface() {
-  const initialToken = readInitialDemoToken();
-  const initialAdminToken = readInitialDemoAdminToken();
+  const initialToken = useMemo(readInitialDemoToken, []);
+  const initialAdminToken = useMemo(readInitialDemoAdminToken, []);
   const [token, setToken] = useState(initialToken);
-  const [isUnlocked, setIsUnlocked] = useState(initialToken.length >= 6);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [portalAccessState, setPortalAccessState] = useState<PortalAccessState>(
+    initialToken ? "checking" : "idle",
+  );
+  const [portalAccessStatusText, setPortalAccessStatusText] = useState(
+    initialToken ? "Checking Portal token" : "Enter Portal token",
+  );
+  const [portalAccessVersionLabel, setPortalAccessVersionLabel] =
+    useState("draft-0.3");
   const [adminToken, setAdminToken] = useState(initialAdminToken);
   const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
   const [activeView, setActiveView] = useState<PortalView>("chat");
@@ -913,11 +991,121 @@ export function AgentPortalInterface() {
     );
   }, [activeStep, displayedDataRecords, displayedSteps]);
 
-  function submitToken(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    if (token.trim().length >= 6) {
-      setIsUnlocked(true);
+  function unlockLocalDemoPortal(): void {
+    setIsUnlocked(true);
+    setPortalAccessState("offline");
+    setPortalAccessStatusText("API offline - local demo Portal unlocked");
+  }
+
+  async function isPortalApiUnavailable(): Promise<boolean> {
+    try {
+      const healthResponse = await fetch("/api/health", {
+        headers: { Accept: "application/json" },
+      });
+      const contentType = healthResponse.headers.get("content-type") ?? "";
+      return !healthResponse.ok || !contentType.includes("application/json");
+    } catch {
+      return true;
     }
+  }
+
+  async function fallBackToLocalDemoIfApiUnavailable(cleanToken: string): Promise<boolean> {
+    if (cleanToken.length < 6) return false;
+    if (!(await isPortalApiUnavailable())) return false;
+    unlockLocalDemoPortal();
+    return true;
+  }
+
+  async function verifyPortalToken(tokenInput: string): Promise<void> {
+    const cleanToken = tokenInput.trim();
+    if (!cleanToken) {
+      setIsUnlocked(false);
+      setPortalAccessState("missing_token");
+      setPortalAccessStatusText("Enter a Portal token to continue");
+      return;
+    }
+
+    setPortalAccessState("checking");
+    setPortalAccessStatusText("Checking Portal token");
+
+    let response: Response;
+    try {
+      response = await fetch("/api/portal-auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: cleanToken }),
+      });
+    } catch {
+      if (cleanToken.length >= 6) {
+        unlockLocalDemoPortal();
+        return;
+      }
+      setIsUnlocked(false);
+      setPortalAccessState("failed");
+      setPortalAccessStatusText("Portal access API unavailable");
+      return;
+    }
+
+    if (!response.ok) {
+      if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
+      setIsUnlocked(false);
+      setPortalAccessState("failed");
+      setPortalAccessStatusText(
+        `Portal access API returned ${response.status}; access remains locked`,
+      );
+      return;
+    }
+
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
+      setIsUnlocked(false);
+      setPortalAccessState("failed");
+      setPortalAccessStatusText("Portal access API returned invalid JSON");
+      return;
+    }
+
+    if (!isPortalAccessVerificationResponse(data)) {
+      if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
+      setIsUnlocked(false);
+      setPortalAccessState("failed");
+      setPortalAccessStatusText("Portal access API returned an unexpected payload");
+      return;
+    }
+
+    setPortalAccessVersionLabel(data.versionLabel);
+    setPortalAccessState(data.status);
+    if (data.authorized) {
+      setIsUnlocked(true);
+      setPortalAccessStatusText(`Published Agent ${data.versionLabel} unlocked`);
+      return;
+    }
+
+    setIsUnlocked(false);
+    if (data.status === "not_published") {
+      setPortalAccessStatusText(
+        `Agent is ${data.publishStatus}; Portal is not open yet`,
+      );
+      return;
+    }
+    if (data.status === "invalid_token") {
+      setPortalAccessStatusText("Token was checked by API and rejected");
+      return;
+    }
+    setPortalAccessStatusText("Enter a Portal token to continue");
+  }
+
+  useEffect(() => {
+    if (initialToken) void verifyPortalToken(initialToken);
+    // Query-token preview is a one-time mount shortcut for local demos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submitToken(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await verifyPortalToken(token);
   }
 
   function submitAdminToken(event: FormEvent<HTMLFormElement>): void {
@@ -1265,11 +1453,14 @@ export function AgentPortalInterface() {
               placeholder="portal-token"
             />
           </div>
-          <button type="submit" disabled={token.trim().length < 6}>
+          <button
+            type="submit"
+            disabled={!token.trim() || portalAccessState === "checking"}
+          >
             <ShieldCheck size={16} />
-            Enter Portal
+            {portalAccessState === "checking" ? "Checking" : "Enter Portal"}
           </button>
-          <em>Demo preview only. Production access should use server-side auth, not query tokens.</em>
+          <em>{portalAccessStatusText}</em>
         </form>
       </div>
     );
@@ -1318,7 +1509,11 @@ export function AgentPortalInterface() {
               </button>
               <div className="portal-status-pill">
                 <ShieldCheck size={15} />
-                Demo token active
+                {portalAccessStateLabel(portalAccessState)}
+              </div>
+              <div className="portal-run-pill">
+                <Clock3 size={15} />
+                {portalAccessVersionLabel}
               </div>
               <div className={`portal-run-pill ${portalRunState}`}>
                 <Radio size={15} />
