@@ -11,6 +11,7 @@ import {
   type ToolAdapterExecutor,
   type ToolExecutionRequest,
 } from "./executor";
+import { getAdapterDefinition } from "./adapter-registry";
 
 test("skips unconfigured adapters without calling the executor", async () => {
   const repository = new InMemoryModuleRunRepository();
@@ -131,6 +132,30 @@ test("passes the running module run to the executor", async () => {
   assert.equal(request.run.status, "running");
   assert.equal(request.adapter.adapterId, "rag_to_agent.http.v1");
   assert.equal(request.readiness.status, "ready");
+});
+
+test("passes a copied adapter definition to executors", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "web_listening",
+    externalRunId: "listen-copy-001",
+  });
+  const original = getAdapterDefinition("web_listening");
+  const originalAllowedCommands = [...original.allowedCommands];
+  const executor: ToolAdapterExecutor = {
+    async execute(input) {
+      input.adapter.allowedCommands.push("mutated-command");
+      input.adapter.requiredEnv.push("MUTATED_ENV");
+      return new FakeToolAdapterExecutor().execute(input);
+    },
+  };
+
+  await executeModuleRunWithAdapter(repository, run.id, executor, {
+    env: { WEB_LISTENING_CLI_PATH: "C:\\tools\\web-listening.exe" },
+  });
+
+  assert.deepEqual(original.allowedCommands, originalAllowedCommands);
+  assert.deepEqual(original.requiredEnv, ["WEB_LISTENING_CLI_PATH"]);
 });
 
 test("records failed execution state when an executor throws", async () => {

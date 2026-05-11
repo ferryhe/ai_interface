@@ -14,7 +14,8 @@ import {
   type ToolAdapterReadiness,
 } from "./adapter-registry";
 
-export type ToolExecutionStatus = "succeeded" | "failed" | "skipped";
+export type ToolExecutionStatus = "succeeded" | "failed";
+type ToolExecutionLifecycleStatus = ToolExecutionStatus | "skipped";
 
 export interface ToolExecutionRequest {
   run: ModuleRunRecord;
@@ -82,7 +83,7 @@ function executionMetadata(
   metadata: JsonObject | null,
   adapter: ToolAdapterDefinition,
   readiness: ToolAdapterReadiness,
-  status: ToolExecutionStatus,
+  status: ToolExecutionLifecycleStatus,
 ): JsonObject {
   return {
     ...(metadata ?? {}),
@@ -98,8 +99,18 @@ function moduleRunStatusForExecution(
   status: ToolExecutionStatus,
 ): ModuleRunStatus {
   if (status === "succeeded") return "succeeded";
-  if (status === "failed") return "failed";
-  return "pending";
+  return "failed";
+}
+
+function copyAdapterDefinition(
+  definition: ToolAdapterDefinition,
+): ToolAdapterDefinition {
+  return {
+    ...definition,
+    requiredEnv: [...definition.requiredEnv],
+    optionalEnv: [...definition.optionalEnv],
+    allowedCommands: [...definition.allowedCommands],
+  };
 }
 
 function failedExecutionResult(
@@ -131,7 +142,7 @@ export async function executeModuleRunWithAdapter(
     throw new Error(`Module run not found: ${runId}`);
   }
 
-  const adapter = getAdapterDefinition(existing.moduleId);
+  const adapter = copyAdapterDefinition(getAdapterDefinition(existing.moduleId));
   const readiness = getAdapterReadiness(adapter, options.env ?? process.env);
 
   if (readiness.status === "missing_required_env") {
