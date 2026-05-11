@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/adapter-metadata-config-contract`
-- Scope: Add redacted tool adapter metadata and readiness contract for the four business skills.
+- Branch: `codex/safe-tool-executor-skeleton`
+- Scope: Add a safe backend tool executor skeleton that can skip unconfigured adapters or run a fake adapter without external side effects.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -59,6 +59,9 @@ Updated: 2026-05-11
 - Added `GET /api/tool-adapters` and regenerated API Zod/React clients.
 - Opened PR #9 for `codex/adapter-metadata-config-contract`: https://github.com/ferryhe/ai_interface/pull/9
 - PR #9 Copilot review returned two actionable comments; both were addressed by adding braces around a multi-line conditional and renaming adapter-derived module-run metadata keys to `adapterSupportsResume` and `adapterReadinessHint`.
+- PR #9 was merged into `main`; this branch starts the next autonomous runtime slice from latest `main`.
+- Added the Safe Tool Executor Skeleton plan for a backend-only execution seam that checks adapter readiness, skips unconfigured adapters, and supports deterministic fake execution without calling sibling repos, CLIs, or HTTP services.
+- Implemented the Safe Tool Executor Skeleton backend seam: single-adapter readiness helper, deterministic fake executor, redacted missing-env skips, success/failure module-run updates, thrown-executor failure capture, and execution events without CLI/HTTP/process execution.
 
 ## Verification
 
@@ -157,6 +160,13 @@ Updated: 2026-05-11
 - PR #9 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
 - PR #9 Copilot comment validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - PR #9 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- Safe executor skeleton TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `getAdapterReadiness` and `executor.ts` existed.
+- Safe executor skeleton validation: `corepack pnpm --filter @workspace/api-server run test` passed with 30 tests.
+- Safe executor skeleton validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Safe executor skeleton validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Safe executor skeleton validation: `corepack pnpm run typecheck:libs` passed.
+- Safe executor skeleton validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(" artifacts\api-server\src\tool-adapters` found no matches.
+- Safe executor skeleton validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -165,4 +175,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Watch PR #9 checks and review/Copilot comments; perform the scheduled follow-up pass, apply only confirmed-safe fixes, merge when clean, then continue the autonomous runtime/UI/memory/executor chain.
+- Review the safe executor skeleton changes, then commit/push/open the next PR from `codex/safe-tool-executor-skeleton` when the controller is ready.
