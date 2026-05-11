@@ -407,7 +407,17 @@ Updated: 2026-05-11
 - Portal auto-refresh running-runs validation: `git diff --check` passed with CRLF warnings only.
 - Portal auto-refresh running-runs HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
 - Portal auto-refresh running-runs browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`) after stale-tab recovery, so DOM/console smoke could not run in this heartbeat.
+- PR #29 was merged into `main` on 2026-05-11 at merge commit `bc397b1`; this branch starts the Portal refresh status visibility slice from latest `main`.
+- Portal now shows a compact API sync pill for API-backed runs, indicating whether the last successful sync came from submit, manual refresh, or auto refresh.
+- Portal refresh status visibility fix: local demo unlock and new submit clear old API sync state so the topbar does not show stale sync data across run/session boundaries.
+- Portal refresh status visibility spec reviewer: passed, with no missing plan requirements.
+- Portal refresh status visibility code quality reviewer found two valid stale sync UI cases; the topbar render guard and local-demo state reset fixes were applied and re-review approved.
+- Portal refresh status visibility validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal refresh status visibility validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal refresh status visibility validation: `git diff --check` passed with CRLF warnings only.
+- Portal refresh status visibility HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
+- Portal refresh status visibility browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so DOM/console smoke could not run in this heartbeat.
 
 ## Next Action
 
-- Push/open the Portal auto-refresh running-runs PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal refresh status visibility PR, then perform the scheduled follow-up for checks and remote review comments.

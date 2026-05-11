@@ -61,6 +61,12 @@ type PortalInteractionStatus =
   | "resumed";
 type PortalActionState = "idle" | "submitting" | "succeeded" | "failed";
 type PortalDetailState = "idle" | "loading" | "ready" | "empty" | "failed";
+type PortalRunSyncSource = "submit" | "manual" | "auto";
+
+interface PortalRunSyncSnapshot {
+  source: PortalRunSyncSource;
+  checkedAt: string;
+}
 
 interface PortalInteractionOption {
   id: string;
@@ -869,6 +875,12 @@ function formatApiTime(value: string): string {
   });
 }
 
+function portalRunSyncSourceLabel(source: PortalRunSyncSource): string {
+  if (source === "submit") return "Submitted";
+  if (source === "auto") return "Auto";
+  return "Manual";
+}
+
 function toPortalStepFromApiRun(run: PortalAgentRunApiModuleRun): PortalStep {
   const label = modulePortalLabels[run.moduleId];
   const interaction = parsePortalToolInteraction(run.metadata);
@@ -1039,6 +1051,8 @@ export function AgentPortalInterface() {
     useState("Local demo runtime");
   const [latestPortalRun, setLatestPortalRun] =
     useState<PortalRunUiState | null>(null);
+  const [portalRunSyncSnapshot, setPortalRunSyncSnapshot] =
+    useState<PortalRunSyncSnapshot | null>(null);
   const [isPortalAutoRefreshEnabled, setIsPortalAutoRefreshEnabled] =
     useState(true);
   const [portalActionStates, setPortalActionStates] = useState<
@@ -1141,6 +1155,10 @@ export function AgentPortalInterface() {
     setAuthorizedPortalToken(tokenValue);
     setPortalAccessState("offline");
     setPortalAccessStatusText("API offline - local demo Portal unlocked");
+    setLatestPortalRun(null);
+    setPortalRunSyncSnapshot(null);
+    setPortalRunState("local");
+    setPortalRunStatusText("Local demo runtime");
   }
 
   async function isPortalApiUnavailable(): Promise<boolean> {
@@ -1298,7 +1316,7 @@ export function AgentPortalInterface() {
     if (!isPortalAutoRefreshEnabled || !canAutoRefreshPortalRun) return;
 
     const intervalId = window.setInterval(() => {
-      void refreshPortalRun();
+      void refreshPortalRun("auto");
     }, 10000);
 
     return () => window.clearInterval(intervalId);
@@ -1334,6 +1352,7 @@ export function AgentPortalInterface() {
     if (!prompt) return;
 
     setDraft("");
+    setPortalRunSyncSnapshot(null);
     portalActionInFlightRef.current.clear();
     setPortalActionStates({});
     setFeedbackDrafts({});
@@ -1403,6 +1422,10 @@ export function AgentPortalInterface() {
       setActiveStep(uiState.steps[0]?.id ?? portalSteps[0].id);
       setPortalRunState("saved");
       setPortalRunStatusText(`Saved run ${shortRunId(data.pipelineRun.id)}`);
+      setPortalRunSyncSnapshot({
+        source: "submit",
+        checkedAt: new Date().toISOString(),
+      });
     } catch {
       setLatestPortalRun(null);
       setActiveStep(portalSteps[2].id);
@@ -1411,7 +1434,9 @@ export function AgentPortalInterface() {
     }
   }
 
-  async function refreshPortalRun(): Promise<void> {
+  async function refreshPortalRun(
+    source: Exclude<PortalRunSyncSource, "submit"> = "manual",
+  ): Promise<void> {
     if (
       !latestPortalRun ||
       portalRunState === "submitting" ||
@@ -1477,6 +1502,10 @@ export function AgentPortalInterface() {
       );
       setPortalRunState("saved");
       setPortalRunStatusText(`Refreshed run ${shortRunId(data.pipelineRun.id)}`);
+      setPortalRunSyncSnapshot({
+        source,
+        checkedAt: new Date().toISOString(),
+      });
     } catch {
       setPortalRunState("offline");
       setPortalRunStatusText(
@@ -1979,6 +2008,14 @@ export function AgentPortalInterface() {
                 <Radio size={15} />
                 {portalRunStateLabel(portalRunState)}
               </div>
+              {latestPortalRun && portalRunSyncSnapshot && (
+                <div className="portal-run-pill">
+                  <Clock3 size={15} />
+                  {`${portalRunSyncSourceLabel(
+                    portalRunSyncSnapshot.source,
+                  )} ${formatApiTime(portalRunSyncSnapshot.checkedAt)}`}
+                </div>
+              )}
               <button
                 type="button"
                 className={
