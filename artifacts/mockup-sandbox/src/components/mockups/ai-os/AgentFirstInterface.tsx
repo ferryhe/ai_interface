@@ -67,6 +67,14 @@ interface DataRecord {
   updatedAt: string;
 }
 
+interface CapabilityGuide {
+  summary: string;
+  trigger: string;
+  action: string;
+  output: string;
+  boundary: string;
+}
+
 interface BusinessSkillSetting {
   moduleId: ModuleId;
   enabled: boolean;
@@ -164,6 +172,95 @@ const modules: ModuleDefinition[] = [
     color: "#f97316",
   },
 ];
+
+const moduleGuides: Record<ModuleId, CapabilityGuide> = {
+  web_listening: {
+    summary: "Watches source URLs and turns web changes into database records the Agent can reason about.",
+    trigger: "Use when a source website, docs page, changelog, or competitor page needs monitoring.",
+    action: "The Agent asks the module to fetch pages, snapshot HTML, extract readable text, and compare changes.",
+    output: "Snapshots, extracted text, detected change events, and provenance appear in Modules, Progress, and Data.",
+    boundary: "This is the only business skill that normally needs network access.",
+  },
+  doc_to_md: {
+    summary: "Converts uploaded or collected documents into clean Markdown that downstream modules can consume.",
+    trigger: "Use when PDFs, Word docs, exports, or raw source documents need to become structured text.",
+    action: "The Agent sends source document references to the module and stores Markdown plus warnings/assets.",
+    output: "Markdown documents, conversion warnings, asset references, and source metadata are stored as artifacts.",
+    boundary: "It should not decide knowledge structure; it only prepares readable Markdown.",
+  },
+  md_to_rag: {
+    summary: "Builds retrieval memory from Markdown by chunking text and preparing embedding/index metadata.",
+    trigger: "Use after Markdown exists and the Agent needs searchable long-term knowledge.",
+    action: "The Agent asks for chunks, token counts, embedding payload metadata, and index status records.",
+    output: "RAG chunks, token counts, embedding metadata, and index progress become visible in Data.",
+    boundary: "It prepares memory records; model-facing answers still come from the Agent runtime.",
+  },
+  rag_to_agent: {
+    summary: "Turns validated RAG memory into a deployable agent configuration with prompts and tool bindings.",
+    trigger: "Use when the knowledge base is ready and you want a publishable or testable agent.",
+    action: "The Agent asks for prompts, tool definitions, validation checks, and final handoff state.",
+    output: "Generated agent configs, prompts, tool bindings, and validation results appear before Deploy.",
+    boundary: "Keep approval on for this skill because it can shape what the final agent is allowed to do.",
+  },
+};
+
+const generalSkillGuides: Record<GeneralSkillId, CapabilityGuide> = {
+  web_search: {
+    summary: "Lets the Agent look up fresh public information when project memory may be stale.",
+    trigger: "Use for latest docs, pricing, release notes, laws, APIs, news, or anything time-sensitive.",
+    action: "The Agent searches, reads selected sources, cites what it used, then folds the result into the plan.",
+    output: "Search findings show in chat summaries and can be saved into memory when relevant.",
+    boundary: "Requires network and approval because it leaves the local project context.",
+  },
+  browser: {
+    summary: "Lets the Agent open local previews and inspect actual UI state instead of guessing from code.",
+    trigger: "Use for smoke tests, visual checks, clicking through flows, and reading browser console issues.",
+    action: "The Agent opens the page, navigates, clicks controls, checks DOM/console, and reports what rendered.",
+    output: "Verified page state, screenshots when useful, and console findings are reported back in the thread.",
+    boundary: "Approval stays useful for external sites or any action that changes third-party state.",
+  },
+  github: {
+    summary: "Lets the Agent inspect repository work, pull requests, checks, reviews, and issues.",
+    trigger: "Use when PR state, CI failures, review comments, or remote branch status matters.",
+    action: "The Agent reads PR metadata, checks, comments, and can push confirmed-safe fixes from this repo.",
+    output: "PR summaries, check status, review decisions, commits, and links are shown in the conversation.",
+    boundary: "Writes, merges, or destructive Git operations should remain approval-gated.",
+  },
+  notion: {
+    summary: "Lets the Agent use workspace knowledge and capture decisions into structured documents.",
+    trigger: "Use when plans, meeting notes, specs, decisions, or knowledge pages should live in Notion.",
+    action: "The Agent reads selected pages or writes structured summaries when you approve the destination.",
+    output: "Notion pages, implementation specs, and linked knowledge records become part of the handoff.",
+    boundary: "Workspace reads/writes should be explicit because they may contain private team context.",
+  },
+  lark: {
+    summary: "Lets the Agent interact with Lark messages, docs, tasks, calendars, approvals, and Base records.",
+    trigger: "Use for team workflows: send updates, create docs, query tasks, prepare meetings, or sync tables.",
+    action: "The Agent routes to the right Lark capability and asks before sending or changing shared state.",
+    output: "Messages, docs, tasks, calendar results, or Base records are linked back to the Agent thread.",
+    boundary: "External communication and sensitive-data transmission must stay approval-gated.",
+  },
+  file_tools: {
+    summary: "Lets the Agent read and prepare files inside the approved project workspace.",
+    trigger: "Use for local code, docs, fixtures, generated plans, and files that belong to this project.",
+    action: "The Agent reads relevant files, edits scoped files when requested, and keeps Git changes isolated.",
+    output: "Changed files, diffs, verification results, commits, and PR links are reported in the run summary.",
+    boundary: "It should stay inside `ai_interface`; sibling repositories remain off-limits unless requested.",
+  },
+};
+
+const configureGuides = {
+  provider:
+    "Controls which AI runtime the console talks to. V1 checks environment-based API key status and never stores plaintext keys in the browser.",
+  model:
+    "Controls the model, reasoning effort, and system prompt that shape planning quality, tool choice, and response style.",
+  memory:
+    "Controls short-term thread memory and long-term Postgres memory so module outputs can become reusable context.",
+  safety:
+    "Controls approval points, self-learning behavior, publishing gates, and how many tool steps the Agent may take.",
+  runtime:
+    "Summarizes the current runtime contract: provider, active skills, memory mode, and safety posture.",
+};
 
 const defaultAgentConfig: AgentConfigDraft = {
   provider: "openai",
@@ -963,12 +1060,31 @@ function ConfigureView({
       <div className="configure-hero">
         <div>
           <h1>Configure Agent</h1>
-          <p>Connect the OpenAI runtime, choose model behavior, and decide which module skills can write into memory.</p>
+          <p>Connect the AI runtime, choose model behavior, decide which skills the Agent may use, and see exactly what each capability produces.</p>
         </div>
         <div className={`connection-pill ${connectionStatus}`}>
           <Activity size={15} />
           <span>{connectionLabel(connectionStatus)}</span>
         </div>
+      </div>
+
+      <div className="capability-map" aria-label="Capability map">
+        <span>
+          <strong>Agent</strong>
+          <em>Chat, plan, choose tools, and explain progress.</em>
+        </span>
+        <span>
+          <strong>Business skills</strong>
+          <em>Run your fixed module chain and store canonical outputs.</em>
+        </span>
+        <span>
+          <strong>General skills</strong>
+          <em>Install or enable common abilities when a conversation needs them.</em>
+        </span>
+        <span>
+          <strong>Memory</strong>
+          <em>Persist useful context into Postgres for later runs.</em>
+        </span>
       </div>
 
       <div className="configure-grid">
@@ -980,6 +1096,7 @@ function ConfigureView({
             </span>
             <em>{statusText}</em>
           </div>
+          <p className="config-explainer">{configureGuides.provider}</p>
           <div className="config-field">
             <label>Provider</label>
             <div className="locked-value">OpenAI</div>
@@ -1017,6 +1134,7 @@ function ConfigureView({
             </span>
             <em>{config.reasoningEffort} reasoning</em>
           </div>
+          <p className="config-explainer">{configureGuides.model}</p>
           <div className="config-field">
             <label>Model</label>
             <select
@@ -1062,9 +1180,13 @@ function ConfigureView({
             </span>
             <em>{enabledBusinessSkills} enabled</em>
           </div>
+          <p className="config-explainer">
+            These are your product modules. The Agent calls them to build the pipeline, and each module writes displayable results back into the database.
+          </p>
           <div className="skill-settings-grid">
             {config.businessSkillSettings.map((skill) => {
               const module = moduleById(skill.moduleId);
+              const guide = moduleGuides[skill.moduleId];
               return (
                 <div key={skill.moduleId} className="skill-setting-row">
                   <i style={{ background: module.color }} />
@@ -1112,6 +1234,28 @@ function ConfigureView({
                     />
                     DB write
                   </label>
+                  <div className="skill-detail-grid">
+                    <span>
+                      <strong>Purpose</strong>
+                      <em>{guide.summary}</em>
+                    </span>
+                    <span>
+                      <strong>When used</strong>
+                      <em>{guide.trigger}</em>
+                    </span>
+                    <span>
+                      <strong>Agent action</strong>
+                      <em>{guide.action}</em>
+                    </span>
+                    <span>
+                      <strong>Result</strong>
+                      <em>{guide.output}</em>
+                    </span>
+                    <span>
+                      <strong>Boundary</strong>
+                      <em>{guide.boundary}</em>
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -1126,64 +1270,92 @@ function ConfigureView({
             </span>
             <em>{enabledGeneralSkills} allowed</em>
           </div>
+          <p className="config-explainer">
+            These are common Agent abilities. Keep them available on demand so the Agent can ask to install or use one during a conversation, with approval before sensitive actions.
+          </p>
           <div className="skill-settings-grid">
-            {config.generalSkillSettings.map((skill) => (
-              <div key={skill.skillId} className="general-skill-row">
-                <span>
-                  <strong>{skill.name}</strong>
-                  <em>{skill.description}</em>
-                </span>
-                <b className={skill.installed ? "skill-state installed" : "skill-state"}>
-                  {skill.installed ? "Installed" : "Available"}
-                </b>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={skill.enabled}
-                    onChange={(event) =>
-                      onUpdateGeneralSkill(skill.skillId, { enabled: event.target.checked })
-                    }
-                  />
-                  Enabled
-                </label>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={skill.installOnDemand}
-                    onChange={(event) =>
-                      onUpdateGeneralSkill(skill.skillId, {
-                        installOnDemand: event.target.checked,
-                      })
-                    }
-                  />
-                  On demand
-                </label>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={skill.requiresApproval}
-                    onChange={(event) =>
-                      onUpdateGeneralSkill(skill.skillId, {
-                        requiresApproval: event.target.checked,
-                      })
-                    }
-                  />
-                  Approval
-                </label>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={skill.canUseNetwork}
-                    onChange={(event) =>
-                      onUpdateGeneralSkill(skill.skillId, {
-                        canUseNetwork: event.target.checked,
-                      })
-                    }
-                  />
-                  Network
-                </label>
-              </div>
-            ))}
+            {config.generalSkillSettings.map((skill) => {
+              const guide = generalSkillGuides[skill.skillId];
+              return (
+                <div key={skill.skillId} className="general-skill-row">
+                  <span>
+                    <strong>{skill.name}</strong>
+                    <em>{skill.description}</em>
+                  </span>
+                  <b className={skill.installed ? "skill-state installed" : "skill-state"}>
+                    {skill.installed ? "Installed" : "Available"}
+                  </b>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.enabled}
+                      onChange={(event) =>
+                        onUpdateGeneralSkill(skill.skillId, { enabled: event.target.checked })
+                      }
+                    />
+                    Enabled
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.installOnDemand}
+                      onChange={(event) =>
+                        onUpdateGeneralSkill(skill.skillId, {
+                          installOnDemand: event.target.checked,
+                        })
+                      }
+                    />
+                    On demand
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.requiresApproval}
+                      onChange={(event) =>
+                        onUpdateGeneralSkill(skill.skillId, {
+                          requiresApproval: event.target.checked,
+                        })
+                      }
+                    />
+                    Approval
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.canUseNetwork}
+                      onChange={(event) =>
+                        onUpdateGeneralSkill(skill.skillId, {
+                          canUseNetwork: event.target.checked,
+                        })
+                      }
+                    />
+                    Network
+                  </label>
+                  <div className="skill-detail-grid">
+                    <span>
+                      <strong>Purpose</strong>
+                      <em>{guide.summary}</em>
+                    </span>
+                    <span>
+                      <strong>When used</strong>
+                      <em>{guide.trigger}</em>
+                    </span>
+                    <span>
+                      <strong>Agent action</strong>
+                      <em>{guide.action}</em>
+                    </span>
+                    <span>
+                      <strong>Result</strong>
+                      <em>{guide.output}</em>
+                    </span>
+                    <span>
+                      <strong>Boundary</strong>
+                      <em>{guide.boundary}</em>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </article>
 
@@ -1195,6 +1367,7 @@ function ConfigureView({
             </span>
             <em>{memoryMode}</em>
           </div>
+          <p className="config-explainer">{configureGuides.memory}</p>
           <label className="toggle-row large">
             <input
               type="checkbox"
@@ -1254,6 +1427,7 @@ function ConfigureView({
             </span>
             <em>{config.safetySettings.maxToolSteps} tool steps</em>
           </div>
+          <p className="config-explainer">{configureGuides.safety}</p>
           <label className="toggle-row large">
             <input
               type="checkbox"
@@ -1304,6 +1478,7 @@ function ConfigureView({
             </span>
             <em>{config.endpoint}</em>
           </div>
+          <p className="config-explainer">{configureGuides.runtime}</p>
           <div className="runtime-lines">
             <span>
               <strong>Provider</strong>
@@ -2190,6 +2365,35 @@ const styles = `
     background: #211d0d;
   }
 
+  .capability-map {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .capability-map span {
+    min-height: 74px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0f151e;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 12px;
+  }
+
+  .capability-map strong {
+    color: #edf3fb;
+    font-size: 13px;
+  }
+
+  .capability-map em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1.45;
+  }
+
   .configure-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2237,6 +2441,13 @@ const styles = `
     font-style: normal;
     font-weight: 700;
     text-align: right;
+  }
+
+  .config-explainer {
+    margin: -4px 0 0;
+    color: #9aa7b8;
+    line-height: 1.55;
+    font-size: 12px;
   }
 
   .config-field {
@@ -2410,6 +2621,38 @@ const styles = `
     color: #35d07f;
     border-color: #35d07f66;
     background: #0e2419;
+  }
+
+  .skill-detail-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 2px;
+  }
+
+  .skill-detail-grid span {
+    min-height: 86px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #0d141d;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 9px;
+  }
+
+  .skill-detail-grid strong {
+    color: #edf3fb;
+    font-size: 11px;
+  }
+
+  .skill-detail-grid em {
+    color: #8d9bad;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1.45;
+    white-space: normal;
   }
 
   .toggle-row {
@@ -2614,6 +2857,10 @@ const styles = `
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .capability-map {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .configure-grid {
       grid-template-columns: 1fr;
     }
@@ -2624,6 +2871,10 @@ const styles = `
 
     .general-skill-row {
       grid-template-columns: minmax(0, 1fr) 92px repeat(2, minmax(90px, auto));
+    }
+
+    .skill-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -2702,6 +2953,11 @@ const styles = `
     .detail-grid,
     .deploy-grid,
     .memory-map {
+      grid-template-columns: 1fr;
+    }
+
+    .capability-map,
+    .skill-detail-grid {
       grid-template-columns: 1fr;
     }
 

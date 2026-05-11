@@ -29,6 +29,7 @@ Updated: 2026-05-11
 - Added `/api/agent-config` GET/PUT and `/api/agent-config/test-connection`; the connection endpoint only reports whether `OPENAI_API_KEY` is present.
 - Added a Configure view to the Agent Module OS UI with Provider, Model, Skills, Memory, Safety, and Runtime Preview sections; it falls back to local draft state when `/api` is offline.
 - Split Configure skills into business module skills and lightweight general skills. Business skills remain the fixed module chain; general skills track installed/available status, on-demand install allowance, approval, and network flags.
+- Added detailed Configure explanations: a capability map, section-level explainers, and per-skill purpose/trigger/action/result/boundary guidance so users can understand what each feature does.
 
 ## Verification
 
@@ -62,6 +63,9 @@ Updated: 2026-05-11
 - Skill split validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Skill split validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - Skill split browser smoke opened `http://127.0.0.1:8081/`, verified Business Skills and General Skills sections plus Web Search/File Tools rows, and found no console warnings/errors.
+- Explanation UI validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Explanation UI validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Explanation UI browser smoke opened `http://127.0.0.1:8081/`, verified capability map plus Purpose/When used/Agent action/Result/Boundary details, and found no console warnings/errors.
 
 ## Notes
 
