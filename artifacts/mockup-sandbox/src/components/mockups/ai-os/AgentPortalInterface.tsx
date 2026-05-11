@@ -627,6 +627,12 @@ function isPipelineStatus(
   return isModuleRunStatus(value);
 }
 
+function isPortalPipelineInProgress(
+  status: PortalAgentRunApiResponse["pipelineRun"]["status"],
+): boolean {
+  return status === "pending" || status === "running";
+}
+
 function isPortalAgentRunApiModuleRun(
   value: unknown,
 ): value is PortalAgentRunApiModuleRun {
@@ -1033,6 +1039,8 @@ export function AgentPortalInterface() {
     useState("Local demo runtime");
   const [latestPortalRun, setLatestPortalRun] =
     useState<PortalRunUiState | null>(null);
+  const [isPortalAutoRefreshEnabled, setIsPortalAutoRefreshEnabled] =
+    useState(true);
   const [portalActionStates, setPortalActionStates] = useState<
     Record<string, PortalActionState>
   >({});
@@ -1082,6 +1090,14 @@ export function AgentPortalInterface() {
   const displayedSources = latestPortalRun?.sources ?? portalSources;
   const displayedReadiness = latestPortalRun?.readiness ?? readiness;
   const displayedResultItems = latestPortalRun?.resultItems ?? resultItems;
+  const isPortalRunInProgress = latestPortalRun
+    ? isPortalPipelineInProgress(latestPortalRun.response.pipelineRun.status)
+    : false;
+  const canAutoRefreshPortalRun =
+    isUnlocked &&
+    Boolean(latestPortalRun) &&
+    isPortalRunInProgress &&
+    portalRunState === "saved";
 
   function beginPortalAction(stepId: string): boolean {
     if (portalActionInFlightRef.current.has(stepId)) return false;
@@ -1277,6 +1293,16 @@ export function AgentPortalInterface() {
     // Query-token preview is a one-time mount shortcut for local demos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isPortalAutoRefreshEnabled || !canAutoRefreshPortalRun) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshPortalRun();
+    }, 10000);
+
+    return () => window.clearInterval(intervalId);
+  }, [canAutoRefreshPortalRun, isPortalAutoRefreshEnabled, latestPortalRun]);
 
   async function submitToken(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -1953,6 +1979,22 @@ export function AgentPortalInterface() {
                 <Radio size={15} />
                 {portalRunStateLabel(portalRunState)}
               </div>
+              <button
+                type="button"
+                className={
+                  isPortalAutoRefreshEnabled
+                    ? "portal-refresh-button active"
+                    : "portal-refresh-button"
+                }
+                disabled={!latestPortalRun || !isPortalRunInProgress}
+                aria-pressed={isPortalAutoRefreshEnabled}
+                onClick={() =>
+                  setIsPortalAutoRefreshEnabled((current) => !current)
+                }
+              >
+                <RefreshCw size={15} />
+                {isPortalAutoRefreshEnabled ? "Auto on" : "Auto off"}
+              </button>
               <button
                 type="button"
                 className="portal-refresh-button"
@@ -3462,6 +3504,12 @@ const styles = `
     font-size: 12px;
     font-weight: 850;
     white-space: nowrap;
+  }
+
+  .portal-refresh-button.active {
+    border-color: #4f9cff;
+    background: #10233a;
+    color: #edf3fb;
   }
 
   .portal-refresh-button:disabled {
