@@ -383,7 +383,17 @@ Updated: 2026-05-11
 - Portal Agent run refresh controller validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Portal Agent run refresh controller validation: `git diff --check` passed with CRLF warnings only.
 - Portal Agent run refresh browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so rendered smoke could not run in this heartbeat.
+- PR #27 was merged into `main` on 2026-05-11 at merge commit `2868e74`; this branch starts the Portal refresh cache invalidation slice from latest `main`.
+- Portal refresh now clears module-run detail, selected artifact, and artifact payload caches after a successful API refresh so Data/Sources/Result reload fresh details instead of showing stale cached artifacts.
+- Portal refresh cache invalidation fix: a detail-cache generation guard prevents in-flight detail/artifact requests from writing stale ordinary success/failure states after a refresh, while runtime `401`/`403` responses still lock the Portal.
+- Portal refresh cache invalidation spec reviewer: passed, with no missing plan requirements.
+- Portal refresh cache invalidation code quality reviewer found a valid stale in-flight detail/artifact request race; the generation guard fix was applied and re-review approved.
+- Portal refresh cache invalidation validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal refresh cache invalidation validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal refresh cache invalidation validation: `git diff --check` passed with CRLF warnings only.
+- Portal refresh cache invalidation HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
+- Portal refresh cache invalidation browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so DOM/console smoke could not run in this heartbeat.
 
 ## Next Action
 
-- Push/open the Portal Agent run refresh PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal refresh cache invalidation PR, then perform the scheduled follow-up for checks and remote review comments.
