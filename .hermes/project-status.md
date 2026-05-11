@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/frontend-agent-run-api-wire`
-- Scope: Frontend Agent Run API wire-up for the admin mockup composer.
+- Branch: `codex/frontend-runtime-feedback-actions`
+- Scope: Frontend runtime interaction metadata and resume actions for the admin mockup console.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -75,6 +75,8 @@ Updated: 2026-05-11
 - PR #13 was merged into `main`; this branch starts the next frontend-only API wire-up slice from latest `main`.
 - Admin Agent composer now attempts `POST /api/agent-runs` with the prompt, selected execution mode, and `mockup-sandbox` metadata source.
 - The admin mockup renders returned API plan/module-run data when available, and falls back to local mock runtime data with compact API status text when `/api` is offline or fails.
+- PR #14 was merged into `main`; this branch starts the frontend runtime feedback-actions slice from latest `main`.
+- Admin runtime views now validate API module-run `metadata.interaction`, surface waiting/resumable/blocked states, and call `POST /api/module-runs/{runId}/resume` only for API-backed resumable runs while preserving local mock fallback navigation.
 
 ## Verification
 
@@ -211,6 +213,10 @@ Updated: 2026-05-11
 - Frontend Agent Run API wire validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Frontend Agent Run API wire validation: `git diff --check` passed with CRLF warnings only.
 - Frontend Agent Run API wire browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, submitted the composer with no backend API, verified Progress fallback status, local timeline, Agent runtime controls, Modules runtime contract, and found no console warnings/errors.
+- Frontend runtime feedback-actions validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Frontend runtime feedback-actions validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Frontend runtime feedback-actions validation: `git diff --check` passed with CRLF warnings only.
+- Frontend runtime feedback-actions browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified local mock `Resume` routes to `doc_to_md`, Progress shows runtime action status text, Modules shows the interaction title/message/resume handle, and found no console warnings/errors.
 
 ## Notes
 
@@ -220,4 +226,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Commit, push, and open the frontend Agent Run API wire-up PR; then run the standard PR follow-up for checks and Copilot comments.
+- Commit, push, and open the frontend runtime feedback-actions PR; then run the standard PR follow-up for checks and Copilot comments.
