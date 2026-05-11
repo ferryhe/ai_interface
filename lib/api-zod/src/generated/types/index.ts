@@ -54,6 +54,8 @@ export * from "./pipelineRun";
 export * from "./portalAccessMode";
 export * from "./portalAccessStatus";
 export * from "./portalAccessVerificationResponse";
+export * from "./portalSurfaceParameter";
+export * from "./portalTokenParameter";
 export * from "./runEvent";
 export * from "./runEventSeverity";
 export * from "./submitToolFeedbackRequest";

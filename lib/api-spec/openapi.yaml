@@ -220,9 +220,15 @@ paths:
       operationId: submitModuleRunFeedback
       tags: [modules]
       summary: Submit user feedback for a module run
-      description: Records user or Agent feedback for the active interaction and marks the module run as resumable.
+      description: >-
+        Records user or Agent feedback for the active interaction and marks the
+        module run as resumable. Portal-origin requests send
+        `X-AI-Interface-Surface: agent-portal` and require a verified Portal
+        token through `X-Portal-Token` or `Authorization: Bearer <token>`.
       parameters:
         - $ref: "#/components/parameters/RunId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       requestBody:
         required: true
         content:
@@ -236,6 +242,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolInteractionResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Module run or active interaction not found
           content:
@@ -247,9 +259,16 @@ paths:
       operationId: resumeModuleRunExecution
       tags: [modules]
       summary: Resume execution for a module run
-      description: Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+      description: >-
+        Consumes a resumable tool interaction, records a resume request, and
+        resumes through the safe fake adapter executor. Portal-origin requests
+        send `X-AI-Interface-Surface: agent-portal` and require a verified
+        Portal token through `X-Portal-Token` or `Authorization: Bearer
+        <token>`.
       parameters:
         - $ref: "#/components/parameters/RunId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       responses:
         "200":
           description: Resume accepted
@@ -259,6 +278,12 @@ paths:
                 $ref: "#/components/schemas/ToolInteractionResponse"
         "404":
           description: Module run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
           content:
             application/json:
               schema:
@@ -294,7 +319,15 @@ paths:
       operationId: createAgentRun
       tags: [agent-runs]
       summary: Create an Agent runtime plan
-      description: Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+      description: >-
+        Stores the user message, creates a pipeline run, and plans module runs
+        using enabled business skills. Portal-origin requests send
+        `X-AI-Interface-Surface: agent-portal` or `metadata.source:
+        agent-portal` and require a verified Portal token through
+        `X-Portal-Token` or `Authorization: Bearer <token>`.
+      parameters:
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
       requestBody:
         required: true
         content:
@@ -316,6 +349,12 @@ paths:
                 $ref: "#/components/schemas/AgentRunResponse"
         "400":
           description: Invalid Agent run request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
           content:
             application/json:
               schema:
@@ -422,6 +461,26 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
+    PortalSurface:
+      name: X-AI-Interface-Surface
+      in: header
+      required: false
+      description: >-
+        Optional runtime surface identifier. Use `agent-portal` for frontstage
+        Portal-origin runtime calls.
+      schema:
+        type: string
+        enum:
+          - agent-portal
+    PortalToken:
+      name: X-Portal-Token
+      in: header
+      required: false
+      description: >-
+        Optional Portal access token for Portal-origin runtime calls.
+        `Authorization: Bearer <token>` is also accepted by the server.
+      schema:
+        type: string
     RunId:
       name: runId
       in: path

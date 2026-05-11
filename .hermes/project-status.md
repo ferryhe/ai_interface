@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-token-verification-api`
-- Scope: Server-backed Portal token verification and frontstage token gate API wire-up.
+- Branch: `codex/portal-runtime-access-guard`
+- Scope: Portal-origin runtime writes now require a verified Publish Portal token while admin/mockup runtime calls remain available.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -277,6 +277,13 @@ Updated: 2026-05-11
 - PR #22 was merged into `main` on 2026-05-11 at merge commit `115b1e7`; this branch starts the Portal token verification slice from latest `main`.
 - Added `POST /api/portal-auth/verify` so the frontstage Portal can check submitted tokens against stored Publish settings without returning token hashes or plaintext tokens.
 - Portal token gate now calls the verification API when available and falls back to clearly labeled local demo access when `/api` is offline.
+- PR #23 was merged into `main` on 2026-05-11 at merge commit `ad5e977`; this branch starts the Portal runtime access guard slice from latest `main`.
+- Added a reusable Portal runtime access guard that verifies `X-Portal-Token` or `Authorization: Bearer <token>` through the existing Publish Portal token verifier.
+- `POST /api/agent-runs` now rejects Portal-origin writes before creating threads, pipeline runs, or module runs unless the Portal token is valid.
+- `POST /api/module-runs/{runId}/feedback` and `POST /api/module-runs/{runId}/resume` now reject Portal-origin writes before mutating module-run interaction state unless the Portal token is valid.
+- Agent run and module route factories now support in-memory route tests without requiring `DATABASE_URL`; default runtime routes keep lazy DB-backed repositories.
+- The frontstage Portal now keeps the verified token in component state and sends Portal runtime headers on Agent run, feedback, resume, detail, and artifact API calls while keeping `/api/portal-auth/verify` unchanged.
+- OpenAPI documents Portal runtime headers and `403` responses for the guarded write endpoints; API Zod/React client outputs were regenerated.
 
 ## Notes
 
@@ -316,7 +323,17 @@ Updated: 2026-05-11
 - Publish settings validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Publish settings validation: `git diff --check` passed with CRLF warnings only.
 - Publish settings browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Publish status/version/token controls, confirmed the portal token field is empty/password/autocomplete-off, opened Portal preview, and found no console warnings/errors.
+- Portal runtime access guard validation: `corepack pnpm --filter @workspace/api-server run test` passed with 62 tests.
+- Portal runtime access guard validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Portal runtime access guard validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Portal runtime access guard validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Portal runtime access guard validation: `corepack pnpm run typecheck:libs` passed.
+- Portal runtime access guard validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime access guard validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal runtime access guard validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime access guard browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified Chat/Steps/Data/Sources/Result navigation, and found no console warnings/errors.
+- Portal runtime access guard note: `corepack pnpm --filter @workspace/api-server exec tsx --test ...` still fails in this Windows shell because `pnpm exec` does not resolve `tsx`; the package `test` script covers the focused route suites and passed.
 
 ## Next Action
 
-- Follow up on PR #23 checks and Copilot comments after GitHub has processed the branch.
+- Open PR for `codex/portal-runtime-access-guard`, then follow up on checks and Copilot comments after GitHub has processed the branch.
