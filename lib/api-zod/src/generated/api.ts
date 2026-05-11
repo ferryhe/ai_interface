@@ -809,6 +809,14 @@ export const GetAgentConfigResponse = zod.object({
       allowSelfLearning: zod.boolean(),
       maxToolSteps: zod.number().min(1),
     }),
+    publishSettings: zod.object({
+      status: zod.enum(["draft", "published", "paused"]),
+      portalAccessMode: zod.enum(["token"]),
+      portalTokenLast4: zod.string().nullable(),
+      portalTokenUpdatedAt: zod.coerce.date().nullable(),
+      publishedAt: zod.coerce.date().nullable(),
+      versionLabel: zod.string(),
+    }),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -883,6 +891,14 @@ export const UpdateAgentConfigBody = zod.object({
       maxToolSteps: zod.number().min(1),
     })
     .optional(),
+  publishSettings: zod
+    .object({
+      status: zod.enum(["draft", "published", "paused"]).optional(),
+      portalAccessMode: zod.enum(["token"]).optional(),
+      setPortalToken: zod.string().optional(),
+      versionLabel: zod.string().optional(),
+    })
+    .optional(),
 });
 
 export const UpdateAgentConfigResponse = zod.object({
@@ -939,6 +955,14 @@ export const UpdateAgentConfigResponse = zod.object({
       requireApprovalForPublishing: zod.boolean(),
       allowSelfLearning: zod.boolean(),
       maxToolSteps: zod.number().min(1),
+    }),
+    publishSettings: zod.object({
+      status: zod.enum(["draft", "published", "paused"]),
+      portalAccessMode: zod.enum(["token"]),
+      portalTokenLast4: zod.string().nullable(),
+      portalTokenUpdatedAt: zod.coerce.date().nullable(),
+      publishedAt: zod.coerce.date().nullable(),
+      versionLabel: zod.string(),
     }),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),

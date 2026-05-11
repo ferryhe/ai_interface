@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { moduleRegistry, type ModuleId } from "../modules/registry";
 
@@ -7,6 +7,8 @@ export type AgentEndpoint = "responses" | "agents_sdk";
 export type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type MemoryPromotionMode = "manual" | "agent_suggested";
 export type ConnectionStatus = "configured" | "missing_key";
+export type AgentPublishStatus = "draft" | "published" | "paused";
+export type PortalAccessMode = "token";
 export type GeneralSkillId =
   | "web_search"
   | "browser"
@@ -49,6 +51,28 @@ export interface AgentSafetySettings {
   maxToolSteps: number;
 }
 
+export interface AgentPublishSettings {
+  status: AgentPublishStatus;
+  portalAccessMode: PortalAccessMode;
+  portalTokenHash: string | null;
+  portalTokenLast4: string | null;
+  portalTokenUpdatedAt: string | null;
+  publishedAt: string | null;
+  versionLabel: string;
+}
+
+export type PublicAgentPublishSettings = Omit<
+  AgentPublishSettings,
+  "portalTokenHash"
+>;
+
+export interface UpdateAgentPublishSettingsInput {
+  status?: AgentPublishStatus;
+  portalAccessMode?: PortalAccessMode;
+  setPortalToken?: string;
+  versionLabel?: string;
+}
+
 export interface AgentConfigRecord {
   id: string;
   configKey: string;
@@ -61,9 +85,17 @@ export interface AgentConfigRecord {
   generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
+  publishSettings: AgentPublishSettings;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type PublicAgentConfigRecord = Omit<
+  AgentConfigRecord,
+  "publishSettings"
+> & {
+  publishSettings: PublicAgentPublishSettings;
+};
 
 export interface UpdateAgentConfigInput {
   provider?: AgentProvider;
@@ -75,6 +107,7 @@ export interface UpdateAgentConfigInput {
   generalSkillSettings?: GeneralSkillSetting[];
   memorySettings?: AgentMemorySettings;
   safetySettings?: AgentSafetySettings;
+  publishSettings?: UpdateAgentPublishSettingsInput;
 }
 
 interface UpsertAgentConfigInput {
@@ -88,6 +121,7 @@ interface UpsertAgentConfigInput {
   generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
+  publishSettings: AgentPublishSettings;
 }
 
 export interface AgentConfigRepository {
@@ -172,6 +206,57 @@ export function createDefaultGeneralSkillSettings(): GeneralSkillSetting[] {
   ];
 }
 
+export function createDefaultPublishSettings(): AgentPublishSettings {
+  return {
+    status: "draft",
+    portalAccessMode: "token",
+    portalTokenHash: null,
+    portalTokenLast4: null,
+    portalTokenUpdatedAt: null,
+    publishedAt: null,
+    versionLabel: "draft-0.3",
+  };
+}
+
+export function toPublicAgentConfig(
+  config: AgentConfigRecord,
+): PublicAgentConfigRecord {
+  const { portalTokenHash: _portalTokenHash, ...publishSettings } =
+    config.publishSettings;
+  return {
+    ...config,
+    publishSettings,
+  };
+}
+
+function hashPortalToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+function mergePublishSettings(
+  current: AgentPublishSettings,
+  input?: UpdateAgentPublishSettingsInput,
+): AgentPublishSettings {
+  if (!input) return current;
+
+  const token = input.setPortalToken?.trim();
+  const now = new Date().toISOString();
+
+  return {
+    ...current,
+    status: input.status ?? current.status,
+    portalAccessMode: input.portalAccessMode ?? current.portalAccessMode,
+    versionLabel: input.versionLabel ?? current.versionLabel,
+    portalTokenHash: token ? hashPortalToken(token) : current.portalTokenHash,
+    portalTokenLast4: token ? token.slice(-4) : current.portalTokenLast4,
+    portalTokenUpdatedAt: token ? now : current.portalTokenUpdatedAt,
+    publishedAt:
+      input.status === "published" && current.status !== "published"
+        ? now
+        : current.publishedAt,
+  };
+}
+
 export function createDefaultAgentConfig(): UpsertAgentConfigInput {
   return {
     configKey: defaultAgentConfigKey,
@@ -196,6 +281,7 @@ export function createDefaultAgentConfig(): UpsertAgentConfigInput {
       allowSelfLearning: true,
       maxToolSteps: 12,
     },
+    publishSettings: createDefaultPublishSettings(),
   };
 }
 
@@ -261,6 +347,10 @@ export async function updateAgentConfig(
     generalSkillSettings: input.generalSkillSettings ?? current.generalSkillSettings,
     memorySettings: input.memorySettings ?? current.memorySettings,
     safetySettings: input.safetySettings ?? current.safetySettings,
+    publishSettings: mergePublishSettings(
+      current.publishSettings,
+      input.publishSettings,
+    ),
   });
 }
 

@@ -10,6 +10,7 @@ import { DbAgentConfigRepository } from "../agent-config/db-repository";
 import {
   getAgentConfig,
   getConnectionStatus,
+  toPublicAgentConfig,
   updateAgentConfig,
   type AgentConfigRecord,
 } from "../agent-config/agent-config-service";
@@ -23,7 +24,7 @@ function errorResponse(message: string): { error: string } {
 
 function configResponse(config: AgentConfigRecord) {
   return {
-    config,
+    config: toPublicAgentConfig(config),
     connection: getConnectionStatus(process.env),
   };
 }
