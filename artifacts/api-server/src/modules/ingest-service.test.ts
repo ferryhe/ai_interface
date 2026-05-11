@@ -6,6 +6,8 @@ import {
   createModuleRun,
   recordModuleRunArtifact,
   recordModuleRunEvent,
+  requestModuleRunInteraction,
+  submitModuleRunFeedback,
 } from "./ingest-service";
 
 test("creates module runs idempotently by module and external run id", async () => {
@@ -121,4 +123,81 @@ test("stores artifacts with source information from the module run", async () =>
   assert.equal(artifact.contentText, "Welcome to the onboarding guide.");
   assert.deepEqual(artifact.contentJson, { tokenCount: 7 });
   assert.equal(repository.artifacts.length, 1);
+});
+
+test("records a tool interaction request and marks the run waiting", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "rag_to_agent",
+    externalRunId: "agent-approval-001",
+  });
+
+  const result = await requestModuleRunInteraction(repository, run.id, {
+    kind: "approval",
+    title: "Approve agent publish",
+    message: "Review generated agent permissions before continuing.",
+    prompt: "Approve publishing this agent config?",
+    options: [{ id: "approve", label: "Approve" }],
+    resumeHandle: "rag_to_agent:agent-approval-001:publish",
+    requestedBy: "rag_to_agent",
+  });
+
+  assert.equal(result.interaction.status, "waiting_for_approval");
+  assert.equal(result.interaction.kind, "approval");
+  assert.equal(result.run.metadata?.["interaction"], result.interaction);
+  assert.equal(result.event.eventType, "tool.interaction.requested");
+  assert.equal(result.event.payload?.["status"], "waiting_for_approval");
+});
+
+test("records tool feedback and marks the interaction resumable", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: "doc-feedback-001",
+  });
+
+  const requested = await requestModuleRunInteraction(repository, run.id, {
+    kind: "question",
+    title: "Choose conversion engine",
+    message: "The document has scanned pages.",
+    prompt: "Use OCR mode?",
+    options: [{ id: "ocr", label: "Use OCR" }],
+    resumeHandle: "doc_to_md:doc-feedback-001:ocr",
+  });
+
+  const result = await submitModuleRunFeedback(repository, run.id, {
+    responseText: "Use OCR mode.",
+    selectedOptionId: "ocr",
+    approved: true,
+  });
+
+  assert.equal(result.interaction.interactionId, requested.interaction.interactionId);
+  assert.equal(result.interaction.status, "resumable");
+  assert.deepEqual(result.interaction.response, {
+    responseText: "Use OCR mode.",
+    selectedOptionId: "ocr",
+    approved: true,
+    artifactIds: [],
+    metadata: {},
+  });
+  assert.equal(result.run.metadata?.["interaction"], result.interaction);
+  assert.equal(result.event.eventType, "tool.interaction.feedback_submitted");
+});
+
+test("rejects tool feedback without an active interaction", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "web_listening",
+    externalRunId: "listen-feedback-001",
+  });
+
+  await assert.rejects(
+    () =>
+      submitModuleRunFeedback(repository, run.id, {
+        responseText: "Continue.",
+      }),
+    /Module run has no active interaction/,
+  );
+
+  assert.equal(repository.runEvents.length, 0);
 });

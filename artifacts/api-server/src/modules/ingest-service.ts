@@ -116,6 +116,75 @@ export interface CreateArtifactInput {
   provenance?: JsonObject;
 }
 
+export type ToolInteractionKind = "question" | "approval" | "data_request" | "blocked";
+
+export type ToolInteractionStatus =
+  | "waiting_for_user"
+  | "waiting_for_approval"
+  | "waiting_for_data"
+  | "blocked"
+  | "resumable";
+
+export interface ToolInteractionOption {
+  id: string;
+  label: string;
+  description?: string;
+  value?: JsonObject;
+}
+
+export interface CreateToolInteractionInput {
+  kind: ToolInteractionKind;
+  title: string;
+  message: string;
+  prompt?: string;
+  options?: ToolInteractionOption[];
+  artifactIds?: string[];
+  resumeHandle?: string;
+  requestedBy?: string;
+  metadata?: JsonObject;
+}
+
+export interface SubmitToolFeedbackInput {
+  responseText?: string;
+  selectedOptionId?: string;
+  approved?: boolean;
+  artifactIds?: string[];
+  resumeHandle?: string;
+  metadata?: JsonObject;
+}
+
+export interface ToolInteractionFeedback {
+  responseText?: string;
+  selectedOptionId?: string;
+  approved?: boolean;
+  artifactIds: string[];
+  resumeHandle?: string;
+  metadata: JsonObject;
+}
+
+export interface ToolInteraction {
+  interactionId: string;
+  status: ToolInteractionStatus;
+  kind: ToolInteractionKind;
+  title: string;
+  message: string;
+  prompt: string | null;
+  options: ToolInteractionOption[];
+  artifactIds: string[];
+  resumeHandle: string | null;
+  requestedBy: string | null;
+  requestedAt: string;
+  metadata: JsonObject;
+  respondedAt?: string;
+  response?: ToolInteractionFeedback;
+}
+
+export interface ToolInteractionResponse {
+  run: ModuleRunRecord;
+  event: RunEventRecord;
+  interaction: ToolInteraction;
+}
+
 interface CreateRunEventRecordInput {
   moduleRunId: string;
   eventType: string;
@@ -382,4 +451,138 @@ export async function recordModuleRunArtifact(
     parentArtifactId: input.parentArtifactId ?? null,
     provenance: input.provenance ?? null,
   });
+}
+
+function interactionStatusForKind(kind: ToolInteractionKind): ToolInteractionStatus {
+  if (kind === "approval") return "waiting_for_approval";
+  if (kind === "data_request") return "waiting_for_data";
+  if (kind === "blocked") return "blocked";
+  return "waiting_for_user";
+}
+
+function getMetadataWithInteraction(
+  metadata: JsonObject | null,
+  interaction: ToolInteraction,
+): JsonObject {
+  return {
+    ...(metadata ?? {}),
+    interaction,
+  };
+}
+
+function getCurrentInteraction(run: ModuleRunRecord): ToolInteraction | null {
+  const interaction = run.metadata?.["interaction"];
+  if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
+    return null;
+  }
+  return interaction as ToolInteraction;
+}
+
+function isActiveInteraction(interaction: ToolInteraction | null): interaction is ToolInteraction {
+  return (
+    interaction?.status === "waiting_for_user" ||
+    interaction?.status === "waiting_for_approval" ||
+    interaction?.status === "waiting_for_data" ||
+    interaction?.status === "blocked"
+  );
+}
+
+function normalizeFeedback(input: SubmitToolFeedbackInput): ToolInteractionFeedback {
+  const response: ToolInteractionFeedback = {
+    artifactIds: input.artifactIds ?? [],
+    metadata: input.metadata ?? {},
+  };
+  if (input.responseText !== undefined) response.responseText = input.responseText;
+  if (input.selectedOptionId !== undefined) {
+    response.selectedOptionId = input.selectedOptionId;
+  }
+  if (input.approved !== undefined) response.approved = input.approved;
+  if (input.resumeHandle !== undefined) response.resumeHandle = input.resumeHandle;
+  return response;
+}
+
+export async function requestModuleRunInteraction(
+  repository: ModuleRunRepository,
+  runId: string,
+  input: CreateToolInteractionInput,
+): Promise<ToolInteractionResponse> {
+  const existing = await repository.findModuleRunById(runId);
+  if (!existing) {
+    throw new Error(`Module run not found: ${runId}`);
+  }
+
+  const interaction: ToolInteraction = {
+    interactionId: randomUUID(),
+    status: interactionStatusForKind(input.kind),
+    kind: input.kind,
+    title: input.title,
+    message: input.message,
+    prompt: input.prompt ?? null,
+    options: input.options ?? [],
+    artifactIds: input.artifactIds ?? [],
+    resumeHandle: input.resumeHandle ?? null,
+    requestedBy: input.requestedBy ?? null,
+    requestedAt: new Date().toISOString(),
+    metadata: input.metadata ?? {},
+  };
+
+  const run = await repository.updateModuleRun(runId, {
+    status: existing.status === "pending" ? "running" : existing.status,
+    metadata: getMetadataWithInteraction(existing.metadata, interaction),
+  });
+  const event = await repository.createRunEvent({
+    moduleRunId: run.id,
+    eventType: "tool.interaction.requested",
+    title: input.title,
+    message: input.message,
+    severity: input.kind === "blocked" ? "warning" : "info",
+    payload: { ...interaction },
+  });
+
+  return { run, event, interaction };
+}
+
+export async function submitModuleRunFeedback(
+  repository: ModuleRunRepository,
+  runId: string,
+  input: SubmitToolFeedbackInput,
+): Promise<ToolInteractionResponse> {
+  const existing = await repository.findModuleRunById(runId);
+  if (!existing) {
+    throw new Error(`Module run not found: ${runId}`);
+  }
+
+  const currentInteraction = getCurrentInteraction(existing);
+  if (!isActiveInteraction(currentInteraction)) {
+    throw new Error(`Module run has no active interaction: ${runId}`);
+  }
+
+  const feedback = normalizeFeedback(input);
+  const interaction: ToolInteraction = {
+    ...currentInteraction,
+    status: "resumable",
+    resumeHandle: input.resumeHandle ?? currentInteraction.resumeHandle,
+    respondedAt: new Date().toISOString(),
+    response: feedback,
+  };
+
+  const run = await repository.updateModuleRun(runId, {
+    metadata: getMetadataWithInteraction(existing.metadata, interaction),
+  });
+  const event = await repository.createRunEvent({
+    moduleRunId: run.id,
+    eventType: "tool.interaction.feedback_submitted",
+    title: currentInteraction.title,
+    message: feedback.responseText ?? null,
+    severity: "info",
+    payload: {
+      interactionId: interaction.interactionId,
+      status: interaction.status,
+      kind: interaction.kind,
+      resumeHandle: interaction.resumeHandle,
+      response: feedback,
+    },
+  });
+
+  return { run, event, interaction };
 }

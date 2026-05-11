@@ -56,6 +56,125 @@ export const RunEventSeverity = {
   error: "error",
 } as const;
 
+export type ToolInteractionKind =
+  (typeof ToolInteractionKind)[keyof typeof ToolInteractionKind];
+
+export const ToolInteractionKind = {
+  question: "question",
+  approval: "approval",
+  data_request: "data_request",
+  blocked: "blocked",
+} as const;
+
+export type ToolInteractionStatus =
+  (typeof ToolInteractionStatus)[keyof typeof ToolInteractionStatus];
+
+export const ToolInteractionStatus = {
+  waiting_for_user: "waiting_for_user",
+  waiting_for_approval: "waiting_for_approval",
+  waiting_for_data: "waiting_for_data",
+  blocked: "blocked",
+  resumable: "resumable",
+} as const;
+
+export interface ToolInteractionOption {
+  id: string;
+  label: string;
+  description?: string;
+  value?: JsonObject;
+}
+
+export interface ToolInteractionFeedback {
+  responseText?: string;
+  selectedOptionId?: string;
+  approved?: boolean;
+  artifactIds: string[];
+  resumeHandle?: string;
+  metadata: JsonObject;
+}
+
+export interface ToolInteraction {
+  interactionId: string;
+  status: ToolInteractionStatus;
+  kind: ToolInteractionKind;
+  title: string;
+  message: string;
+  /** @nullable */
+  prompt: string | null;
+  options: ToolInteractionOption[];
+  artifactIds: string[];
+  /** @nullable */
+  resumeHandle: string | null;
+  /** @nullable */
+  requestedBy: string | null;
+  requestedAt: string;
+  metadata: JsonObject;
+  respondedAt?: string;
+  response?: ToolInteractionFeedback;
+}
+
+export interface CreateToolInteractionRequest {
+  kind: ToolInteractionKind;
+  title: string;
+  message: string;
+  prompt?: string;
+  options?: ToolInteractionOption[];
+  artifactIds?: string[];
+  resumeHandle?: string;
+  requestedBy?: string;
+  metadata?: JsonObject;
+}
+
+export interface SubmitToolFeedbackRequest {
+  responseText?: string;
+  selectedOptionId?: string;
+  approved?: boolean;
+  artifactIds?: string[];
+  resumeHandle?: string;
+  metadata?: JsonObject;
+}
+
+export interface ModuleRun {
+  id: string;
+  /** @nullable */
+  pipelineRunId: string | null;
+  moduleId: ModuleId;
+  externalRunId: string;
+  /** @nullable */
+  title: string | null;
+  status: ModuleRunStatus;
+  inputJson: JsonObject | null;
+  outputJson: JsonObject | null;
+  /** @nullable */
+  summary: string | null;
+  metadata: JsonObject | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RunEvent {
+  id: string;
+  moduleRunId: string;
+  eventType: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  message: string | null;
+  severity: RunEventSeverity;
+  payload: JsonObject | null;
+  createdAt: string;
+}
+
+export interface ToolInteractionResponse {
+  run: ModuleRun;
+  event: RunEvent;
+  interaction: ToolInteraction;
+}
+
 export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
 
 export const AgentProvider = {
@@ -270,28 +389,6 @@ export interface CreateAgentRunRequest {
   metadata?: JsonObject;
 }
 
-export interface ModuleRun {
-  id: string;
-  /** @nullable */
-  pipelineRunId: string | null;
-  moduleId: ModuleId;
-  externalRunId: string;
-  /** @nullable */
-  title: string | null;
-  status: ModuleRunStatus;
-  inputJson: JsonObject | null;
-  outputJson: JsonObject | null;
-  /** @nullable */
-  summary: string | null;
-  metadata: JsonObject | null;
-  /** @nullable */
-  startedAt: string | null;
-  /** @nullable */
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface AgentRunResponse {
   status: AgentRuntimeStatus;
   connection: AgentRuntimeConnection;
@@ -349,19 +446,6 @@ export interface UpdateModuleRunRequest {
 export interface ModuleRunIngestResponse {
   created: boolean;
   run: ModuleRun;
-}
-
-export interface RunEvent {
-  id: string;
-  moduleRunId: string;
-  eventType: string;
-  /** @nullable */
-  title: string | null;
-  /** @nullable */
-  message: string | null;
-  severity: RunEventSeverity;
-  payload: JsonObject | null;
-  createdAt: string;
 }
 
 export interface CreateRunEventRequest {

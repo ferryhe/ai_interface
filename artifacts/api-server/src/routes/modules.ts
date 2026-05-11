@@ -5,12 +5,16 @@ import {
   CreateModuleRunBody,
   CreateModuleRunEventBody,
   CreateModuleRunEventParams,
+  CreateModuleRunInteractionBody,
+  CreateModuleRunInteractionParams,
   CreateModuleRunResponse,
   GetArtifactParams,
   GetArtifactResponse,
   GetModuleRunParams,
   GetModuleRunResponse,
   ListModulesResponse,
+  SubmitModuleRunFeedbackBody,
+  SubmitModuleRunFeedbackParams,
   UpdateModuleRunBody,
   UpdateModuleRunParams,
   UpdateModuleRunResponse,
@@ -22,6 +26,8 @@ import {
   getModuleRunDetail,
   recordModuleRunArtifact,
   recordModuleRunEvent,
+  requestModuleRunInteraction,
+  submitModuleRunFeedback,
   updateModuleRun,
 } from "../modules/ingest-service";
 import { moduleRegistry } from "../modules/registry";
@@ -135,6 +141,56 @@ router.post("/module-runs/:runId/artifacts", async (req, res) => {
     );
     const data = GetArtifactResponse.parse(artifact);
     res.status(201).json(data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(404).json(errorResponse(message));
+  }
+});
+
+router.post("/module-runs/:runId/interactions", async (req, res) => {
+  const params = CreateModuleRunInteractionParams.safeParse(req.params);
+  const body = CreateModuleRunInteractionBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json(errorResponse(params.error.message));
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json(errorResponse(body.error.message));
+    return;
+  }
+
+  try {
+    const result = await requestModuleRunInteraction(
+      repository,
+      params.data.runId,
+      body.data,
+    );
+    res.status(201).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(404).json(errorResponse(message));
+  }
+});
+
+router.post("/module-runs/:runId/feedback", async (req, res) => {
+  const params = SubmitModuleRunFeedbackParams.safeParse(req.params);
+  const body = SubmitModuleRunFeedbackBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json(errorResponse(params.error.message));
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json(errorResponse(body.error.message));
+    return;
+  }
+
+  try {
+    const result = await submitModuleRunFeedback(
+      repository,
+      params.data.runId,
+      body.data,
+    );
+    res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(404).json(errorResponse(message));
