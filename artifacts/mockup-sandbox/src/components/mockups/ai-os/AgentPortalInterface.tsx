@@ -32,6 +32,7 @@ type PortalInteractionStatus =
   | "resumable"
   | "resumed";
 type PortalActionState = "idle" | "submitting" | "succeeded" | "failed";
+type PortalDetailState = "idle" | "loading" | "ready" | "empty" | "failed";
 
 interface PortalInteractionOption {
   id: string;
@@ -73,6 +74,8 @@ interface PortalDataRecord {
   title: string;
   step: string;
   stepId?: string;
+  runId?: string;
+  artifactId?: string;
   detail: string;
   updatedAt: string;
 }
@@ -108,6 +111,37 @@ interface PortalAgentRunApiModuleRun {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface PortalRunEvent {
+  id: string;
+  moduleRunId: string;
+  eventType: string;
+  title: string | null;
+  message: string | null;
+  severity: "info" | "warning" | "error";
+  payload: JsonObject | null;
+  createdAt: string;
+}
+
+interface PortalArtifact {
+  id: string;
+  artifactKind: string;
+  title: string;
+  contentText: string | null;
+  contentJson: JsonObject | null;
+  sourceModuleId: ModuleId;
+  sourceRunId: string;
+  parentArtifactId: string | null;
+  provenance: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PortalModuleRunDetail {
+  run: PortalAgentRunApiModuleRun;
+  events: PortalRunEvent[];
+  artifacts: PortalArtifact[];
 }
 
 interface PortalAgentRunApiPlanStep {
@@ -445,6 +479,50 @@ function isPortalAgentRunApiModuleRun(value: unknown): value is PortalAgentRunAp
   );
 }
 
+function isPortalRunEvent(value: unknown): value is PortalRunEvent {
+  if (!isJsonObject(value)) return false;
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["moduleRunId"] === "string" &&
+    typeof value["eventType"] === "string" &&
+    isNullableString(value["title"]) &&
+    isNullableString(value["message"]) &&
+    (value["severity"] === "info" ||
+      value["severity"] === "warning" ||
+      value["severity"] === "error") &&
+    isNullableJsonObject(value["payload"]) &&
+    typeof value["createdAt"] === "string"
+  );
+}
+
+function isPortalArtifact(value: unknown): value is PortalArtifact {
+  if (!isJsonObject(value)) return false;
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["artifactKind"] === "string" &&
+    typeof value["title"] === "string" &&
+    isNullableString(value["contentText"]) &&
+    isNullableJsonObject(value["contentJson"]) &&
+    isModuleId(value["sourceModuleId"]) &&
+    typeof value["sourceRunId"] === "string" &&
+    isNullableString(value["parentArtifactId"]) &&
+    isNullableJsonObject(value["provenance"]) &&
+    typeof value["createdAt"] === "string" &&
+    typeof value["updatedAt"] === "string"
+  );
+}
+
+function isPortalModuleRunDetail(value: unknown): value is PortalModuleRunDetail {
+  if (!isJsonObject(value)) return false;
+  return (
+    isPortalAgentRunApiModuleRun(value["run"]) &&
+    Array.isArray(value["events"]) &&
+    value["events"].every(isPortalRunEvent) &&
+    Array.isArray(value["artifacts"]) &&
+    value["artifacts"].every(isPortalArtifact)
+  );
+}
+
 function isPortalAgentRunApiPlanStep(value: unknown): value is PortalAgentRunApiPlanStep {
   if (!isJsonObject(value)) return false;
   return (
@@ -645,6 +723,7 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
       title: run.title ?? step.label,
       step: step.label,
       stepId: `${step.id}-${run.id}`,
+      runId: run.id,
       detail: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
       updatedAt: formatApiTime(run.updatedAt),
     };
@@ -689,6 +768,14 @@ export function AgentPortalInterface() {
   );
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
   const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<Record<string, string>>({});
+  const [selectedDataRecordId, setSelectedDataRecordId] = useState<string | null>(null);
+  const [portalDetailStates, setPortalDetailStates] = useState<Record<string, PortalDetailState>>({});
+  const [portalRunDetails, setPortalRunDetails] = useState<Record<string, PortalModuleRunDetail>>({});
+  const [selectedArtifactByRunId, setSelectedArtifactByRunId] = useState<Record<string, string>>({});
+  const [portalArtifactDetails, setPortalArtifactDetails] = useState<Record<string, PortalArtifact>>({});
+  const [portalDetailStatusText, setPortalDetailStatusText] = useState(
+    "Open a data record to inspect stored module artifacts",
+  );
   const portalActionInFlightRef = useRef<Set<string>>(new Set());
 
   const displayedSteps = latestPortalRun?.steps ?? portalSteps;
@@ -756,7 +843,13 @@ export function AgentPortalInterface() {
     setPortalActionStates({});
     setFeedbackDrafts({});
     setSelectedInteractionOptions({});
+    setSelectedDataRecordId(null);
+    setPortalDetailStates({});
+    setPortalRunDetails({});
+    setSelectedArtifactByRunId({});
+    setPortalArtifactDetails({});
     setPortalActionStatusText("Feedback actions are local until API run data is available");
+    setPortalDetailStatusText("Open a data record to inspect stored module artifacts");
     setPortalRunState("submitting");
     setPortalRunStatusText("Submitting to Agent Run API");
     setActiveView("steps");
@@ -900,6 +993,59 @@ export function AgentPortalInterface() {
     }
   }
 
+  async function openDataRecord(record: PortalDataRecord): Promise<void> {
+    setSelectedDataRecordId(record.id);
+
+    if (!record.runId) {
+      setPortalDetailStatusText("Local demo record - no API module run is connected");
+      return;
+    }
+
+    const runId = record.runId;
+    if (portalRunDetails[runId]) {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
+      setPortalDetailStatusText(`Loaded details for ${record.title}`);
+      return;
+    }
+
+    setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
+    setPortalDetailStatusText(`Loading details for ${record.title}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
+      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalModuleRunDetail(data)) {
+        throw new Error("Module run detail API returned unexpected shape");
+      }
+
+      setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+      }));
+      setPortalDetailStatusText(`Loaded details for ${record.title}`);
+    } catch {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
+      setPortalDetailStatusText(`Detail API failed for ${record.title}`);
+    }
+  }
+
+  async function openArtifact(runId: string, artifact: PortalArtifact): Promise<void> {
+    setSelectedArtifactByRunId((current) => ({ ...current, [runId]: artifact.id }));
+    if (portalArtifactDetails[artifact.id]) return;
+
+    try {
+      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifact.id)}`);
+      if (!response.ok) throw new Error(`Artifact API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalArtifact(data)) throw new Error("Artifact API returned unexpected shape");
+      setPortalArtifactDetails((current) => ({ ...current, [artifact.id]: data }));
+    } catch {
+      setPortalDetailStatusText(`Artifact API failed for ${artifact.title}`);
+    }
+  }
+
   if (!isUnlocked) {
     return (
       <div className="portal-lock-screen">
@@ -1022,7 +1168,15 @@ export function AgentPortalInterface() {
               activeStep={activeStep}
               records={filteredData.length > 0 ? filteredData : displayedDataRecords}
               steps={displayedSteps}
+              selectedRecordId={selectedDataRecordId}
+              detailStates={portalDetailStates}
+              runDetails={portalRunDetails}
+              selectedArtifactByRunId={selectedArtifactByRunId}
+              artifactDetails={portalArtifactDetails}
+              detailStatusText={portalDetailStatusText}
               onSelectStep={setActiveStep}
+              onOpenRecord={openDataRecord}
+              onOpenArtifact={openArtifact}
             />
           )}
           {activeView === "sources" && <SourcesView sources={displayedSources} />}
@@ -1405,13 +1559,33 @@ function DataView({
   activeStep,
   records,
   steps,
+  selectedRecordId,
+  detailStates,
+  runDetails,
+  selectedArtifactByRunId,
+  artifactDetails,
+  detailStatusText,
   onSelectStep,
+  onOpenRecord,
+  onOpenArtifact,
 }: {
   activeStep: string;
   records: PortalDataRecord[];
   steps: PortalStep[];
+  selectedRecordId: string | null;
+  detailStates: Record<string, PortalDetailState>;
+  runDetails: Record<string, PortalModuleRunDetail>;
+  selectedArtifactByRunId: Record<string, string>;
+  artifactDetails: Record<string, PortalArtifact>;
+  detailStatusText: string;
   onSelectStep: (step: string) => void;
+  onOpenRecord: (record: PortalDataRecord) => Promise<void>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
 }) {
+  const selectedRecord = records.find((record) => record.id === selectedRecordId) ?? null;
+  const selectedRunId = selectedRecord?.runId;
+  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+
   return (
     <section className="portal-view" aria-label="Portal data">
       <div className="portal-section-heading">
@@ -1432,15 +1606,146 @@ function DataView({
       </div>
       <div className="portal-record-list">
         {records.map((record) => (
-          <article key={record.id} className="portal-record-row">
-            <span>{record.kind}</span>
+          <article
+            key={record.id}
+            className={selectedRecordId === record.id ? "portal-record-row active" : "portal-record-row"}
+          >
+            <div>
+              <span>{record.kind}</span>
+              <button
+                type="button"
+                aria-label={`View details for ${record.title}`}
+                onClick={() => void onOpenRecord(record)}
+              >
+                View details
+              </button>
+            </div>
             <strong>{record.title}</strong>
             <p>{record.detail}</p>
             <em>{record.step} · {record.updatedAt}</em>
           </article>
         ))}
       </div>
+      <p className="portal-action-status-text">{detailStatusText}</p>
+      <PortalDataDetailDrawer
+        record={selectedRecord}
+        detail={selectedRunDetail}
+        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
+        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        artifactDetails={artifactDetails}
+        onOpenArtifact={onOpenArtifact}
+      />
     </section>
+  );
+}
+
+function PortalDataDetailDrawer({
+  record,
+  detail,
+  detailState,
+  selectedArtifactId,
+  artifactDetails,
+  onOpenArtifact,
+}: {
+  record: PortalDataRecord | null;
+  detail: PortalModuleRunDetail | null;
+  detailState: PortalDetailState;
+  selectedArtifactId: string | undefined;
+  artifactDetails: Record<string, PortalArtifact>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
+}) {
+  if (!record) {
+    return (
+      <aside className="portal-detail-drawer">
+        <p>Select a record to inspect stored data.</p>
+      </aside>
+    );
+  }
+
+  if (!record.runId) {
+    return (
+      <aside className="portal-detail-drawer">
+        <span className="portal-kicker">Local demo</span>
+        <strong>{record.title}</strong>
+        <p>{record.detail}</p>
+        <em>{record.step} · {record.updatedAt}</em>
+      </aside>
+    );
+  }
+
+  const runId = record.runId;
+
+  if (detailState === "loading") {
+    return (
+      <aside className="portal-detail-drawer">
+        <p>Loading record details...</p>
+      </aside>
+    );
+  }
+
+  if (detailState === "failed") {
+    return (
+      <aside className="portal-detail-drawer">
+        <p>Detail API failed for this record.</p>
+      </aside>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <aside className="portal-detail-drawer">
+        <p>Open this record to load module details.</p>
+      </aside>
+    );
+  }
+
+  const selectedArtifact = selectedArtifactId
+    ? artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    : null;
+  const artifactPreview =
+    selectedArtifact?.contentText ??
+    (selectedArtifact
+      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      : null);
+
+  return (
+    <aside className="portal-detail-drawer">
+      <span className="portal-kicker">Module run detail</span>
+      <strong>{detail.run.title ?? record.title}</strong>
+      <p>{detail.run.summary ?? record.detail}</p>
+      <div className="portal-detail-columns">
+        <div>
+          <em>Events</em>
+          {detail.events.length === 0 ? (
+            <p>No events stored yet.</p>
+          ) : (
+            detail.events.map((event) => (
+              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+            ))
+          )}
+        </div>
+        <div>
+          <em>Artifacts</em>
+          {detail.artifacts.length === 0 ? (
+            <p>No artifacts stored yet.</p>
+          ) : (
+            detail.artifacts.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                className={selectedArtifactId === artifact.id ? "active" : ""}
+                onClick={() => void onOpenArtifact(runId, artifact)}
+              >
+                {artifact.title}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+      {detailState === "empty" && <p>No detail records were stored for this module run yet.</p>}
+      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+    </aside>
   );
 }
 
@@ -1610,6 +1915,7 @@ const styles = `
   .portal-step-card p,
   .portal-interaction-panel p,
   .portal-record-row p,
+  .portal-detail-drawer p,
   .portal-source-card p,
   .portal-result-summary p {
     color: #a5b1c2;
@@ -1667,7 +1973,9 @@ const styles = `
   .portal-step-card-select,
   .portal-interaction-panel button,
   .portal-interaction-panel textarea,
-  .portal-filter-row button {
+  .portal-filter-row button,
+  .portal-record-row button,
+  .portal-detail-columns button {
     font: inherit;
   }
 
@@ -2270,6 +2578,114 @@ const styles = `
     padding: 13px;
   }
 
+  .portal-record-row.active {
+    border-color: #4f9cff;
+    background: #122033;
+  }
+
+  .portal-record-row div {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .portal-record-row button {
+    min-height: 30px;
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #10233a;
+    color: #d8e8ff;
+    cursor: pointer;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .portal-detail-drawer {
+    min-width: 0;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0b1118;
+    display: grid;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .portal-detail-drawer strong {
+    color: #edf3fb;
+    line-height: 1.35;
+  }
+
+  .portal-detail-drawer em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 650;
+  }
+
+  .portal-detail-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .portal-detail-columns div {
+    min-width: 0;
+    border: 1px solid #1e2936;
+    border-radius: 8px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .portal-detail-columns span {
+    color: #aeb8c6;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-detail-columns button {
+    min-width: 0;
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #101721;
+    color: #aeb8c6;
+    cursor: pointer;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-detail-columns button.active {
+    border-color: #4f9cff;
+    background: #10233a;
+    color: #edf3fb;
+  }
+
+  .portal-artifact-preview {
+    max-height: 220px;
+    min-width: 0;
+    overflow: auto;
+    border: 1px solid #1e2936;
+    border-radius: 8px;
+    background: #090d13;
+    color: #d8e8ff;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0;
+    padding: 10px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
   .portal-source-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2477,7 +2893,8 @@ const styles = `
     .portal-step-grid,
     .portal-source-grid,
     .portal-result-panel,
-    .portal-readiness-grid {
+    .portal-readiness-grid,
+    .portal-detail-columns {
       grid-template-columns: 1fr;
     }
 

@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-runtime-feedback-actions`
-- Scope: Frontend Portal runtime interaction feedback and resume actions for published users.
+- Branch: `codex/portal-artifact-detail-drawer`
+- Scope: Frontend Portal data detail drawer for module-run artifacts and events.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -225,6 +225,10 @@ Updated: 2026-05-11
 - Portal runtime feedback validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Portal runtime feedback validation: `git diff --check` passed with CRLF warnings only.
 - Portal runtime feedback browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified the Generate Agent interaction panel, local feedback status, unique feedback input ids, selected option accessibility state, Chat/Data/Sources/Result views, admin token dialog, and no console warnings/errors.
+- Portal artifact detail validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal artifact detail validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal artifact detail validation: `git diff --check` passed with CRLF warnings only.
+- Portal artifact detail browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified Data record detail buttons with record-specific accessible names, local demo detail drawer, Chat/Steps/Data/Sources/Result presence, admin token dialog, and no console warnings/errors.
 - PR #15 was merged into `main` on 2026-05-11 at merge commit `982bb3f`; this branch starts the next autonomous Portal runtime visibility slice from latest `main`.
 - Added the Portal Runtime Progress API plan for a frontend-only Portal wire-up to the existing Agent Run API.
 - The frontstage Portal composer now attempts `POST /api/agent-runs` with `executionMode: "execute_ready"` and `metadata.source = "agent-portal"`.
@@ -238,6 +242,9 @@ Updated: 2026-05-11
 - Portal interaction controls now prevent duplicate action submits across the Steps card and context rail, expose selected options with `aria-pressed`, and use unique labeled feedback inputs per panel.
 - The Portal chat composer now has a programmatic label for the prompt textarea.
 - Opened PR #17 for `codex/portal-runtime-feedback-actions`: https://github.com/ferryhe/ai_interface/pull/17
+- PR #17 was merged into `main` on 2026-05-11 at merge commit `438ba6b`; this branch starts the next autonomous Portal data detail slice from latest `main`.
+- Added the Portal Artifact Detail Drawer plan for a frontend-only Portal wire-up to existing module-run detail and artifact detail endpoints.
+- Portal Data can now open local demo record details and, for API-backed records, guarded module-run detail and artifact detail drawers.
 
 ## Notes
 
@@ -248,4 +255,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Follow up PR #17 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
+- Implement, verify, commit, push, and open the Portal artifact detail drawer PR; then update the follow-up automation to check the new PR.
