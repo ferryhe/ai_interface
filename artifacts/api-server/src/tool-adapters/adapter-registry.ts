@@ -125,24 +125,31 @@ function hasEnvValue(
 export function listAdapterReadiness(
   env: Record<string, string | undefined> = process.env,
 ): ToolAdapterReadiness[] {
-  return adapterDefinitions.map((definition) => {
-    const missingRequiredEnv = definition.requiredEnv.filter(
-      (name) => !hasEnvValue(env, name),
-    );
-    const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
-      hasEnvValue(env, name),
-    );
-    const configured = missingRequiredEnv.length === 0;
+  return adapterDefinitions.map((definition) =>
+    getAdapterReadiness(definition, env),
+  );
+}
 
-    return {
-      ...definition,
-      requiredEnv: [...definition.requiredEnv],
-      optionalEnv: [...definition.optionalEnv],
-      allowedCommands: [...definition.allowedCommands],
-      configured,
-      status: configured ? "ready" : "missing_required_env",
-      missingRequiredEnv,
-      configuredOptionalEnv,
-    };
-  });
+export function getAdapterReadiness(
+  definition: ToolAdapterDefinition,
+  env: Record<string, string | undefined> = process.env,
+): ToolAdapterReadiness {
+  const missingRequiredEnv = definition.requiredEnv.filter(
+    (name) => !hasEnvValue(env, name),
+  );
+  const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
+    hasEnvValue(env, name),
+  );
+  const configured = missingRequiredEnv.length === 0;
+
+  return {
+    ...definition,
+    requiredEnv: [...definition.requiredEnv],
+    optionalEnv: [...definition.optionalEnv],
+    allowedCommands: [...definition.allowedCommands],
+    configured,
+    status: configured ? "ready" : "missing_required_env",
+    missingRequiredEnv,
+    configuredOptionalEnv,
+  };
 }

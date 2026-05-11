@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   adapterDefinitions,
   getAdapterDefinition,
+  getAdapterReadiness,
   listAdapterReadiness,
 } from "./adapter-registry";
 
@@ -49,6 +50,24 @@ test("treats blank env values as missing", () => {
   assert.deepEqual(ragToAgent?.missingRequiredEnv, [
     "RAG_TO_AGENT_API_BASE_URL",
   ]);
+});
+
+test("reports readiness for a single adapter with copied arrays", () => {
+  const definition = getAdapterDefinition("web_listening");
+  const readiness = getAdapterReadiness(definition, {
+    WEB_LISTENING_CLI_PATH: "C:\\tools\\web-listening.exe",
+    WEB_LISTENING_WORKDIR: "C:\\workspace\\web-listening",
+    WEB_LISTENING_API_BASE_URL: "   ",
+  });
+
+  assert.equal(readiness.status, "ready");
+  assert.deepEqual(readiness.requiredEnv, ["WEB_LISTENING_CLI_PATH"]);
+  assert.deepEqual(readiness.configuredOptionalEnv, [
+    "WEB_LISTENING_WORKDIR",
+  ]);
+  assert.equal(JSON.stringify(readiness).includes("web-listening.exe"), false);
+  assert.notEqual(readiness.requiredEnv, definition.requiredEnv);
+  assert.notEqual(readiness.allowedCommands, definition.allowedCommands);
 });
 
 test("throws for unknown adapter module ids", () => {
