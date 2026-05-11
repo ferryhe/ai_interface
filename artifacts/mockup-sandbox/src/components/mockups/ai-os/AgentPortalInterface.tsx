@@ -494,6 +494,10 @@ function portalRuntimeHeaders(
   return headers;
 }
 
+function isPortalRuntimeAccessDenied(response: Response): boolean {
+  return response.status === 401 || response.status === 403;
+}
+
 function statusIcon(status: PortalStatus): ReactNode {
   if (status === "complete") return <CheckCircle2 size={16} />;
   if (status === "running") return <Radio size={16} />;
@@ -1140,6 +1144,21 @@ export function AgentPortalInterface() {
     return true;
   }
 
+  function lockPortalAfterRuntimeAccessDenied(): void {
+    setIsUnlocked(false);
+    setAuthorizedPortalToken("");
+    setPortalAccessState("invalid_token");
+    setPortalAccessStatusText(
+      "Portal access was rejected by the runtime API. Re-enter a valid token.",
+    );
+    setPortalRunState("failed");
+    setPortalRunStatusText("Portal access rejected by runtime API");
+    setPortalActionStatusText("Portal access rejected by runtime API");
+    setPortalDetailStatusText("Portal access rejected by runtime API");
+    setPortalSourceStatusText("Portal access rejected by runtime API");
+    setPortalResultStatusText("Portal access rejected by runtime API");
+  }
+
   async function verifyPortalToken(tokenInput: string): Promise<void> {
     const cleanToken = tokenInput.trim();
     if (!cleanToken) {
@@ -1305,6 +1324,12 @@ export function AgentPortalInterface() {
       });
 
       if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          setLatestPortalRun(null);
+          setActiveStep(portalSteps[2].id);
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         setLatestPortalRun(null);
         setActiveStep(portalSteps[2].id);
         setPortalRunState("failed");
@@ -1404,8 +1429,14 @@ export function AgentPortalInterface() {
         },
       );
 
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          finishPortalAction(step.id, "failed");
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Feedback API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalToolInteractionApiResponse(data)) {
         throw new Error("Feedback API returned unexpected shape");
@@ -1449,8 +1480,14 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken),
         },
       );
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          finishPortalAction(step.id, "failed");
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Resume API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalToolInteractionApiResponse(data)) {
         throw new Error("Resume API returned unexpected shape");
@@ -1492,8 +1529,17 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken),
         },
       );
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          setPortalDetailStates((current) => ({
+            ...current,
+            [runId]: "failed",
+          }));
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1541,8 +1587,17 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken),
         },
       );
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          setPortalDetailStates((current) => ({
+            ...current,
+            [runId]: "failed",
+          }));
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1590,8 +1645,17 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken),
         },
       );
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          setPortalDetailStates((current) => ({
+            ...current,
+            [runId]: "failed",
+          }));
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1630,8 +1694,13 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken),
         },
       );
-      if (!response.ok)
+      if (!response.ok) {
+        if (isPortalRuntimeAccessDenied(response)) {
+          lockPortalAfterRuntimeAccessDenied();
+          return;
+        }
         throw new Error(`Artifact API returned ${response.status}`);
+      }
       const data = (await response.json()) as unknown;
       if (!isPortalArtifact(data))
         throw new Error("Artifact API returned unexpected shape");
