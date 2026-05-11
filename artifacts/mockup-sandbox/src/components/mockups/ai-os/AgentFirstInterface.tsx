@@ -13,7 +13,6 @@ import {
   ListChecks,
   MessageSquareText,
   Paperclip,
-  Rocket,
   Search,
   Send,
   Settings2,
@@ -23,7 +22,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 
-type AppView = "agent" | "modules" | "progress" | "data" | "deploy" | "configure";
+type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
 type AgentProvider = "openai";
@@ -196,10 +195,10 @@ const moduleGuides: Record<ModuleId, CapabilityGuide> = {
     boundary: "It prepares memory records; model-facing answers still come from the Agent runtime.",
   },
   rag_to_agent: {
-    summary: "Turns validated RAG memory into a deployable agent configuration with prompts and tool bindings.",
+    summary: "Turns validated RAG memory into a publishable agent configuration with prompts and tool bindings.",
     trigger: "Use when the knowledge base is ready and you want a publishable or testable agent.",
     action: "The Agent asks for prompts, tool definitions, validation checks, and final handoff state.",
-    output: "Generated agent configs, prompts, tool bindings, and validation results appear before Deploy.",
+    output: "Generated agent configs, prompts, tool bindings, and validation results appear before Publish.",
     boundary: "Keep approval on for this skill because it can shape what the final agent is allowed to do.",
   },
 };
@@ -419,7 +418,7 @@ const runSteps: RunStep[] = [
   {
     id: "agent",
     moduleId: "rag_to_agent",
-    title: "Generate deployable agent",
+    title: "Generate publishable agent",
     detail: "Queued until the index passes validation.",
     status: "waiting",
     time: "Next",
@@ -467,7 +466,7 @@ const navItems: Array<{ id: AppView; label: string; icon: ReactNode }> = [
   { id: "progress", label: "Progress", icon: <ListChecks size={18} /> },
   { id: "data", label: "Data", icon: <Database size={18} /> },
   { id: "configure", label: "Configure", icon: <Settings2 size={18} /> },
-  { id: "deploy", label: "Deploy", icon: <Rocket size={18} /> },
+  { id: "publish", label: "Publish", icon: <UploadCloud size={18} /> },
 ];
 
 function statusLabel(status: RunStatus): string {
@@ -743,7 +742,7 @@ export function AgentFirstInterface() {
               onTestConnection={testAgentConnection}
             />
           )}
-          {activeView === "deploy" && <DeployView />}
+          {activeView === "publish" && <PublishView />}
         </main>
 
         <Composer
@@ -807,7 +806,7 @@ function AgentView({
           </ChatBubble>
 
           <RunCard
-            title="Pipeline: docs to deployable agent"
+            title="Pipeline: docs to publishable agent"
             detail="web_listening -> doc_to_md -> md_to_rag -> rag_to_agent"
             status="running"
             actions={
@@ -1587,7 +1586,7 @@ function SkillDetailGrid({ guide }: { guide: CapabilityGuide }) {
   );
 }
 
-function DeployView() {
+function PublishView() {
   return (
     <section className="page-panel">
       <div className="page-header">
@@ -1601,11 +1600,11 @@ function DeployView() {
         </button>
       </div>
 
-      <div className="deploy-grid">
-        <DeployStep label="RAG index" value="96 / 124 chunks" status="running" />
-        <DeployStep label="Agent config" value="Draft ready" status="waiting" />
-        <DeployStep label="Validation" value="Queued" status="queued" />
-        <DeployStep label="Endpoint" value="Not published" status="waiting" />
+      <div className="publish-grid">
+        <PublishStep label="RAG index" value="96 / 124 chunks" status="running" />
+        <PublishStep label="Agent config" value="Draft ready" status="waiting" />
+        <PublishStep label="Validation" value="Queued" status="queued" />
+        <PublishStep label="Endpoint" value="Not published" status="waiting" />
       </div>
     </section>
   );
@@ -1718,7 +1717,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DeployStep({
+function PublishStep({
   label,
   value,
   status,
@@ -1737,7 +1736,7 @@ function DeployStep({
     );
 
   return (
-    <div className="deploy-step">
+    <div className="publish-step">
       <span>{icon}</span>
       <strong>{label}</strong>
       <em>{value}</em>
@@ -1858,7 +1857,7 @@ const styles = `
   .primary-action,
   .small-action,
   .queued-card,
-  .deploy-step {
+  .publish-step {
     display: flex;
     align-items: center;
   }
@@ -2008,7 +2007,7 @@ const styles = `
   .timeline-card,
   .result-panel,
   .metric,
-  .deploy-step,
+  .publish-step,
   .data-row {
     border: 1px solid #263445;
     border-radius: 8px;
@@ -2122,7 +2121,7 @@ const styles = `
 
   .agent-summary-grid,
   .detail-grid,
-  .deploy-grid {
+  .publish-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
@@ -2895,12 +2894,12 @@ const styles = `
     overflow-wrap: anywhere;
   }
 
-  .deploy-grid {
+  .publish-grid {
     padding: 0;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .deploy-step {
+  .publish-step {
     min-height: 126px;
     padding: 14px;
     align-items: flex-start;
@@ -2908,11 +2907,11 @@ const styles = `
     gap: 9px;
   }
 
-  .deploy-step span {
+  .publish-step span {
     color: #4f9cff;
   }
 
-  .deploy-step em {
+  .publish-step em {
     color: #8d9bad;
     font-style: normal;
     font-size: 12px;
@@ -3043,7 +3042,7 @@ const styles = `
       min-height: 0;
     }
 
-    .deploy-grid {
+    .publish-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -3142,7 +3141,7 @@ const styles = `
 
     .agent-summary-grid,
     .detail-grid,
-    .deploy-grid,
+    .publish-grid,
     .memory-map {
       grid-template-columns: 1fr;
     }

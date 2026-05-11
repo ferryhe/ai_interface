@@ -22,7 +22,7 @@ Updated: 2026-05-11
 - DB-backed ingest now upserts the static module catalog before storing module runs/artifacts, so first-time external module POSTs have the required foreign-key rows.
 - Added Drizzle schema for agent threads/messages, module catalog, pipeline runs, module runs, run events, artifacts, and typed data records.
 - Updated OpenAPI spec and regenerated API client/Zod outputs.
-- Reworked the mockup sandbox AI OS screen into a Replit-like Agent-first console with Agent, Modules, Progress, Data, and Deploy views.
+- Reworked the mockup sandbox AI OS screen into a Replit-like Agent-first console with Agent, Modules, Progress, Data, and Publish views.
 - Updated Windows native optional package overrides so local Vite/Rollup builds can run on this workspace.
 - PR #4 was confirmed merged on 2026-05-10 before this branch was created from latest `main`.
 - Added a DB-backed Agent configuration model with default OpenAI Responses runtime settings, module skill controls, memory settings, and safety settings.
@@ -33,6 +33,7 @@ Updated: 2026-05-11
 - Reworked Configure skill explanations into compact per-row `?` help controls and added switch guides for business/general skill toggles.
 - PR #5 follow-up found two actionable Copilot comments and applied narrow fixes: `GET /api/agent-config` now returns a 500 `ErrorResponse` on unexpected failures, and Configure form controls now have programmatic label associations.
 - After the PR #5 follow-up push, GitHub still showed PR #5 as open with no checks reported; mergeability was temporarily `UNKNOWN` while GitHub recalculated. The API error-handling thread was marked outdated, and the Configure label thread remained unresolved remotely but was addressed and locally verified.
+- Renamed the admin handoff surface from `Deploy` to `Publish`; end-user Agent Portal work should be handled in a separate PR because it needs token/login access control plus frontstage steps/data views.
 
 ## Verification
 
@@ -51,7 +52,7 @@ Updated: 2026-05-11
 - `corepack pnpm --filter @workspace/api-server run build` passed.
 - `PORT=3000 BASE_PATH=/ corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed after the DB repository update.
-- Browser smoke opened `http://127.0.0.1:3000/preview/ai-os/AgentFirstInterface`, verified Agent/Modules/Progress/Data/Deploy navigation by DOM, and found no console errors or warnings.
+- Browser smoke opened `http://127.0.0.1:3000/preview/ai-os/AgentFirstInterface`, verified Agent/Modules/Progress/Data/Publish navigation by DOM, and found no console errors or warnings.
 - Configure validation: `corepack pnpm --filter @workspace/api-server run test` passed with 9 tests.
 - Configure validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Configure validation: `corepack pnpm run typecheck:libs` passed.
@@ -79,6 +80,10 @@ Updated: 2026-05-11
 - PR #5 follow-up validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - PR #5 follow-up validation: `git diff --check` passed with CRLF warnings only.
 - PR #5 follow-up browser smoke opened `http://127.0.0.1:8081/`, verified Configure labels can locate Model/System prompt/Promotion/Collection/Retention days/Max tool steps controls, verified Endpoint/Reasoning groups are named, and found no console warnings/errors.
+- Publish rename validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Publish rename validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Publish rename validation: `git diff --check` passed with CRLF warnings only.
+- Publish rename browser smoke opened `http://127.0.0.1:8081/`, verified the admin nav has `Publish`, no `Deploy` nav button remains, `Publish agent` renders, and found no console warnings/errors.
 
 ## Notes
 
