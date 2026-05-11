@@ -31,8 +31,12 @@ type RuntimeRunStatus =
   | "running"
   | "resumable"
   | "approval_required"
+  | "waiting_for_user"
+  | "waiting_for_data"
+  | "blocked"
   | "skipped"
   | "queued";
+type RuntimeActionState = "idle" | "submitting" | "succeeded" | "failed";
 type AgentProvider = "openai";
 type AgentEndpoint = "responses" | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
@@ -78,7 +82,7 @@ interface RuntimeModuleRun {
     title: string;
     message: string;
     resumeHandle: string;
-    status: "waiting" | "resumable" | "resumed";
+    status: "waiting" | "resumable" | "resumed" | "blocked";
   };
   event: string;
   resultRecordIds: string[];
@@ -88,6 +92,13 @@ interface RuntimeModuleRun {
 
 type JsonObject = Record<string, unknown>;
 type AgentRunSubmitState = "local" | "submitting" | "saved" | "offline" | "failed";
+type ToolInteractionApiStatus =
+  | "waiting_for_user"
+  | "waiting_for_approval"
+  | "waiting_for_data"
+  | "blocked"
+  | "resumable"
+  | "resumed";
 
 interface AgentRunApiModuleRun {
   id: string;
@@ -131,6 +142,23 @@ interface AgentRunApiResponse {
     steps: AgentRunApiPlanStep[];
     warnings: string[];
   };
+}
+
+interface ToolInteractionApi {
+  interactionId: string;
+  status: ToolInteractionApiStatus;
+  kind: "question" | "approval" | "data_request" | "blocked";
+  title: string;
+  message: string;
+  prompt: string | null;
+  resumeHandle: string | null;
+  requestedAt: string;
+  metadata: JsonObject;
+}
+
+interface ToolInteractionApiResponse {
+  run: AgentRunApiModuleRun;
+  interaction: ToolInteractionApi;
 }
 
 interface AgentRunUiState {
@@ -637,6 +665,9 @@ function statusClass(status: RunStatus): string {
 
 function runtimeStatusLabel(status: RuntimeRunStatus): string {
   if (status === "approval_required") return "Approval";
+  if (status === "waiting_for_user") return "Needs reply";
+  if (status === "waiting_for_data") return "Needs data";
+  if (status === "blocked") return "Blocked";
   if (status === "resumable") return "Resume ready";
   if (status === "skipped") return "Config needed";
   if (status === "succeeded") return "Succeeded";
@@ -671,17 +702,92 @@ function stringArrayFromMetadata(
     : [];
 }
 
+function isInteractionKind(value: unknown): value is ToolInteractionApi["kind"] {
+  return (
+    value === "question" ||
+    value === "approval" ||
+    value === "data_request" ||
+    value === "blocked"
+  );
+}
+
+function isInteractionStatus(value: unknown): value is ToolInteractionApiStatus {
+  return (
+    value === "waiting_for_user" ||
+    value === "waiting_for_approval" ||
+    value === "waiting_for_data" ||
+    value === "blocked" ||
+    value === "resumable" ||
+    value === "resumed"
+  );
+}
+
+function parseToolInteraction(metadata: JsonObject | null): ToolInteractionApi | null {
+  const value = metadata?.["interaction"];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const interaction = value as JsonObject;
+  if (
+    typeof interaction["interactionId"] !== "string" ||
+    !isInteractionStatus(interaction["status"]) ||
+    !isInteractionKind(interaction["kind"]) ||
+    typeof interaction["title"] !== "string" ||
+    typeof interaction["message"] !== "string" ||
+    typeof interaction["requestedAt"] !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    interactionId: interaction["interactionId"],
+    status: interaction["status"],
+    kind: interaction["kind"],
+    title: interaction["title"],
+    message: interaction["message"],
+    prompt: typeof interaction["prompt"] === "string" ? interaction["prompt"] : null,
+    resumeHandle:
+      typeof interaction["resumeHandle"] === "string"
+        ? interaction["resumeHandle"]
+        : null,
+    requestedAt: interaction["requestedAt"],
+    metadata:
+      interaction["metadata"] &&
+      typeof interaction["metadata"] === "object" &&
+      !Array.isArray(interaction["metadata"])
+        ? (interaction["metadata"] as JsonObject)
+        : {},
+  };
+}
+
 function runtimeStatusFromApiRun(run: AgentRunApiModuleRun): RuntimeRunStatus {
+  const interaction = parseToolInteraction(run.metadata);
   if (run.status === "succeeded") return "succeeded";
-  if (run.status === "running") return "running";
   if (run.status === "failed" || run.status === "cancelled") return "skipped";
+  if (interaction?.status === "resumable") return "resumable";
+  if (interaction?.status === "resumed") return "running";
+  if (interaction?.status === "waiting_for_approval") return "approval_required";
+  if (interaction?.status === "waiting_for_data") return "waiting_for_data";
+  if (interaction?.status === "waiting_for_user") return "waiting_for_user";
+  if (interaction?.status === "blocked") return "blocked";
+  if (run.status === "running") return "running";
   if (run.metadata?.["adapterExecutionStatus"] === "skipped") return "skipped";
   if (run.metadata?.["requiresApproval"] === true) return "approval_required";
   return "queued";
 }
 
-function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModuleRun[] {
-  return response.moduleRuns.map((run) => ({
+function runtimeInteractionStatusFromApi(
+  status: ToolInteractionApiStatus,
+): NonNullable<RuntimeModuleRun["interaction"]>["status"] {
+  if (status === "resumable") return "resumable";
+  if (status === "resumed") return "resumed";
+  if (status === "blocked") return "blocked";
+  return "waiting";
+}
+
+function toRuntimeRunFromApiModuleRun(run: AgentRunApiModuleRun): RuntimeModuleRun {
+  const interaction = parseToolInteraction(run.metadata);
+
+  return {
     id: run.id,
     moduleId: run.moduleId,
     title: run.title ?? moduleById(run.moduleId).name,
@@ -692,6 +798,15 @@ function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModule
         ? "cli"
         : "http",
     externalRunId: run.externalRunId,
+    interaction: interaction
+      ? {
+          kind: interaction.kind,
+          title: interaction.title,
+          message: interaction.message,
+          resumeHandle: interaction.resumeHandle ?? `${run.externalRunId}:resume`,
+          status: runtimeInteractionStatusFromApi(interaction.status),
+        }
+      : undefined,
     event:
       run.summary ??
       stringFromMetadata(run.metadata, "action", "Agent runtime planned this module run."),
@@ -701,7 +816,11 @@ function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModule
       hour: "2-digit",
       minute: "2-digit",
     }),
-  }));
+  };
+}
+
+function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModuleRun[] {
+  return response.moduleRuns.map(toRuntimeRunFromApiModuleRun);
 }
 
 function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
@@ -754,6 +873,10 @@ export function AgentFirstInterface() {
     useState("Local mock runtime");
   const [latestAgentRun, setLatestAgentRun] =
     useState<AgentRunUiState | null>(null);
+  const [runtimeActionStates, setRuntimeActionStates] =
+    useState<Record<string, RuntimeActionState>>({});
+  const [runtimeActionStatusText, setRuntimeActionStatusText] =
+    useState("Runtime actions are local until API run data is available");
 
   const selectedModule = moduleById(selectedModuleId);
   const displayedRuntimeRuns = latestAgentRun?.runtimeRuns ?? mockRuntimeRuns;
@@ -770,6 +893,19 @@ export function AgentFirstInterface() {
       setSelectedModuleId(moduleId);
     }
     setActiveView("modules");
+  }
+
+  function updateRuntimeRun(updatedRun: RuntimeModuleRun): void {
+    setLatestAgentRun((current) =>
+      current
+        ? {
+            ...current,
+            runtimeRuns: current.runtimeRuns.map((run) =>
+              run.id === updatedRun.id ? updatedRun : run,
+            ),
+          }
+        : current,
+    );
   }
 
   useEffect(() => {
@@ -904,6 +1040,8 @@ export function AgentFirstInterface() {
     setCommand("");
     setAgentRunState("submitting");
     setAgentRunStatusText("Submitting to Agent Run API");
+    setRuntimeActionStates({});
+    setRuntimeActionStatusText("Waiting for API run data");
     setActiveView("progress");
 
     try {
@@ -921,6 +1059,7 @@ export function AgentFirstInterface() {
         setLatestAgentRun(null);
         setAgentRunState("failed");
         setAgentRunStatusText("Agent run API failed - showing local mock");
+        setRuntimeActionStatusText("Runtime actions are local until API run data is available");
         return;
       }
 
@@ -932,11 +1071,40 @@ export function AgentFirstInterface() {
       setConnectionStatus(data.connection.status);
       setAgentRunState("saved");
       setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
+      setRuntimeActionStatusText("Runtime actions are connected to API run data");
     } catch {
       setLatestAgentRun(null);
       setAgentRunState("offline");
       setAgentRunStatusText("API offline - showing local mock");
+      setRuntimeActionStatusText("Runtime actions are local until API run data is available");
       setConnectionStatus("offline");
+    }
+  }
+
+  async function resumeRuntimeRun(run: RuntimeModuleRun): Promise<void> {
+    if (!latestAgentRun) {
+      openModules(run.moduleId);
+      return;
+    }
+
+    setRuntimeActionStates((current) => ({ ...current, [run.id]: "submitting" }));
+    setRuntimeActionStatusText(`Resuming ${run.moduleId}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(run.id)}/resume`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`Resume API returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as ToolInteractionApiResponse;
+      updateRuntimeRun(toRuntimeRunFromApiModuleRun(data.run));
+      setRuntimeActionStates((current) => ({ ...current, [run.id]: "succeeded" }));
+      setRuntimeActionStatusText(`Resume submitted for ${run.moduleId}`);
+    } catch {
+      setRuntimeActionStates((current) => ({ ...current, [run.id]: "failed" }));
+      setRuntimeActionStatusText(`Resume API failed for ${run.moduleId}`);
     }
   }
 
@@ -1015,8 +1183,11 @@ export function AgentFirstInterface() {
               selectedModule={selectedModule}
               selectedModuleId={selectedModuleId}
               runtimeRuns={displayedRuntimeRuns}
+              runtimeActionStates={runtimeActionStates}
+              runtimeActionStatusText={runtimeActionStatusText}
               onSelectModule={setSelectedModuleId}
               onOpenData={() => setActiveView("data")}
+              onResumeRuntimeRun={resumeRuntimeRun}
             />
           )}
           {activeView === "progress" && (
@@ -1026,10 +1197,13 @@ export function AgentFirstInterface() {
               runtimeRuns={displayedRuntimeRuns}
               agentRunState={agentRunState}
               agentRunStatusText={agentRunStatusText}
+              runtimeActionStates={runtimeActionStates}
+              runtimeActionStatusText={runtimeActionStatusText}
               latestAgentRun={latestAgentRun}
               onOpenConfigure={() => setActiveView("configure")}
               onOpenData={() => setActiveView("data")}
               onOpenModules={openModules}
+              onResumeRuntimeRun={resumeRuntimeRun}
             />
           )}
           {activeView === "data" && (
@@ -1287,16 +1461,25 @@ function ModulesView({
   selectedModule,
   selectedModuleId,
   runtimeRuns,
+  runtimeActionStates,
+  runtimeActionStatusText,
   onSelectModule,
   onOpenData,
+  onResumeRuntimeRun,
 }: {
   selectedModule: ModuleDefinition;
   selectedModuleId: ModuleId;
   runtimeRuns: RuntimeModuleRun[];
+  runtimeActionStates: Record<string, RuntimeActionState>;
+  runtimeActionStatusText: string;
   onSelectModule: (moduleId: ModuleId) => void;
   onOpenData: () => void;
+  onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
 }) {
   const selectedRuntimeRun = runtimeRuns.find((run) => run.moduleId === selectedModule.id);
+  const selectedActionState = selectedRuntimeRun
+    ? runtimeActionStates[selectedRuntimeRun.id] ?? "idle"
+    : "idle";
   const supportsResume = selectedModule.id !== "md_to_rag";
 
   return (
@@ -1380,10 +1563,25 @@ function ModulesView({
                   <span key={recordId}>{recordId}</span>
                 ))}
               </div>
-              <button type="button" className="small-action" onClick={onOpenData}>
-                Open data
-              </button>
+              <div className="runtime-action-row">
+                {selectedRuntimeRun.status === "resumable" && (
+                  <button
+                    type="button"
+                    className="small-action"
+                    disabled={selectedActionState === "submitting"}
+                    onClick={() => void onResumeRuntimeRun(selectedRuntimeRun)}
+                  >
+                    {selectedActionState === "submitting" ? "Resuming" : "Resume now"}
+                  </button>
+                )}
+                <button type="button" className="small-action" onClick={onOpenData}>
+                  Open data
+                </button>
+              </div>
             </div>
+            {(selectedActionState === "succeeded" || selectedActionState === "failed") && (
+              <p className="runtime-action-feedback">{runtimeActionStatusText}</p>
+            )}
           </div>
         )}
 
@@ -1419,26 +1617,51 @@ function ProgressView({
   runtimeRuns,
   agentRunState,
   agentRunStatusText,
+  runtimeActionStates,
+  runtimeActionStatusText,
   latestAgentRun,
   onOpenConfigure,
   onOpenData,
   onOpenModules,
+  onResumeRuntimeRun,
 }: {
   queuedPrompt: string | null;
   executionMode: RuntimeExecutionMode;
   runtimeRuns: RuntimeModuleRun[];
   agentRunState: AgentRunSubmitState;
   agentRunStatusText: string;
+  runtimeActionStates: Record<string, RuntimeActionState>;
+  runtimeActionStatusText: string;
   latestAgentRun: AgentRunUiState | null;
   onOpenConfigure: () => void;
   onOpenData: () => void;
   onOpenModules: (moduleId?: ModuleId) => void;
+  onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
 }) {
   function runtimeAction(run: RuntimeModuleRun): ReactNode {
+    const actionState = runtimeActionStates[run.id] ?? "idle";
+
     if (run.status === "resumable") {
       return (
+        <button
+          type="button"
+          className="small-action"
+          disabled={actionState === "submitting"}
+          onClick={() => void onResumeRuntimeRun(run)}
+        >
+          {actionState === "submitting" ? "Resuming" : "Resume"}
+        </button>
+      );
+    }
+    if (
+      run.status === "waiting_for_user" ||
+      run.status === "waiting_for_data" ||
+      run.status === "approval_required" ||
+      run.status === "blocked"
+    ) {
+      return (
         <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
-          Resume
+          Review
         </button>
       );
     }
@@ -1446,13 +1669,6 @@ function ProgressView({
       return (
         <button type="button" className="small-action" onClick={onOpenConfigure}>
           Configure
-        </button>
-      );
-    }
-    if (run.status === "approval_required") {
-      return (
-        <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
-          Approve
         </button>
       );
     }
@@ -1522,6 +1738,7 @@ function ProgressView({
       ) : (
         <p className="agent-run-status-text">{agentRunStatusText}</p>
       )}
+      <p className="agent-run-status-text">{runtimeActionStatusText}</p>
 
       <div className="timeline">
         {runtimeRuns.map((run) => (
@@ -3081,6 +3298,19 @@ const styles = `
     background: #24170f;
   }
 
+  .runtime-status.waiting_for_user,
+  .runtime-status.waiting_for_data {
+    color: #f2c94c;
+    border-color: #f2c94c55;
+    background: #211d0d;
+  }
+
+  .runtime-status.blocked {
+    color: #ff6b6b;
+    border-color: #ff6b6b66;
+    background: #2a1215;
+  }
+
   .runtime-status.skipped {
     color: #f2c94c;
     border-color: #f2c94c55;
@@ -3127,6 +3357,14 @@ const styles = `
     color: #738195;
     font-size: 11px;
     font-style: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .runtime-action-feedback {
+    margin: -2px 0 0;
+    color: #8d9bad;
+    font-size: 12px;
+    font-weight: 750;
     overflow-wrap: anywhere;
   }
 
