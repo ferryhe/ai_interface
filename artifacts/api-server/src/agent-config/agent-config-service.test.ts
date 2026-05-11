@@ -7,6 +7,7 @@ import {
   getConnectionStatus,
   toPublicAgentConfig,
   updateAgentConfig,
+  verifyPortalAccess,
 } from "./agent-config-service";
 
 test("creates the default agent config with business and general skills", async () => {
@@ -164,6 +165,79 @@ test("keeps existing portal token when publish settings update omits token", asy
     withToken.publishSettings.portalTokenHash,
   );
   assert.equal(updated.publishSettings.portalTokenLast4, "oken");
+});
+
+test("portal access verification rejects missing tokens", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+
+  const result = await verifyPortalAccess(repository, "   ");
+
+  assert.equal(result.status, "missing_token");
+  assert.equal(result.authorized, false);
+  assert.equal(result.publishStatus, "draft");
+  assert.equal(result.portalTokenLast4, null);
+});
+
+test("portal access verification blocks unpublished configs", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(repository, {
+    publishSettings: {
+      status: "draft",
+      portalAccessMode: "token",
+      setPortalToken: "portal-secret-token",
+      versionLabel: "draft-build",
+    },
+  });
+
+  const result = await verifyPortalAccess(repository, "portal-secret-token");
+
+  assert.equal(result.status, "not_published");
+  assert.equal(result.authorized, false);
+  assert.equal(result.publishStatus, "draft");
+  assert.equal(result.versionLabel, "draft-build");
+  assert.equal(result.portalTokenLast4, "oken");
+});
+
+test("portal access verification rejects wrong tokens", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(repository, {
+    publishSettings: {
+      status: "published",
+      portalAccessMode: "token",
+      setPortalToken: "portal-secret-token",
+      versionLabel: "agent-v1",
+    },
+  });
+
+  const result = await verifyPortalAccess(repository, "wrong-token");
+
+  assert.equal(result.status, "invalid_token");
+  assert.equal(result.authorized, false);
+  assert.equal(result.publishStatus, "published");
+  assert.equal(result.versionLabel, "agent-v1");
+  assert.equal(JSON.stringify(result).includes("portal-secret-token"), false);
+});
+
+test("portal access verification authorizes a published matching token", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(repository, {
+    publishSettings: {
+      status: "published",
+      portalAccessMode: "token",
+      setPortalToken: "portal-secret-token",
+      versionLabel: "agent-v1",
+    },
+  });
+
+  const result = await verifyPortalAccess(repository, "portal-secret-token");
+
+  assert.equal(result.status, "authorized");
+  assert.equal(result.authorized, true);
+  assert.equal(result.publishStatus, "published");
+  assert.equal(result.portalTokenLast4, "oken");
+  assert.equal(result.versionLabel, "agent-v1");
+  assert.ok(result.checkedAt);
+  assert.equal(JSON.stringify(result).includes("portal-secret-token"), false);
 });
 
 test("detects OpenAI API key status without exposing secrets", () => {

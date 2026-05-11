@@ -980,3 +980,25 @@ export const TestAgentConfigConnectionResponse = zod.object({
   status: zod.enum(["configured", "missing_key"]),
   checkedAt: zod.coerce.date(),
 });
+
+/**
+ * Checks a submitted Portal token against stored Publish settings without returning secrets.
+ * @summary Verify Portal access token
+ */
+export const VerifyPortalAccessBody = zod.object({
+  token: zod.string(),
+});
+
+export const VerifyPortalAccessResponse = zod.object({
+  status: zod.enum([
+    "authorized",
+    "missing_token",
+    "invalid_token",
+    "not_published",
+  ]),
+  authorized: zod.boolean(),
+  publishStatus: zod.enum(["draft", "published", "paused"]),
+  versionLabel: zod.string(),
+  portalTokenLast4: zod.string().nullable(),
+  checkedAt: zod.coerce.date(),
+});

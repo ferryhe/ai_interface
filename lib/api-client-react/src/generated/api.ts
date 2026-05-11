@@ -33,12 +33,14 @@ import type {
   ModuleRun,
   ModuleRunDetail,
   ModuleRunIngestResponse,
+  PortalAccessVerificationResponse,
   RunEvent,
   SubmitToolFeedbackRequest,
   ToolAdapterListResponse,
   ToolInteractionResponse,
   UpdateAgentConfigRequest,
   UpdateModuleRunRequest,
+  VerifyPortalAccessRequest,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1493,4 +1495,95 @@ export const useTestAgentConfigConnection = <
   TContext
 > => {
   return useMutation(getTestAgentConfigConnectionMutationOptions(options));
+};
+
+/**
+ * Checks a submitted Portal token against stored Publish settings without returning secrets.
+ * @summary Verify Portal access token
+ */
+export const getVerifyPortalAccessUrl = () => {
+  return `/api/portal-auth/verify`;
+};
+
+export const verifyPortalAccess = async (
+  verifyPortalAccessRequest: VerifyPortalAccessRequest,
+  options?: RequestInit,
+): Promise<PortalAccessVerificationResponse> => {
+  return customFetch<PortalAccessVerificationResponse>(
+    getVerifyPortalAccessUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(verifyPortalAccessRequest),
+    },
+  );
+};
+
+export const getVerifyPortalAccessMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyPortalAccess>>,
+    TError,
+    { data: BodyType<VerifyPortalAccessRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyPortalAccess>>,
+  TError,
+  { data: BodyType<VerifyPortalAccessRequest> },
+  TContext
+> => {
+  const mutationKey = ["verifyPortalAccess"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyPortalAccess>>,
+    { data: BodyType<VerifyPortalAccessRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return verifyPortalAccess(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyPortalAccessMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyPortalAccess>>
+>;
+export type VerifyPortalAccessMutationBody =
+  BodyType<VerifyPortalAccessRequest>;
+export type VerifyPortalAccessMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Verify Portal access token
+ */
+export const useVerifyPortalAccess = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyPortalAccess>>,
+    TError,
+    { data: BodyType<VerifyPortalAccessRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyPortalAccess>>,
+  TError,
+  { data: BodyType<VerifyPortalAccessRequest> },
+  TContext
+> => {
+  return useMutation(getVerifyPortalAccessMutationOptions(options));
 };

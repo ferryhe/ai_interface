@@ -14,6 +14,8 @@ tags:
     description: Module catalog and ingest operations
   - name: agent-config
     description: Agent control plane configuration
+  - name: portal-auth
+    description: Portal token verification
   - name: agent-runs
     description: Agent runtime planning and module orchestration
   - name: tool-adapters
@@ -387,6 +389,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentConnectionTestResponse"
+  /portal-auth/verify:
+    post:
+      operationId: verifyPortalAccess
+      tags: [portal-auth]
+      summary: Verify Portal access token
+      description: Checks a submitted Portal token against stored Publish settings without returning secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPortalAccessRequest"
+      responses:
+        "200":
+          description: Portal access verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalAccessVerificationResponse"
+        "400":
+          description: Invalid verification payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Verification failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
     RunId:
@@ -886,6 +919,9 @@ components:
     PortalAccessMode:
       type: string
       enum: [token]
+    PortalAccessStatus:
+      type: string
+      enum: [authorized, missing_token, invalid_token, not_published]
     AgentPublishSettings:
       type: object
       properties:
@@ -927,6 +963,38 @@ components:
           type: string
         versionLabel:
           type: string
+    VerifyPortalAccessRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+        - token
+    PortalAccessVerificationResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/PortalAccessStatus"
+        authorized:
+          type: boolean
+        publishStatus:
+          $ref: "#/components/schemas/AgentPublishStatus"
+        versionLabel:
+          type: string
+        portalTokenLast4:
+          type:
+            - string
+            - "null"
+        checkedAt:
+          type: string
+          format: date-time
+      required:
+        - status
+        - authorized
+        - publishStatus
+        - versionLabel
+        - portalTokenLast4
+        - checkedAt
     AgentConfig:
       type: object
       properties:

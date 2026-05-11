@@ -337,6 +337,16 @@ export const PortalAccessMode = {
   token: "token",
 } as const;
 
+export type PortalAccessStatus =
+  (typeof PortalAccessStatus)[keyof typeof PortalAccessStatus];
+
+export const PortalAccessStatus = {
+  authorized: "authorized",
+  missing_token: "missing_token",
+  invalid_token: "invalid_token",
+  not_published: "not_published",
+} as const;
+
 export interface AgentPublishSettings {
   status: AgentPublishStatus;
   portalAccessMode: PortalAccessMode;
@@ -354,6 +364,20 @@ export interface UpdateAgentPublishSettings {
   portalAccessMode?: PortalAccessMode;
   setPortalToken?: string;
   versionLabel?: string;
+}
+
+export interface VerifyPortalAccessRequest {
+  token: string;
+}
+
+export interface PortalAccessVerificationResponse {
+  status: PortalAccessStatus;
+  authorized: boolean;
+  publishStatus: AgentPublishStatus;
+  versionLabel: string;
+  /** @nullable */
+  portalTokenLast4: string | null;
+  checkedAt: string;
 }
 
 export interface AgentConfig {
