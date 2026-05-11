@@ -193,13 +193,15 @@ const navItems: Array<{ id: PortalView; label: string; icon: ReactNode }> = [
   { id: "result", label: "Result", icon: <Sparkles size={18} /> },
 ];
 
-function readInitialToken(): string {
+function readInitialDemoToken(): string {
   if (typeof window === "undefined") return "";
+  // Mock preview shortcut only. Production portal access must use server-side auth/session state.
   return new URLSearchParams(window.location.search).get("token")?.trim() ?? "";
 }
 
-function readInitialAdminToken(): string {
+function readInitialDemoAdminToken(): string {
   if (typeof window === "undefined") return "";
+  // Mock preview shortcut only. Production admin access must not depend on URL query tokens.
   return new URLSearchParams(window.location.search).get("adminToken")?.trim() ?? "";
 }
 
@@ -221,8 +223,8 @@ function statusText(status: PortalStatus): string {
 }
 
 export function AgentPortalInterface() {
-  const initialToken = readInitialToken();
-  const initialAdminToken = readInitialAdminToken();
+  const initialToken = readInitialDemoToken();
+  const initialAdminToken = readInitialDemoAdminToken();
   const [token, setToken] = useState(initialToken);
   const [isUnlocked, setIsUnlocked] = useState(initialToken.length >= 6);
   const [adminToken, setAdminToken] = useState(initialAdminToken);
@@ -279,6 +281,10 @@ export function AgentPortalInterface() {
             <input
               id="portal-access-token"
               aria-label="Access token"
+              type="password"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={token}
               onChange={(event) => setToken(event.target.value)}
               placeholder="portal-token"
@@ -288,7 +294,7 @@ export function AgentPortalInterface() {
             <ShieldCheck size={16} />
             Enter Portal
           </button>
-          <em>Token access opens chat, steps, data, sources, and result for this published Agent.</em>
+          <em>Demo preview only. Production access should use server-side auth, not query tokens.</em>
         </form>
       </div>
     );
@@ -337,7 +343,7 @@ export function AgentPortalInterface() {
               </button>
               <div className="portal-status-pill">
                 <ShieldCheck size={15} />
-                Token active
+                Demo token active
               </div>
             </div>
           </header>
@@ -389,8 +395,8 @@ export function AgentPortalInterface() {
                     setActiveView("steps");
                   }}
                 >
-                  <i />
-                  <span>{step.label}</span>
+                  <span className="portal-step-dot" aria-hidden="true" />
+                  <span className="portal-step-label">{step.label}</span>
                   <em>{statusText(step.status)}</em>
                 </button>
               ))}
@@ -399,7 +405,7 @@ export function AgentPortalInterface() {
           <div className="portal-context-block">
             <span className="portal-kicker">Visible data</span>
             <strong>28 records</strong>
-            <p>Snapshots, Markdown, chunks, sources, and draft agent output are visible through this token.</p>
+            <p>Snapshots, Markdown, chunks, sources, and draft agent output are visible through this demo token.</p>
           </div>
         </aside>
       </main>
@@ -419,6 +425,10 @@ export function AgentPortalInterface() {
               <input
                 id="portal-admin-token"
                 aria-label="Admin token"
+                type="password"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={adminToken}
                 onChange={(event) => setAdminToken(event.target.value)}
                 placeholder="admin-token"
@@ -433,7 +443,7 @@ export function AgentPortalInterface() {
                 Enter Admin
               </button>
             </div>
-            <em>No token keeps you in the frontstage Portal.</em>
+            <em>Demo preview only. No token keeps you in the frontstage Portal.</em>
           </form>
         </div>
       )}
@@ -1262,14 +1272,14 @@ const styles = `
     background: #10233a;
   }
 
-  .portal-mini-steps i {
+  .portal-mini-steps .portal-step-dot {
     width: 8px;
     height: 8px;
     border-radius: 999px;
     background: #4f9cff;
   }
 
-  .portal-mini-steps span {
+  .portal-mini-steps .portal-step-label {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

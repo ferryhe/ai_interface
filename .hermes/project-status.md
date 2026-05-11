@@ -37,6 +37,7 @@ Updated: 2026-05-11
 - Started frontstage Agent Portal on `codex/frontend-agent-portal`; V1 adds a token-gated mockup surface with Chat, Steps, Data, Sources, and Result views.
 - Added preview mode switching between the admin console and frontstage Portal: admin shows `View Portal`, and the Portal shows `Admin Console`.
 - Frontstage-to-admin switching now requires a submitted admin token; empty admin token closes the gate and keeps the user in the Portal.
+- PR #6 Copilot review comments were evaluated and addressed with narrow Portal fixes: query-token shortcuts are explicitly marked demo-only, access/admin token fields are masked with autocomplete disabled, and the decorative step marker is aria-hidden.
 
 ## Verification
 
@@ -99,6 +100,10 @@ Updated: 2026-05-11
 - Admin token gate validation: `git diff --check` passed with CRLF warnings only.
 - Admin token gate validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Admin token gate browser smoke opened the Portal with `?token=portal-demo-token`, verified `Admin Console` opens the admin token dialog, verified empty submit stays in the Portal, verified submitted `adminToken` enters the admin console, and found no console warnings/errors.
+- PR #6 Copilot comment validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- PR #6 Copilot comment validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- PR #6 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- PR #6 Copilot comment browser smoke verified the Portal and Admin token fields are password inputs with autocomplete off, demo-token status/copy is visible, the decorative step marker is nonsemantic, admin token still enters the admin console, and no console warnings/errors were reported.
 
 ## Notes
 
