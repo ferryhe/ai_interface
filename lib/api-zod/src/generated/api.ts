@@ -270,6 +270,212 @@ export const GetArtifactResponse = zod.object({
 });
 
 /**
+ * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+ * @summary Create an Agent runtime plan
+ */
+
+export const CreateAgentRunBody = zod.object({
+  message: zod.string().min(1),
+  threadId: zod.string().uuid().optional(),
+  title: zod.string().optional(),
+  metadata: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const CreateAgentRunResponse = zod.object({
+  status: zod.enum(["planned", "missing_key", "needs_approval", "failed"]),
+  connection: zod.object({
+    status: zod.enum(["configured", "missing_key"]),
+  }),
+  thread: zod.object({
+    id: zod.string().uuid(),
+    title: zod.string(),
+    status: zod.enum(["active", "archived"]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  userMessage: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid(),
+    role: zod.enum(["user", "agent", "system", "tool"]),
+    content: zod.string(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+  }),
+  agentMessage: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid(),
+    role: zod.enum(["user", "agent", "system", "tool"]),
+    content: zod.string(),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+  }),
+  pipelineRun: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid().nullable(),
+    title: zod.string(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    activeModuleId: zod.union([
+      zod.enum(["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"]),
+      zod.null(),
+    ]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  moduleRuns: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      pipelineRunId: zod.string().uuid().nullable(),
+      moduleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      externalRunId: zod.string(),
+      title: zod.string().nullable(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ]),
+      inputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      outputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      summary: zod.string().nullable(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      startedAt: zod.coerce.date().nullable(),
+      completedAt: zod.coerce.date().nullable(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  plan: zod.object({
+    summary: zod.string(),
+    steps: zod.array(
+      zod.object({
+        moduleId: zod.enum([
+          "web_listening",
+          "doc_to_md",
+          "md_to_rag",
+          "rag_to_agent",
+        ]),
+        title: zod.string(),
+        action: zod.string(),
+        input: zod.record(zod.string(), zod.unknown()),
+        requiresApproval: zod.boolean(),
+      }),
+    ),
+    warnings: zod.array(zod.string()),
+  }),
+});
+
+/**
+ * @summary Get an Agent runtime run
+ */
+export const GetAgentRunParams = zod.object({
+  pipelineRunId: zod.coerce.string().uuid(),
+});
+
+export const GetAgentRunResponse = zod.object({
+  thread: zod.object({
+    id: zod.string().uuid(),
+    title: zod.string(),
+    status: zod.enum(["active", "archived"]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      threadId: zod.string().uuid(),
+      role: zod.enum(["user", "agent", "system", "tool"]),
+      content: zod.string(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  pipelineRun: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid().nullable(),
+    title: zod.string(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    activeModuleId: zod.union([
+      zod.enum(["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"]),
+      zod.null(),
+    ]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  moduleRuns: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      pipelineRunId: zod.string().uuid().nullable(),
+      moduleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      externalRunId: zod.string(),
+      title: zod.string().nullable(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ]),
+      inputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      outputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      summary: zod.string().nullable(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      startedAt: zod.coerce.date().nullable(),
+      completedAt: zod.coerce.date().nullable(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
  * Returns the persisted Agent control plane configuration and OpenAI API key status.
  * @summary Get Agent configuration
  */

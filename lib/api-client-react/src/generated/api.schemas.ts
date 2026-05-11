@@ -186,6 +186,130 @@ export interface AgentConnectionTestResponse {
   checkedAt: string;
 }
 
+export type AgentRuntimeStatus =
+  (typeof AgentRuntimeStatus)[keyof typeof AgentRuntimeStatus];
+
+export const AgentRuntimeStatus = {
+  planned: "planned",
+  missing_key: "missing_key",
+  needs_approval: "needs_approval",
+  failed: "failed",
+} as const;
+
+export type AgentMessageRole =
+  (typeof AgentMessageRole)[keyof typeof AgentMessageRole];
+
+export const AgentMessageRole = {
+  user: "user",
+  agent: "agent",
+  system: "system",
+  tool: "tool",
+} as const;
+
+export interface AgentRuntimeConnection {
+  status: AgentConnectionStatus;
+}
+
+export type AgentThreadStatus =
+  (typeof AgentThreadStatus)[keyof typeof AgentThreadStatus];
+
+export const AgentThreadStatus = {
+  active: "active",
+  archived: "archived",
+} as const;
+
+export interface AgentThread {
+  id: string;
+  title: string;
+  status: AgentThreadStatus;
+  metadata: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentMessage {
+  id: string;
+  threadId: string;
+  role: AgentMessageRole;
+  content: string;
+  metadata: JsonObject | null;
+  createdAt: string;
+}
+
+export interface PipelineRun {
+  id: string;
+  /** @nullable */
+  threadId: string | null;
+  title: string;
+  status: ModuleRunStatus;
+  activeModuleId: ModuleId | null;
+  metadata: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentRuntimePlanStep {
+  moduleId: ModuleId;
+  title: string;
+  action: string;
+  input: JsonObject;
+  requiresApproval: boolean;
+}
+
+export interface AgentRuntimePlan {
+  summary: string;
+  steps: AgentRuntimePlanStep[];
+  warnings: string[];
+}
+
+export interface CreateAgentRunRequest {
+  /** @minLength 1 */
+  message: string;
+  threadId?: string;
+  title?: string;
+  metadata?: JsonObject;
+}
+
+export interface ModuleRun {
+  id: string;
+  /** @nullable */
+  pipelineRunId: string | null;
+  moduleId: ModuleId;
+  externalRunId: string;
+  /** @nullable */
+  title: string | null;
+  status: ModuleRunStatus;
+  inputJson: JsonObject | null;
+  outputJson: JsonObject | null;
+  /** @nullable */
+  summary: string | null;
+  metadata: JsonObject | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentRunResponse {
+  status: AgentRuntimeStatus;
+  connection: AgentRuntimeConnection;
+  thread: AgentThread;
+  userMessage: AgentMessage;
+  agentMessage: AgentMessage;
+  pipelineRun: PipelineRun;
+  moduleRuns: ModuleRun[];
+  plan: AgentRuntimePlan;
+}
+
+export interface AgentRunDetail {
+  thread: AgentThread;
+  messages: AgentMessage[];
+  pipelineRun: PipelineRun;
+  moduleRuns: ModuleRun[];
+}
+
 export interface ModuleDefinition {
   moduleId: ModuleId;
   displayName: string;
@@ -220,28 +344,6 @@ export interface UpdateModuleRunRequest {
   metadata?: JsonObject;
   startedAt?: string;
   completedAt?: string;
-}
-
-export interface ModuleRun {
-  id: string;
-  /** @nullable */
-  pipelineRunId: string | null;
-  moduleId: ModuleId;
-  externalRunId: string;
-  /** @nullable */
-  title: string | null;
-  status: ModuleRunStatus;
-  inputJson: JsonObject | null;
-  outputJson: JsonObject | null;
-  /** @nullable */
-  summary: string | null;
-  metadata: JsonObject | null;
-  /** @nullable */
-  startedAt: string | null;
-  /** @nullable */
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ModuleRunIngestResponse {
