@@ -198,6 +198,11 @@ function readInitialToken(): string {
   return new URLSearchParams(window.location.search).get("token")?.trim() ?? "";
 }
 
+function readInitialAdminToken(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("adminToken")?.trim() ?? "";
+}
+
 function previewUrl(componentPath: string, search = ""): string {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   return `${basePath}/preview/${componentPath}${search}`;
@@ -217,8 +222,11 @@ function statusText(status: PortalStatus): string {
 
 export function AgentPortalInterface() {
   const initialToken = readInitialToken();
+  const initialAdminToken = readInitialAdminToken();
   const [token, setToken] = useState(initialToken);
   const [isUnlocked, setIsUnlocked] = useState(initialToken.length >= 6);
+  const [adminToken, setAdminToken] = useState(initialAdminToken);
+  const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
   const [activeView, setActiveView] = useState<PortalView>("chat");
   const [activeStep, setActiveStep] = useState(portalSteps[2].label);
   const [draft, setDraft] = useState("");
@@ -237,6 +245,20 @@ export function AgentPortalInterface() {
     event.preventDefault();
     if (token.trim().length >= 6) {
       setIsUnlocked(true);
+    }
+  }
+
+  function submitAdminToken(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const cleanToken = adminToken.trim();
+    if (!cleanToken) {
+      setIsAdminGateOpen(false);
+      return;
+    }
+    if (cleanToken.length >= 6) {
+      window.location.assign(
+        previewUrl("ai-os/AgentFirstInterface", `?adminToken=${encodeURIComponent(cleanToken)}`),
+      );
     }
   }
 
@@ -308,7 +330,7 @@ export function AgentPortalInterface() {
               <button
                 type="button"
                 className="portal-mode-switch"
-                onClick={() => window.location.assign(previewUrl("ai-os/AgentFirstInterface"))}
+                onClick={() => setIsAdminGateOpen(true)}
               >
                 <Settings2 size={15} />
                 Admin Console
@@ -381,6 +403,40 @@ export function AgentPortalInterface() {
           </div>
         </aside>
       </main>
+
+      {isAdminGateOpen && (
+        <div className="portal-admin-gate" role="dialog" aria-modal="true" aria-labelledby="portal-admin-title">
+          <form className="portal-admin-panel" onSubmit={submitAdminToken}>
+            <div className="portal-token-mark">
+              <Settings2 size={22} />
+            </div>
+            <span className="portal-kicker">Admin access</span>
+            <h2 id="portal-admin-title">Enter admin token</h2>
+            <p>Admin Console is for operators. Submit an admin token to continue, or return to the Portal.</p>
+            <label htmlFor="portal-admin-token">Admin token</label>
+            <div className="portal-token-input">
+              <KeyRound size={17} />
+              <input
+                id="portal-admin-token"
+                aria-label="Admin token"
+                value={adminToken}
+                onChange={(event) => setAdminToken(event.target.value)}
+                placeholder="admin-token"
+              />
+            </div>
+            <div className="portal-admin-actions">
+              <button type="button" className="secondary" onClick={() => setIsAdminGateOpen(false)}>
+                Back to Portal
+              </button>
+              <button type="submit">
+                <ShieldCheck size={16} />
+                Enter Admin
+              </button>
+            </div>
+            <em>No token keeps you in the frontstage Portal.</em>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -605,6 +661,27 @@ const styles = `
     box-shadow: 0 20px 60px #00000055;
   }
 
+  .portal-admin-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: #05080dcc;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+
+  .portal-admin-panel {
+    width: min(460px, 100%);
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #101721;
+    display: grid;
+    gap: 13px;
+    padding: 22px;
+    box-shadow: 0 24px 70px #00000077;
+  }
+
   .portal-token-mark {
     width: 42px;
     height: 42px;
@@ -625,6 +702,7 @@ const styles = `
   }
 
   .portal-token-panel h1,
+  .portal-admin-panel h2,
   .portal-topbar h1,
   .portal-section-heading h2,
   .portal-context h2,
@@ -637,8 +715,14 @@ const styles = `
     font-size: 30px;
   }
 
+  .portal-admin-panel h2 {
+    font-size: 24px;
+  }
+
   .portal-token-panel p,
   .portal-token-panel em,
+  .portal-admin-panel p,
+  .portal-admin-panel em,
   .portal-context p,
   .portal-message p,
   .portal-step-card p,
@@ -653,6 +737,12 @@ const styles = `
   }
 
   .portal-token-panel label {
+    color: #8d9bad;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .portal-admin-panel label {
     color: #8d9bad;
     font-size: 12px;
     font-weight: 800;
@@ -686,6 +776,7 @@ const styles = `
   }
 
   .portal-token-panel button,
+  .portal-admin-panel button,
   .portal-nav button,
   .portal-chat-actions button,
   .portal-composer button,
@@ -707,6 +798,33 @@ const styles = `
     justify-content: center;
     gap: 8px;
     font-weight: 850;
+  }
+
+  .portal-admin-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .portal-admin-panel button {
+    min-height: 40px;
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #2f7de1;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 12px;
+    font-weight: 850;
+  }
+
+  .portal-admin-panel button.secondary {
+    background: #0b1118;
+    border-color: #263445;
+    color: #aeb8c6;
   }
 
   .portal-token-panel button:disabled,
@@ -1262,6 +1380,10 @@ const styles = `
     }
 
     .portal-composer {
+      grid-template-columns: 1fr;
+    }
+
+    .portal-admin-actions {
       grid-template-columns: 1fr;
     }
 

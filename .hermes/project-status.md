@@ -36,6 +36,7 @@ Updated: 2026-05-11
 - Renamed the admin handoff surface from `Deploy` to `Publish`; end-user Agent Portal work should be handled in a separate PR because it needs token/login access control plus frontstage steps/data views.
 - Started frontstage Agent Portal on `codex/frontend-agent-portal`; V1 adds a token-gated mockup surface with Chat, Steps, Data, Sources, and Result views.
 - Added preview mode switching between the admin console and frontstage Portal: admin shows `View Portal`, and the Portal shows `Admin Console`.
+- Frontstage-to-admin switching now requires a submitted admin token; empty admin token closes the gate and keeps the user in the Portal.
 
 ## Verification
 
@@ -94,6 +95,10 @@ Updated: 2026-05-11
 - Front/back switch validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Front/back switch validation: `git diff --check` passed with CRLF warnings only.
 - Front/back switch browser smoke opened the Portal with `?token=portal-demo-token`, clicked `Admin Console`, verified the admin console, clicked `View Portal`, returned to the Portal, and found no console warnings/errors.
+- Admin token gate validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Admin token gate validation: `git diff --check` passed with CRLF warnings only.
+- Admin token gate validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Admin token gate browser smoke opened the Portal with `?token=portal-demo-token`, verified `Admin Console` opens the admin token dialog, verified empty submit stays in the Portal, verified submitted `adminToken` enters the admin console, and found no console warnings/errors.
 
 ## Notes
 
@@ -102,4 +107,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Open a PR for `codex/frontend-agent-portal`.
+- Keep PR #6 updated and monitor GitHub checks/review comments.
