@@ -4,8 +4,8 @@ Updated: 2026-05-10
 
 ## Active Work
 
-- Branch: `codex/agent-module-os-memory`
-- Scope: Implement the AI Agent Module OS plan inside `ai_interface` only.
+- Branch: `codex/configure-agent-control-plane`
+- Scope: Implement the Configure Agent control plane inside `ai_interface` only.
 - Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
 
 ## Current State
@@ -24,6 +24,10 @@ Updated: 2026-05-10
 - Updated OpenAPI spec and regenerated API client/Zod outputs.
 - Reworked the mockup sandbox AI OS screen into a Replit-like Agent-first console with Agent, Modules, Progress, Data, and Deploy views.
 - Updated Windows native optional package overrides so local Vite/Rollup builds can run on this workspace.
+- PR #4 was confirmed merged on 2026-05-10 before this branch was created from latest `main`.
+- Added a DB-backed Agent configuration model with default OpenAI Responses runtime settings, module skill controls, memory settings, and safety settings.
+- Added `/api/agent-config` GET/PUT and `/api/agent-config/test-connection`; the connection endpoint only reports whether `OPENAI_API_KEY` is present.
+- Added a Configure view to the Agent Module OS UI with Provider, Model, Skills, Memory, Safety, and Runtime Preview sections; it falls back to local draft state when `/api` is offline.
 
 ## Verification
 
@@ -43,6 +47,13 @@ Updated: 2026-05-10
 - `PORT=3000 BASE_PATH=/ corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed after the DB repository update.
 - Browser smoke opened `http://127.0.0.1:3000/preview/ai-os/AgentFirstInterface`, verified Agent/Modules/Progress/Data/Deploy navigation by DOM, and found no console errors or warnings.
+- Configure validation: `corepack pnpm --filter @workspace/api-server run test` passed with 9 tests.
+- Configure validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Configure validation: `corepack pnpm run typecheck:libs` passed.
+- Configure validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Configure validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Configure validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Configure browser smoke opened `http://127.0.0.1:8081/`, clicked Configure, verified Provider/Model/Skills/Memory/Safety/Runtime Preview sections, and found no console warnings/errors.
 
 ## Notes
 
@@ -51,4 +62,4 @@ Updated: 2026-05-10
 
 ## Next Action
 
-- PR #4 now includes Replit run action setup for the Agent Module OS page.
+- Open a PR for `codex/configure-agent-control-plane` and run the required 15-minute PR follow-up pass.

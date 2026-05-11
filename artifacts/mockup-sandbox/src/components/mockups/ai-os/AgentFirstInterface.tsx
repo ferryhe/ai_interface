@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
   Bot,
@@ -23,9 +23,14 @@ import {
   WandSparkles,
 } from "lucide-react";
 
-type AppView = "agent" | "modules" | "progress" | "data" | "deploy";
+type AppView = "agent" | "modules" | "progress" | "data" | "deploy" | "configure";
 type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
+type AgentProvider = "openai";
+type AgentEndpoint = "responses" | "agents_sdk";
+type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
+type MemoryPromotionMode = "manual" | "agent_suggested";
+type AgentConnectionStatus = "configured" | "missing_key" | "offline";
 
 interface ModuleDefinition {
   id: ModuleId;
@@ -53,6 +58,53 @@ interface DataRecord {
   moduleId: ModuleId;
   summary: string;
   updatedAt: string;
+}
+
+interface AgentSkillSetting {
+  moduleId: ModuleId;
+  enabled: boolean;
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+}
+
+interface AgentMemorySettings {
+  shortTermEnabled: boolean;
+  longTermEnabled: boolean;
+  promotionMode: MemoryPromotionMode;
+  ragCollection: string;
+  retentionDays: number;
+}
+
+interface AgentSafetySettings {
+  requireApprovalForExternalActions: boolean;
+  requireApprovalForPublishing: boolean;
+  allowSelfLearning: boolean;
+  maxToolSteps: number;
+}
+
+interface AgentConfigDraft {
+  provider: AgentProvider;
+  endpoint: AgentEndpoint;
+  modelId: string;
+  reasoningEffort: AgentReasoningEffort;
+  systemPrompt: string;
+  skillSettings: AgentSkillSetting[];
+  memorySettings: AgentMemorySettings;
+  safetySettings: AgentSafetySettings;
+}
+
+interface AgentConfigApiResponse {
+  config: AgentConfigDraft;
+  connection: {
+    status: Exclude<AgentConnectionStatus, "offline">;
+    checkedAt?: string;
+  };
+}
+
+interface AgentConnectionApiResponse {
+  status: Exclude<AgentConnectionStatus, "offline">;
+  checkedAt: string;
 }
 
 const modules: ModuleDefinition[] = [
@@ -93,6 +145,35 @@ const modules: ModuleDefinition[] = [
     color: "#f97316",
   },
 ];
+
+const defaultAgentConfig: AgentConfigDraft = {
+  provider: "openai",
+  endpoint: "responses",
+  modelId: "gpt-5.5",
+  reasoningEffort: "medium",
+  systemPrompt:
+    "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
+  skillSettings: modules.map((module) => ({
+    moduleId: module.id,
+    enabled: true,
+    approvalRequired: module.id === "rag_to_agent",
+    canUseNetwork: module.id === "web_listening",
+    canWriteDatabase: true,
+  })),
+  memorySettings: {
+    shortTermEnabled: true,
+    longTermEnabled: true,
+    promotionMode: "agent_suggested",
+    ragCollection: "agent-module-os",
+    retentionDays: 90,
+  },
+  safetySettings: {
+    requireApprovalForExternalActions: true,
+    requireApprovalForPublishing: true,
+    allowSelfLearning: true,
+    maxToolSteps: 12,
+  },
+};
 
 const runSteps: RunStep[] = [
   {
@@ -169,6 +250,7 @@ const navItems: Array<{ id: AppView; label: string; icon: ReactNode }> = [
   { id: "modules", label: "Modules", icon: <Boxes size={18} /> },
   { id: "progress", label: "Progress", icon: <ListChecks size={18} /> },
   { id: "data", label: "Data", icon: <Database size={18} /> },
+  { id: "configure", label: "Configure", icon: <Settings2 size={18} /> },
   { id: "deploy", label: "Deploy", icon: <Rocket size={18} /> },
 ];
 
@@ -187,6 +269,25 @@ function moduleById(moduleId: ModuleId): ModuleDefinition {
   return modules.find((item) => item.id === moduleId) ?? modules[0]!;
 }
 
+function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
+  return {
+    provider: config.provider,
+    endpoint: config.endpoint,
+    modelId: config.modelId,
+    reasoningEffort: config.reasoningEffort,
+    systemPrompt: config.systemPrompt,
+    skillSettings: config.skillSettings.map((skill) => ({ ...skill })),
+    memorySettings: { ...config.memorySettings },
+    safetySettings: { ...config.safetySettings },
+  };
+}
+
+function connectionLabel(status: AgentConnectionStatus): string {
+  if (status === "configured") return "API key detected";
+  if (status === "missing_key") return "OPENAI_API_KEY missing";
+  return "API offline";
+}
+
 export function AgentFirstInterface() {
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
@@ -194,6 +295,13 @@ export function AgentFirstInterface() {
   const [planMode, setPlanMode] = useState(true);
   const [queuedPrompt, setQueuedPrompt] = useState<string | null>(null);
   const [selectedRecordKind, setSelectedRecordKind] = useState("all");
+  const [agentConfig, setAgentConfig] = useState<AgentConfigDraft>(() =>
+    toConfigDraft(defaultAgentConfig),
+  );
+  const [connectionStatus, setConnectionStatus] =
+    useState<AgentConnectionStatus>("offline");
+  const [configStatus, setConfigStatus] = useState("Local draft");
+  const [isConfigBusy, setIsConfigBusy] = useState(false);
 
   const selectedModule = moduleById(selectedModuleId);
   const filteredRecords = useMemo(
@@ -203,6 +311,112 @@ export function AgentFirstInterface() {
         : dataRecords.filter((record) => record.kind === selectedRecordKind),
     [selectedRecordKind],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAgentConfig(): Promise<void> {
+      try {
+        const response = await fetch("/api/agent-config");
+        if (!response.ok) {
+          throw new Error(`Config API returned ${response.status}`);
+        }
+
+        const data = (await response.json()) as AgentConfigApiResponse;
+        if (cancelled) return;
+
+        setAgentConfig(toConfigDraft(data.config));
+        setConnectionStatus(data.connection.status);
+        setConfigStatus("Loaded from API");
+      } catch {
+        if (cancelled) return;
+        setConnectionStatus("offline");
+        setConfigStatus("API offline - local draft");
+      }
+    }
+
+    void loadAgentConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function updateConfig(patch: Partial<AgentConfigDraft>): void {
+    setAgentConfig((current) => ({ ...current, ...patch }));
+    setConfigStatus("Unsaved local draft");
+  }
+
+  function updateSkill(moduleId: ModuleId, patch: Partial<AgentSkillSetting>): void {
+    setAgentConfig((current) => ({
+      ...current,
+      skillSettings: current.skillSettings.map((skill) =>
+        skill.moduleId === moduleId ? { ...skill, ...patch } : skill,
+      ),
+    }));
+    setConfigStatus("Unsaved local draft");
+  }
+
+  function updateMemorySettings(patch: Partial<AgentMemorySettings>): void {
+    setAgentConfig((current) => ({
+      ...current,
+      memorySettings: { ...current.memorySettings, ...patch },
+    }));
+    setConfigStatus("Unsaved local draft");
+  }
+
+  function updateSafetySettings(patch: Partial<AgentSafetySettings>): void {
+    setAgentConfig((current) => ({
+      ...current,
+      safetySettings: { ...current.safetySettings, ...patch },
+    }));
+    setConfigStatus("Unsaved local draft");
+  }
+
+  async function saveAgentConfig(): Promise<void> {
+    setIsConfigBusy(true);
+    try {
+      const response = await fetch("/api/agent-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(agentConfig),
+      });
+      if (!response.ok) {
+        throw new Error(`Config API returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as AgentConfigApiResponse;
+      setAgentConfig(toConfigDraft(data.config));
+      setConnectionStatus(data.connection.status);
+      setConfigStatus("Saved to API");
+    } catch {
+      setConnectionStatus("offline");
+      setConfigStatus("API offline - local draft only");
+    } finally {
+      setIsConfigBusy(false);
+    }
+  }
+
+  async function testAgentConnection(): Promise<void> {
+    setIsConfigBusy(true);
+    try {
+      const response = await fetch("/api/agent-config/test-connection", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`Config API returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as AgentConnectionApiResponse;
+      setConnectionStatus(data.status);
+      setConfigStatus(connectionLabel(data.status));
+    } catch {
+      setConnectionStatus("offline");
+      setConfigStatus("API offline - cannot test key");
+    } finally {
+      setIsConfigBusy(false);
+    }
+  }
 
   function submitCommand(): void {
     const trimmed = command.trim();
@@ -281,6 +495,20 @@ export function AgentFirstInterface() {
               onSelectRecordKind={setSelectedRecordKind}
             />
           )}
+          {activeView === "configure" && (
+            <ConfigureView
+              config={agentConfig}
+              connectionStatus={connectionStatus}
+              statusText={configStatus}
+              isBusy={isConfigBusy}
+              onUpdateConfig={updateConfig}
+              onUpdateSkill={updateSkill}
+              onUpdateMemory={updateMemorySettings}
+              onUpdateSafety={updateSafetySettings}
+              onSave={saveAgentConfig}
+              onTestConnection={testAgentConnection}
+            />
+          )}
           {activeView === "deploy" && <DeployView />}
         </main>
 
@@ -290,6 +518,7 @@ export function AgentFirstInterface() {
           onChange={setCommand}
           onTogglePlanMode={() => setPlanMode((value) => !value)}
           onSubmit={submitCommand}
+          onOpenConfigure={() => setActiveView("configure")}
         />
 
         <nav className="mobile-nav" aria-label="Mobile navigation">
@@ -586,6 +815,338 @@ function DataView({
   );
 }
 
+function ConfigureView({
+  config,
+  connectionStatus,
+  statusText,
+  isBusy,
+  onUpdateConfig,
+  onUpdateSkill,
+  onUpdateMemory,
+  onUpdateSafety,
+  onSave,
+  onTestConnection,
+}: {
+  config: AgentConfigDraft;
+  connectionStatus: AgentConnectionStatus;
+  statusText: string;
+  isBusy: boolean;
+  onUpdateConfig: (patch: Partial<AgentConfigDraft>) => void;
+  onUpdateSkill: (moduleId: ModuleId, patch: Partial<AgentSkillSetting>) => void;
+  onUpdateMemory: (patch: Partial<AgentMemorySettings>) => void;
+  onUpdateSafety: (patch: Partial<AgentSafetySettings>) => void;
+  onSave: () => void;
+  onTestConnection: () => void;
+}) {
+  const enabledSkills = config.skillSettings.filter((skill) => skill.enabled).length;
+  const memoryMode =
+    config.memorySettings.shortTermEnabled && config.memorySettings.longTermEnabled
+      ? "short + long"
+      : config.memorySettings.longTermEnabled
+        ? "long only"
+        : "short only";
+
+  return (
+    <section className="configure-layout">
+      <div className="configure-hero">
+        <div>
+          <h1>Configure Agent</h1>
+          <p>Connect the OpenAI runtime, choose model behavior, and decide which module skills can write into memory.</p>
+        </div>
+        <div className={`connection-pill ${connectionStatus}`}>
+          <Activity size={15} />
+          <span>{connectionLabel(connectionStatus)}</span>
+        </div>
+      </div>
+
+      <div className="configure-grid">
+        <article className="config-card">
+          <div className="config-card-heading">
+            <span>
+              <Globe2 size={16} />
+              Provider
+            </span>
+            <em>{statusText}</em>
+          </div>
+          <div className="config-field">
+            <label>Provider</label>
+            <div className="locked-value">OpenAI</div>
+          </div>
+          <div className="config-field">
+            <label>Endpoint</label>
+            <div className="segmented-control">
+              {(["responses", "agents_sdk"] as AgentEndpoint[]).map((endpoint) => (
+                <button
+                  key={endpoint}
+                  type="button"
+                  className={config.endpoint === endpoint ? "segmented-button active" : "segmented-button"}
+                  onClick={() => onUpdateConfig({ endpoint })}
+                >
+                  {endpoint === "responses" ? "Responses" : "Agents SDK"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="config-actions">
+            <button type="button" className="small-action" disabled={isBusy} onClick={onTestConnection}>
+              Test
+            </button>
+            <button type="button" className="primary-action" disabled={isBusy} onClick={onSave}>
+              Save
+            </button>
+          </div>
+        </article>
+
+        <article className="config-card">
+          <div className="config-card-heading">
+            <span>
+              <Bot size={16} />
+              Model
+            </span>
+            <em>{config.reasoningEffort} reasoning</em>
+          </div>
+          <div className="config-field">
+            <label>Model</label>
+            <select
+              value={config.modelId}
+              onChange={(event) => onUpdateConfig({ modelId: event.target.value })}
+            >
+              <option value="gpt-5.5">gpt-5.5</option>
+              <option value="gpt-5.4">gpt-5.4</option>
+              <option value="gpt-5.4-mini">gpt-5.4-mini</option>
+              <option value="gpt-5.2">gpt-5.2</option>
+            </select>
+          </div>
+          <div className="config-field">
+            <label>Reasoning</label>
+            <div className="segmented-control">
+              {(["low", "medium", "high", "xhigh"] as AgentReasoningEffort[]).map((effort) => (
+                <button
+                  key={effort}
+                  type="button"
+                  className={config.reasoningEffort === effort ? "segmented-button active" : "segmented-button"}
+                  onClick={() => onUpdateConfig({ reasoningEffort: effort })}
+                >
+                  {effort}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="config-field">
+            <label>System prompt</label>
+            <textarea
+              value={config.systemPrompt}
+              onChange={(event) => onUpdateConfig({ systemPrompt: event.target.value })}
+              rows={4}
+            />
+          </div>
+        </article>
+
+        <article className="config-card config-card-wide">
+          <div className="config-card-heading">
+            <span>
+              <Layers3 size={16} />
+              Skills
+            </span>
+            <em>{enabledSkills} enabled</em>
+          </div>
+          <div className="skill-settings-grid">
+            {config.skillSettings.map((skill) => {
+              const module = moduleById(skill.moduleId);
+              return (
+                <div key={skill.moduleId} className="skill-setting-row">
+                  <i style={{ background: module.color }} />
+                  <span>
+                    <strong>{module.name}</strong>
+                    <em>{module.result}</em>
+                  </span>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.enabled}
+                      onChange={(event) =>
+                        onUpdateSkill(skill.moduleId, { enabled: event.target.checked })
+                      }
+                    />
+                    Enabled
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.approvalRequired}
+                      onChange={(event) =>
+                        onUpdateSkill(skill.moduleId, { approvalRequired: event.target.checked })
+                      }
+                    />
+                    Approval
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.canUseNetwork}
+                      onChange={(event) =>
+                        onUpdateSkill(skill.moduleId, { canUseNetwork: event.target.checked })
+                      }
+                    />
+                    Network
+                  </label>
+                  <label className="toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skill.canWriteDatabase}
+                      onChange={(event) =>
+                        onUpdateSkill(skill.moduleId, { canWriteDatabase: event.target.checked })
+                      }
+                    />
+                    DB write
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="config-card">
+          <div className="config-card-heading">
+            <span>
+              <Database size={16} />
+              Memory
+            </span>
+            <em>{memoryMode}</em>
+          </div>
+          <label className="toggle-row large">
+            <input
+              type="checkbox"
+              checked={config.memorySettings.shortTermEnabled}
+              onChange={(event) => onUpdateMemory({ shortTermEnabled: event.target.checked })}
+            />
+            Short-term thread memory
+          </label>
+          <label className="toggle-row large">
+            <input
+              type="checkbox"
+              checked={config.memorySettings.longTermEnabled}
+              onChange={(event) => onUpdateMemory({ longTermEnabled: event.target.checked })}
+            />
+            Long-term Postgres memory
+          </label>
+          <div className="config-field">
+            <label>Promotion</label>
+            <select
+              value={config.memorySettings.promotionMode}
+              onChange={(event) =>
+                onUpdateMemory({ promotionMode: event.target.value as MemoryPromotionMode })
+              }
+            >
+              <option value="agent_suggested">agent_suggested</option>
+              <option value="manual">manual</option>
+            </select>
+          </div>
+          <div className="config-two-column">
+            <div className="config-field">
+              <label>Collection</label>
+              <input
+                value={config.memorySettings.ragCollection}
+                onChange={(event) => onUpdateMemory({ ragCollection: event.target.value })}
+              />
+            </div>
+            <div className="config-field">
+              <label>Retention days</label>
+              <input
+                type="number"
+                min={1}
+                max={3650}
+                value={config.memorySettings.retentionDays}
+                onChange={(event) =>
+                  onUpdateMemory({ retentionDays: Number(event.target.value) || 1 })
+                }
+              />
+            </div>
+          </div>
+        </article>
+
+        <article className="config-card">
+          <div className="config-card-heading">
+            <span>
+              <ShieldCheck size={16} />
+              Safety
+            </span>
+            <em>{config.safetySettings.maxToolSteps} tool steps</em>
+          </div>
+          <label className="toggle-row large">
+            <input
+              type="checkbox"
+              checked={config.safetySettings.requireApprovalForExternalActions}
+              onChange={(event) =>
+                onUpdateSafety({ requireApprovalForExternalActions: event.target.checked })
+              }
+            />
+            Approve external actions
+          </label>
+          <label className="toggle-row large">
+            <input
+              type="checkbox"
+              checked={config.safetySettings.requireApprovalForPublishing}
+              onChange={(event) =>
+                onUpdateSafety({ requireApprovalForPublishing: event.target.checked })
+              }
+            />
+            Approve publishing
+          </label>
+          <label className="toggle-row large">
+            <input
+              type="checkbox"
+              checked={config.safetySettings.allowSelfLearning}
+              onChange={(event) => onUpdateSafety({ allowSelfLearning: event.target.checked })}
+            />
+            Allow self-learning
+          </label>
+          <div className="config-field">
+            <label>Max tool steps</label>
+            <input
+              type="number"
+              min={1}
+              max={64}
+              value={config.safetySettings.maxToolSteps}
+              onChange={(event) =>
+                onUpdateSafety({ maxToolSteps: Number(event.target.value) || 1 })
+              }
+            />
+          </div>
+        </article>
+
+        <article className="config-card runtime-card">
+          <div className="config-card-heading">
+            <span>
+              <Sparkles size={16} />
+              Runtime Preview
+            </span>
+            <em>{config.endpoint}</em>
+          </div>
+          <div className="runtime-lines">
+            <span>
+              <strong>Provider</strong>
+              <em>{config.provider} / {config.modelId}</em>
+            </span>
+            <span>
+              <strong>Skills</strong>
+              <em>{enabledSkills} modules can be called</em>
+            </span>
+            <span>
+              <strong>Memory</strong>
+              <em>{memoryMode} into {config.memorySettings.ragCollection}</em>
+            </span>
+            <span>
+              <strong>Safety</strong>
+              <em>{config.safetySettings.allowSelfLearning ? "self-learning allowed" : "self-learning paused"}</em>
+            </span>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 function DeployView() {
   return (
     <section className="page-panel">
@@ -616,12 +1177,14 @@ function Composer({
   onChange,
   onTogglePlanMode,
   onSubmit,
+  onOpenConfigure,
 }: {
   value: string;
   planMode: boolean;
   onChange: (value: string) => void;
   onTogglePlanMode: () => void;
   onSubmit: () => void;
+  onOpenConfigure: () => void;
 }) {
   return (
     <div className="composer-shell">
@@ -653,7 +1216,12 @@ function Composer({
             <WandSparkles size={15} />
             Plan
           </button>
-          <button type="button" className="icon-action" aria-label="Agent settings">
+          <button
+            type="button"
+            className="icon-action"
+            aria-label="Agent settings"
+            onClick={onOpenConfigure}
+          >
             <Settings2 size={16} />
           </button>
           <button
@@ -798,7 +1366,8 @@ const styles = `
   .primary-action,
   .module-row,
   .memory-node,
-  .filter-chip {
+  .filter-chip,
+  .segmented-button {
     font-family: inherit;
     cursor: pointer;
   }
@@ -1380,6 +1949,300 @@ const styles = `
     font-size: 12px;
   }
 
+  .configure-layout {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .configure-hero {
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0f151e;
+    padding: 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .configure-hero h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: 0;
+  }
+
+  .configure-hero p {
+    margin: 0;
+    color: #9aa7b8;
+    line-height: 1.55;
+    font-size: 13px;
+    max-width: 720px;
+  }
+
+  .connection-pill {
+    min-height: 32px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    background: #151d28;
+    color: #9aa7b8;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 11px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .connection-pill.configured {
+    color: #35d07f;
+    border-color: #35d07f66;
+    background: #0e2419;
+  }
+
+  .connection-pill.missing_key {
+    color: #f2c94c;
+    border-color: #f2c94c55;
+    background: #211d0d;
+  }
+
+  .configure-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .config-card {
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0f151e;
+    padding: 14px;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .config-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .config-card-heading,
+  .config-card-heading span,
+  .config-actions,
+  .runtime-lines span {
+    display: flex;
+    align-items: center;
+  }
+
+  .config-card-heading {
+    justify-content: space-between;
+    gap: 12px;
+    color: #edf3fb;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .config-card-heading span {
+    gap: 8px;
+  }
+
+  .config-card-heading em {
+    color: #738195;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .config-field {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .config-field label {
+    color: #8290a3;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .locked-value,
+  .config-card select,
+  .config-card input,
+  .config-card textarea {
+    width: 100%;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #edf3fb;
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .locked-value,
+  .config-card select,
+  .config-card input {
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  .locked-value {
+    display: flex;
+    align-items: center;
+    color: #9aa7b8;
+  }
+
+  .config-card textarea {
+    min-height: 92px;
+    resize: vertical;
+    padding: 10px;
+    line-height: 1.45;
+  }
+
+  .config-card input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    accent-color: #f97316;
+    flex-shrink: 0;
+  }
+
+  .segmented-control {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .segmented-button {
+    min-width: 84px;
+    height: 32px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #9aa7b8;
+    font-size: 12px;
+    font-weight: 800;
+    flex: 1;
+  }
+
+  .segmented-button.active {
+    color: #edf3fb;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .config-actions {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .primary-action:disabled,
+  .small-action:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .skill-settings-grid {
+    display: grid;
+    gap: 8px;
+  }
+
+  .skill-setting-row {
+    min-height: 66px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #121a25;
+    display: grid;
+    grid-template-columns: 10px minmax(170px, 1fr) repeat(4, minmax(86px, auto));
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .skill-setting-row i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .skill-setting-row span {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .skill-setting-row strong,
+  .skill-setting-row em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .skill-setting-row strong {
+    font-size: 13px;
+  }
+
+  .skill-setting-row em {
+    color: #8290a3;
+    font-size: 11px;
+    font-style: normal;
+    white-space: nowrap;
+  }
+
+  .toggle-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #aeb8c6;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 0;
+  }
+
+  .toggle-row.large {
+    min-height: 38px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    padding: 0 10px;
+  }
+
+  .config-two-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px;
+    gap: 10px;
+  }
+
+  .runtime-lines {
+    display: grid;
+    gap: 8px;
+  }
+
+  .runtime-lines span {
+    min-height: 42px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+  }
+
+  .runtime-lines strong {
+    font-size: 12px;
+  }
+
+  .runtime-lines em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
   .deploy-grid {
     padding: 0;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1492,7 +2355,9 @@ const styles = `
   }
 
   button:focus-visible,
-  textarea:focus-visible {
+  textarea:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
     outline: 2px solid #4f9cff;
     outline-offset: 2px;
   }
@@ -1527,6 +2392,14 @@ const styles = `
 
     .deploy-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .configure-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .skill-setting-row {
+      grid-template-columns: 10px minmax(0, 1fr) repeat(2, minmax(90px, auto));
     }
   }
 
@@ -1584,11 +2457,66 @@ const styles = `
       font-size: 23px;
     }
 
+    .configure-hero {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .configure-hero h1 {
+      font-size: 23px;
+    }
+
+    .connection-pill {
+      width: fit-content;
+      max-width: 100%;
+      white-space: normal;
+    }
+
     .agent-summary-grid,
     .detail-grid,
     .deploy-grid,
     .memory-map {
       grid-template-columns: 1fr;
+    }
+
+    .config-card {
+      padding: 12px;
+    }
+
+    .config-card-heading {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .skill-setting-row {
+      grid-template-columns: 10px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .skill-setting-row em {
+      white-space: normal;
+    }
+
+    .toggle-row {
+      justify-content: flex-start;
+    }
+
+    .config-two-column,
+    .runtime-lines span {
+      grid-template-columns: 1fr;
+    }
+
+    .runtime-lines span {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .runtime-lines em {
+      text-align: left;
     }
 
     .timeline-card,
@@ -1638,11 +2566,11 @@ const styles = `
     }
 
     .mobile-nav {
-      height: 66px;
+      height: 68px;
       border-top: 1px solid #1e2936;
       background: #0d1219;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 2px;
       padding: 5px 6px 7px;
       flex-shrink: 0;
@@ -1656,7 +2584,14 @@ const styles = `
       display: grid;
       place-items: center;
       gap: 2px;
-      font-size: 10px;
+      font-size: 9px;
+      min-width: 0;
+    }
+
+    .mobile-nav-button span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .mobile-nav-button.active {

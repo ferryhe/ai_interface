@@ -46,6 +46,21 @@ export const runEventSeverityEnum = pgEnum("run_event_severity", [
   "error",
 ]);
 
+export const agentProviderEnum = pgEnum("agent_provider", ["openai"]);
+
+export const agentEndpointEnum = pgEnum("agent_endpoint", [
+  "responses",
+  "agents_sdk",
+]);
+
+export const agentReasoningEffortEnum = pgEnum("agent_reasoning_effort", [
+  "none",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+]);
+
 export const agentThreadsTable = pgTable("agent_threads", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),
@@ -224,6 +239,48 @@ export const typedDataRecordsTable = pgTable(
   }),
 );
 
+export const agentConfigsTable = pgTable("agent_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  configKey: text("config_key").notNull().unique().default("default"),
+  provider: agentProviderEnum("provider").notNull().default("openai"),
+  endpoint: agentEndpointEnum("endpoint").notNull().default("responses"),
+  modelId: text("model_id").notNull().default("gpt-5.5"),
+  reasoningEffort: agentReasoningEffortEnum("reasoning_effort")
+    .notNull()
+    .default("medium"),
+  systemPrompt: text("system_prompt").notNull(),
+  skillSettings: jsonb("skill_settings")
+    .$type<
+      Array<{
+        moduleId: string;
+        enabled: boolean;
+        approvalRequired: boolean;
+        canUseNetwork: boolean;
+        canWriteDatabase: boolean;
+      }>
+    >()
+    .notNull(),
+  memorySettings: jsonb("memory_settings")
+    .$type<{
+      shortTermEnabled: boolean;
+      longTermEnabled: boolean;
+      promotionMode: string;
+      ragCollection: string;
+      retentionDays: number;
+    }>()
+    .notNull(),
+  safetySettings: jsonb("safety_settings")
+    .$type<{
+      requireApprovalForExternalActions: boolean;
+      requireApprovalForPublishing: boolean;
+      allowSelfLearning: boolean;
+      maxToolSteps: number;
+    }>()
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertAgentThreadSchema = createInsertSchema(agentThreadsTable).omit({
   id: true,
   createdAt: true,
@@ -263,6 +320,11 @@ export const insertTypedDataRecordSchema = createInsertSchema(
   createdAt: true,
   updatedAt: true,
 });
+export const insertAgentConfigSchema = createInsertSchema(agentConfigsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 export type InsertAgentThread = z.infer<typeof insertAgentThreadSchema>;
 export type AgentThread = typeof agentThreadsTable.$inferSelect;
@@ -280,3 +342,5 @@ export type InsertArtifact = z.infer<typeof insertArtifactSchema>;
 export type Artifact = typeof artifactsTable.$inferSelect;
 export type InsertTypedDataRecord = z.infer<typeof insertTypedDataRecordSchema>;
 export type TypedDataRecord = typeof typedDataRecordsTable.$inferSelect;
+export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
+export type AgentConfig = typeof agentConfigsTable.$inferSelect;

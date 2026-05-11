@@ -17,6 +17,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AgentConfigResponse,
+  AgentConnectionTestResponse,
   Artifact,
   CreateArtifactRequest,
   CreateModuleRunRequest,
@@ -28,6 +30,7 @@ import type {
   ModuleRunDetail,
   ModuleRunIngestResponse,
   RunEvent,
+  UpdateAgentConfigRequest,
   UpdateModuleRunRequest,
 } from "./api.schemas";
 
@@ -714,3 +717,250 @@ export function useGetArtifact<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns the persisted Agent control plane configuration and OpenAI API key status.
+ * @summary Get Agent configuration
+ */
+export const getGetAgentConfigUrl = () => {
+  return `/api/agent-config`;
+};
+
+export const getAgentConfig = async (
+  options?: RequestInit,
+): Promise<AgentConfigResponse> => {
+  return customFetch<AgentConfigResponse>(getGetAgentConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAgentConfigQueryKey = () => {
+  return [`/api/agent-config`] as const;
+};
+
+export const getGetAgentConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAgentConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAgentConfigQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgentConfig>>> = ({
+    signal,
+  }) => getAgentConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAgentConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAgentConfig>>
+>;
+export type GetAgentConfigQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get Agent configuration
+ */
+
+export function useGetAgentConfig<
+  TData = Awaited<ReturnType<typeof getAgentConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update Agent configuration
+ */
+export const getUpdateAgentConfigUrl = () => {
+  return `/api/agent-config`;
+};
+
+export const updateAgentConfig = async (
+  updateAgentConfigRequest: UpdateAgentConfigRequest,
+  options?: RequestInit,
+): Promise<AgentConfigResponse> => {
+  return customFetch<AgentConfigResponse>(getUpdateAgentConfigUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateAgentConfigRequest),
+  });
+};
+
+export const getUpdateAgentConfigMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAgentConfig>>,
+    TError,
+    { data: BodyType<UpdateAgentConfigRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAgentConfig>>,
+  TError,
+  { data: BodyType<UpdateAgentConfigRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateAgentConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAgentConfig>>,
+    { data: BodyType<UpdateAgentConfigRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateAgentConfig(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAgentConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAgentConfig>>
+>;
+export type UpdateAgentConfigMutationBody = BodyType<UpdateAgentConfigRequest>;
+export type UpdateAgentConfigMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update Agent configuration
+ */
+export const useUpdateAgentConfig = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAgentConfig>>,
+    TError,
+    { data: BodyType<UpdateAgentConfigRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAgentConfig>>,
+  TError,
+  { data: BodyType<UpdateAgentConfigRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateAgentConfigMutationOptions(options));
+};
+
+/**
+ * Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+ * @summary Test Agent provider connection
+ */
+export const getTestAgentConfigConnectionUrl = () => {
+  return `/api/agent-config/test-connection`;
+};
+
+export const testAgentConfigConnection = async (
+  options?: RequestInit,
+): Promise<AgentConnectionTestResponse> => {
+  return customFetch<AgentConnectionTestResponse>(
+    getTestAgentConfigConnectionUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getTestAgentConfigConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testAgentConfigConnection>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testAgentConfigConnection>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["testAgentConfigConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testAgentConfigConnection>>,
+    void
+  > = () => {
+    return testAgentConfigConnection(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestAgentConfigConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testAgentConfigConnection>>
+>;
+
+export type TestAgentConfigConnectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Test Agent provider connection
+ */
+export const useTestAgentConfigConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testAgentConfigConnection>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testAgentConfigConnection>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTestAgentConfigConnectionMutationOptions(options));
+};

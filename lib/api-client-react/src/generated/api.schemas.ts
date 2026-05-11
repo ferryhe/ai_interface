@@ -56,6 +56,111 @@ export const RunEventSeverity = {
   error: "error",
 } as const;
 
+export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
+
+export const AgentProvider = {
+  openai: "openai",
+} as const;
+
+export type AgentEndpoint = (typeof AgentEndpoint)[keyof typeof AgentEndpoint];
+
+export const AgentEndpoint = {
+  responses: "responses",
+  agents_sdk: "agents_sdk",
+} as const;
+
+export type AgentReasoningEffort =
+  (typeof AgentReasoningEffort)[keyof typeof AgentReasoningEffort];
+
+export const AgentReasoningEffort = {
+  none: "none",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "xhigh",
+} as const;
+
+export type AgentConnectionStatus =
+  (typeof AgentConnectionStatus)[keyof typeof AgentConnectionStatus];
+
+export const AgentConnectionStatus = {
+  configured: "configured",
+  missing_key: "missing_key",
+} as const;
+
+export type MemoryPromotionMode =
+  (typeof MemoryPromotionMode)[keyof typeof MemoryPromotionMode];
+
+export const MemoryPromotionMode = {
+  manual: "manual",
+  agent_suggested: "agent_suggested",
+} as const;
+
+export interface AgentSkillSetting {
+  moduleId: ModuleId;
+  enabled: boolean;
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+}
+
+export interface AgentMemorySettings {
+  shortTermEnabled: boolean;
+  longTermEnabled: boolean;
+  promotionMode: MemoryPromotionMode;
+  ragCollection: string;
+  /** @minimum 1 */
+  retentionDays: number;
+}
+
+export interface AgentSafetySettings {
+  requireApprovalForExternalActions: boolean;
+  requireApprovalForPublishing: boolean;
+  allowSelfLearning: boolean;
+  /** @minimum 1 */
+  maxToolSteps: number;
+}
+
+export interface AgentConfig {
+  id: string;
+  configKey: string;
+  provider: AgentProvider;
+  endpoint: AgentEndpoint;
+  modelId: string;
+  reasoningEffort: AgentReasoningEffort;
+  systemPrompt: string;
+  skillSettings: AgentSkillSetting[];
+  memorySettings: AgentMemorySettings;
+  safetySettings: AgentSafetySettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentConnectionStatusPayload {
+  status: AgentConnectionStatus;
+}
+
+export interface AgentConfigResponse {
+  config: AgentConfig;
+  connection: AgentConnectionStatusPayload;
+}
+
+export interface UpdateAgentConfigRequest {
+  provider?: AgentProvider;
+  endpoint?: AgentEndpoint;
+  modelId?: string;
+  reasoningEffort?: AgentReasoningEffort;
+  systemPrompt?: string;
+  skillSettings?: AgentSkillSetting[];
+  memorySettings?: AgentMemorySettings;
+  safetySettings?: AgentSafetySettings;
+}
+
+export interface AgentConnectionTestResponse {
+  status: AgentConnectionStatus;
+  checkedAt: string;
+}
+
 export interface ModuleDefinition {
   moduleId: ModuleId;
   displayName: string;
