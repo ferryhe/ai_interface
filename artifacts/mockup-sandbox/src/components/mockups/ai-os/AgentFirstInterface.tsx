@@ -86,6 +86,58 @@ interface RuntimeModuleRun {
   updatedAt: string;
 }
 
+type JsonObject = Record<string, unknown>;
+type AgentRunSubmitState = "local" | "submitting" | "saved" | "offline" | "failed";
+
+interface AgentRunApiModuleRun {
+  id: string;
+  pipelineRunId: string | null;
+  moduleId: ModuleId;
+  externalRunId: string;
+  title: string | null;
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  inputJson: JsonObject | null;
+  outputJson: JsonObject | null;
+  summary: string | null;
+  metadata: JsonObject | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AgentRunApiPlanStep {
+  moduleId: ModuleId;
+  title: string;
+  action: string;
+  input: JsonObject;
+  requiresApproval: boolean;
+}
+
+interface AgentRunApiResponse {
+  status: "planned" | "missing_key" | "needs_approval" | "failed";
+  connection: { status: AgentConnectionStatus };
+  agentMessage: { content: string };
+  pipelineRun: {
+    id: string;
+    title: string;
+    status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+    metadata: JsonObject | null;
+    updatedAt: string;
+  };
+  moduleRuns: AgentRunApiModuleRun[];
+  plan: {
+    summary: string;
+    steps: AgentRunApiPlanStep[];
+    warnings: string[];
+  };
+}
+
+interface AgentRunUiState {
+  response: AgentRunApiResponse;
+  runtimeRuns: RuntimeModuleRun[];
+}
+
 interface DataRecord {
   id: string;
   kind: string;
@@ -454,7 +506,7 @@ const runSteps: RunStep[] = [
   },
 ];
 
-const runtimeRuns: RuntimeModuleRun[] = [
+const mockRuntimeRuns: RuntimeModuleRun[] = [
   {
     id: "run-web-listening-018",
     moduleId: "web_listening",
@@ -600,6 +652,58 @@ function moduleById(moduleId: ModuleId): ModuleDefinition {
   return modules.find((item) => item.id === moduleId) ?? modules[0]!;
 }
 
+function stringFromMetadata(
+  metadata: JsonObject | null,
+  key: string,
+  fallback: string,
+): string {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : fallback;
+}
+
+function stringArrayFromMetadata(
+  metadata: JsonObject | null,
+  key: string,
+): string[] {
+  const value = metadata?.[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function runtimeStatusFromApiRun(run: AgentRunApiModuleRun): RuntimeRunStatus {
+  if (run.status === "succeeded") return "succeeded";
+  if (run.status === "running") return "running";
+  if (run.status === "failed" || run.status === "cancelled") return "skipped";
+  if (run.metadata?.["adapterExecutionStatus"] === "skipped") return "skipped";
+  if (run.metadata?.["requiresApproval"] === true) return "approval_required";
+  return "queued";
+}
+
+function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModuleRun[] {
+  return response.moduleRuns.map((run) => ({
+    id: run.id,
+    moduleId: run.moduleId,
+    title: run.title ?? moduleById(run.moduleId).name,
+    status: runtimeStatusFromApiRun(run),
+    adapterId: stringFromMetadata(run.metadata, "adapterId", `${run.moduleId}.adapter`),
+    adapterKind:
+      stringFromMetadata(run.metadata, "adapterKind", "http") === "cli"
+        ? "cli"
+        : "http",
+    externalRunId: run.externalRunId,
+    event:
+      run.summary ??
+      stringFromMetadata(run.metadata, "action", "Agent runtime planned this module run."),
+    resultRecordIds: run.outputJson ? [run.id] : [],
+    missingRequiredEnv: stringArrayFromMetadata(run.metadata, "adapterMissingRequiredEnv"),
+    updatedAt: new Date(run.updatedAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }));
+}
+
 function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
   return {
     provider: config.provider,
@@ -620,6 +724,14 @@ function connectionLabel(status: AgentConnectionStatus): string {
   return "API offline";
 }
 
+function agentRunStateLabel(state: AgentRunSubmitState): string {
+  if (state === "submitting") return "Submitting";
+  if (state === "saved") return "API saved";
+  if (state === "offline") return "API offline";
+  if (state === "failed") return "API failed";
+  return "Local mock";
+}
+
 export function AgentFirstInterface() {
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
@@ -636,8 +748,15 @@ export function AgentFirstInterface() {
     useState<AgentConnectionStatus>("offline");
   const [configStatus, setConfigStatus] = useState("Local draft");
   const [isConfigBusy, setIsConfigBusy] = useState(false);
+  const [agentRunState, setAgentRunState] =
+    useState<AgentRunSubmitState>("local");
+  const [agentRunStatusText, setAgentRunStatusText] =
+    useState("Local mock runtime");
+  const [latestAgentRun, setLatestAgentRun] =
+    useState<AgentRunUiState | null>(null);
 
   const selectedModule = moduleById(selectedModuleId);
+  const displayedRuntimeRuns = latestAgentRun?.runtimeRuns ?? mockRuntimeRuns;
   const filteredRecords = useMemo(
     () =>
       selectedRecordKind === "all"
@@ -775,12 +894,50 @@ export function AgentFirstInterface() {
     }
   }
 
-  function submitCommand(): void {
+  async function submitCommand(): Promise<void> {
+    if (agentRunState === "submitting") return;
+
     const trimmed = command.trim();
     if (!trimmed) return;
+
     setQueuedPrompt(trimmed);
     setCommand("");
+    setAgentRunState("submitting");
+    setAgentRunStatusText("Submitting to Agent Run API");
     setActiveView("progress");
+
+    try {
+      const response = await fetch("/api/agent-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          executionMode,
+          metadata: { source: "mockup-sandbox" },
+        }),
+      });
+
+      if (!response.ok) {
+        setLatestAgentRun(null);
+        setAgentRunState("failed");
+        setAgentRunStatusText("Agent run API failed - showing local mock");
+        return;
+      }
+
+      const data = (await response.json()) as AgentRunApiResponse;
+      setLatestAgentRun({
+        response: data,
+        runtimeRuns: toRuntimeRunsFromAgentRun(data),
+      });
+      setConnectionStatus(data.connection.status);
+      setAgentRunState("saved");
+      setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
+    } catch {
+      setLatestAgentRun(null);
+      setAgentRunState("offline");
+      setAgentRunStatusText("API offline - showing local mock");
+      setConnectionStatus("offline");
+    }
   }
 
   return (
@@ -843,7 +1000,10 @@ export function AgentFirstInterface() {
               queuedPrompt={queuedPrompt}
               selectedModule={selectedModule}
               executionMode={executionMode}
-              runtimeRuns={runtimeRuns}
+              runtimeRuns={displayedRuntimeRuns}
+              agentRunState={agentRunState}
+              agentRunStatusText={agentRunStatusText}
+              latestAgentRun={latestAgentRun}
               onSetExecutionMode={setExecutionMode}
               onOpenModules={openModules}
               onOpenProgress={() => setActiveView("progress")}
@@ -854,7 +1014,7 @@ export function AgentFirstInterface() {
             <ModulesView
               selectedModule={selectedModule}
               selectedModuleId={selectedModuleId}
-              runtimeRuns={runtimeRuns}
+              runtimeRuns={displayedRuntimeRuns}
               onSelectModule={setSelectedModuleId}
               onOpenData={() => setActiveView("data")}
             />
@@ -863,7 +1023,10 @@ export function AgentFirstInterface() {
             <ProgressView
               queuedPrompt={queuedPrompt}
               executionMode={executionMode}
-              runtimeRuns={runtimeRuns}
+              runtimeRuns={displayedRuntimeRuns}
+              agentRunState={agentRunState}
+              agentRunStatusText={agentRunStatusText}
+              latestAgentRun={latestAgentRun}
               onOpenConfigure={() => setActiveView("configure")}
               onOpenData={() => setActiveView("data")}
               onOpenModules={openModules}
@@ -901,6 +1064,7 @@ export function AgentFirstInterface() {
           onTogglePlanMode={() => setPlanMode((value) => !value)}
           onSubmit={submitCommand}
           onOpenConfigure={() => setActiveView("configure")}
+          isSubmitting={agentRunState === "submitting"}
         />
 
         <nav className="mobile-nav" aria-label="Mobile navigation">
@@ -929,6 +1093,9 @@ function AgentView({
   selectedModule,
   executionMode,
   runtimeRuns,
+  agentRunState,
+  agentRunStatusText,
+  latestAgentRun,
   onSetExecutionMode,
   onOpenModules,
   onOpenProgress,
@@ -938,6 +1105,9 @@ function AgentView({
   selectedModule: ModuleDefinition;
   executionMode: RuntimeExecutionMode;
   runtimeRuns: RuntimeModuleRun[];
+  agentRunState: AgentRunSubmitState;
+  agentRunStatusText: string;
+  latestAgentRun: AgentRunUiState | null;
   onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
   onOpenModules: (moduleId?: ModuleId) => void;
   onOpenProgress: () => void;
@@ -993,6 +1163,12 @@ function AgentView({
               {queuedPrompt}
             </ChatBubble>
           )}
+
+          {latestAgentRun && (
+            <ChatBubble role="agent">
+              {latestAgentRun.response.agentMessage.content}
+            </ChatBubble>
+          )}
         </div>
 
         <RuntimeControl
@@ -1000,6 +1176,8 @@ function AgentView({
           resumeReadyCount={resumeReadyCount}
           approvalCount={approvalCount}
           configNeededCount={configNeededCount}
+          agentRunState={agentRunState}
+          agentRunStatusText={agentRunStatusText}
           onSetExecutionMode={onSetExecutionMode}
         />
       </div>
@@ -1048,12 +1226,16 @@ function RuntimeControl({
   resumeReadyCount,
   approvalCount,
   configNeededCount,
+  agentRunState,
+  agentRunStatusText,
   onSetExecutionMode,
 }: {
   executionMode: RuntimeExecutionMode;
   resumeReadyCount: number;
   approvalCount: number;
   configNeededCount: number;
+  agentRunState: AgentRunSubmitState;
+  agentRunStatusText: string;
   onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
 }) {
   return (
@@ -1063,8 +1245,11 @@ function RuntimeControl({
           <Activity size={16} />
           Runtime
         </span>
-        <span className="soft-label">local mock</span>
+        <span className={`agent-run-state ${agentRunState}`}>
+          {agentRunStateLabel(agentRunState)}
+        </span>
       </div>
+      <p className="agent-run-status-text">{agentRunStatusText}</p>
       <div className="runtime-mode-group" aria-label="Runtime execution mode">
         <button
           type="button"
@@ -1232,6 +1417,9 @@ function ProgressView({
   queuedPrompt,
   executionMode,
   runtimeRuns,
+  agentRunState,
+  agentRunStatusText,
+  latestAgentRun,
   onOpenConfigure,
   onOpenData,
   onOpenModules,
@@ -1239,6 +1427,9 @@ function ProgressView({
   queuedPrompt: string | null;
   executionMode: RuntimeExecutionMode;
   runtimeRuns: RuntimeModuleRun[];
+  agentRunState: AgentRunSubmitState;
+  agentRunStatusText: string;
+  latestAgentRun: AgentRunUiState | null;
   onOpenConfigure: () => void;
   onOpenData: () => void;
   onOpenModules: (moduleId?: ModuleId) => void;
@@ -1291,6 +1482,9 @@ function ProgressView({
             <Activity size={14} />
             {executionMode === "execute_ready" ? "Execute ready" : "Plan only"}
           </span>
+          <span className={`agent-run-state ${agentRunState}`}>
+            {agentRunStateLabel(agentRunState)}
+          </span>
           <button type="button" className="primary-action" onClick={onOpenData}>
             <Database size={15} />
             Open memory
@@ -1306,6 +1500,27 @@ function ProgressView({
             <em>{queuedPrompt}</em>
           </span>
         </div>
+      )}
+
+      {latestAgentRun ? (
+        <div className="api-plan-panel">
+          <div className="api-plan-meta">
+            <strong>Pipeline {latestAgentRun.response.pipelineRun.id.slice(0, 8)}</strong>
+            <span>{latestAgentRun.response.plan.steps.length} plan steps</span>
+            <span>{latestAgentRun.response.status.replace("_", " ")}</span>
+            <span>{agentRunStatusText}</span>
+          </div>
+          <p>{latestAgentRun.response.plan.summary}</p>
+          {latestAgentRun.response.plan.warnings.length > 0 && (
+            <div className="warning-chip-row" aria-label="Agent plan warnings">
+              {latestAgentRun.response.plan.warnings.map((warning) => (
+                <span key={warning}>{warning}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="agent-run-status-text">{agentRunStatusText}</p>
       )}
 
       <div className="timeline">
@@ -1954,13 +2169,15 @@ function Composer({
   onTogglePlanMode,
   onSubmit,
   onOpenConfigure,
+  isSubmitting,
 }: {
   value: string;
   planMode: boolean;
   onChange: (value: string) => void;
   onTogglePlanMode: () => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
   onOpenConfigure: () => void;
+  isSubmitting: boolean;
 }) {
   return (
     <div className="composer-shell">
@@ -1972,13 +2189,19 @@ function Composer({
             const nativeEvent = event.nativeEvent as KeyboardEvent & {
               isComposing?: boolean;
             };
-            if (event.key === "Enter" && !event.shiftKey && !nativeEvent.isComposing) {
+            if (
+              !isSubmitting &&
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !nativeEvent.isComposing
+            ) {
               event.preventDefault();
-              onSubmit();
+              void onSubmit();
             }
           }}
           placeholder="Ask Agent to run modules, store data, or inspect results..."
           rows={2}
+          disabled={isSubmitting}
         />
         <div className="composer-actions">
           <button type="button" className="icon-action" aria-label="Attach file">
@@ -2004,8 +2227,8 @@ function Composer({
             type="button"
             className="send-action"
             aria-label="Send"
-            disabled={!value.trim()}
-            onClick={onSubmit}
+            disabled={isSubmitting || !value.trim()}
+            onClick={() => void onSubmit()}
           >
             <Send size={16} />
           </button>
@@ -2306,6 +2529,57 @@ const styles = `
     color: #738195;
     font-size: 11px;
     font-weight: 650;
+  }
+
+  .agent-run-state {
+    min-height: 26px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    background: #151d28;
+    color: #aeb8c6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .agent-run-state.local {
+    color: #9aa7b8;
+  }
+
+  .agent-run-state.submitting {
+    color: #4f9cff;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .agent-run-state.saved {
+    color: #35d07f;
+    border-color: #35d07f66;
+    background: #0e2419;
+  }
+
+  .agent-run-state.offline {
+    color: #f2c94c;
+    border-color: #f2c94c55;
+    background: #211d0d;
+  }
+
+  .agent-run-state.failed {
+    color: #ff7a7a;
+    border-color: #ff7a7a66;
+    background: #2a1010;
+  }
+
+  .agent-run-status-text {
+    margin: 0;
+    color: #8d9bad;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
   }
 
   .chat-stream {
@@ -2620,6 +2894,62 @@ const styles = `
     color: #aeb8c6;
     font-style: normal;
     font-size: 12px;
+  }
+
+  .api-plan-panel {
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0d141d;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .api-plan-panel p {
+    margin: 0;
+    color: #aeb8c6;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .api-plan-meta,
+  .warning-chip-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .api-plan-meta strong,
+  .api-plan-meta span,
+  .warning-chip-row span {
+    min-height: 26px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .api-plan-meta strong {
+    color: #edf3fb;
+    background: #151d28;
+  }
+
+  .api-plan-meta span {
+    color: #9aa7b8;
+    background: #121a25;
+  }
+
+  .warning-chip-row span {
+    color: #f2c94c;
+    border-color: #f2c94c55;
+    background: #211d0d;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .timeline {
@@ -3468,6 +3798,11 @@ const styles = `
     padding: 12px 0 8px;
   }
 
+  .composer textarea:disabled {
+    color: #8290a3;
+    cursor: default;
+  }
+
   .composer-actions {
     display: flex;
     align-items: center;
@@ -3665,6 +4000,12 @@ const styles = `
       white-space: normal;
     }
 
+    .agent-run-state {
+      max-width: 100%;
+      white-space: normal;
+      text-align: center;
+    }
+
     .agent-summary-grid,
     .detail-grid,
     .publish-grid,
@@ -3686,6 +4027,11 @@ const styles = `
     .runtime-action-row {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .api-plan-meta,
+    .warning-chip-row {
+      align-items: flex-start;
     }
 
     .runtime-action-row .small-action,

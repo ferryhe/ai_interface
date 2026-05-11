@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/frontend-runtime-status-actions`
-- Scope: Frontend mockup runtime status/actions for execute-ready and resume visibility.
+- Branch: `codex/frontend-agent-run-api-wire`
+- Scope: Frontend Agent Run API wire-up for the admin mockup composer.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -72,6 +72,9 @@ Updated: 2026-05-11
 - Added `POST /api/module-runs/{runId}/resume` to the API route and OpenAPI contract, then regenerated API Zod and React client outputs.
 - PR #12 was merged into `main`; this branch starts a frontend-only runtime visibility slice from latest `main`.
 - Admin mockup now surfaces execute-ready/runtime resume status without real runtime API calls: Agent view shows Plan only/Execute ready mode plus runtime counts, Progress renders local runtime runs with Resume/Configure/Approve/View data actions, and Modules detail shows the adapter runtime contract.
+- PR #13 was merged into `main`; this branch starts the next frontend-only API wire-up slice from latest `main`.
+- Admin Agent composer now attempts `POST /api/agent-runs` with the prompt, selected execution mode, and `mockup-sandbox` metadata source.
+- The admin mockup renders returned API plan/module-run data when available, and falls back to local mock runtime data with compact API status text when `/api` is offline or fails.
 
 ## Verification
 
@@ -204,12 +207,17 @@ Updated: 2026-05-11
 - Frontend runtime status validation: `git diff --check` passed with CRLF warnings only.
 - Frontend runtime status browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Agent mode controls, Progress runtime statuses/actions, Modules runtime contract with missing env/Ready states, and found no console warnings/errors.
 - Frontend runtime status follow-up validation: Progress `Resume` opens the `doc_to_md` module detail, `Approve` opens the `rag_to_agent` module detail, and the browser console reported no warnings/errors.
+- Frontend Agent Run API wire validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Frontend Agent Run API wire validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Frontend Agent Run API wire validation: `git diff --check` passed with CRLF warnings only.
+- Frontend Agent Run API wire browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, submitted the composer with no backend API, verified Progress fallback status, local timeline, Agent runtime controls, Modules runtime contract, and found no console warnings/errors.
 
 ## Notes
 
 - `corepack pnpm run typecheck` on this Windows host starts correctly but the root script invokes bare `pnpm`, which is not available on PATH in this shell; equivalent library and artifact/script typechecks were run directly with `corepack pnpm` and passed.
 - Browser screenshot capture timed out in the current in-app browser connection, so visual validation used DOM navigation and console checks.
+- Controller re-ran the Agent Run API wire smoke in the in-app Browser `iab` target; direct textarea fill/type hit the browser clipboard limitation, so the smoke used keypress input plus DOM navigation and console checks. Screenshot capture still timed out.
 
 ## Next Action
 
-- Commit, push, and open the frontend runtime status mockup PR; then run the standard PR follow-up for checks and Copilot comments.
+- Commit, push, and open the frontend Agent Run API wire-up PR; then run the standard PR follow-up for checks and Copilot comments.
