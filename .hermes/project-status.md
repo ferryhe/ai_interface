@@ -51,6 +51,7 @@ Updated: 2026-05-11
 - Added a backend tool interaction/feedback contract: modules can request user questions, approvals, data, or unblock input; feedback marks the interaction `resumable`.
 - Added public API endpoints for `POST /api/module-runs/{runId}/interactions` and `POST /api/module-runs/{runId}/feedback`.
 - Opened PR #8 for `codex/tool-adapter-feedback-loop`: https://github.com/ferryhe/ai_interface/pull/8
+- PR #8 Copilot review returned one actionable comment; it was addressed by fully validating stored `metadata.interaction` before accepting feedback, so malformed/stale metadata is treated as no active interaction.
 
 ## Verification
 
@@ -135,6 +136,10 @@ Updated: 2026-05-11
 - Tool feedback loop validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - Tool feedback loop validation: `git diff --check` passed with CRLF warnings only.
 - Tool feedback loop codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI clients/Zod outputs, then failed only because the script invokes bare `pnpm`; equivalent `corepack pnpm run typecheck:libs` passed.
+- PR #8 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run test` passed with 20 tests.
+- PR #8 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #8 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
+- PR #8 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -143,4 +148,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Watch PR #8 checks and review/Copilot comments; perform the scheduled follow-up pass and apply only confirmed-safe fixes.
+- Push the PR #8 Copilot fix, merge PR #8 once GitHub accepts it, then start the autonomous multi-PR runtime/UI/memory/executor chain from latest `main`.

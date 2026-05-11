@@ -116,7 +116,11 @@ export interface CreateArtifactInput {
   provenance?: JsonObject;
 }
 
-export type ToolInteractionKind = "question" | "approval" | "data_request" | "blocked";
+export type ToolInteractionKind =
+  | "question"
+  | "approval"
+  | "data_request"
+  | "blocked";
 
 export type ToolInteractionStatus =
   | "waiting_for_user"
@@ -236,7 +240,8 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
   ): Promise<ModuleRunRecord | null> {
     return (
       this.moduleRuns.find(
-        (run) => run.moduleId === moduleId && run.externalRunId === externalRunId,
+        (run) =>
+          run.moduleId === moduleId && run.externalRunId === externalRunId,
       ) ?? null
     );
   }
@@ -320,7 +325,9 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
   }
 
   async listRunArtifacts(moduleRunId: string): Promise<ArtifactRecord[]> {
-    return this.artifacts.filter((artifact) => artifact.sourceRunId === moduleRunId);
+    return this.artifacts.filter(
+      (artifact) => artifact.sourceRunId === moduleRunId,
+    );
   }
 }
 
@@ -333,7 +340,9 @@ export async function createModuleRun(
   }
 
   if (input.pipelineRunId) {
-    const pipelineRunExists = await repository.pipelineRunExists(input.pipelineRunId);
+    const pipelineRunExists = await repository.pipelineRunExists(
+      input.pipelineRunId,
+    );
     if (!pipelineRunExists) {
       throw new Error(`Pipeline run not found: ${input.pipelineRunId}`);
     }
@@ -453,7 +462,9 @@ export async function recordModuleRunArtifact(
   });
 }
 
-function interactionStatusForKind(kind: ToolInteractionKind): ToolInteractionStatus {
+function interactionStatusForKind(
+  kind: ToolInteractionKind,
+): ToolInteractionStatus {
   if (kind === "approval") return "waiting_for_approval";
   if (kind === "data_request") return "waiting_for_data";
   if (kind === "blocked") return "blocked";
@@ -470,15 +481,150 @@ function getMetadataWithInteraction(
   };
 }
 
-function getCurrentInteraction(run: ModuleRunRecord): ToolInteraction | null {
-  const interaction = run.metadata?.["interaction"];
-  if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
-    return null;
-  }
-  return interaction as ToolInteraction;
+function isJsonObject(value: unknown): value is JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function isActiveInteraction(interaction: ToolInteraction | null): interaction is ToolInteraction {
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isToolInteractionKind(value: unknown): value is ToolInteractionKind {
+  return (
+    value === "question" ||
+    value === "approval" ||
+    value === "data_request" ||
+    value === "blocked"
+  );
+}
+
+function isToolInteractionStatus(
+  value: unknown,
+): value is ToolInteractionStatus {
+  return (
+    value === "waiting_for_user" ||
+    value === "waiting_for_approval" ||
+    value === "waiting_for_data" ||
+    value === "blocked" ||
+    value === "resumable"
+  );
+}
+
+function isToolInteractionOption(
+  value: unknown,
+): value is ToolInteractionOption {
+  if (!isJsonObject(value)) return false;
+  if (typeof value["id"] !== "string" || typeof value["label"] !== "string") {
+    return false;
+  }
+  if (
+    value["description"] !== undefined &&
+    typeof value["description"] !== "string"
+  ) {
+    return false;
+  }
+  if (value["value"] !== undefined && !isJsonObject(value["value"])) {
+    return false;
+  }
+  return true;
+}
+
+function isToolInteractionFeedback(
+  value: unknown,
+): value is ToolInteractionFeedback {
+  if (!isJsonObject(value)) return false;
+  if (
+    value["responseText"] !== undefined &&
+    typeof value["responseText"] !== "string"
+  ) {
+    return false;
+  }
+  if (
+    value["selectedOptionId"] !== undefined &&
+    typeof value["selectedOptionId"] !== "string"
+  ) {
+    return false;
+  }
+  if (
+    value["approved"] !== undefined &&
+    typeof value["approved"] !== "boolean"
+  ) {
+    return false;
+  }
+  if (!isStringArray(value["artifactIds"])) return false;
+  if (
+    value["resumeHandle"] !== undefined &&
+    typeof value["resumeHandle"] !== "string"
+  ) {
+    return false;
+  }
+  return isJsonObject(value["metadata"]);
+}
+
+function isToolInteraction(value: unknown): value is ToolInteraction {
+  if (!isJsonObject(value)) return false;
+  if (
+    typeof value["interactionId"] !== "string" ||
+    !isToolInteractionStatus(value["status"]) ||
+    !isToolInteractionKind(value["kind"]) ||
+    typeof value["title"] !== "string" ||
+    typeof value["message"] !== "string"
+  ) {
+    return false;
+  }
+  if (value["prompt"] !== null && typeof value["prompt"] !== "string") {
+    return false;
+  }
+  if (
+    !Array.isArray(value["options"]) ||
+    !value["options"].every(isToolInteractionOption)
+  ) {
+    return false;
+  }
+  if (!isStringArray(value["artifactIds"])) return false;
+  if (
+    value["resumeHandle"] !== null &&
+    typeof value["resumeHandle"] !== "string"
+  ) {
+    return false;
+  }
+  if (
+    value["requestedBy"] !== null &&
+    typeof value["requestedBy"] !== "string"
+  ) {
+    return false;
+  }
+  if (
+    typeof value["requestedAt"] !== "string" ||
+    !isJsonObject(value["metadata"])
+  ) {
+    return false;
+  }
+  if (
+    value["respondedAt"] !== undefined &&
+    typeof value["respondedAt"] !== "string"
+  ) {
+    return false;
+  }
+  if (
+    value["response"] !== undefined &&
+    !isToolInteractionFeedback(value["response"])
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function getCurrentInteraction(run: ModuleRunRecord): ToolInteraction | null {
+  const interaction = run.metadata?.["interaction"];
+  return isToolInteraction(interaction) ? interaction : null;
+}
+
+function isActiveInteraction(
+  interaction: ToolInteraction | null,
+): interaction is ToolInteraction {
   return (
     interaction?.status === "waiting_for_user" ||
     interaction?.status === "waiting_for_approval" ||
@@ -487,17 +633,21 @@ function isActiveInteraction(interaction: ToolInteraction | null): interaction i
   );
 }
 
-function normalizeFeedback(input: SubmitToolFeedbackInput): ToolInteractionFeedback {
+function normalizeFeedback(
+  input: SubmitToolFeedbackInput,
+): ToolInteractionFeedback {
   const response: ToolInteractionFeedback = {
     artifactIds: input.artifactIds ?? [],
     metadata: input.metadata ?? {},
   };
-  if (input.responseText !== undefined) response.responseText = input.responseText;
+  if (input.responseText !== undefined)
+    response.responseText = input.responseText;
   if (input.selectedOptionId !== undefined) {
     response.selectedOptionId = input.selectedOptionId;
   }
   if (input.approved !== undefined) response.approved = input.approved;
-  if (input.resumeHandle !== undefined) response.resumeHandle = input.resumeHandle;
+  if (input.resumeHandle !== undefined)
+    response.resumeHandle = input.resumeHandle;
   return response;
 }
 

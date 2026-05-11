@@ -171,7 +171,10 @@ test("records tool feedback and marks the interaction resumable", async () => {
     approved: true,
   });
 
-  assert.equal(result.interaction.interactionId, requested.interaction.interactionId);
+  assert.equal(
+    result.interaction.interactionId,
+    requested.interaction.interactionId,
+  );
   assert.equal(result.interaction.status, "resumable");
   assert.deepEqual(result.interaction.response, {
     responseText: "Use OCR mode.",
@@ -189,6 +192,30 @@ test("rejects tool feedback without an active interaction", async () => {
   const { run } = await createModuleRun(repository, {
     moduleId: "web_listening",
     externalRunId: "listen-feedback-001",
+  });
+
+  await assert.rejects(
+    () =>
+      submitModuleRunFeedback(repository, run.id, {
+        responseText: "Continue.",
+      }),
+    /Module run has no active interaction/,
+  );
+
+  assert.equal(repository.runEvents.length, 0);
+});
+
+test("rejects tool feedback when stored interaction metadata is malformed", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: "doc-feedback-malformed",
+    metadata: {
+      interaction: {
+        interactionId: "bad-interaction",
+        status: "waiting_for_user",
+      },
+    },
   });
 
   await assert.rejects(
