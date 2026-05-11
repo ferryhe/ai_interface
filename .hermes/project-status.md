@@ -265,6 +265,7 @@ Updated: 2026-05-11
 - PR #20 was merged into `main` on 2026-05-11 at merge commit `bd20ff4`; this branch starts the next frontend Publish-to-Portal access slice from latest `main`.
 - Publish now explains the frontstage Portal token handoff, what end users see after publish, and which Configure controls remain admin-only.
 - Publish header and token access actions open `ai-os/AgentPortalInterface?token=portal-demo-token` through the existing mockup `previewUrl` route contract.
+- Opened PR #21 for `codex/publish-portal-access-panel`: https://github.com/ferryhe/ai_interface/pull/21
 
 ## Notes
 
@@ -279,4 +280,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Open a PR for `codex/publish-portal-access-panel`, then follow up checks and review comments.
+- Follow up PR #21 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
