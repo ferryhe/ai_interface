@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/configure-agent-control-plane`
-- Scope: Implement the Configure Agent control plane inside `ai_interface` only.
+- Branch: `codex/frontend-agent-portal`
+- Scope: Implement the frontstage Agent Portal preview inside `ai_interface` only.
 - Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
 
 ## Current State
@@ -34,6 +34,7 @@ Updated: 2026-05-11
 - PR #5 follow-up found two actionable Copilot comments and applied narrow fixes: `GET /api/agent-config` now returns a 500 `ErrorResponse` on unexpected failures, and Configure form controls now have programmatic label associations.
 - After the PR #5 follow-up push, GitHub still showed PR #5 as open with no checks reported; mergeability was temporarily `UNKNOWN` while GitHub recalculated. The API error-handling thread was marked outdated, and the Configure label thread remained unresolved remotely but was addressed and locally verified.
 - Renamed the admin handoff surface from `Deploy` to `Publish`; end-user Agent Portal work should be handled in a separate PR because it needs token/login access control plus frontstage steps/data views.
+- Started frontstage Agent Portal on `codex/frontend-agent-portal`; V1 adds a token-gated mockup surface with Chat, Steps, Data, Sources, and Result views.
 
 ## Verification
 
@@ -84,6 +85,10 @@ Updated: 2026-05-11
 - Publish rename validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Publish rename validation: `git diff --check` passed with CRLF warnings only.
 - Publish rename browser smoke opened `http://127.0.0.1:8081/`, verified the admin nav has `Publish`, no `Deploy` nav button remains, `Publish agent` renders, and found no console warnings/errors.
+- Frontstage Portal validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Frontstage Portal validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Frontstage Portal validation: `git diff --check` passed with CRLF warnings only.
+- Frontstage Portal browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the token gate, verified `?token=portal-demo-token` opens the Portal, clicked Chat/Steps/Data/Sources/Result views, and found no console warnings/errors.
 
 ## Notes
 
@@ -92,4 +97,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Continue PR #5 review/check follow-up on `codex/configure-agent-control-plane`.
+- Open a PR for `codex/frontend-agent-portal`.
