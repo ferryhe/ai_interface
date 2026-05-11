@@ -880,6 +880,53 @@ components:
         - requireApprovalForPublishing
         - allowSelfLearning
         - maxToolSteps
+    AgentPublishStatus:
+      type: string
+      enum: [draft, published, paused]
+    PortalAccessMode:
+      type: string
+      enum: [token]
+    AgentPublishSettings:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentPublishStatus"
+        portalAccessMode:
+          $ref: "#/components/schemas/PortalAccessMode"
+        portalTokenLast4:
+          type:
+            - string
+            - "null"
+        portalTokenUpdatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        publishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        versionLabel:
+          type: string
+      required:
+        - status
+        - portalAccessMode
+        - portalTokenLast4
+        - portalTokenUpdatedAt
+        - publishedAt
+        - versionLabel
+    UpdateAgentPublishSettings:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/AgentPublishStatus"
+        portalAccessMode:
+          $ref: "#/components/schemas/PortalAccessMode"
+        setPortalToken:
+          type: string
+        versionLabel:
+          type: string
     AgentConfig:
       type: object
       properties:
@@ -910,6 +957,8 @@ components:
           $ref: "#/components/schemas/AgentMemorySettings"
         safetySettings:
           $ref: "#/components/schemas/AgentSafetySettings"
+        publishSettings:
+          $ref: "#/components/schemas/AgentPublishSettings"
         createdAt:
           type: string
           format: date-time
@@ -928,6 +977,7 @@ components:
         - generalSkillSettings
         - memorySettings
         - safetySettings
+        - publishSettings
         - createdAt
         - updatedAt
     AgentConnectionStatusPayload:
@@ -972,6 +1022,8 @@ components:
           $ref: "#/components/schemas/AgentMemorySettings"
         safetySettings:
           $ref: "#/components/schemas/AgentSafetySettings"
+        publishSettings:
+          $ref: "#/components/schemas/UpdateAgentPublishSettings"
     AgentConnectionTestResponse:
       type: object
       properties:

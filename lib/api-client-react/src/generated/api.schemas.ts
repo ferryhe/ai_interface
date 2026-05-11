@@ -321,6 +321,41 @@ export interface AgentSafetySettings {
   maxToolSteps: number;
 }
 
+export type AgentPublishStatus =
+  (typeof AgentPublishStatus)[keyof typeof AgentPublishStatus];
+
+export const AgentPublishStatus = {
+  draft: "draft",
+  published: "published",
+  paused: "paused",
+} as const;
+
+export type PortalAccessMode =
+  (typeof PortalAccessMode)[keyof typeof PortalAccessMode];
+
+export const PortalAccessMode = {
+  token: "token",
+} as const;
+
+export interface AgentPublishSettings {
+  status: AgentPublishStatus;
+  portalAccessMode: PortalAccessMode;
+  /** @nullable */
+  portalTokenLast4: string | null;
+  /** @nullable */
+  portalTokenUpdatedAt: string | null;
+  /** @nullable */
+  publishedAt: string | null;
+  versionLabel: string;
+}
+
+export interface UpdateAgentPublishSettings {
+  status?: AgentPublishStatus;
+  portalAccessMode?: PortalAccessMode;
+  setPortalToken?: string;
+  versionLabel?: string;
+}
+
 export interface AgentConfig {
   id: string;
   configKey: string;
@@ -333,6 +368,7 @@ export interface AgentConfig {
   generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
+  publishSettings: AgentPublishSettings;
   createdAt: string;
   updatedAt: string;
 }
@@ -356,6 +392,7 @@ export interface UpdateAgentConfigRequest {
   generalSkillSettings?: GeneralSkillSetting[];
   memorySettings?: AgentMemorySettings;
   safetySettings?: AgentSafetySettings;
+  publishSettings?: UpdateAgentPublishSettings;
 }
 
 export interface AgentConnectionTestResponse {

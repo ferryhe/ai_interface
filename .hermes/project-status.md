@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/publish-portal-access-panel`
-- Scope: Frontend Publish page access/visibility panel for the frontstage Portal.
+- Branch: `codex/publish-settings-api`
+- Scope: DB/API-backed Publish settings and Portal token metadata for the admin Publish surface.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -266,6 +266,13 @@ Updated: 2026-05-11
 - Publish now explains the frontstage Portal token handoff, what end users see after publish, and which Configure controls remain admin-only.
 - Publish header and token access actions open `ai-os/AgentPortalInterface?token=portal-demo-token` through the existing mockup `previewUrl` route contract.
 - Opened PR #21 for `codex/publish-portal-access-panel`: https://github.com/ferryhe/ai_interface/pull/21
+- PR #21 was merged into `main` on 2026-05-11 at merge commit `93815b3`; this branch starts the Publish settings API slice from latest `main`.
+- Added DB/API-backed publish settings on the default Agent config, including publish status, version label, token hash, and token last4 metadata without returning plaintext portal tokens.
+- Public Agent config responses now redact internal portal token hashes; OpenAPI and generated public client types expose only publish status, portal access mode, token last4, timestamps, and version label.
+- Admin Publish token input starts empty and only sends `setPortalToken` when the user enters a new token, so a demo token cannot overwrite a saved real token.
+- `publish_settings` now has a default JSONB value on the Agent config schema for backfill-friendly existing rows.
+- Admin Publish now loads/saves publish settings through `/api/agent-config` and keeps a local fallback when `/api` is offline.
+- Updated OpenAPI and regenerated API Zod/React client outputs for publish settings. `setPortalToken` is request-only on `UpdateAgentConfigRequest`.
 
 ## Notes
 
@@ -277,7 +284,16 @@ Updated: 2026-05-11
 - Publish Portal access validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Publish Portal access validation: `git diff --check` passed with CRLF warnings only.
 - Publish Portal access browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Publish Portal access/Frontstage visible/Admin-only sections, verified `View as user` navigates to `AgentPortalInterface?token=portal-demo-token`, and found no console warnings/errors.
+- Publish settings TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `publishSettings` existed.
+- Publish settings validation: `corepack pnpm --filter @workspace/api-server run test` passed with 46 tests.
+- Publish settings validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Publish settings validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed after updating the script to call `corepack pnpm` for the trailing typecheck.
+- Publish settings validation: `corepack pnpm run typecheck:libs` passed after codegen.
+- Publish settings validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Publish settings validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Publish settings validation: `git diff --check` passed with CRLF warnings only.
+- Publish settings browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Publish status/version/token controls, confirmed the portal token field is empty/password/autocomplete-off, opened Portal preview, and found no console warnings/errors.
 
 ## Next Action
 
-- Follow up PR #21 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
+- Commit, push, and open a PR for `codex/publish-settings-api`; then schedule the 15-minute follow-up to inspect checks and Copilot comments.

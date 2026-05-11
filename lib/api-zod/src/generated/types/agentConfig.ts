@@ -8,6 +8,7 @@
 import type { AgentEndpoint } from "./agentEndpoint";
 import type { AgentMemorySettings } from "./agentMemorySettings";
 import type { AgentProvider } from "./agentProvider";
+import type { AgentPublishSettings } from "./agentPublishSettings";
 import type { AgentReasoningEffort } from "./agentReasoningEffort";
 import type { AgentSafetySettings } from "./agentSafetySettings";
 import type { BusinessSkillSetting } from "./businessSkillSetting";
@@ -25,6 +26,7 @@ export interface AgentConfig {
   generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
+  publishSettings: AgentPublishSettings;
   createdAt: Date;
   updatedAt: Date;
 }

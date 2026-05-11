@@ -13,6 +13,16 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+const defaultPublishSettings = {
+  status: "draft",
+  portalAccessMode: "token",
+  portalTokenHash: null,
+  portalTokenLast4: null,
+  portalTokenUpdatedAt: null,
+  publishedAt: null,
+  versionLabel: "draft-0.3",
+};
+
 export const agentThreadStatusEnum = pgEnum("agent_thread_status", [
   "active",
   "archived",
@@ -290,6 +300,18 @@ export const agentConfigsTable = pgTable("agent_configs", {
       allowSelfLearning: boolean;
       maxToolSteps: number;
     }>()
+    .notNull(),
+  publishSettings: jsonb("publish_settings")
+    .$type<{
+      status: string;
+      portalAccessMode: string;
+      portalTokenHash: string | null;
+      portalTokenLast4: string | null;
+      portalTokenUpdatedAt: string | null;
+      publishedAt: string | null;
+      versionLabel: string;
+    }>()
+    .default(defaultPublishSettings)
     .notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

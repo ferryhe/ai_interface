@@ -12,6 +12,7 @@ import type { AgentReasoningEffort } from "./agentReasoningEffort";
 import type { AgentSafetySettings } from "./agentSafetySettings";
 import type { BusinessSkillSetting } from "./businessSkillSetting";
 import type { GeneralSkillSetting } from "./generalSkillSetting";
+import type { UpdateAgentPublishSettings } from "./updateAgentPublishSettings";
 
 export interface UpdateAgentConfigRequest {
   provider?: AgentProvider;
@@ -23,4 +24,5 @@ export interface UpdateAgentConfigRequest {
   generalSkillSettings?: GeneralSkillSetting[];
   memorySettings?: AgentMemorySettings;
   safetySettings?: AgentSafetySettings;
+  publishSettings?: UpdateAgentPublishSettings;
 }

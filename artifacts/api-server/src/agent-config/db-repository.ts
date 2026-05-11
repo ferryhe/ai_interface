@@ -5,6 +5,7 @@ import {
   type AgentConfigRecord,
   type AgentConfigRepository,
   type AgentEndpoint,
+  type AgentPublishSettings,
   type BusinessSkillSetting,
   type GeneralSkillSetting,
   type AgentMemorySettings,
@@ -36,6 +37,7 @@ function mapAgentConfig(row: AgentConfigRow): AgentConfigRecord {
     generalSkillSettings: row.generalSkillSettings as GeneralSkillSetting[],
     memorySettings: row.memorySettings as AgentMemorySettings,
     safetySettings: row.safetySettings as AgentSafetySettings,
+    publishSettings: row.publishSettings as AgentPublishSettings,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -63,6 +65,7 @@ export class DbAgentConfigRepository implements AgentConfigRepository {
     generalSkillSettings: GeneralSkillSetting[];
     memorySettings: AgentMemorySettings;
     safetySettings: AgentSafetySettings;
+    publishSettings: AgentPublishSettings;
   }): Promise<AgentConfigRecord> {
     const rows = await db
       .insert(agentConfigsTable)
@@ -79,6 +82,7 @@ export class DbAgentConfigRepository implements AgentConfigRepository {
           generalSkillSettings: input.generalSkillSettings,
           memorySettings: input.memorySettings,
           safetySettings: input.safetySettings,
+          publishSettings: input.publishSettings,
           updatedAt: new Date(),
         },
       })

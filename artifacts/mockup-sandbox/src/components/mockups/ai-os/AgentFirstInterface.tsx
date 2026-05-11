@@ -42,6 +42,8 @@ type AgentEndpoint = "responses" | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 type MemoryPromotionMode = "manual" | "agent_suggested";
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
+type PublishStatus = "draft" | "published" | "paused";
+type PublishSaveState = "local" | "saving" | "saved" | "offline" | "failed";
 type GeneralSkillId =
   | "web_search"
   | "browser"
@@ -229,8 +231,21 @@ interface AgentConfigDraft {
   safetySettings: AgentSafetySettings;
 }
 
+interface PublishSettingsApi {
+  status: PublishStatus;
+  portalAccessMode: "token";
+  portalTokenLast4: string | null;
+  portalTokenUpdatedAt: string | null;
+  publishedAt: string | null;
+  versionLabel: string;
+}
+
+interface AgentConfigApi extends AgentConfigDraft {
+  publishSettings?: unknown;
+}
+
 interface AgentConfigApiResponse {
-  config: AgentConfigDraft;
+  config: AgentConfigApi;
   connection: {
     status: Exclude<AgentConnectionStatus, "offline">;
     checkedAt?: string;
@@ -497,6 +512,15 @@ const defaultAgentConfig: AgentConfigDraft = {
     allowSelfLearning: true,
     maxToolSteps: 12,
   },
+};
+
+const defaultPublishSettings: PublishSettingsApi = {
+  status: "draft",
+  portalAccessMode: "token",
+  portalTokenLast4: null,
+  portalTokenUpdatedAt: null,
+  publishedAt: null,
+  versionLabel: "draft-0.3",
 };
 
 const runSteps: RunStep[] = [
@@ -823,6 +847,39 @@ function toRuntimeRunsFromAgentRun(response: AgentRunApiResponse): RuntimeModule
   return response.moduleRuns.map(toRuntimeRunFromApiModuleRun);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function isPublishSettingsApi(value: unknown): value is PublishSettingsApi {
+  if (!isRecord(value)) return false;
+
+  return (
+    (value["status"] === "draft" ||
+      value["status"] === "published" ||
+      value["status"] === "paused") &&
+    value["portalAccessMode"] === "token" &&
+    typeof value["versionLabel"] === "string"
+  );
+}
+
+function toPublishSettingsApi(value: unknown): PublishSettingsApi {
+  if (!isPublishSettingsApi(value)) return { ...defaultPublishSettings };
+
+  return {
+    status: value.status,
+    portalAccessMode: value.portalAccessMode,
+    portalTokenLast4: nullableString(value.portalTokenLast4),
+    portalTokenUpdatedAt: nullableString(value.portalTokenUpdatedAt),
+    publishedAt: nullableString(value.publishedAt),
+    versionLabel: value.versionLabel,
+  };
+}
+
 function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
   return {
     provider: config.provider,
@@ -862,6 +919,15 @@ export function AgentFirstInterface() {
   const [selectedRecordKind, setSelectedRecordKind] = useState("all");
   const [agentConfig, setAgentConfig] = useState<AgentConfigDraft>(() =>
     toConfigDraft(defaultAgentConfig),
+  );
+  const [publishSettings, setPublishSettings] = useState<PublishSettingsApi>(() => ({
+    ...defaultPublishSettings,
+  }));
+  const [publishTokenDraft, setPublishTokenDraft] = useState("");
+  const [publishSaveState, setPublishSaveState] =
+    useState<PublishSaveState>("local");
+  const [publishStatusText, setPublishStatusText] = useState(
+    "Local publish settings",
   );
   const [connectionStatus, setConnectionStatus] =
     useState<AgentConnectionStatus>("offline");
@@ -922,12 +988,18 @@ export function AgentFirstInterface() {
         if (cancelled) return;
 
         setAgentConfig(toConfigDraft(data.config));
+        setPublishSettings(toPublishSettingsApi(data.config.publishSettings));
+        setPublishTokenDraft("");
         setConnectionStatus(data.connection.status);
         setConfigStatus("Loaded from API");
+        setPublishSaveState("saved");
+        setPublishStatusText("Loaded publish settings from API");
       } catch {
         if (cancelled) return;
         setConnectionStatus("offline");
         setConfigStatus("API offline - local draft");
+        setPublishSaveState("offline");
+        setPublishStatusText("API offline - local publish settings");
       }
     }
 
@@ -1006,6 +1078,74 @@ export function AgentFirstInterface() {
       setConfigStatus("API offline - local draft only");
     } finally {
       setIsConfigBusy(false);
+    }
+  }
+
+  function updatePublishVersionLabel(versionLabel: string): void {
+    setPublishSettings((current) => ({ ...current, versionLabel }));
+    setPublishSaveState("local");
+    setPublishStatusText("Unsaved local publish settings");
+  }
+
+  async function savePublishSettings(nextStatus: PublishStatus): Promise<void> {
+    if (publishSaveState === "saving") return;
+
+    const versionLabel = publishSettings.versionLabel.trim() || "draft-0.3";
+    const token = publishTokenDraft.trim();
+
+    setPublishSaveState("saving");
+    setPublishStatusText("Saving publish settings");
+
+    try {
+      const publishSettingsPayload: {
+        status: PublishStatus;
+        portalAccessMode: "token";
+        setPortalToken?: string;
+        versionLabel: string;
+      } = {
+        status: nextStatus,
+        portalAccessMode: "token",
+        versionLabel,
+      };
+      if (token) {
+        publishSettingsPayload.setPortalToken = token;
+      }
+
+      const response = await fetch("/api/agent-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publishSettings: publishSettingsPayload,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Config API returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as AgentConfigApiResponse;
+      const nextSettings = toPublishSettingsApi(data.config.publishSettings);
+      setPublishSettings(nextSettings);
+      setAgentConfig(toConfigDraft(data.config));
+      setConnectionStatus(data.connection.status);
+      setPublishTokenDraft("");
+      setPublishSaveState("saved");
+      setPublishStatusText("Saved publish settings to API");
+    } catch {
+      const now = new Date().toISOString();
+      setPublishSettings((current) => ({
+        ...current,
+        status: nextStatus,
+        versionLabel,
+        portalTokenLast4: token ? token.slice(-4) : current.portalTokenLast4,
+        portalTokenUpdatedAt: token ? now : current.portalTokenUpdatedAt,
+        publishedAt:
+          nextStatus === "published" && current.status !== "published"
+            ? now
+            : current.publishedAt,
+      }));
+      setConnectionStatus("offline");
+      setPublishSaveState("offline");
+      setPublishStatusText("API offline - local publish settings only");
     }
   }
 
@@ -1228,7 +1368,17 @@ export function AgentFirstInterface() {
               onTestConnection={testAgentConnection}
             />
           )}
-          {activeView === "publish" && <PublishView />}
+          {activeView === "publish" && (
+            <PublishView
+              publishSettings={publishSettings}
+              publishTokenDraft={publishTokenDraft}
+              publishSaveState={publishSaveState}
+              publishStatusText={publishStatusText}
+              onUpdateVersionLabel={updatePublishVersionLabel}
+              onUpdateTokenDraft={setPublishTokenDraft}
+              onSavePublishSettings={savePublishSettings}
+            />
+          )}
         </main>
 
         <Composer
@@ -2363,7 +2513,39 @@ const portalVisibleViews = [
   ["Result", "Review final handoff, agent config, and readiness."],
 ];
 
-function PublishView() {
+function publishStatusLabel(status: PublishStatus): string {
+  if (status === "published") return "Published";
+  if (status === "paused") return "Paused";
+  return "Draft";
+}
+
+function publishSaveStateLabel(state: PublishSaveState): string {
+  if (state === "saving") return "Saving";
+  if (state === "saved") return "API saved";
+  if (state === "offline") return "API offline";
+  if (state === "failed") return "Save failed";
+  return "Local";
+}
+
+function PublishView({
+  publishSettings,
+  publishTokenDraft,
+  publishSaveState,
+  publishStatusText,
+  onUpdateVersionLabel,
+  onUpdateTokenDraft,
+  onSavePublishSettings,
+}: {
+  publishSettings: PublishSettingsApi;
+  publishTokenDraft: string;
+  publishSaveState: PublishSaveState;
+  publishStatusText: string;
+  onUpdateVersionLabel: (versionLabel: string) => void;
+  onUpdateTokenDraft: (token: string) => void;
+  onSavePublishSettings: (status: PublishStatus) => void | Promise<void>;
+}) {
+  const isSaving = publishSaveState === "saving";
+
   return (
     <section className="page-panel">
       <div className="page-header">
@@ -2383,11 +2565,89 @@ function PublishView() {
         </button>
       </div>
 
+      <section className="publish-settings-panel" aria-label="Publish settings">
+        <div className="publish-settings-header">
+          <div>
+            <span className={`publish-status-badge ${publishSettings.status}`}>
+              {publishStatusLabel(publishSettings.status)}
+            </span>
+            <span className="publish-save-badge">
+              {publishSaveStateLabel(publishSaveState)}
+            </span>
+          </div>
+          <p>{publishStatusText}</p>
+        </div>
+
+        <div className="publish-form-grid">
+          <label className="publish-field" htmlFor="publish-version-label">
+            <span>Version label</span>
+            <input
+              id="publish-version-label"
+              value={publishSettings.versionLabel}
+              onChange={(event) => onUpdateVersionLabel(event.target.value)}
+            />
+          </label>
+          <label className="publish-field" htmlFor="publish-portal-token">
+            <span>Portal token</span>
+            <input
+              id="publish-portal-token"
+              type="password"
+              autoComplete="off"
+              placeholder="Enter a new portal token"
+              value={publishTokenDraft}
+              onChange={(event) => onUpdateTokenDraft(event.target.value)}
+            />
+          </label>
+          <div className="publish-token-meta">
+            <strong>
+              {publishSettings.portalTokenLast4
+                ? `Token ending ****${publishSettings.portalTokenLast4}`
+                : "No saved token yet"}
+            </strong>
+            <em>
+              {publishSettings.portalTokenUpdatedAt
+                ? `Updated ${new Date(publishSettings.portalTokenUpdatedAt).toLocaleString()}`
+                : "Plaintext tokens are never returned by the API."}
+            </em>
+          </div>
+        </div>
+
+        <div className="publish-actions">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void onSavePublishSettings("draft")}
+          >
+            Save draft
+          </button>
+          <button
+            type="button"
+            className="primary-action"
+            disabled={isSaving}
+            onClick={() => void onSavePublishSettings("published")}
+          >
+            <UploadCloud size={15} />
+            Publish
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void onSavePublishSettings("paused")}
+          >
+            Pause
+          </button>
+        </div>
+      </section>
+
       <div className="publish-grid">
         <PublishStep label="RAG index" value="96 / 124 chunks" status="running" />
-        <PublishStep label="Agent config" value="Draft ready" status="waiting" />
+        <PublishStep label="Agent config" value={publishSettings.versionLabel} status="waiting" />
         <PublishStep label="Validation" value="Queued" status="queued" />
-        <PublishStep label="Endpoint" value="Not published" status="waiting" />
+        <PublishStep
+          label="Endpoint"
+          value={publishStatusLabel(publishSettings.status)}
+          status={publishSettings.status === "published" ? "succeeded" : "waiting"}
+        />
       </div>
 
       <div className="publish-access-grid">
@@ -4055,6 +4315,135 @@ const styles = `
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .publish-settings-panel {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.44);
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 14px;
+  }
+
+  .publish-settings-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .publish-settings-header div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .publish-settings-header p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+    text-align: right;
+  }
+
+  .publish-status-badge,
+  .publish-save-badge {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;
+    padding: 5px 9px;
+    text-transform: uppercase;
+  }
+
+  .publish-status-badge.published {
+    border-color: rgba(53, 208, 127, 0.38);
+    color: #bbf7d0;
+  }
+
+  .publish-status-badge.paused {
+    border-color: rgba(250, 204, 21, 0.36);
+    color: #fde68a;
+  }
+
+  .publish-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(180px, 0.8fr);
+    gap: 10px;
+    align-items: end;
+  }
+
+  .publish-field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .publish-field span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .publish-field input {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 7px;
+    background: rgba(2, 6, 23, 0.48);
+    color: var(--text);
+    font: inherit;
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+
+  .publish-token-meta {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 7px;
+    background: rgba(2, 6, 23, 0.28);
+    display: grid;
+    gap: 3px;
+    min-height: 58px;
+    padding: 8px 10px;
+  }
+
+  .publish-token-meta strong {
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .publish-token-meta em {
+    color: var(--muted);
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1.35;
+  }
+
+  .publish-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .publish-actions button {
+    min-height: 36px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 7px;
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+  }
+
+  .publish-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
   .publish-step {
     min-height: 126px;
     padding: 14px;
@@ -4291,6 +4680,10 @@ const styles = `
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .publish-form-grid {
+      grid-template-columns: 1fr;
+    }
+
     .publish-access-grid {
       grid-template-columns: 1fr;
     }
@@ -4405,10 +4798,19 @@ const styles = `
     .agent-summary-grid,
     .detail-grid,
     .publish-grid,
+    .publish-form-grid,
     .runtime-status-grid,
     .runtime-meta-grid,
     .memory-map {
       grid-template-columns: 1fr;
+    }
+
+    .publish-settings-header {
+      flex-direction: column;
+    }
+
+    .publish-settings-header p {
+      text-align: left;
     }
 
     .runtime-control,
