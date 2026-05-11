@@ -328,11 +328,26 @@ export const CreateModuleRunInteractionBody = zod.object({
 });
 
 /**
- * Records user or Agent feedback for the active interaction and marks the module run as resumable.
+ * Records user or Agent feedback for the active interaction and marks the module run as resumable. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Submit user feedback for a module run
  */
 export const SubmitModuleRunFeedbackParams = zod.object({
   runId: zod.coerce.string().uuid(),
+});
+
+export const SubmitModuleRunFeedbackHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
 });
 
 export const SubmitModuleRunFeedbackBody = zod.object({
@@ -427,11 +442,26 @@ export const SubmitModuleRunFeedbackResponse = zod.object({
 });
 
 /**
- * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+ * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Resume execution for a module run
  */
 export const ResumeModuleRunExecutionParams = zod.object({
   runId: zod.coerce.string().uuid(),
+});
+
+export const ResumeModuleRunExecutionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
 });
 
 export const ResumeModuleRunExecutionResponse = zod.object({
@@ -543,9 +573,23 @@ export const GetArtifactResponse = zod.object({
 });
 
 /**
- * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+ * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` or `metadata.source: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Create an Agent runtime plan
  */
+export const CreateAgentRunHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+});
 
 export const CreateAgentRunBody = zod.object({
   message: zod.string().min(1),

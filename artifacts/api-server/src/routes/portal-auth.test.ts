@@ -21,12 +21,13 @@ async function requestPortalVerify(
   const server = app.listen(0);
   await once(server, "listening");
   const address = server.address();
-  assert.equal(typeof address, "object");
-  assert.ok(address);
+  const port =
+    typeof address === "object" && address ? address.port : undefined;
+  assert.equal(typeof port, "number");
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:${address.port}/portal-auth/verify`,
+      `http://127.0.0.1:${port}/portal-auth/verify`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

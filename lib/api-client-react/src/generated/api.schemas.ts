@@ -614,3 +614,15 @@ export interface ModuleRunDetail {
   events: RunEvent[];
   artifacts: Artifact[];
 }
+
+export type PortalSurfaceParameter =
+  (typeof PortalSurfaceParameter)[keyof typeof PortalSurfaceParameter];
+
+export const PortalSurfaceParameter = {
+  "agent-portal": "agent-portal",
+} as const;
+
+/**
+ * Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.
+ */
+export type PortalTokenParameter = string;

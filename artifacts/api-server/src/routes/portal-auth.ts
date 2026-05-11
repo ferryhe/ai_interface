@@ -7,33 +7,11 @@ import {
 import {
   verifyPortalAccess,
   type AgentConfigRepository,
-  type AgentConfigRecord,
 } from "../agent-config/agent-config-service";
+import { createLazyRepository } from "./lazy-repository";
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
-}
-
-function createLazyDbAgentConfigRepository(): AgentConfigRepository {
-  let repository: AgentConfigRepository | null = null;
-
-  async function getRepository(): Promise<AgentConfigRepository> {
-    if (repository) return repository;
-    const { DbAgentConfigRepository } = await import(
-      "../agent-config/db-repository"
-    );
-    repository = new DbAgentConfigRepository();
-    return repository;
-  }
-
-  return {
-    async findConfig(configKey: string): Promise<AgentConfigRecord | null> {
-      return (await getRepository()).findConfig(configKey);
-    },
-    async upsertConfig(input): Promise<AgentConfigRecord> {
-      return (await getRepository()).upsertConfig(input);
-    },
-  };
 }
 
 export function createPortalAuthRouter(
@@ -67,6 +45,13 @@ export function createPortalAuthRouter(
   return router;
 }
 
-const router = createPortalAuthRouter(createLazyDbAgentConfigRepository());
+const router = createPortalAuthRouter(
+  createLazyRepository<AgentConfigRepository>(async () => {
+    const { DbAgentConfigRepository } = await import(
+      "../agent-config/db-repository"
+    );
+    return new DbAgentConfigRepository();
+  }),
+);
 
 export default router;

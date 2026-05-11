@@ -809,7 +809,7 @@ export const useCreateModuleRunInteraction = <
 };
 
 /**
- * Records user or Agent feedback for the active interaction and marks the module run as resumable.
+ * Records user or Agent feedback for the active interaction and marks the module run as resumable. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Submit user feedback for a module run
  */
 export const getSubmitModuleRunFeedbackUrl = (runId: string) => {
@@ -901,7 +901,7 @@ export const useSubmitModuleRunFeedback = <
 };
 
 /**
- * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+ * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Resume execution for a module run
  */
 export const getResumeModuleRunExecutionUrl = (runId: string) => {
@@ -1076,7 +1076,7 @@ export function useGetArtifact<
 }
 
 /**
- * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills.
+ * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` or `metadata.source: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Create an Agent runtime plan
  */
 export const getCreateAgentRunUrl = () => {

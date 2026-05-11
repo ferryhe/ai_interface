@@ -30,7 +30,12 @@ type PortalStatus = "complete" | "running" | "waiting" | "blocked";
 type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type JsonObject = Record<string, unknown>;
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
-type PortalRunSubmitState = "local" | "submitting" | "saved" | "offline" | "failed";
+type PortalRunSubmitState =
+  | "local"
+  | "submitting"
+  | "saved"
+  | "offline"
+  | "failed";
 type PortalAccessState =
   | "idle"
   | "checking"
@@ -114,7 +119,11 @@ interface PortalSource {
   evidenceDetail: string;
 }
 
-type PortalResultItemKind = "agent_config" | "memory" | "source_package" | "handoff";
+type PortalResultItemKind =
+  | "agent_config"
+  | "memory"
+  | "source_package"
+  | "handoff";
 
 interface PortalResultItem {
   id: string;
@@ -278,7 +287,8 @@ const portalSteps: PortalStep[] = [
       status: "waiting_for_approval",
       kind: "approval",
       title: "Approve final agent draft",
-      message: "Review the generated prompt and tool policy before the published agent is unlocked.",
+      message:
+        "Review the generated prompt and tool policy before the published agent is unlocked.",
       prompt: "Approve this draft for publish?",
       options: [
         { id: "approve", label: "Approve" },
@@ -313,7 +323,8 @@ const dataRecords: PortalDataRecord[] = [
     kind: "Snapshot",
     title: "Docs landing page",
     step: "Listen",
-    detail: "Captured text and change metadata from the watched documentation URL.",
+    detail:
+      "Captured text and change metadata from the watched documentation URL.",
     updatedAt: "2 min ago",
   },
   {
@@ -321,7 +332,8 @@ const dataRecords: PortalDataRecord[] = [
     kind: "Markdown",
     title: "Onboarding guide.md",
     step: "Convert",
-    detail: "Converted source document into Markdown with 2 conversion warnings.",
+    detail:
+      "Converted source document into Markdown with 2 conversion warnings.",
     updatedAt: "1 min ago",
   },
   {
@@ -329,7 +341,8 @@ const dataRecords: PortalDataRecord[] = [
     kind: "Chunk",
     title: "Authentication setup chunk",
     step: "Index",
-    detail: "843 tokens with embedding metadata prepared for the RAG collection.",
+    detail:
+      "843 tokens with embedding metadata prepared for the RAG collection.",
     updatedAt: "running",
   },
   {
@@ -337,7 +350,8 @@ const dataRecords: PortalDataRecord[] = [
     kind: "Agent config",
     title: "Support agent draft",
     step: "Generate Agent",
-    detail: "Prompt and tool plan waiting for index validation before publishing.",
+    detail:
+      "Prompt and tool plan waiting for index validation before publishing.",
     updatedAt: "queued",
   },
 ];
@@ -349,9 +363,11 @@ const portalSources: PortalSource[] = [
     type: "Watched URL",
     step: "Listen",
     freshness: "Snapshot captured 2 min ago",
-    summary: "Primary onboarding page used to detect copy and setup flow changes.",
+    summary:
+      "Primary onboarding page used to detect copy and setup flow changes.",
     evidenceTitle: "Watched URL snapshot",
-    evidenceDetail: "The Listen step captured page text and change metadata before downstream conversion.",
+    evidenceDetail:
+      "The Listen step captured page text and change metadata before downstream conversion.",
   },
   {
     id: "s2",
@@ -361,7 +377,8 @@ const portalSources: PortalSource[] = [
     freshness: "Converted 1 min ago",
     summary: "Original user guide converted into Markdown before chunking.",
     evidenceTitle: "Converted source document",
-    evidenceDetail: "The Convert step normalized the original guide into Markdown before chunking.",
+    evidenceDetail:
+      "The Convert step normalized the original guide into Markdown before chunking.",
   },
   {
     id: "s3",
@@ -371,7 +388,8 @@ const portalSources: PortalSource[] = [
     freshness: "96 chunks indexed",
     summary: "Retrieval memory that will power the published Agent answers.",
     evidenceTitle: "RAG memory collection",
-    evidenceDetail: "The Index step stores chunks and retrieval metadata for the published Agent.",
+    evidenceDetail:
+      "The Index step stores chunks and retrieval metadata for the published Agent.",
   },
 ];
 
@@ -419,8 +437,10 @@ const resultItems: PortalResultItem[] = [
     title: "Support agent draft",
     moduleId: "rag_to_agent",
     status: "Waiting for approval",
-    summary: "Draft prompt, tool policy, and handoff notes are ready for review.",
-    detail: "Generated from the indexed onboarding collection and waiting on the final approval step.",
+    summary:
+      "Draft prompt, tool policy, and handoff notes are ready for review.",
+    detail:
+      "Generated from the indexed onboarding collection and waiting on the final approval step.",
   },
   {
     id: "local-memory",
@@ -429,7 +449,8 @@ const resultItems: PortalResultItem[] = [
     moduleId: "md_to_rag",
     status: "Indexing",
     summary: "96 of 124 chunks are ready for retrieval.",
-    detail: "The published Agent will answer from this collection once indexing and validation complete.",
+    detail:
+      "The published Agent will answer from this collection once indexing and validation complete.",
   },
 ];
 
@@ -450,12 +471,27 @@ function readInitialDemoToken(): string {
 function readInitialDemoAdminToken(): string {
   if (typeof window === "undefined") return "";
   // Mock preview shortcut only. Production admin access must not depend on URL query tokens.
-  return new URLSearchParams(window.location.search).get("adminToken")?.trim() ?? "";
+  return (
+    new URLSearchParams(window.location.search).get("adminToken")?.trim() ?? ""
+  );
 }
 
 function previewUrl(componentPath: string, search = ""): string {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   return `${basePath}/preview/${componentPath}${search}`;
+}
+
+function portalRuntimeHeaders(
+  tokenValue: string,
+  input: Record<string, string> = {},
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    ...input,
+    "X-AI-Interface-Surface": "agent-portal",
+  };
+  const cleanToken = tokenValue.trim();
+  if (cleanToken) headers["X-Portal-Token"] = cleanToken;
+  return headers;
 }
 
 function statusIcon(status: PortalStatus): ReactNode {
@@ -490,7 +526,11 @@ function portalAccessStateLabel(state: PortalAccessState): string {
   return "Locked";
 }
 
-function metadataString(metadata: JsonObject | null, key: string, fallback: string): string {
+function metadataString(
+  metadata: JsonObject | null,
+  key: string,
+  fallback: string,
+): string {
   const value = metadata?.[key];
   return typeof value === "string" ? value : fallback;
 }
@@ -546,10 +586,14 @@ function isModuleId(value: unknown): value is ModuleId {
 }
 
 function isConnectionStatus(value: unknown): value is AgentConnectionStatus {
-  return value === "configured" || value === "missing_key" || value === "offline";
+  return (
+    value === "configured" || value === "missing_key" || value === "offline"
+  );
 }
 
-function isAgentRunStatus(value: unknown): value is PortalAgentRunApiResponse["status"] {
+function isAgentRunStatus(
+  value: unknown,
+): value is PortalAgentRunApiResponse["status"] {
   return (
     value === "planned" ||
     value === "missing_key" ||
@@ -558,7 +602,9 @@ function isAgentRunStatus(value: unknown): value is PortalAgentRunApiResponse["s
   );
 }
 
-function isModuleRunStatus(value: unknown): value is PortalAgentRunApiModuleRun["status"] {
+function isModuleRunStatus(
+  value: unknown,
+): value is PortalAgentRunApiModuleRun["status"] {
   return (
     value === "pending" ||
     value === "running" ||
@@ -574,11 +620,14 @@ function isPipelineStatus(
   return isModuleRunStatus(value);
 }
 
-function isPortalAgentRunApiModuleRun(value: unknown): value is PortalAgentRunApiModuleRun {
+function isPortalAgentRunApiModuleRun(
+  value: unknown,
+): value is PortalAgentRunApiModuleRun {
   if (!isJsonObject(value)) return false;
   return (
     typeof value["id"] === "string" &&
-    (value["pipelineRunId"] === null || typeof value["pipelineRunId"] === "string") &&
+    (value["pipelineRunId"] === null ||
+      typeof value["pipelineRunId"] === "string") &&
     isModuleId(value["moduleId"]) &&
     typeof value["externalRunId"] === "string" &&
     isNullableString(value["title"]) &&
@@ -627,7 +676,9 @@ function isPortalArtifact(value: unknown): value is PortalArtifact {
   );
 }
 
-function isPortalModuleRunDetail(value: unknown): value is PortalModuleRunDetail {
+function isPortalModuleRunDetail(
+  value: unknown,
+): value is PortalModuleRunDetail {
   if (!isJsonObject(value)) return false;
   return (
     isPortalAgentRunApiModuleRun(value["run"]) &&
@@ -638,7 +689,9 @@ function isPortalModuleRunDetail(value: unknown): value is PortalModuleRunDetail
   );
 }
 
-function isPortalAgentRunApiPlanStep(value: unknown): value is PortalAgentRunApiPlanStep {
+function isPortalAgentRunApiPlanStep(
+  value: unknown,
+): value is PortalAgentRunApiPlanStep {
   if (!isJsonObject(value)) return false;
   return (
     isModuleId(value["moduleId"]) &&
@@ -649,7 +702,9 @@ function isPortalAgentRunApiPlanStep(value: unknown): value is PortalAgentRunApi
   );
 }
 
-function isPortalAgentRunApiResponse(value: unknown): value is PortalAgentRunApiResponse {
+function isPortalAgentRunApiResponse(
+  value: unknown,
+): value is PortalAgentRunApiResponse {
   if (!isJsonObject(value)) return false;
   const connection = value["connection"];
   const agentMessage = value["agentMessage"];
@@ -679,7 +734,9 @@ function isPortalAgentRunApiResponse(value: unknown): value is PortalAgentRunApi
   );
 }
 
-function isPortalInteractionStatus(value: unknown): value is PortalInteractionStatus {
+function isPortalInteractionStatus(
+  value: unknown,
+): value is PortalInteractionStatus {
   return (
     value === "waiting_for_user" ||
     value === "waiting_for_approval" ||
@@ -690,7 +747,9 @@ function isPortalInteractionStatus(value: unknown): value is PortalInteractionSt
   );
 }
 
-function isPortalInteractionKind(value: unknown): value is PortalToolInteraction["kind"] {
+function isPortalInteractionKind(
+  value: unknown,
+): value is PortalToolInteraction["kind"] {
   return (
     value === "question" ||
     value === "approval" ||
@@ -699,12 +758,16 @@ function isPortalInteractionKind(value: unknown): value is PortalToolInteraction
   );
 }
 
-function isPortalInteractionOption(value: unknown): value is PortalInteractionOption {
+function isPortalInteractionOption(
+  value: unknown,
+): value is PortalInteractionOption {
   if (!isJsonObject(value)) return false;
   return typeof value["id"] === "string" && typeof value["label"] === "string";
 }
 
-function parsePortalToolInteraction(metadata: JsonObject | null): PortalToolInteraction | null {
+function parsePortalToolInteraction(
+  metadata: JsonObject | null,
+): PortalToolInteraction | null {
   const value = metadata?.["interaction"];
   if (!isJsonObject(value)) return null;
   if (
@@ -729,15 +792,20 @@ function parsePortalToolInteraction(metadata: JsonObject | null): PortalToolInte
       ? value["options"].filter(isPortalInteractionOption)
       : [],
     artifactIds: Array.isArray(value["artifactIds"])
-      ? value["artifactIds"].filter((item): item is string => typeof item === "string")
+      ? value["artifactIds"].filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
-    resumeHandle: typeof value["resumeHandle"] === "string" ? value["resumeHandle"] : null,
+    resumeHandle:
+      typeof value["resumeHandle"] === "string" ? value["resumeHandle"] : null,
     requestedAt: value["requestedAt"],
     metadata: isJsonObject(value["metadata"]) ? value["metadata"] : {},
   };
 }
 
-function isPortalToolInteractionApiResponse(value: unknown): value is PortalToolInteractionApiResponse {
+function isPortalToolInteractionApiResponse(
+  value: unknown,
+): value is PortalToolInteractionApiResponse {
   if (!isJsonObject(value)) return false;
   return (
     isPortalAgentRunApiModuleRun(value["run"]) &&
@@ -770,7 +838,9 @@ function interactionStatusText(status: PortalInteractionStatus): string {
   return "Resumed";
 }
 
-function isFeedbackReadyInteraction(interaction: PortalToolInteraction): boolean {
+function isFeedbackReadyInteraction(
+  interaction: PortalToolInteraction,
+): boolean {
   return (
     interaction.status === "waiting_for_user" ||
     interaction.status === "waiting_for_approval" ||
@@ -811,7 +881,9 @@ function toPortalStepFromApiRun(run: PortalAgentRunApiModuleRun): PortalStep {
     adminModule: run.moduleId,
     status: portalStatusFromApiRun(run),
     summary,
-    dataCount: run.outputJson ? `API result ${shortRunId(run.id)}` : label.fallbackData,
+    dataCount: run.outputJson
+      ? `API result ${shortRunId(run.id)}`
+      : label.fallbackData,
     updatedAt: formatApiTime(run.updatedAt),
     runId: run.id,
     externalRunId: run.externalRunId,
@@ -819,7 +891,9 @@ function toPortalStepFromApiRun(run: PortalAgentRunApiModuleRun): PortalStep {
   };
 }
 
-function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState {
+function toPortalUiState(
+  response: PortalAgentRunApiResponse,
+): PortalRunUiState {
   const steps = response.moduleRuns.map(toPortalStepFromApiRun);
   const messages: PortalMessage[] = [
     ...portalMessages,
@@ -839,7 +913,9 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
       step: step.label,
       stepId: `${step.id}-${run.id}`,
       runId: run.id,
-      detail: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
+      detail:
+        run.summary ??
+        metadataString(run.metadata, "action", step.fallbackSummary),
       updatedAt: formatApiTime(run.updatedAt),
     };
   });
@@ -851,7 +927,9 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
       type: run.moduleId,
       step: step.label,
       freshness: `Updated ${formatApiTime(run.updatedAt)}`,
-      summary: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
+      summary:
+        run.summary ??
+        metadataString(run.metadata, "action", step.fallbackSummary),
       runId: run.id,
       evidenceTitle: run.title ?? step.label,
       evidenceDetail: metadataString(
@@ -861,7 +939,9 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
       ),
     };
   });
-  const completedCount = steps.filter((step) => step.status === "complete").length;
+  const completedCount = steps.filter(
+    (step) => step.status === "complete",
+  ).length;
   const readiness = [
     ["Pipeline", response.pipelineRun.status],
     ["Connection", response.connection.status],
@@ -885,7 +965,9 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
         moduleId: run.moduleId,
         runId: run.id,
         status: run.status,
-        summary: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
+        summary:
+          run.summary ??
+          metadataString(run.metadata, "action", step.fallbackSummary),
         detail: run.outputJson
           ? JSON.stringify(run.outputJson, null, 2)
           : metadataString(
@@ -908,13 +990,22 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
             detail: response.plan.summary,
           },
         ];
-  return { response, steps, messages, dataRecords, sources, readiness, resultItems };
+  return {
+    response,
+    steps,
+    messages,
+    dataRecords,
+    sources,
+    readiness,
+    resultItems,
+  };
 }
 
 export function AgentPortalInterface() {
   const initialToken = useMemo(readInitialDemoToken, []);
   const initialAdminToken = useMemo(readInitialDemoAdminToken, []);
   const [token, setToken] = useState(initialToken);
+  const [authorizedPortalToken, setAuthorizedPortalToken] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [portalAccessState, setPortalAccessState] = useState<PortalAccessState>(
     initialToken ? "checking" : "idle",
@@ -929,22 +1020,43 @@ export function AgentPortalInterface() {
   const [activeView, setActiveView] = useState<PortalView>("chat");
   const [activeStep, setActiveStep] = useState(portalSteps[2].id);
   const [draft, setDraft] = useState("");
-  const [portalRunState, setPortalRunState] = useState<PortalRunSubmitState>("local");
-  const [portalRunStatusText, setPortalRunStatusText] = useState("Local demo runtime");
-  const [latestPortalRun, setLatestPortalRun] = useState<PortalRunUiState | null>(null);
-  const [portalActionStates, setPortalActionStates] = useState<Record<string, PortalActionState>>({});
+  const [portalRunState, setPortalRunState] =
+    useState<PortalRunSubmitState>("local");
+  const [portalRunStatusText, setPortalRunStatusText] =
+    useState("Local demo runtime");
+  const [latestPortalRun, setLatestPortalRun] =
+    useState<PortalRunUiState | null>(null);
+  const [portalActionStates, setPortalActionStates] = useState<
+    Record<string, PortalActionState>
+  >({});
   const [portalActionStatusText, setPortalActionStatusText] = useState(
     "Feedback actions are local until API run data is available",
   );
-  const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
-  const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<Record<string, string>>({});
-  const [selectedDataRecordId, setSelectedDataRecordId] = useState<string | null>(null);
+  const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>(
+    {},
+  );
+  const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<
+    Record<string, string>
+  >({});
+  const [selectedDataRecordId, setSelectedDataRecordId] = useState<
+    string | null
+  >(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [selectedResultItemId, setSelectedResultItemId] = useState<string | null>(null);
-  const [portalDetailStates, setPortalDetailStates] = useState<Record<string, PortalDetailState>>({});
-  const [portalRunDetails, setPortalRunDetails] = useState<Record<string, PortalModuleRunDetail>>({});
-  const [selectedArtifactByRunId, setSelectedArtifactByRunId] = useState<Record<string, string>>({});
-  const [portalArtifactDetails, setPortalArtifactDetails] = useState<Record<string, PortalArtifact>>({});
+  const [selectedResultItemId, setSelectedResultItemId] = useState<
+    string | null
+  >(null);
+  const [portalDetailStates, setPortalDetailStates] = useState<
+    Record<string, PortalDetailState>
+  >({});
+  const [portalRunDetails, setPortalRunDetails] = useState<
+    Record<string, PortalModuleRunDetail>
+  >({});
+  const [selectedArtifactByRunId, setSelectedArtifactByRunId] = useState<
+    Record<string, string>
+  >({});
+  const [portalArtifactDetails, setPortalArtifactDetails] = useState<
+    Record<string, PortalArtifact>
+  >({});
   const [portalDetailStatusText, setPortalDetailStatusText] = useState(
     "Open a data record to inspect stored module artifacts",
   );
@@ -966,17 +1078,26 @@ export function AgentPortalInterface() {
   function beginPortalAction(stepId: string): boolean {
     if (portalActionInFlightRef.current.has(stepId)) return false;
     portalActionInFlightRef.current.add(stepId);
-    setPortalActionStates((current) => ({ ...current, [stepId]: "submitting" }));
+    setPortalActionStates((current) => ({
+      ...current,
+      [stepId]: "submitting",
+    }));
     return true;
   }
 
-  function finishPortalAction(stepId: string, state: Exclude<PortalActionState, "submitting">): void {
+  function finishPortalAction(
+    stepId: string,
+    state: Exclude<PortalActionState, "submitting">,
+  ): void {
     portalActionInFlightRef.current.delete(stepId);
     setPortalActionStates((current) => ({ ...current, [stepId]: state }));
   }
 
   const activeStepRecord = useMemo(
-    () => displayedSteps.find((step) => step.id === activeStep) ?? displayedSteps[0] ?? portalSteps[2],
+    () =>
+      displayedSteps.find((step) => step.id === activeStep) ??
+      displayedSteps[0] ??
+      portalSteps[2],
     [activeStep, displayedSteps],
   );
 
@@ -991,8 +1112,9 @@ export function AgentPortalInterface() {
     );
   }, [activeStep, displayedDataRecords, displayedSteps]);
 
-  function unlockLocalDemoPortal(): void {
+  function unlockLocalDemoPortal(tokenValue: string): void {
     setIsUnlocked(true);
+    setAuthorizedPortalToken(tokenValue);
     setPortalAccessState("offline");
     setPortalAccessStatusText("API offline - local demo Portal unlocked");
   }
@@ -1009,10 +1131,12 @@ export function AgentPortalInterface() {
     }
   }
 
-  async function fallBackToLocalDemoIfApiUnavailable(cleanToken: string): Promise<boolean> {
+  async function fallBackToLocalDemoIfApiUnavailable(
+    cleanToken: string,
+  ): Promise<boolean> {
     if (cleanToken.length < 6) return false;
     if (!(await isPortalApiUnavailable())) return false;
-    unlockLocalDemoPortal();
+    unlockLocalDemoPortal(cleanToken);
     return true;
   }
 
@@ -1020,6 +1144,7 @@ export function AgentPortalInterface() {
     const cleanToken = tokenInput.trim();
     if (!cleanToken) {
       setIsUnlocked(false);
+      setAuthorizedPortalToken("");
       setPortalAccessState("missing_token");
       setPortalAccessStatusText("Enter a Portal token to continue");
       return;
@@ -1037,10 +1162,11 @@ export function AgentPortalInterface() {
       });
     } catch {
       if (cleanToken.length >= 6) {
-        unlockLocalDemoPortal();
+        unlockLocalDemoPortal(cleanToken);
         return;
       }
       setIsUnlocked(false);
+      setAuthorizedPortalToken("");
       setPortalAccessState("failed");
       setPortalAccessStatusText("Portal access API unavailable");
       return;
@@ -1049,6 +1175,7 @@ export function AgentPortalInterface() {
     if (!response.ok) {
       if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
       setIsUnlocked(false);
+      setAuthorizedPortalToken("");
       setPortalAccessState("failed");
       setPortalAccessStatusText(
         `Portal access API returned ${response.status}; access remains locked`,
@@ -1062,6 +1189,7 @@ export function AgentPortalInterface() {
     } catch {
       if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
       setIsUnlocked(false);
+      setAuthorizedPortalToken("");
       setPortalAccessState("failed");
       setPortalAccessStatusText("Portal access API returned invalid JSON");
       return;
@@ -1070,8 +1198,11 @@ export function AgentPortalInterface() {
     if (!isPortalAccessVerificationResponse(data)) {
       if (await fallBackToLocalDemoIfApiUnavailable(cleanToken)) return;
       setIsUnlocked(false);
+      setAuthorizedPortalToken("");
       setPortalAccessState("failed");
-      setPortalAccessStatusText("Portal access API returned an unexpected payload");
+      setPortalAccessStatusText(
+        "Portal access API returned an unexpected payload",
+      );
       return;
     }
 
@@ -1079,11 +1210,15 @@ export function AgentPortalInterface() {
     setPortalAccessState(data.status);
     if (data.authorized) {
       setIsUnlocked(true);
-      setPortalAccessStatusText(`Published Agent ${data.versionLabel} unlocked`);
+      setAuthorizedPortalToken(cleanToken);
+      setPortalAccessStatusText(
+        `Published Agent ${data.versionLabel} unlocked`,
+      );
       return;
     }
 
     setIsUnlocked(false);
+    setAuthorizedPortalToken("");
     if (data.status === "not_published") {
       setPortalAccessStatusText(
         `Agent is ${data.publishStatus}; Portal is not open yet`,
@@ -1117,7 +1252,10 @@ export function AgentPortalInterface() {
     }
     if (cleanToken.length >= 6) {
       window.location.assign(
-        previewUrl("ai-os/AgentFirstInterface", `?adminToken=${encodeURIComponent(cleanToken)}`),
+        previewUrl(
+          "ai-os/AgentFirstInterface",
+          `?adminToken=${encodeURIComponent(cleanToken)}`,
+        ),
       );
     }
   }
@@ -1139,9 +1277,15 @@ export function AgentPortalInterface() {
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
     setPortalArtifactDetails({});
-    setPortalActionStatusText("Feedback actions are local until API run data is available");
-    setPortalDetailStatusText("Open a data record to inspect stored module artifacts");
-    setPortalSourceStatusText("Open a source to inspect evidence and provenance");
+    setPortalActionStatusText(
+      "Feedback actions are local until API run data is available",
+    );
+    setPortalDetailStatusText(
+      "Open a data record to inspect stored module artifacts",
+    );
+    setPortalSourceStatusText(
+      "Open a source to inspect evidence and provenance",
+    );
     setPortalResultStatusText("Open a result item to inspect handoff details");
     setPortalRunState("submitting");
     setPortalRunStatusText("Submitting to Agent Run API");
@@ -1150,7 +1294,9 @@ export function AgentPortalInterface() {
     try {
       const response = await fetch("/api/agent-runs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: portalRuntimeHeaders(authorizedPortalToken, {
+          "Content-Type": "application/json",
+        }),
         body: JSON.stringify({
           message: prompt,
           executionMode: "execute_ready",
@@ -1171,7 +1317,9 @@ export function AgentPortalInterface() {
         setLatestPortalRun(null);
         setActiveStep(portalSteps[2].id);
         setPortalRunState("failed");
-        setPortalRunStatusText("Agent Run API returned an unexpected response - showing local demo");
+        setPortalRunStatusText(
+          "Agent Run API returned an unexpected response - showing local demo",
+        );
         return;
       }
 
@@ -1193,7 +1341,9 @@ export function AgentPortalInterface() {
       if (!current) return current;
       const response: PortalAgentRunApiResponse = {
         ...current.response,
-        moduleRuns: current.response.moduleRuns.map((item) => (item.id === run.id ? run : item)),
+        moduleRuns: current.response.moduleRuns.map((item) =>
+          item.id === run.id ? run : item,
+        ),
       };
       return toPortalUiState(response);
     });
@@ -1203,17 +1353,28 @@ export function AgentPortalInterface() {
     setFeedbackDrafts((current) => ({ ...current, [stepId]: value }));
   }
 
-  function handleSelectedInteractionOptionChange(stepId: string, value: string): void {
-    setSelectedInteractionOptions((current) => ({ ...current, [stepId]: value }));
+  function handleSelectedInteractionOptionChange(
+    stepId: string,
+    value: string,
+  ): void {
+    setSelectedInteractionOptions((current) => ({
+      ...current,
+      [stepId]: value,
+    }));
   }
 
-  async function submitStepFeedback(step: PortalStep, approved?: boolean): Promise<void> {
+  async function submitStepFeedback(
+    step: PortalStep,
+    approved?: boolean,
+  ): Promise<void> {
     const interaction = step.interaction;
     if (!interaction || !beginPortalAction(step.id)) return;
 
     if (!latestPortalRun || !step.runId) {
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText("Local demo feedback captured - no API run is connected");
+      setPortalActionStatusText(
+        "Local demo feedback captured - no API run is connected",
+      );
       return;
     }
 
@@ -1222,20 +1383,29 @@ export function AgentPortalInterface() {
     setPortalActionStatusText(`Submitting feedback for ${step.label}`);
 
     try {
-      const response = await fetch(`/api/module-runs/${encodeURIComponent(step.runId)}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          responseText: responseText || undefined,
-          selectedOptionId,
-          approved,
-          artifactIds: [],
-          resumeHandle: interaction.resumeHandle ?? undefined,
-          metadata: { source: "agent-portal", interactionKind: interaction.kind },
-        }),
-      });
+      const response = await fetch(
+        `/api/module-runs/${encodeURIComponent(step.runId)}/feedback`,
+        {
+          method: "POST",
+          headers: portalRuntimeHeaders(authorizedPortalToken, {
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            responseText: responseText || undefined,
+            selectedOptionId,
+            approved,
+            artifactIds: [],
+            resumeHandle: interaction.resumeHandle ?? undefined,
+            metadata: {
+              source: "agent-portal",
+              interactionKind: interaction.kind,
+            },
+          }),
+        },
+      );
 
-      if (!response.ok) throw new Error(`Feedback API returned ${response.status}`);
+      if (!response.ok)
+        throw new Error(`Feedback API returned ${response.status}`);
       const data = (await response.json()) as unknown;
       if (!isPortalToolInteractionApiResponse(data)) {
         throw new Error("Feedback API returned unexpected shape");
@@ -1243,7 +1413,9 @@ export function AgentPortalInterface() {
 
       updatePortalRunFromModuleRun(data.run);
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText(`Feedback saved for ${step.label}; resume is ready when available`);
+      setPortalActionStatusText(
+        `Feedback saved for ${step.label}; resume is ready when available`,
+      );
     } catch {
       finishPortalAction(step.id, "failed");
       setPortalActionStatusText(`Feedback API failed for ${step.label}`);
@@ -1261,17 +1433,24 @@ export function AgentPortalInterface() {
 
     if (!latestPortalRun || !step.runId) {
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText("Local demo resume requested - no API run is connected");
+      setPortalActionStatusText(
+        "Local demo resume requested - no API run is connected",
+      );
       return;
     }
 
     setPortalActionStatusText(`Resuming ${step.label}`);
 
     try {
-      const response = await fetch(`/api/module-runs/${encodeURIComponent(step.runId)}/resume`, {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error(`Resume API returned ${response.status}`);
+      const response = await fetch(
+        `/api/module-runs/${encodeURIComponent(step.runId)}/resume`,
+        {
+          method: "POST",
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Resume API returned ${response.status}`);
       const data = (await response.json()) as unknown;
       if (!isPortalToolInteractionApiResponse(data)) {
         throw new Error("Resume API returned unexpected shape");
@@ -1290,7 +1469,9 @@ export function AgentPortalInterface() {
     setSelectedDataRecordId(record.id);
 
     if (!record.runId) {
-      setPortalDetailStatusText("Local demo record - no API module run is connected");
+      setPortalDetailStatusText(
+        "Local demo record - no API module run is connected",
+      );
       return;
     }
 
@@ -1305,8 +1486,14 @@ export function AgentPortalInterface() {
     setPortalDetailStatusText(`Loading details for ${record.title}`);
 
     try {
-      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
-      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const response = await fetch(
+        `/api/module-runs/${encodeURIComponent(runId)}`,
+        {
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Module run detail API returned ${response.status}`);
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1315,7 +1502,10 @@ export function AgentPortalInterface() {
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+        [runId]:
+          data.artifacts.length > 0 || data.events.length > 0
+            ? "ready"
+            : "empty",
       }));
       setPortalDetailStatusText(`Loaded details for ${record.title}`);
     } catch {
@@ -1328,7 +1518,9 @@ export function AgentPortalInterface() {
     setSelectedSourceId(source.id);
 
     if (!source.runId) {
-      setPortalSourceStatusText("Local demo source - no API module run is connected");
+      setPortalSourceStatusText(
+        "Local demo source - no API module run is connected",
+      );
       return;
     }
 
@@ -1343,8 +1535,14 @@ export function AgentPortalInterface() {
     setPortalSourceStatusText(`Loading evidence for ${source.label}`);
 
     try {
-      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
-      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const response = await fetch(
+        `/api/module-runs/${encodeURIComponent(runId)}`,
+        {
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Module run detail API returned ${response.status}`);
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1353,7 +1551,10 @@ export function AgentPortalInterface() {
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+        [runId]:
+          data.artifacts.length > 0 || data.events.length > 0
+            ? "ready"
+            : "empty",
       }));
       setPortalSourceStatusText(`Loaded evidence for ${source.label}`);
     } catch {
@@ -1366,7 +1567,9 @@ export function AgentPortalInterface() {
     setSelectedResultItemId(item.id);
 
     if (!item.runId) {
-      setPortalResultStatusText("Local demo result - no API module run is connected");
+      setPortalResultStatusText(
+        "Local demo result - no API module run is connected",
+      );
       return;
     }
 
@@ -1381,8 +1584,14 @@ export function AgentPortalInterface() {
     setPortalResultStatusText(`Loading result details for ${item.title}`);
 
     try {
-      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
-      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const response = await fetch(
+        `/api/module-runs/${encodeURIComponent(runId)}`,
+        {
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Module run detail API returned ${response.status}`);
       const data = (await response.json()) as unknown;
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
@@ -1391,7 +1600,10 @@ export function AgentPortalInterface() {
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+        [runId]:
+          data.artifacts.length > 0 || data.events.length > 0
+            ? "ready"
+            : "empty",
       }));
       setPortalResultStatusText(`Loaded result details for ${item.title}`);
     } catch {
@@ -1405,15 +1617,28 @@ export function AgentPortalInterface() {
     artifact: PortalArtifact,
     statusTarget: "data" | "source" | "result" = "data",
   ): Promise<void> {
-    setSelectedArtifactByRunId((current) => ({ ...current, [runId]: artifact.id }));
+    setSelectedArtifactByRunId((current) => ({
+      ...current,
+      [runId]: artifact.id,
+    }));
     if (portalArtifactDetails[artifact.id]) return;
 
     try {
-      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifact.id)}`);
-      if (!response.ok) throw new Error(`Artifact API returned ${response.status}`);
+      const response = await fetch(
+        `/api/artifacts/${encodeURIComponent(artifact.id)}`,
+        {
+          headers: portalRuntimeHeaders(authorizedPortalToken),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Artifact API returned ${response.status}`);
       const data = (await response.json()) as unknown;
-      if (!isPortalArtifact(data)) throw new Error("Artifact API returned unexpected shape");
-      setPortalArtifactDetails((current) => ({ ...current, [artifact.id]: data }));
+      if (!isPortalArtifact(data))
+        throw new Error("Artifact API returned unexpected shape");
+      setPortalArtifactDetails((current) => ({
+        ...current,
+        [artifact.id]: data,
+      }));
     } catch {
       if (statusTarget === "result") {
         setPortalResultStatusText(`Artifact API failed for ${artifact.title}`);
@@ -1546,7 +1771,9 @@ export function AgentPortalInterface() {
               portalActionStatusText={portalActionStatusText}
               onSelectStep={setActiveStep}
               onFeedbackDraftChange={handleFeedbackDraftChange}
-              onSelectedInteractionOptionChange={handleSelectedInteractionOptionChange}
+              onSelectedInteractionOptionChange={
+                handleSelectedInteractionOptionChange
+              }
               onSubmitStepFeedback={submitStepFeedback}
               onResumeStepRun={resumeStepRun}
             />
@@ -1554,7 +1781,9 @@ export function AgentPortalInterface() {
           {activeView === "data" && (
             <DataView
               activeStep={activeStep}
-              records={filteredData.length > 0 ? filteredData : displayedDataRecords}
+              records={
+                filteredData.length > 0 ? filteredData : displayedDataRecords
+              }
               steps={displayedSteps}
               selectedRecordId={selectedDataRecordId}
               detailStates={portalDetailStates}
@@ -1577,7 +1806,9 @@ export function AgentPortalInterface() {
               artifactDetails={portalArtifactDetails}
               sourceStatusText={portalSourceStatusText}
               onOpenSource={openSource}
-              onOpenArtifact={(runId, artifact) => openArtifact(runId, artifact, "source")}
+              onOpenArtifact={(runId, artifact) =>
+                openArtifact(runId, artifact, "source")
+              }
             />
           )}
           {activeView === "result" && (
@@ -1593,7 +1824,9 @@ export function AgentPortalInterface() {
               artifactDetails={portalArtifactDetails}
               resultStatusText={portalResultStatusText}
               onOpenResultItem={openResultItem}
-              onOpenArtifact={(runId, artifact) => openArtifact(runId, artifact, "result")}
+              onOpenArtifact={(runId, artifact) =>
+                openArtifact(runId, artifact, "result")
+              }
             />
           )}
         </section>
@@ -1613,11 +1846,18 @@ export function AgentPortalInterface() {
               actionState={portalActionStates[activeStepRecord.id] ?? "idle"}
               draft={feedbackDrafts[activeStepRecord.id] ?? ""}
               selectedOptionId={selectedInteractionOptions[activeStepRecord.id]}
-              onDraftChange={(value) => handleFeedbackDraftChange(activeStepRecord.id, value)}
-              onSelectedOptionChange={(value) =>
-                handleSelectedInteractionOptionChange(activeStepRecord.id, value)
+              onDraftChange={(value) =>
+                handleFeedbackDraftChange(activeStepRecord.id, value)
               }
-              onSubmitFeedback={(approved) => void submitStepFeedback(activeStepRecord, approved)}
+              onSelectedOptionChange={(value) =>
+                handleSelectedInteractionOptionChange(
+                  activeStepRecord.id,
+                  value,
+                )
+              }
+              onSubmitFeedback={(approved) =>
+                void submitStepFeedback(activeStepRecord, approved)
+              }
               onResume={() => void resumeStepRun(activeStepRecord)}
             />
           </div>
@@ -1650,14 +1890,22 @@ export function AgentPortalInterface() {
       </main>
 
       {isAdminGateOpen && (
-        <div className="portal-admin-gate" role="dialog" aria-modal="true" aria-labelledby="portal-admin-title">
+        <div
+          className="portal-admin-gate"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="portal-admin-title"
+        >
           <form className="portal-admin-panel" onSubmit={submitAdminToken}>
             <div className="portal-token-mark">
               <Settings2 size={22} />
             </div>
             <span className="portal-kicker">Admin access</span>
             <h2 id="portal-admin-title">Enter admin token</h2>
-            <p>Admin Console is for operators. Submit an admin token to continue, or return to the Portal.</p>
+            <p>
+              Admin Console is for operators. Submit an admin token to continue,
+              or return to the Portal.
+            </p>
             <label htmlFor="portal-admin-token">Admin token</label>
             <div className="portal-token-input">
               <KeyRound size={17} />
@@ -1674,7 +1922,11 @@ export function AgentPortalInterface() {
               />
             </div>
             <div className="portal-admin-actions">
-              <button type="button" className="secondary" onClick={() => setIsAdminGateOpen(false)}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setIsAdminGateOpen(false)}
+              >
                 Back to Portal
               </button>
               <button type="submit">
@@ -1682,7 +1934,9 @@ export function AgentPortalInterface() {
                 Enter Admin
               </button>
             </div>
-            <em>Demo preview only. No token keeps you in the frontstage Portal.</em>
+            <em>
+              Demo preview only. No token keeps you in the frontstage Portal.
+            </em>
           </form>
         </div>
       )}
@@ -1713,7 +1967,11 @@ function ChatView({
         {messages.map((message) => (
           <article
             key={message.id}
-            className={message.speaker === "user" ? "portal-message user" : "portal-message agent"}
+            className={
+              message.speaker === "user"
+                ? "portal-message user"
+                : "portal-message agent"
+            }
           >
             <span>{message.meta}</span>
             <p>{message.text}</p>
@@ -1799,10 +2057,15 @@ function StepsView({
       <div className="portal-api-plan-panel">
         {latestPortalRun ? (
           <>
-            <strong>Pipeline {shortRunId(latestPortalRun.response.pipelineRun.id)}</strong>
+            <strong>
+              Pipeline {shortRunId(latestPortalRun.response.pipelineRun.id)}
+            </strong>
             <p>{latestPortalRun.response.plan.summary}</p>
             {latestPortalRun.response.plan.warnings.length > 0 && (
-              <div className="portal-warning-row" aria-label="Agent plan warnings">
+              <div
+                className="portal-warning-row"
+                aria-label="Agent plan warnings"
+              >
                 {latestPortalRun.response.plan.warnings.map((warning) => (
                   <span key={warning}>{warning}</span>
                 ))}
@@ -1821,7 +2084,11 @@ function StepsView({
         {steps.map((step) => (
           <article
             key={step.id}
-            className={step.id === activeStep ? "portal-step-card active" : "portal-step-card"}
+            className={
+              step.id === activeStep
+                ? "portal-step-card active"
+                : "portal-step-card"
+            }
           >
             <button
               type="button"
@@ -1844,8 +2111,12 @@ function StepsView({
               draft={feedbackDrafts[step.id] ?? ""}
               selectedOptionId={selectedInteractionOptions[step.id]}
               onDraftChange={(value) => onFeedbackDraftChange(step.id, value)}
-              onSelectedOptionChange={(value) => onSelectedInteractionOptionChange(step.id, value)}
-              onSubmitFeedback={(approved) => void onSubmitStepFeedback(step, approved)}
+              onSelectedOptionChange={(value) =>
+                onSelectedInteractionOptionChange(step.id, value)
+              }
+              onSubmitFeedback={(approved) =>
+                void onSubmitStepFeedback(step, approved)
+              }
               onResume={() => void onResumeStepRun(step)}
             />
           </article>
@@ -1991,9 +2262,12 @@ function DataView({
   onOpenRecord: (record: PortalDataRecord) => Promise<void>;
   onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
 }) {
-  const selectedRecord = records.find((record) => record.id === selectedRecordId) ?? null;
+  const selectedRecord =
+    records.find((record) => record.id === selectedRecordId) ?? null;
   const selectedRunId = selectedRecord?.runId;
-  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+  const selectedRunDetail = selectedRunId
+    ? (runDetails[selectedRunId] ?? null)
+    : null;
 
   return (
     <section className="portal-view" aria-label="Portal data">
@@ -2017,7 +2291,11 @@ function DataView({
         {records.map((record) => (
           <article
             key={record.id}
-            className={selectedRecordId === record.id ? "portal-record-row active" : "portal-record-row"}
+            className={
+              selectedRecordId === record.id
+                ? "portal-record-row active"
+                : "portal-record-row"
+            }
           >
             <div>
               <span>{record.kind}</span>
@@ -2031,7 +2309,9 @@ function DataView({
             </div>
             <strong>{record.title}</strong>
             <p>{record.detail}</p>
-            <em>{record.step} · {record.updatedAt}</em>
+            <em>
+              {record.step} · {record.updatedAt}
+            </em>
           </article>
         ))}
       </div>
@@ -2039,8 +2319,12 @@ function DataView({
       <PortalDataDetailDrawer
         record={selectedRecord}
         detail={selectedRunDetail}
-        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
-        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        detailState={
+          selectedRunId ? (detailStates[selectedRunId] ?? "idle") : "idle"
+        }
+        selectedArtifactId={
+          selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined
+        }
         artifactDetails={artifactDetails}
         onOpenArtifact={onOpenArtifact}
       />
@@ -2077,7 +2361,9 @@ function PortalDataDetailDrawer({
         <span className="portal-kicker">Local demo</span>
         <strong>{record.title}</strong>
         <p>{record.detail}</p>
-        <em>{record.step} · {record.updatedAt}</em>
+        <em>
+          {record.step} · {record.updatedAt}
+        </em>
       </aside>
     );
   }
@@ -2109,13 +2395,17 @@ function PortalDataDetailDrawer({
   }
 
   const selectedArtifact = selectedArtifactId
-    ? artifactDetails[selectedArtifactId] ??
-      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    ? (artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
   const artifactPreview =
     selectedArtifact?.contentText ??
     (selectedArtifact
-      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      ? JSON.stringify(
+          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
+          null,
+          2,
+        )
       : null);
 
   return (
@@ -2130,7 +2420,9 @@ function PortalDataDetailDrawer({
             <p>No events stored yet.</p>
           ) : (
             detail.events.map((event) => (
-              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+              <span key={event.id}>
+                {event.severity}: {event.title ?? event.eventType}
+              </span>
             ))
           )}
         </div>
@@ -2152,8 +2444,12 @@ function PortalDataDetailDrawer({
           )}
         </div>
       </div>
-      {detailState === "empty" && <p>No detail records were stored for this module run yet.</p>}
-      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+      {detailState === "empty" && (
+        <p>No detail records were stored for this module run yet.</p>
+      )}
+      {artifactPreview && (
+        <pre className="portal-artifact-preview">{artifactPreview}</pre>
+      )}
     </aside>
   );
 }
@@ -2179,9 +2475,12 @@ function SourcesView({
   onOpenSource: (source: PortalSource) => Promise<void>;
   onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
 }) {
-  const selectedSource = sources.find((source) => source.id === selectedSourceId) ?? null;
+  const selectedSource =
+    sources.find((source) => source.id === selectedSourceId) ?? null;
   const selectedRunId = selectedSource?.runId;
-  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+  const selectedRunDetail = selectedRunId
+    ? (runDetails[selectedRunId] ?? null)
+    : null;
 
   return (
     <section className="portal-view" aria-label="Portal sources">
@@ -2193,7 +2492,11 @@ function SourcesView({
         {sources.map((source) => (
           <article
             key={source.id}
-            className={selectedSourceId === source.id ? "portal-source-card active" : "portal-source-card"}
+            className={
+              selectedSourceId === source.id
+                ? "portal-source-card active"
+                : "portal-source-card"
+            }
           >
             <div>
               <Link2 size={16} />
@@ -2201,7 +2504,9 @@ function SourcesView({
             </div>
             <strong>{source.label}</strong>
             <p>{source.summary}</p>
-            <em>{source.step} · {source.freshness}</em>
+            <em>
+              {source.step} · {source.freshness}
+            </em>
             <button
               type="button"
               aria-label={`Inspect evidence for ${source.label}`}
@@ -2216,8 +2521,12 @@ function SourcesView({
       <PortalSourceEvidenceDrawer
         source={selectedSource}
         detail={selectedRunDetail}
-        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
-        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        detailState={
+          selectedRunId ? (detailStates[selectedRunId] ?? "idle") : "idle"
+        }
+        selectedArtifactId={
+          selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined
+        }
         artifactDetails={artifactDetails}
         onOpenArtifact={onOpenArtifact}
       />
@@ -2254,7 +2563,9 @@ function PortalSourceEvidenceDrawer({
         <span className="portal-kicker">Local evidence</span>
         <strong>{source.evidenceTitle}</strong>
         <p>{source.evidenceDetail}</p>
-        <em>{source.step} · {source.freshness}</em>
+        <em>
+          {source.step} · {source.freshness}
+        </em>
       </aside>
     );
   }
@@ -2286,13 +2597,17 @@ function PortalSourceEvidenceDrawer({
   }
 
   const selectedArtifact = selectedArtifactId
-    ? artifactDetails[selectedArtifactId] ??
-      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    ? (artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
   const artifactPreview =
     selectedArtifact?.contentText ??
     (selectedArtifact
-      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      ? JSON.stringify(
+          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
+          null,
+          2,
+        )
       : null);
 
   return (
@@ -2307,7 +2622,9 @@ function PortalSourceEvidenceDrawer({
             <p>No events stored yet.</p>
           ) : (
             detail.events.map((event) => (
-              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+              <span key={event.id}>
+                {event.severity}: {event.title ?? event.eventType}
+              </span>
             ))
           )}
         </div>
@@ -2329,8 +2646,12 @@ function PortalSourceEvidenceDrawer({
           )}
         </div>
       </div>
-      {detailState === "empty" && <p>No evidence records were stored for this module run yet.</p>}
-      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+      {detailState === "empty" && (
+        <p>No evidence records were stored for this module run yet.</p>
+      )}
+      {artifactPreview && (
+        <pre className="portal-artifact-preview">{artifactPreview}</pre>
+      )}
     </aside>
   );
 }
@@ -2365,7 +2686,9 @@ function ResultView({
   const selectedResultItem =
     resultItems.find((item) => item.id === selectedResultItemId) ?? null;
   const selectedRunId = selectedResultItem?.runId;
-  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+  const selectedRunDetail = selectedRunId
+    ? (runDetails[selectedRunId] ?? null)
+    : null;
 
   return (
     <section className="portal-view" aria-label="Portal result">
@@ -2376,9 +2699,18 @@ function ResultView({
       <div className="portal-result-panel">
         <div className="portal-result-summary">
           <FileText size={22} />
-          <span>{latestPortalRun ? `API run ${shortRunId(latestPortalRun.response.pipelineRun.id)}` : "Draft agent output"}</span>
-          <h3>{latestPortalRun?.response.pipelineRun.title ?? "Onboarding Knowledge Agent"}</h3>
-          <p>{latestPortalRun?.response.agentMessage.content ?? runStatusText}</p>
+          <span>
+            {latestPortalRun
+              ? `API run ${shortRunId(latestPortalRun.response.pipelineRun.id)}`
+              : "Draft agent output"}
+          </span>
+          <h3>
+            {latestPortalRun?.response.pipelineRun.title ??
+              "Onboarding Knowledge Agent"}
+          </h3>
+          <p>
+            {latestPortalRun?.response.agentMessage.content ?? runStatusText}
+          </p>
         </div>
         <div className="portal-readiness-grid">
           {readiness.map(([label, value]) => (
@@ -2393,7 +2725,11 @@ function ResultView({
         {resultItems.map((item) => (
           <article
             key={item.id}
-            className={selectedResultItemId === item.id ? "portal-result-card active" : "portal-result-card"}
+            className={
+              selectedResultItemId === item.id
+                ? "portal-result-card active"
+                : "portal-result-card"
+            }
           >
             <span>{item.kind.replace("_", " ")}</span>
             <strong>{item.title}</strong>
@@ -2413,8 +2749,12 @@ function ResultView({
       <PortalResultDetailDrawer
         item={selectedResultItem}
         detail={selectedRunDetail}
-        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
-        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        detailState={
+          selectedRunId ? (detailStates[selectedRunId] ?? "idle") : "idle"
+        }
+        selectedArtifactId={
+          selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined
+        }
         artifactDetails={artifactDetails}
         onOpenArtifact={onOpenArtifact}
       />
@@ -2483,13 +2823,17 @@ function PortalResultDetailDrawer({
   }
 
   const selectedArtifact = selectedArtifactId
-    ? artifactDetails[selectedArtifactId] ??
-      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    ? (artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
   const artifactPreview =
     selectedArtifact?.contentText ??
     (selectedArtifact
-      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      ? JSON.stringify(
+          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
+          null,
+          2,
+        )
       : item.detail);
 
   return (
@@ -2504,7 +2848,9 @@ function PortalResultDetailDrawer({
             <p>No events stored yet.</p>
           ) : (
             detail.events.map((event) => (
-              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+              <span key={event.id}>
+                {event.severity}: {event.title ?? event.eventType}
+              </span>
             ))
           )}
         </div>
@@ -2526,8 +2872,12 @@ function PortalResultDetailDrawer({
           )}
         </div>
       </div>
-      {detailState === "empty" && <p>No handoff records were stored for this module run yet.</p>}
-      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+      {detailState === "empty" && (
+        <p>No handoff records were stored for this module run yet.</p>
+      )}
+      {artifactPreview && (
+        <pre className="portal-artifact-preview">{artifactPreview}</pre>
+      )}
     </aside>
   );
 }
