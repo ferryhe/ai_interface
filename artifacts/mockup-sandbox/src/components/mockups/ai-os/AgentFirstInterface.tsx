@@ -469,6 +469,11 @@ const navItems: Array<{ id: AppView; label: string; icon: ReactNode }> = [
   { id: "publish", label: "Publish", icon: <UploadCloud size={18} /> },
 ];
 
+function previewUrl(componentPath: string, search = ""): string {
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${basePath}/preview/${componentPath}${search}`;
+}
+
 function statusLabel(status: RunStatus): string {
   if (status === "succeeded") return "Succeeded";
   if (status === "running") return "Running";
@@ -689,6 +694,18 @@ export function AgentFirstInterface() {
             <span>Agent Module OS</span>
           </div>
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="topbar-mode-switch"
+              onClick={() =>
+                window.location.assign(
+                  previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"),
+                )
+              }
+            >
+              <UploadCloud size={14} />
+              View Portal
+            </button>
             <span className="topbar-pill">
               <ShieldCheck size={14} />
               Postgres memory
@@ -1852,6 +1869,7 @@ const styles = `
   .topbar-title,
   .topbar-actions,
   .topbar-pill,
+  .topbar-mode-switch,
   .panel-heading,
   .panel-heading span,
   .primary-action,
@@ -1887,6 +1905,21 @@ const styles = `
     color: #35d07f;
     border-color: #35d07f55;
     background: #0e2419;
+  }
+
+  .topbar-mode-switch {
+    height: 30px;
+    border: 1px solid #31506f;
+    border-radius: 7px;
+    background: #10233a;
+    color: #d8e8ff;
+    cursor: pointer;
+    gap: 7px;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
   }
 
   .view-frame {
@@ -3086,6 +3119,10 @@ const styles = `
     }
 
     .topbar-actions {
+      display: flex;
+    }
+
+    .topbar-actions .topbar-pill {
       display: none;
     }
 

@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/configure-agent-control-plane`
-- Scope: Implement the Configure Agent control plane inside `ai_interface` only.
+- Branch: `codex/frontend-agent-portal`
+- Scope: Implement the frontstage Agent Portal preview inside `ai_interface` only.
 - Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
 
 ## Current State
@@ -34,6 +34,11 @@ Updated: 2026-05-11
 - PR #5 follow-up found two actionable Copilot comments and applied narrow fixes: `GET /api/agent-config` now returns a 500 `ErrorResponse` on unexpected failures, and Configure form controls now have programmatic label associations.
 - After the PR #5 follow-up push, GitHub still showed PR #5 as open with no checks reported; mergeability was temporarily `UNKNOWN` while GitHub recalculated. The API error-handling thread was marked outdated, and the Configure label thread remained unresolved remotely but was addressed and locally verified.
 - Renamed the admin handoff surface from `Deploy` to `Publish`; end-user Agent Portal work should be handled in a separate PR because it needs token/login access control plus frontstage steps/data views.
+- Started frontstage Agent Portal on `codex/frontend-agent-portal`; V1 adds a token-gated mockup surface with Chat, Steps, Data, Sources, and Result views.
+- Added preview mode switching between the admin console and frontstage Portal: admin shows `View Portal`, and the Portal shows `Admin Console`.
+- Frontstage-to-admin switching now requires a submitted admin token; empty admin token closes the gate and keeps the user in the Portal.
+- PR #6 Copilot review comments were evaluated and addressed with narrow Portal fixes: query-token shortcuts are explicitly marked demo-only, access/admin token fields are masked with autocomplete disabled, and the decorative step marker is aria-hidden.
+- After the PR #6 Copilot fix push, GitHub reported PR #6 as open and mergeable with no checks reported; one decorative-marker thread became outdated, while the two token-related threads remain unresolved remotely but are addressed in code.
 
 ## Verification
 
@@ -84,6 +89,23 @@ Updated: 2026-05-11
 - Publish rename validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Publish rename validation: `git diff --check` passed with CRLF warnings only.
 - Publish rename browser smoke opened `http://127.0.0.1:8081/`, verified the admin nav has `Publish`, no `Deploy` nav button remains, `Publish agent` renders, and found no console warnings/errors.
+- Frontstage Portal validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Frontstage Portal validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Frontstage Portal validation: `git diff --check` passed with CRLF warnings only.
+- Frontstage Portal browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the token gate, verified `?token=portal-demo-token` opens the Portal, clicked Chat/Steps/Data/Sources/Result views, and found no console warnings/errors.
+- Front/back switch validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Front/back switch validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Front/back switch validation: `git diff --check` passed with CRLF warnings only.
+- Front/back switch browser smoke opened the Portal with `?token=portal-demo-token`, clicked `Admin Console`, verified the admin console, clicked `View Portal`, returned to the Portal, and found no console warnings/errors.
+- Admin token gate validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Admin token gate validation: `git diff --check` passed with CRLF warnings only.
+- Admin token gate validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Admin token gate browser smoke opened the Portal with `?token=portal-demo-token`, verified `Admin Console` opens the admin token dialog, verified empty submit stays in the Portal, verified submitted `adminToken` enters the admin console, and found no console warnings/errors.
+- PR #6 Copilot comment validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- PR #6 Copilot comment validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- PR #6 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- PR #6 Copilot comment browser smoke verified the Portal and Admin token fields are password inputs with autocomplete off, demo-token status/copy is visible, the decorative step marker is nonsemantic, admin token still enters the admin console, and no console warnings/errors were reported.
+- PR #6 Copilot post-push remote check: `gh pr view 6 --json number,url,state,mergeable,headRefName,baseRefName,title,reviewDecision,statusCheckRollup` reported OPEN/MERGEABLE with no checks; thread-aware review fetch still listed two unresolved token threads and one outdated decorative-marker thread.
 
 ## Notes
 
@@ -92,4 +114,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Continue PR #5 review/check follow-up on `codex/configure-agent-control-plane`.
+- Keep PR #6 updated and monitor GitHub checks/review comments.
