@@ -397,7 +397,17 @@ Updated: 2026-05-11
 - PR #28 follow-up validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - PR #28 follow-up validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - PR #28 follow-up validation: `git diff --check` passed with CRLF warnings only.
+- PR #28 was merged into `main` on 2026-05-11 at merge commit `6b3123b`; this branch starts the Portal auto-refresh running-runs slice from latest `main`.
+- Portal now has an auto-refresh toggle that defaults on and polls API-backed `pending`/`running` Agent runs through the existing guarded refresh path without polling local demo or terminal runs.
+- Portal auto-refresh running-runs fix: auto polling now requires the Portal to be unlocked and the current run state to be `saved`, so offline/failed/auth-denied refresh outcomes stop automatic polling and leave manual Refresh as the user-controlled retry.
+- Portal auto-refresh running-runs spec reviewer: passed, with no missing plan requirements.
+- Portal auto-refresh running-runs code quality reviewer found a valid failure/offline/auth-denied polling loop; the `saved`/unlocked guard was applied and re-review approved.
+- Portal auto-refresh running-runs validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal auto-refresh running-runs validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal auto-refresh running-runs validation: `git diff --check` passed with CRLF warnings only.
+- Portal auto-refresh running-runs HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
+- Portal auto-refresh running-runs browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`) after stale-tab recovery, so DOM/console smoke could not run in this heartbeat.
 
 ## Next Action
 
-- Push/open the Portal refresh cache invalidation PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal auto-refresh running-runs PR, then perform the scheduled follow-up for checks and remote review comments.
