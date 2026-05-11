@@ -35,6 +35,7 @@ Updated: 2026-05-11
 - After the PR #5 follow-up push, GitHub still showed PR #5 as open with no checks reported; mergeability was temporarily `UNKNOWN` while GitHub recalculated. The API error-handling thread was marked outdated, and the Configure label thread remained unresolved remotely but was addressed and locally verified.
 - Renamed the admin handoff surface from `Deploy` to `Publish`; end-user Agent Portal work should be handled in a separate PR because it needs token/login access control plus frontstage steps/data views.
 - Started frontstage Agent Portal on `codex/frontend-agent-portal`; V1 adds a token-gated mockup surface with Chat, Steps, Data, Sources, and Result views.
+- Added preview mode switching between the admin console and frontstage Portal: admin shows `View Portal`, and the Portal shows `Admin Console`.
 
 ## Verification
 
@@ -89,6 +90,10 @@ Updated: 2026-05-11
 - Frontstage Portal validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Frontstage Portal validation: `git diff --check` passed with CRLF warnings only.
 - Frontstage Portal browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the token gate, verified `?token=portal-demo-token` opens the Portal, clicked Chat/Steps/Data/Sources/Result views, and found no console warnings/errors.
+- Front/back switch validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Front/back switch validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentPortalInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Front/back switch validation: `git diff --check` passed with CRLF warnings only.
+- Front/back switch browser smoke opened the Portal with `?token=portal-demo-token`, clicked `Admin Console`, verified the admin console, clicked `View Portal`, returned to the Portal, and found no console warnings/errors.
 
 ## Notes
 

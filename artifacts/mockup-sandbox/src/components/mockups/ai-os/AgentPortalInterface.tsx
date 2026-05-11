@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   Radio,
   Send,
+  Settings2,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -197,6 +198,11 @@ function readInitialToken(): string {
   return new URLSearchParams(window.location.search).get("token")?.trim() ?? "";
 }
 
+function previewUrl(componentPath: string, search = ""): string {
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${basePath}/preview/${componentPath}${search}`;
+}
+
 function statusIcon(status: PortalStatus): ReactNode {
   if (status === "complete") return <CheckCircle2 size={16} />;
   if (status === "running") return <Radio size={16} />;
@@ -298,9 +304,19 @@ export function AgentPortalInterface() {
               <span className="portal-kicker">End-user Agent Portal</span>
               <h1>Onboarding Knowledge Agent</h1>
             </div>
-            <div className="portal-status-pill">
-              <ShieldCheck size={15} />
-              Token active
+            <div className="portal-topbar-actions">
+              <button
+                type="button"
+                className="portal-mode-switch"
+                onClick={() => window.location.assign(previewUrl("ai-os/AgentFirstInterface"))}
+              >
+                <Settings2 size={15} />
+                Admin Console
+              </button>
+              <div className="portal-status-pill">
+                <ShieldCheck size={15} />
+                Token active
+              </div>
             </div>
           </header>
 
@@ -788,6 +804,31 @@ const styles = `
     margin-top: 3px;
   }
 
+  .portal-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .portal-mode-switch {
+    min-height: 30px;
+    border: 1px solid #31506f;
+    border-radius: 999px;
+    background: #10233a;
+    color: #d8e8ff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
   .portal-status-pill,
   .portal-status-badge {
     width: fit-content;
@@ -1194,6 +1235,10 @@ const styles = `
     .portal-topbar {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .portal-topbar-actions {
+      justify-content: flex-start;
     }
 
     .portal-view {
