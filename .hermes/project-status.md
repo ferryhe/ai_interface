@@ -261,6 +261,7 @@ Updated: 2026-05-11
 - PR #19 was merged into `main` on 2026-05-11 at merge commit `ece66f3`; this branch starts the next autonomous Portal result handoff slice from latest `main`.
 - Added the Portal Result Handoff Detail plan for a frontend-only Result view handoff drawer backed by existing module-run detail and artifact detail fetches.
 - Portal Result can now open local handoff details and, for API-backed records, guarded result handoff drawers with module-run events and artifacts.
+- Opened PR #20 for `codex/portal-result-handoff-detail`: https://github.com/ferryhe/ai_interface/pull/20
 
 ## Notes
 
@@ -271,4 +272,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Implement, verify, commit, push, and open the Portal result handoff detail PR; then update the follow-up automation to check the new PR.
+- Follow up PR #20 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
