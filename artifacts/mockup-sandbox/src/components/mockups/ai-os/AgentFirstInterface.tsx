@@ -25,6 +25,14 @@ import {
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
+type RuntimeExecutionMode = "plan_only" | "execute_ready";
+type RuntimeRunStatus =
+  | "succeeded"
+  | "running"
+  | "resumable"
+  | "approval_required"
+  | "skipped"
+  | "queued";
 type AgentProvider = "openai";
 type AgentEndpoint = "responses" | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
@@ -55,6 +63,27 @@ interface RunStep {
   detail: string;
   status: RunStatus;
   time: string;
+}
+
+interface RuntimeModuleRun {
+  id: string;
+  moduleId: ModuleId;
+  title: string;
+  status: RuntimeRunStatus;
+  adapterId: string;
+  adapterKind: "cli" | "http";
+  externalRunId: string;
+  interaction?: {
+    kind: "question" | "approval" | "data_request" | "blocked";
+    title: string;
+    message: string;
+    resumeHandle: string;
+    status: "waiting" | "resumable" | "resumed";
+  };
+  event: string;
+  resultRecordIds: string[];
+  missingRequiredEnv: string[];
+  updatedAt: string;
 }
 
 interface DataRecord {
@@ -425,6 +454,75 @@ const runSteps: RunStep[] = [
   },
 ];
 
+const runtimeRuns: RuntimeModuleRun[] = [
+  {
+    id: "run-web-listening-018",
+    moduleId: "web_listening",
+    title: "Watched source docs",
+    status: "succeeded",
+    adapterId: "web_listening.cli.v1",
+    adapterKind: "cli",
+    externalRunId: "web-listening-ext-018",
+    event: "Snapshots stored and change events linked to memory.",
+    resultRecordIds: ["snap_018"],
+    missingRequiredEnv: [],
+    updatedAt: "09:31",
+  },
+  {
+    id: "run-doc-to-md-006",
+    moduleId: "doc_to_md",
+    title: "Converted source documents",
+    status: "resumable",
+    adapterId: "doc_to_md.http.v1",
+    adapterKind: "http",
+    externalRunId: "doc-resume-001",
+    interaction: {
+      kind: "question",
+      title: "Conversion warning needs confirmation",
+      message: "OCR found a low-confidence table in onboarding.pdf. Confirm whether to keep the extracted table.",
+      resumeHandle: "doc_to_md:doc-resume-001:resume",
+      status: "resumable",
+    },
+    event: "Markdown stored with one conversion warning ready for feedback.",
+    resultRecordIds: ["md_006"],
+    missingRequiredEnv: [],
+    updatedAt: "09:35",
+  },
+  {
+    id: "run-md-to-rag-096",
+    moduleId: "md_to_rag",
+    title: "Prepared RAG chunks",
+    status: "skipped",
+    adapterId: "md_to_rag.cli.v1",
+    adapterKind: "cli",
+    externalRunId: "rag-index-096",
+    event: "Execution skipped until the local C-Ross adapter path is configured.",
+    resultRecordIds: ["chunk_096"],
+    missingRequiredEnv: ["CROSS2_CLI_PATH"],
+    updatedAt: "09:41",
+  },
+  {
+    id: "run-rag-to-agent-002",
+    moduleId: "rag_to_agent",
+    title: "Generated agent configuration",
+    status: "approval_required",
+    adapterId: "rag_to_agent.http.v1",
+    adapterKind: "http",
+    externalRunId: "agent-config-002",
+    interaction: {
+      kind: "approval",
+      title: "Approve generated agent config",
+      message: "Review the generated prompt, tool bindings, and publish gate before the final agent handoff.",
+      resumeHandle: "rag_to_agent:agent-config-002:approval",
+      status: "waiting",
+    },
+    event: "Draft agent config is waiting for approval before publish handoff.",
+    resultRecordIds: ["agent_cfg_002"],
+    missingRequiredEnv: [],
+    updatedAt: "09:42",
+  },
+];
+
 const dataRecords: DataRecord[] = [
   {
     id: "snap_018",
@@ -485,6 +583,19 @@ function statusClass(status: RunStatus): string {
   return `status-dot ${status}`;
 }
 
+function runtimeStatusLabel(status: RuntimeRunStatus): string {
+  if (status === "approval_required") return "Approval";
+  if (status === "resumable") return "Resume ready";
+  if (status === "skipped") return "Config needed";
+  if (status === "succeeded") return "Succeeded";
+  if (status === "running") return "Running";
+  return "Queued";
+}
+
+function runtimeStatusClass(status: RuntimeRunStatus): string {
+  return `runtime-status ${status}`;
+}
+
 function moduleById(moduleId: ModuleId): ModuleDefinition {
   return modules.find((item) => item.id === moduleId) ?? modules[0]!;
 }
@@ -514,6 +625,8 @@ export function AgentFirstInterface() {
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
   const [command, setCommand] = useState("");
   const [planMode, setPlanMode] = useState(true);
+  const [executionMode, setExecutionMode] =
+    useState<RuntimeExecutionMode>("execute_ready");
   const [queuedPrompt, setQueuedPrompt] = useState<string | null>(null);
   const [selectedRecordKind, setSelectedRecordKind] = useState("all");
   const [agentConfig, setAgentConfig] = useState<AgentConfigDraft>(() =>
@@ -532,6 +645,13 @@ export function AgentFirstInterface() {
         : dataRecords.filter((record) => record.kind === selectedRecordKind),
     [selectedRecordKind],
   );
+
+  function openModules(moduleId?: ModuleId): void {
+    if (moduleId) {
+      setSelectedModuleId(moduleId);
+    }
+    setActiveView("modules");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -722,7 +842,11 @@ export function AgentFirstInterface() {
             <AgentView
               queuedPrompt={queuedPrompt}
               selectedModule={selectedModule}
-              onOpenModules={() => setActiveView("modules")}
+              executionMode={executionMode}
+              runtimeRuns={runtimeRuns}
+              onSetExecutionMode={setExecutionMode}
+              onOpenModules={openModules}
+              onOpenProgress={() => setActiveView("progress")}
               onOpenData={() => setActiveView("data")}
             />
           )}
@@ -730,12 +854,20 @@ export function AgentFirstInterface() {
             <ModulesView
               selectedModule={selectedModule}
               selectedModuleId={selectedModuleId}
+              runtimeRuns={runtimeRuns}
               onSelectModule={setSelectedModuleId}
               onOpenData={() => setActiveView("data")}
             />
           )}
           {activeView === "progress" && (
-            <ProgressView queuedPrompt={queuedPrompt} onOpenData={() => setActiveView("data")} />
+            <ProgressView
+              queuedPrompt={queuedPrompt}
+              executionMode={executionMode}
+              runtimeRuns={runtimeRuns}
+              onOpenConfigure={() => setActiveView("configure")}
+              onOpenData={() => setActiveView("data")}
+              onOpenModules={openModules}
+            />
           )}
           {activeView === "data" && (
             <DataView
@@ -795,14 +927,27 @@ export function AgentFirstInterface() {
 function AgentView({
   queuedPrompt,
   selectedModule,
+  executionMode,
+  runtimeRuns,
+  onSetExecutionMode,
   onOpenModules,
+  onOpenProgress,
   onOpenData,
 }: {
   queuedPrompt: string | null;
   selectedModule: ModuleDefinition;
-  onOpenModules: () => void;
+  executionMode: RuntimeExecutionMode;
+  runtimeRuns: RuntimeModuleRun[];
+  onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
+  onOpenModules: (moduleId?: ModuleId) => void;
+  onOpenProgress: () => void;
   onOpenData: () => void;
 }) {
+  const resumeReadyCount = runtimeRuns.filter((run) => run.status === "resumable").length;
+  const approvalCount = runtimeRuns.filter((run) => run.status === "approval_required").length;
+  const configNeededCount = runtimeRuns.filter((run) => run.status === "skipped").length;
+  const succeededCount = runtimeRuns.filter((run) => run.status === "succeeded").length;
+
   return (
     <section className="agent-layout">
       <div className="chat-panel">
@@ -811,7 +956,9 @@ function AgentView({
             <MessageSquareText size={16} />
             Agent
           </span>
-          <span className="soft-label">Plan mode</span>
+          <span className="soft-label">
+            {executionMode === "execute_ready" ? "Execute ready" : "Plan only"}
+          </span>
         </div>
 
         <div className="chat-stream">
@@ -824,15 +971,18 @@ function AgentView({
 
           <RunCard
             title="Pipeline: docs to publishable agent"
-            detail="web_listening -> doc_to_md -> md_to_rag -> rag_to_agent"
-            status="running"
+            detail={`${succeededCount} succeeded / ${resumeReadyCount} resume ready / ${approvalCount} approval / ${configNeededCount} config`}
+            status={executionMode === "execute_ready" ? "running" : "queued"}
             actions={
               <>
-                <button type="button" className="small-action" onClick={onOpenModules}>
-                  View modules
+                <button type="button" className="small-action" onClick={onOpenProgress}>
+                  Progress
                 </button>
                 <button type="button" className="small-action" onClick={onOpenData}>
-                  View data
+                  Data
+                </button>
+                <button type="button" className="small-action" onClick={() => onOpenModules()}>
+                  Modules
                 </button>
               </>
             }
@@ -844,6 +994,14 @@ function AgentView({
             </ChatBubble>
           )}
         </div>
+
+        <RuntimeControl
+          executionMode={executionMode}
+          resumeReadyCount={resumeReadyCount}
+          approvalCount={approvalCount}
+          configNeededCount={configNeededCount}
+          onSetExecutionMode={onSetExecutionMode}
+        />
       </div>
 
       <div className="workspace-panel">
@@ -885,17 +1043,77 @@ function AgentView({
   );
 }
 
+function RuntimeControl({
+  executionMode,
+  resumeReadyCount,
+  approvalCount,
+  configNeededCount,
+  onSetExecutionMode,
+}: {
+  executionMode: RuntimeExecutionMode;
+  resumeReadyCount: number;
+  approvalCount: number;
+  configNeededCount: number;
+  onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
+}) {
+  return (
+    <div className="runtime-control">
+      <div className="panel-heading">
+        <span>
+          <Activity size={16} />
+          Runtime
+        </span>
+        <span className="soft-label">local mock</span>
+      </div>
+      <div className="runtime-mode-group" aria-label="Runtime execution mode">
+        <button
+          type="button"
+          className={
+            executionMode === "plan_only"
+              ? "runtime-mode-button active"
+              : "runtime-mode-button"
+          }
+          onClick={() => onSetExecutionMode("plan_only")}
+        >
+          Plan only
+        </button>
+        <button
+          type="button"
+          className={
+            executionMode === "execute_ready"
+              ? "runtime-mode-button active"
+              : "runtime-mode-button"
+          }
+          onClick={() => onSetExecutionMode("execute_ready")}
+        >
+          Execute ready
+        </button>
+      </div>
+      <div className="runtime-status-grid">
+        <Metric label="Resume ready" value={String(resumeReadyCount)} />
+        <Metric label="Approval" value={String(approvalCount)} />
+        <Metric label="Config needed" value={String(configNeededCount)} />
+      </div>
+    </div>
+  );
+}
+
 function ModulesView({
   selectedModule,
   selectedModuleId,
+  runtimeRuns,
   onSelectModule,
   onOpenData,
 }: {
   selectedModule: ModuleDefinition;
   selectedModuleId: ModuleId;
+  runtimeRuns: RuntimeModuleRun[];
   onSelectModule: (moduleId: ModuleId) => void;
   onOpenData: () => void;
 }) {
+  const selectedRuntimeRun = runtimeRuns.find((run) => run.moduleId === selectedModule.id);
+  const supportsResume = selectedModule.id !== "md_to_rag";
+
   return (
     <section className="module-layout">
       <div className="module-list">
@@ -938,6 +1156,52 @@ function ModulesView({
           <Metric label="Integration" value="API ingest" />
         </div>
 
+        {selectedRuntimeRun && (
+          <div className="runtime-panel">
+            <div className="panel-heading">
+              <span>
+                <Activity size={16} />
+                Runtime contract
+              </span>
+              <span className={runtimeStatusClass(selectedRuntimeRun.status)}>
+                {runtimeStatusLabel(selectedRuntimeRun.status)}
+              </span>
+            </div>
+            <div className="runtime-meta-grid">
+              <Metric label="Adapter" value={selectedRuntimeRun.adapterId} />
+              <Metric label="Kind" value={selectedRuntimeRun.adapterKind.toUpperCase()} />
+              <Metric label="External run" value={selectedRuntimeRun.externalRunId} />
+              <Metric
+                label="Required env"
+                value={
+                  selectedRuntimeRun.missingRequiredEnv.length > 0
+                    ? selectedRuntimeRun.missingRequiredEnv.join(", ")
+                    : "Ready"
+                }
+              />
+              <Metric label="Resume" value={supportsResume ? "Yes" : "No"} />
+              <Metric label="Updated" value={selectedRuntimeRun.updatedAt} />
+            </div>
+            {selectedRuntimeRun.interaction && (
+              <div className="runtime-interaction">
+                <strong>{selectedRuntimeRun.interaction.title}</strong>
+                <p>{selectedRuntimeRun.interaction.message}</p>
+                <em>{selectedRuntimeRun.interaction.resumeHandle}</em>
+              </div>
+            )}
+            <div className="runtime-action-row">
+              <div className="runtime-chip-row">
+                {selectedRuntimeRun.resultRecordIds.map((recordId) => (
+                  <span key={recordId}>{recordId}</span>
+                ))}
+              </div>
+              <button type="button" className="small-action" onClick={onOpenData}>
+                Open data
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="result-panel">
           <div className="panel-heading">
             <span>
@@ -966,11 +1230,55 @@ function ModulesView({
 
 function ProgressView({
   queuedPrompt,
+  executionMode,
+  runtimeRuns,
+  onOpenConfigure,
   onOpenData,
+  onOpenModules,
 }: {
   queuedPrompt: string | null;
+  executionMode: RuntimeExecutionMode;
+  runtimeRuns: RuntimeModuleRun[];
+  onOpenConfigure: () => void;
   onOpenData: () => void;
+  onOpenModules: (moduleId?: ModuleId) => void;
 }) {
+  function runtimeAction(run: RuntimeModuleRun): ReactNode {
+    if (run.status === "resumable") {
+      return (
+        <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
+          Resume
+        </button>
+      );
+    }
+    if (run.status === "skipped") {
+      return (
+        <button type="button" className="small-action" onClick={onOpenConfigure}>
+          Configure
+        </button>
+      );
+    }
+    if (run.status === "approval_required") {
+      return (
+        <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
+          Approve
+        </button>
+      );
+    }
+    if (run.status === "succeeded") {
+      return (
+        <button type="button" className="small-action" onClick={onOpenData}>
+          View data
+        </button>
+      );
+    }
+    return (
+      <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
+        View run
+      </button>
+    );
+  }
+
   return (
     <section className="page-panel">
       <div className="page-header">
@@ -978,10 +1286,16 @@ function ProgressView({
           <h1>Pipeline progress</h1>
           <p>Every module run posts events and artifacts back into the shared database memory.</p>
         </div>
-        <button type="button" className="primary-action" onClick={onOpenData}>
-          <Database size={15} />
-          Open memory
-        </button>
+        <div className="runtime-action-row">
+          <span className="connection-pill">
+            <Activity size={14} />
+            {executionMode === "execute_ready" ? "Execute ready" : "Plan only"}
+          </span>
+          <button type="button" className="primary-action" onClick={onOpenData}>
+            <Database size={15} />
+            Open memory
+          </button>
+        </div>
       </div>
 
       {queuedPrompt && (
@@ -995,15 +1309,21 @@ function ProgressView({
       )}
 
       <div className="timeline">
-        {runSteps.map((step) => (
-          <article key={step.id} className="timeline-card">
-            <span className={statusClass(step.status)}>{statusLabel(step.status)}</span>
+        {runtimeRuns.map((run) => (
+          <article key={run.id} className="timeline-card runtime-timeline-card">
+            <span className={runtimeStatusClass(run.status)}>
+              {runtimeStatusLabel(run.status)}
+            </span>
             <div>
-              <h2>{step.title}</h2>
-              <p>{step.detail}</p>
+              <h2>{run.title}</h2>
+              <p>{run.event}</p>
               <small>
-                {step.time} / {step.moduleId}
+                {run.updatedAt} / {run.moduleId} / {run.adapterId}
               </small>
+              <div className="runtime-action-row">
+                <span>{run.resultRecordIds.length} result record</span>
+                {runtimeAction(run)}
+              </div>
             </div>
           </article>
         ))}
@@ -2355,6 +2675,171 @@ const styles = `
     background: #211d0d;
   }
 
+  .runtime-control {
+    border-top: 1px solid #202c3b;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .runtime-mode-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .runtime-mode-button {
+    min-height: 34px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #9aa7b8;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .runtime-mode-button.active {
+    color: #edf3fb;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .runtime-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .runtime-status {
+    width: fit-content;
+    min-width: 92px;
+    min-height: 26px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    color: #9aa7b8;
+    background: #151d28;
+    font-size: 11px;
+    font-weight: 850;
+    text-align: center;
+  }
+
+  .runtime-status.succeeded {
+    color: #35d07f;
+    border-color: #35d07f66;
+    background: #0e2419;
+  }
+
+  .runtime-status.running {
+    color: #4f9cff;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .runtime-status.resumable {
+    color: #a78bfa;
+    border-color: #a78bfa66;
+    background: #181b31;
+  }
+
+  .runtime-status.approval_required {
+    color: #f97316;
+    border-color: #f9731666;
+    background: #24170f;
+  }
+
+  .runtime-status.skipped {
+    color: #f2c94c;
+    border-color: #f2c94c55;
+    background: #211d0d;
+  }
+
+  .runtime-panel {
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0f151e;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .runtime-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .runtime-interaction {
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #0d141d;
+    display: grid;
+    gap: 6px;
+    padding: 11px;
+  }
+
+  .runtime-interaction strong {
+    color: #edf3fb;
+    font-size: 13px;
+  }
+
+  .runtime-interaction p {
+    margin: 0;
+    color: #9aa7b8;
+    line-height: 1.45;
+    font-size: 12px;
+  }
+
+  .runtime-interaction em {
+    color: #738195;
+    font-size: 11px;
+    font-style: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .runtime-chip-row,
+  .runtime-action-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .runtime-chip-row {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .runtime-chip-row span {
+    min-height: 28px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    background: #121a25;
+    color: #aeb8c6;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .runtime-action-row {
+    justify-content: space-between;
+  }
+
+  .runtime-action-row > span:not(.connection-pill) {
+    color: #8d9bad;
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .runtime-timeline-card {
+    grid-template-columns: 124px minmax(0, 1fr);
+  }
+
   .search-box {
     height: 34px;
     border: 1px solid #263445;
@@ -3079,6 +3564,10 @@ const styles = `
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .runtime-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .capability-map {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -3179,8 +3668,30 @@ const styles = `
     .agent-summary-grid,
     .detail-grid,
     .publish-grid,
+    .runtime-status-grid,
+    .runtime-meta-grid,
     .memory-map {
       grid-template-columns: 1fr;
+    }
+
+    .runtime-control,
+    .runtime-panel {
+      padding: 12px;
+    }
+
+    .runtime-mode-group {
+      grid-template-columns: 1fr;
+    }
+
+    .runtime-action-row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .runtime-action-row .small-action,
+    .runtime-action-row .primary-action {
+      width: fit-content;
+      max-width: 100%;
     }
 
     .capability-map,
@@ -3251,6 +3762,7 @@ const styles = `
     }
 
     .timeline-card,
+    .runtime-timeline-card,
     .data-row {
       grid-template-columns: 1fr;
     }

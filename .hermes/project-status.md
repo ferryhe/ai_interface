@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/module-run-resume-execution`
-- Scope: Add a safe backend module-run resume endpoint for resumable tool interactions using the fake executor.
+- Branch: `codex/frontend-runtime-status-actions`
+- Scope: Frontend mockup runtime status/actions for execute-ready and resume visibility.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -70,6 +70,8 @@ Updated: 2026-05-11
 - Added the Module Run Resume Execution plan for `POST /api/module-runs/{runId}/resume`, consuming `resumable` interactions through the safe fake executor while rejecting duplicate, unsupported, or non-resumable runs.
 - Implemented backend module-run resume execution: ready `resumable` interactions are atomically marked `resumed`, resume-requested events are recorded once, unsupported/non-resumable/duplicate resumes are rejected before execution, missing adapter config preserves retryable feedback, and execution uses `FakeToolAdapterExecutor` only.
 - Added `POST /api/module-runs/{runId}/resume` to the API route and OpenAPI contract, then regenerated API Zod and React client outputs.
+- PR #12 was merged into `main`; this branch starts a frontend-only runtime visibility slice from latest `main`.
+- Admin mockup now surfaces execute-ready/runtime resume status without real runtime API calls: Agent view shows Plan only/Execute ready mode plus runtime counts, Progress renders local runtime runs with Resume/Configure/Approve/View data actions, and Modules detail shows the adapter runtime contract.
 
 ## Verification
 
@@ -197,6 +199,11 @@ Updated: 2026-05-11
 - Resume execution validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Resume execution validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(" artifacts\api-server\src\modules\ingest-service.ts artifacts\api-server\src\tool-adapters artifacts\api-server\src\routes\modules.ts` found no matches.
 - Resume execution validation: `git diff --check` passed with CRLF warnings only.
+- Frontend runtime status validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Frontend runtime status validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Frontend runtime status validation: `git diff --check` passed with CRLF warnings only.
+- Frontend runtime status browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentFirstInterface?adminToken=admin-demo-token`, verified Agent mode controls, Progress runtime statuses/actions, Modules runtime contract with missing env/Ready states, and found no console warnings/errors.
+- Frontend runtime status follow-up validation: Progress `Resume` opens the `doc_to_md` module detail, `Approve` opens the `rag_to_agent` module detail, and the browser console reported no warnings/errors.
 
 ## Notes
 
@@ -205,4 +212,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Review the uncommitted resume slice, then the parent agent can commit/push/open the PR when ready; this implementer run stopped before commit/push by instruction.
+- Commit, push, and open the frontend runtime status mockup PR; then run the standard PR follow-up for checks and Copilot comments.
