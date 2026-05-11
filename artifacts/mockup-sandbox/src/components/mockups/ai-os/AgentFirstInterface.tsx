@@ -262,6 +262,44 @@ const configureGuides = {
     "Summarizes the current runtime contract: provider, active skills, memory mode, and safety posture.",
 };
 
+const businessSwitchGuides = [
+  {
+    label: "Enabled",
+    detail: "Whether the Agent is allowed to call this business module.",
+  },
+  {
+    label: "Approval",
+    detail: "When on, the Agent asks before running sensitive or finalizing actions.",
+  },
+  {
+    label: "Network",
+    detail: "Whether this module may reach external URLs or services.",
+  },
+  {
+    label: "DB write",
+    detail: "Whether this module may persist results, events, and artifacts into Postgres memory.",
+  },
+];
+
+const generalSwitchGuides = [
+  {
+    label: "Enabled",
+    detail: "The Agent can use this general skill without first proposing installation.",
+  },
+  {
+    label: "On demand",
+    detail: "The Agent may suggest installing or enabling it during a conversation.",
+  },
+  {
+    label: "Approval",
+    detail: "The Agent must ask before actions with external, shared, or sensitive effects.",
+  },
+  {
+    label: "Network",
+    detail: "The skill may connect to external services or public web sources.",
+  },
+];
+
 const defaultAgentConfig: AgentConfigDraft = {
   provider: "openai",
   endpoint: "responses",
@@ -1183,6 +1221,7 @@ function ConfigureView({
           <p className="config-explainer">
             These are your product modules. The Agent calls them to build the pipeline, and each module writes displayable results back into the database.
           </p>
+          <SwitchLegend items={businessSwitchGuides} title="Switch guide" />
           <div className="skill-settings-grid">
             {config.businessSkillSettings.map((skill) => {
               const module = moduleById(skill.moduleId);
@@ -1234,28 +1273,7 @@ function ConfigureView({
                     />
                     DB write
                   </label>
-                  <div className="skill-detail-grid">
-                    <span>
-                      <strong>Purpose</strong>
-                      <em>{guide.summary}</em>
-                    </span>
-                    <span>
-                      <strong>When used</strong>
-                      <em>{guide.trigger}</em>
-                    </span>
-                    <span>
-                      <strong>Agent action</strong>
-                      <em>{guide.action}</em>
-                    </span>
-                    <span>
-                      <strong>Result</strong>
-                      <em>{guide.output}</em>
-                    </span>
-                    <span>
-                      <strong>Boundary</strong>
-                      <em>{guide.boundary}</em>
-                    </span>
-                  </div>
+                  <GuideDisclosure guide={guide} label={`${module.name} details`} />
                 </div>
               );
             })}
@@ -1273,6 +1291,7 @@ function ConfigureView({
           <p className="config-explainer">
             These are common Agent abilities. Keep them available on demand so the Agent can ask to install or use one during a conversation, with approval before sensitive actions.
           </p>
+          <SwitchLegend items={generalSwitchGuides} title="Switch guide" />
           <div className="skill-settings-grid">
             {config.generalSkillSettings.map((skill) => {
               const guide = generalSkillGuides[skill.skillId];
@@ -1331,28 +1350,7 @@ function ConfigureView({
                     />
                     Network
                   </label>
-                  <div className="skill-detail-grid">
-                    <span>
-                      <strong>Purpose</strong>
-                      <em>{guide.summary}</em>
-                    </span>
-                    <span>
-                      <strong>When used</strong>
-                      <em>{guide.trigger}</em>
-                    </span>
-                    <span>
-                      <strong>Agent action</strong>
-                      <em>{guide.action}</em>
-                    </span>
-                    <span>
-                      <strong>Result</strong>
-                      <em>{guide.output}</em>
-                    </span>
-                    <span>
-                      <strong>Boundary</strong>
-                      <em>{guide.boundary}</em>
-                    </span>
-                  </div>
+                  <GuideDisclosure guide={guide} label={`${skill.name} details`} />
                 </div>
               );
             })}
@@ -1500,6 +1498,72 @@ function ConfigureView({
         </article>
       </div>
     </section>
+  );
+}
+
+function SwitchLegend({
+  items,
+  title,
+}: {
+  items: Array<{ label: string; detail: string }>;
+  title: string;
+}) {
+  return (
+    <details className="switch-legend">
+      <summary>{title}</summary>
+      <div>
+        {items.map((item) => (
+          <span key={item.label}>
+            <strong>{item.label}</strong>
+            <em>{item.detail}</em>
+          </span>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function GuideDisclosure({
+  guide,
+  label,
+}: {
+  guide: CapabilityGuide;
+  label: string;
+}) {
+  return (
+    <details className="skill-help">
+      <summary aria-label={label} title={label}>?</summary>
+      <div className="skill-help-panel">
+        <SkillDetailGrid guide={guide} />
+      </div>
+    </details>
+  );
+}
+
+function SkillDetailGrid({ guide }: { guide: CapabilityGuide }) {
+  return (
+    <div className="skill-detail-grid">
+      <span>
+        <strong>Purpose</strong>
+        <em>{guide.summary}</em>
+      </span>
+      <span>
+        <strong>When used</strong>
+        <em>{guide.trigger}</em>
+      </span>
+      <span>
+        <strong>Agent action</strong>
+        <em>{guide.action}</em>
+      </span>
+      <span>
+        <strong>Result</strong>
+        <em>{guide.output}</em>
+      </span>
+      <span>
+        <strong>Boundary</strong>
+        <em>{guide.boundary}</em>
+      </span>
+    </div>
   );
 }
 
@@ -2450,6 +2514,68 @@ const styles = `
     font-size: 12px;
   }
 
+  .switch-legend {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .switch-legend summary {
+    width: fit-content;
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 999px;
+    background: #121a25;
+    color: #aeb8c6;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 11px;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+  }
+
+  .switch-legend summary::-webkit-details-marker,
+  .skill-help summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .switch-legend[open] summary {
+    color: #edf3fb;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .switch-legend div {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .switch-legend span {
+    min-height: 64px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #0d141d;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 9px;
+  }
+
+  .switch-legend strong {
+    color: #edf3fb;
+    font-size: 11px;
+  }
+
+  .switch-legend em {
+    color: #8d9bad;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1.45;
+  }
+
   .config-field {
     display: grid;
     gap: 7px;
@@ -2549,7 +2675,7 @@ const styles = `
     border-radius: 8px;
     background: #121a25;
     display: grid;
-    grid-template-columns: 10px minmax(170px, 1fr) repeat(4, minmax(86px, auto));
+    grid-template-columns: 10px minmax(170px, 1fr) repeat(4, minmax(86px, auto)) 34px;
     align-items: center;
     gap: 10px;
     padding: 10px;
@@ -2561,7 +2687,7 @@ const styles = `
     border-radius: 8px;
     background: #121a25;
     display: grid;
-    grid-template-columns: minmax(210px, 1fr) 92px repeat(4, minmax(86px, auto));
+    grid-template-columns: minmax(210px, 1fr) 92px repeat(4, minmax(86px, auto)) 34px;
     align-items: center;
     gap: 10px;
     padding: 10px;
@@ -2623,16 +2749,58 @@ const styles = `
     background: #0e2419;
   }
 
-  .skill-detail-grid {
-    grid-column: 1 / -1;
+  .skill-help {
+    position: relative;
+    justify-self: end;
+  }
+
+  .skill-help summary {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #344456;
+    border-radius: 999px;
+    background: #0d141d;
+    color: #aeb8c6;
+    cursor: pointer;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    place-items: center;
+    font-size: 13px;
+    font-weight: 900;
+    list-style: none;
+    user-select: none;
+  }
+
+  .skill-help[open] summary {
+    color: #edf3fb;
+    border-color: #4f9cff66;
+    background: #10213a;
+  }
+
+  .skill-help-panel {
+    position: absolute;
+    z-index: 30;
+    top: 34px;
+    right: 0;
+    width: min(680px, calc(100vw - 150px));
+    border: 1px solid #344456;
+    border-radius: 8px;
+    background: #0b1118;
+    box-shadow: 0 18px 42px #00000066;
+    padding: 10px;
+  }
+
+  .skill-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    padding-top: 2px;
+  }
+
+  .skill-detail-grid span:last-child {
+    grid-column: 1 / -1;
   }
 
   .skill-detail-grid span {
-    min-height: 86px;
+    min-height: 72px;
     border: 1px solid #263445;
     border-radius: 7px;
     background: #0d141d;
@@ -2820,7 +2988,8 @@ const styles = `
   button:focus-visible,
   textarea:focus-visible,
   input:focus-visible,
-  select:focus-visible {
+  select:focus-visible,
+  summary:focus-visible {
     outline: 2px solid #4f9cff;
     outline-offset: 2px;
   }
@@ -2866,13 +3035,14 @@ const styles = `
     }
 
     .skill-setting-row {
-      grid-template-columns: 10px minmax(0, 1fr) repeat(2, minmax(90px, auto));
+      grid-template-columns: 10px minmax(0, 1fr) repeat(4, minmax(78px, auto)) 34px;
     }
 
     .general-skill-row {
-      grid-template-columns: minmax(0, 1fr) 92px repeat(2, minmax(90px, auto));
+      grid-template-columns: minmax(0, 1fr) 84px repeat(4, minmax(78px, auto)) 34px;
     }
 
+    .switch-legend div,
     .skill-detail-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2971,19 +3141,37 @@ const styles = `
       gap: 5px;
     }
 
-    .skill-setting-row,
-    .general-skill-row {
-      grid-template-columns: 10px minmax(0, 1fr);
+    .skill-setting-row {
+      grid-template-columns: 10px minmax(0, 1fr) 34px;
       align-items: start;
     }
 
     .general-skill-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr) 34px;
+      align-items: start;
+    }
+
+    .skill-setting-row .toggle-row {
+      grid-column: 2 / -1;
+    }
+
+    .general-skill-row .skill-state,
+    .general-skill-row .toggle-row {
+      grid-column: 1 / -1;
     }
 
     .skill-setting-row em,
     .general-skill-row em {
       white-space: normal;
+    }
+
+    .switch-legend div {
+      grid-template-columns: 1fr;
+    }
+
+    .skill-help-panel {
+      width: calc(100vw - 44px);
+      right: 0;
     }
 
     .toggle-row {

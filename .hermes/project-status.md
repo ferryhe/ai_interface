@@ -30,6 +30,7 @@ Updated: 2026-05-11
 - Added a Configure view to the Agent Module OS UI with Provider, Model, Skills, Memory, Safety, and Runtime Preview sections; it falls back to local draft state when `/api` is offline.
 - Split Configure skills into business module skills and lightweight general skills. Business skills remain the fixed module chain; general skills track installed/available status, on-demand install allowance, approval, and network flags.
 - Added detailed Configure explanations: a capability map, section-level explainers, and per-skill purpose/trigger/action/result/boundary guidance so users can understand what each feature does.
+- Reworked Configure skill explanations into compact per-row `?` help controls and added switch guides for business/general skill toggles.
 
 ## Verification
 
@@ -66,6 +67,9 @@ Updated: 2026-05-11
 - Explanation UI validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Explanation UI validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Explanation UI browser smoke opened `http://127.0.0.1:8081/`, verified capability map plus Purpose/When used/Agent action/Result/Boundary details, and found no console warnings/errors.
+- Skill help popover validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Skill help popover validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Skill help popover browser smoke opened `http://127.0.0.1:8081/`, verified Business Skills and General Skills switch guides, confirmed details are hidden until a per-row `?` is opened, and found no console warnings/errors.
 
 ## Notes
 
@@ -74,4 +78,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Open a PR for `codex/configure-agent-control-plane` and run the required 15-minute PR follow-up pass.
+- Continue PR #5 review/check follow-up on `codex/configure-agent-control-plane`.
