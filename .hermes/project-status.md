@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-runtime-progress-api`
-- Scope: Frontend Portal runtime progress API visibility for published users.
+- Branch: `codex/portal-runtime-feedback-actions`
+- Scope: Frontend Portal runtime interaction feedback and resume actions for published users.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -221,12 +221,22 @@ Updated: 2026-05-11
 - Portal runtime progress validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Portal runtime progress validation: `git diff --check` passed with CRLF warnings only.
 - Portal runtime progress browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, submitted the composer with no backend API, verified local fallback status plus Steps/Data/Sources/Result views, verified the admin token dialog opens, and found no console warnings/errors.
+- Portal runtime feedback validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime feedback validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal runtime feedback validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime feedback browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified the Generate Agent interaction panel, local feedback status, unique feedback input ids, selected option accessibility state, Chat/Data/Sources/Result views, admin token dialog, and no console warnings/errors.
 - PR #15 was merged into `main` on 2026-05-11 at merge commit `982bb3f`; this branch starts the next autonomous Portal runtime visibility slice from latest `main`.
 - Added the Portal Runtime Progress API plan for a frontend-only Portal wire-up to the existing Agent Run API.
 - The frontstage Portal composer now attempts `POST /api/agent-runs` with `executionMode: "execute_ready"` and `metadata.source = "agent-portal"`.
 - Successful Portal API responses are mapped into Chat, Steps, Data, Sources, Result readiness, and the context rail while local demo data remains the fallback.
 - Portal Agent Run API responses are guarded before render; malformed 2xx responses fall back to the local demo instead of crashing.
 - API-backed Portal steps use run-specific ids so repeated module runs do not duplicate React keys or confuse active step selection.
+- PR #16 was merged into `main` on 2026-05-11 at merge commit `c2deba0`; this branch starts the next autonomous Portal runtime feedback slice from latest `main`.
+- Added the Portal Runtime Feedback Actions plan for a frontend-only Portal wire-up to the existing module feedback and resume endpoints.
+- The frontstage Portal now parses module-run `metadata.interaction`, renders compact interaction controls in Steps and the current-step rail, and keeps local demo feedback actions local when no API run is connected.
+- API-backed Portal feedback calls `POST /api/module-runs/{runId}/feedback`, API-backed resumable runs call `POST /api/module-runs/{runId}/resume`, and both responses are guarded before updating UI state.
+- Portal interaction controls now prevent duplicate action submits across the Steps card and context rail, expose selected options with `aria-pressed`, and use unique labeled feedback inputs per panel.
+- The Portal chat composer now has a programmatic label for the prompt textarea.
 
 ## Notes
 
@@ -237,4 +247,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Verify, commit, push, and open the Portal runtime progress API PR; then update the follow-up automation to check the new PR.
+- Commit, push, and open the Portal runtime feedback actions PR; then update the follow-up automation to check the new PR.

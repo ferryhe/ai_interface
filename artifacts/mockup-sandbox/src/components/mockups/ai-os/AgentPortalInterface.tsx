@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -24,6 +24,34 @@ type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type JsonObject = Record<string, unknown>;
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
 type PortalRunSubmitState = "local" | "submitting" | "saved" | "offline" | "failed";
+type PortalInteractionStatus =
+  | "waiting_for_user"
+  | "waiting_for_approval"
+  | "waiting_for_data"
+  | "blocked"
+  | "resumable"
+  | "resumed";
+type PortalActionState = "idle" | "submitting" | "succeeded" | "failed";
+
+interface PortalInteractionOption {
+  id: string;
+  label: string;
+  value?: unknown;
+}
+
+interface PortalToolInteraction {
+  interactionId: string;
+  status: PortalInteractionStatus;
+  kind: "question" | "approval" | "data_request" | "blocked";
+  title: string;
+  message: string;
+  prompt: string | null;
+  options: PortalInteractionOption[];
+  artifactIds: string[];
+  resumeHandle: string | null;
+  requestedAt: string;
+  metadata: JsonObject;
+}
 
 interface PortalStep {
   id: string;
@@ -34,6 +62,9 @@ interface PortalStep {
   summary: string;
   dataCount: string;
   updatedAt: string;
+  runId?: string;
+  externalRunId?: string;
+  interaction?: PortalToolInteraction;
 }
 
 interface PortalDataRecord {
@@ -106,6 +137,11 @@ interface PortalAgentRunApiResponse {
   };
 }
 
+interface PortalToolInteractionApiResponse {
+  run: PortalAgentRunApiModuleRun;
+  interaction: PortalToolInteraction;
+}
+
 interface PortalRunUiState {
   response: PortalAgentRunApiResponse;
   steps: PortalStep[];
@@ -155,6 +191,22 @@ const portalSteps: PortalStep[] = [
     summary: "Waiting for validated RAG memory before final agent output.",
     dataCount: "draft config",
     updatedAt: "queued",
+    interaction: {
+      interactionId: "demo-agent-approval",
+      status: "waiting_for_approval",
+      kind: "approval",
+      title: "Approve final agent draft",
+      message: "Review the generated prompt and tool policy before the published agent is unlocked.",
+      prompt: "Approve this draft for publish?",
+      options: [
+        { id: "approve", label: "Approve" },
+        { id: "revise", label: "Request revision" },
+      ],
+      artifactIds: [],
+      resumeHandle: "demo-agent-approval:resume",
+      requestedAt: new Date(0).toISOString(),
+      metadata: { source: "local-demo" },
+    },
   },
 ];
 
@@ -434,15 +486,104 @@ function isPortalAgentRunApiResponse(value: unknown): value is PortalAgentRunApi
   );
 }
 
+function isPortalInteractionStatus(value: unknown): value is PortalInteractionStatus {
+  return (
+    value === "waiting_for_user" ||
+    value === "waiting_for_approval" ||
+    value === "waiting_for_data" ||
+    value === "blocked" ||
+    value === "resumable" ||
+    value === "resumed"
+  );
+}
+
+function isPortalInteractionKind(value: unknown): value is PortalToolInteraction["kind"] {
+  return (
+    value === "question" ||
+    value === "approval" ||
+    value === "data_request" ||
+    value === "blocked"
+  );
+}
+
+function isPortalInteractionOption(value: unknown): value is PortalInteractionOption {
+  if (!isJsonObject(value)) return false;
+  return typeof value["id"] === "string" && typeof value["label"] === "string";
+}
+
+function parsePortalToolInteraction(metadata: JsonObject | null): PortalToolInteraction | null {
+  const value = metadata?.["interaction"];
+  if (!isJsonObject(value)) return null;
+  if (
+    typeof value["interactionId"] !== "string" ||
+    !isPortalInteractionStatus(value["status"]) ||
+    !isPortalInteractionKind(value["kind"]) ||
+    typeof value["title"] !== "string" ||
+    typeof value["message"] !== "string" ||
+    typeof value["requestedAt"] !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    interactionId: value["interactionId"],
+    status: value["status"],
+    kind: value["kind"],
+    title: value["title"],
+    message: value["message"],
+    prompt: typeof value["prompt"] === "string" ? value["prompt"] : null,
+    options: Array.isArray(value["options"])
+      ? value["options"].filter(isPortalInteractionOption)
+      : [],
+    artifactIds: Array.isArray(value["artifactIds"])
+      ? value["artifactIds"].filter((item): item is string => typeof item === "string")
+      : [],
+    resumeHandle: typeof value["resumeHandle"] === "string" ? value["resumeHandle"] : null,
+    requestedAt: value["requestedAt"],
+    metadata: isJsonObject(value["metadata"]) ? value["metadata"] : {},
+  };
+}
+
+function isPortalToolInteractionApiResponse(value: unknown): value is PortalToolInteractionApiResponse {
+  if (!isJsonObject(value)) return false;
+  return (
+    isPortalAgentRunApiModuleRun(value["run"]) &&
+    isJsonObject(value["interaction"]) &&
+    parsePortalToolInteraction({ interaction: value["interaction"] }) !== null
+  );
+}
+
 function shortRunId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
 }
 
 function portalStatusFromApiRun(run: PortalAgentRunApiModuleRun): PortalStatus {
+  const interaction = parsePortalToolInteraction(run.metadata);
   if (run.status === "succeeded") return "complete";
-  if (run.status === "running") return "running";
   if (run.status === "failed" || run.status === "cancelled") return "blocked";
+  if (interaction?.status === "blocked") return "blocked";
+  if (interaction?.status === "resumed") return "running";
+  if (interaction) return "waiting";
+  if (run.status === "running") return "running";
   return "waiting";
+}
+
+function interactionStatusText(status: PortalInteractionStatus): string {
+  if (status === "waiting_for_approval") return "Approval";
+  if (status === "waiting_for_data") return "Needs data";
+  if (status === "waiting_for_user") return "Needs reply";
+  if (status === "blocked") return "Blocked";
+  if (status === "resumable") return "Resume ready";
+  return "Resumed";
+}
+
+function isFeedbackReadyInteraction(interaction: PortalToolInteraction): boolean {
+  return (
+    interaction.status === "waiting_for_user" ||
+    interaction.status === "waiting_for_approval" ||
+    interaction.status === "waiting_for_data" ||
+    interaction.status === "blocked"
+  );
 }
 
 function formatApiTime(value: string): string {
@@ -454,10 +595,12 @@ function formatApiTime(value: string): string {
 
 function toPortalStepFromApiRun(run: PortalAgentRunApiModuleRun): PortalStep {
   const label = modulePortalLabels[run.moduleId];
+  const interaction = parsePortalToolInteraction(run.metadata);
   const requiresApproval = run.metadata?.["requiresApproval"] === true;
   const wasSkipped = run.metadata?.["adapterExecutionStatus"] === "skipped";
   const summary =
     run.summary ??
+    interaction?.message ??
     metadataString(
       run.metadata,
       "action",
@@ -477,6 +620,9 @@ function toPortalStepFromApiRun(run: PortalAgentRunApiModuleRun): PortalStep {
     summary,
     dataCount: run.outputJson ? `API result ${shortRunId(run.id)}` : label.fallbackData,
     updatedAt: formatApiTime(run.updatedAt),
+    runId: run.id,
+    externalRunId: run.externalRunId,
+    interaction: interaction ?? undefined,
   };
 }
 
@@ -537,12 +683,31 @@ export function AgentPortalInterface() {
   const [portalRunState, setPortalRunState] = useState<PortalRunSubmitState>("local");
   const [portalRunStatusText, setPortalRunStatusText] = useState("Local demo runtime");
   const [latestPortalRun, setLatestPortalRun] = useState<PortalRunUiState | null>(null);
+  const [portalActionStates, setPortalActionStates] = useState<Record<string, PortalActionState>>({});
+  const [portalActionStatusText, setPortalActionStatusText] = useState(
+    "Feedback actions are local until API run data is available",
+  );
+  const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
+  const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<Record<string, string>>({});
+  const portalActionInFlightRef = useRef<Set<string>>(new Set());
 
   const displayedSteps = latestPortalRun?.steps ?? portalSteps;
   const displayedMessages = latestPortalRun?.messages ?? portalMessages;
   const displayedDataRecords = latestPortalRun?.dataRecords ?? dataRecords;
   const displayedSources = latestPortalRun?.sources ?? portalSources;
   const displayedReadiness = latestPortalRun?.readiness ?? readiness;
+
+  function beginPortalAction(stepId: string): boolean {
+    if (portalActionInFlightRef.current.has(stepId)) return false;
+    portalActionInFlightRef.current.add(stepId);
+    setPortalActionStates((current) => ({ ...current, [stepId]: "submitting" }));
+    return true;
+  }
+
+  function finishPortalAction(stepId: string, state: Exclude<PortalActionState, "submitting">): void {
+    portalActionInFlightRef.current.delete(stepId);
+    setPortalActionStates((current) => ({ ...current, [stepId]: state }));
+  }
 
   const activeStepRecord = useMemo(
     () => displayedSteps.find((step) => step.id === activeStep) ?? displayedSteps[0] ?? portalSteps[2],
@@ -587,6 +752,11 @@ export function AgentPortalInterface() {
     if (!prompt) return;
 
     setDraft("");
+    portalActionInFlightRef.current.clear();
+    setPortalActionStates({});
+    setFeedbackDrafts({});
+    setSelectedInteractionOptions({});
+    setPortalActionStatusText("Feedback actions are local until API run data is available");
     setPortalRunState("submitting");
     setPortalRunStatusText("Submitting to Agent Run API");
     setActiveView("steps");
@@ -629,6 +799,104 @@ export function AgentPortalInterface() {
       setActiveStep(portalSteps[2].id);
       setPortalRunState("offline");
       setPortalRunStatusText("API offline - showing local demo");
+    }
+  }
+
+  function updatePortalRunFromModuleRun(run: PortalAgentRunApiModuleRun): void {
+    setLatestPortalRun((current) => {
+      if (!current) return current;
+      const response: PortalAgentRunApiResponse = {
+        ...current.response,
+        moduleRuns: current.response.moduleRuns.map((item) => (item.id === run.id ? run : item)),
+      };
+      return toPortalUiState(response);
+    });
+  }
+
+  function handleFeedbackDraftChange(stepId: string, value: string): void {
+    setFeedbackDrafts((current) => ({ ...current, [stepId]: value }));
+  }
+
+  function handleSelectedInteractionOptionChange(stepId: string, value: string): void {
+    setSelectedInteractionOptions((current) => ({ ...current, [stepId]: value }));
+  }
+
+  async function submitStepFeedback(step: PortalStep, approved?: boolean): Promise<void> {
+    const interaction = step.interaction;
+    if (!interaction || !beginPortalAction(step.id)) return;
+
+    if (!latestPortalRun || !step.runId) {
+      finishPortalAction(step.id, "succeeded");
+      setPortalActionStatusText("Local demo feedback captured - no API run is connected");
+      return;
+    }
+
+    const responseText = feedbackDrafts[step.id]?.trim();
+    const selectedOptionId = selectedInteractionOptions[step.id];
+    setPortalActionStatusText(`Submitting feedback for ${step.label}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(step.runId)}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          responseText: responseText || undefined,
+          selectedOptionId,
+          approved,
+          artifactIds: [],
+          resumeHandle: interaction.resumeHandle ?? undefined,
+          metadata: { source: "agent-portal", interactionKind: interaction.kind },
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Feedback API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalToolInteractionApiResponse(data)) {
+        throw new Error("Feedback API returned unexpected shape");
+      }
+
+      updatePortalRunFromModuleRun(data.run);
+      finishPortalAction(step.id, "succeeded");
+      setPortalActionStatusText(`Feedback saved for ${step.label}; resume is ready when available`);
+    } catch {
+      finishPortalAction(step.id, "failed");
+      setPortalActionStatusText(`Feedback API failed for ${step.label}`);
+    }
+  }
+
+  async function resumeStepRun(step: PortalStep): Promise<void> {
+    if (
+      !step.interaction ||
+      step.interaction.status !== "resumable" ||
+      !beginPortalAction(step.id)
+    ) {
+      return;
+    }
+
+    if (!latestPortalRun || !step.runId) {
+      finishPortalAction(step.id, "succeeded");
+      setPortalActionStatusText("Local demo resume requested - no API run is connected");
+      return;
+    }
+
+    setPortalActionStatusText(`Resuming ${step.label}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(step.runId)}/resume`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error(`Resume API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalToolInteractionApiResponse(data)) {
+        throw new Error("Resume API returned unexpected shape");
+      }
+
+      updatePortalRunFromModuleRun(data.run);
+      finishPortalAction(step.id, "succeeded");
+      setPortalActionStatusText(`Resume submitted for ${step.label}`);
+    } catch {
+      finishPortalAction(step.id, "failed");
+      setPortalActionStatusText(`Resume API failed for ${step.label}`);
     }
   }
 
@@ -738,7 +1006,15 @@ export function AgentPortalInterface() {
               latestPortalRun={latestPortalRun}
               runState={portalRunState}
               runStatusText={portalRunStatusText}
+              portalActionStates={portalActionStates}
+              feedbackDrafts={feedbackDrafts}
+              selectedInteractionOptions={selectedInteractionOptions}
+              portalActionStatusText={portalActionStatusText}
               onSelectStep={setActiveStep}
+              onFeedbackDraftChange={handleFeedbackDraftChange}
+              onSelectedInteractionOptionChange={handleSelectedInteractionOptionChange}
+              onSubmitStepFeedback={submitStepFeedback}
+              onResumeStepRun={resumeStepRun}
             />
           )}
           {activeView === "data" && (
@@ -768,6 +1044,19 @@ export function AgentPortalInterface() {
               {statusIcon(activeStepRecord.status)}
               {statusText(activeStepRecord.status)}
             </div>
+            <PortalInteractionPanel
+              step={activeStepRecord}
+              panelId="context"
+              actionState={portalActionStates[activeStepRecord.id] ?? "idle"}
+              draft={feedbackDrafts[activeStepRecord.id] ?? ""}
+              selectedOptionId={selectedInteractionOptions[activeStepRecord.id]}
+              onDraftChange={(value) => handleFeedbackDraftChange(activeStepRecord.id, value)}
+              onSelectedOptionChange={(value) =>
+                handleSelectedInteractionOptionChange(activeStepRecord.id, value)
+              }
+              onSubmitFeedback={(approved) => void submitStepFeedback(activeStepRecord, approved)}
+              onResume={() => void resumeStepRun(activeStepRecord)}
+            />
           </div>
           <div className="portal-context-block">
             <span className="portal-kicker">Pipeline</span>
@@ -884,6 +1173,7 @@ function ChatView({
       </div>
       <div className="portal-composer">
         <textarea
+          aria-label="Portal chat prompt"
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           placeholder="Ask this published agent..."
@@ -912,14 +1202,30 @@ function StepsView({
   latestPortalRun,
   runState,
   runStatusText,
+  portalActionStates,
+  feedbackDrafts,
+  selectedInteractionOptions,
+  portalActionStatusText,
   onSelectStep,
+  onFeedbackDraftChange,
+  onSelectedInteractionOptionChange,
+  onSubmitStepFeedback,
+  onResumeStepRun,
 }: {
   activeStep: string;
   steps: PortalStep[];
   latestPortalRun: PortalRunUiState | null;
   runState: PortalRunSubmitState;
   runStatusText: string;
+  portalActionStates: Record<string, PortalActionState>;
+  feedbackDrafts: Record<string, string>;
+  selectedInteractionOptions: Record<string, string>;
+  portalActionStatusText: string;
   onSelectStep: (step: string) => void;
+  onFeedbackDraftChange: (stepId: string, value: string) => void;
+  onSelectedInteractionOptionChange: (stepId: string, value: string) => void;
+  onSubmitStepFeedback: (step: PortalStep, approved?: boolean) => Promise<void>;
+  onResumeStepRun: (step: PortalStep) => Promise<void>;
 }) {
   return (
     <section className="portal-view" aria-label="Pipeline steps">
@@ -946,27 +1252,152 @@ function StepsView({
             <p>{runStatusText}</p>
           </>
         )}
+        <p className="portal-action-status-text">{portalActionStatusText}</p>
       </div>
       <div className="portal-step-grid">
         {steps.map((step) => (
-          <button
+          <article
             key={step.id}
-            type="button"
             className={step.id === activeStep ? "portal-step-card active" : "portal-step-card"}
-            onClick={() => onSelectStep(step.id)}
           >
-            <span className={`portal-status-badge ${step.status}`}>
-              {statusIcon(step.status)}
-              {statusText(step.status)}
-            </span>
-            <strong>{step.label}</strong>
-            <p>{step.summary}</p>
-            <em>{step.adminModule}</em>
-            <b>{step.dataCount}</b>
-          </button>
+            <button
+              type="button"
+              className="portal-step-card-select"
+              onClick={() => onSelectStep(step.id)}
+            >
+              <span className={`portal-status-badge ${step.status}`}>
+                {statusIcon(step.status)}
+                {statusText(step.status)}
+              </span>
+              <strong>{step.label}</strong>
+              <p>{step.summary}</p>
+              <em>{step.adminModule}</em>
+              <b>{step.dataCount}</b>
+            </button>
+            <PortalInteractionPanel
+              step={step}
+              panelId="steps"
+              actionState={portalActionStates[step.id] ?? "idle"}
+              draft={feedbackDrafts[step.id] ?? ""}
+              selectedOptionId={selectedInteractionOptions[step.id]}
+              onDraftChange={(value) => onFeedbackDraftChange(step.id, value)}
+              onSelectedOptionChange={(value) => onSelectedInteractionOptionChange(step.id, value)}
+              onSubmitFeedback={(approved) => void onSubmitStepFeedback(step, approved)}
+              onResume={() => void onResumeStepRun(step)}
+            />
+          </article>
         ))}
       </div>
     </section>
+  );
+}
+
+function PortalInteractionPanel({
+  step,
+  panelId,
+  actionState,
+  draft,
+  selectedOptionId,
+  onDraftChange,
+  onSelectedOptionChange,
+  onSubmitFeedback,
+  onResume,
+}: {
+  step: PortalStep;
+  panelId: string;
+  actionState: PortalActionState;
+  draft: string;
+  selectedOptionId: string | undefined;
+  onDraftChange: (value: string) => void;
+  onSelectedOptionChange: (value: string) => void;
+  onSubmitFeedback: (approved?: boolean) => void;
+  onResume: () => void;
+}) {
+  const interaction = step.interaction;
+  if (!interaction) return null;
+  const isBusy = actionState === "submitting";
+  const canSubmitFeedback = isFeedbackReadyInteraction(interaction);
+  const canResume = interaction.status === "resumable";
+  const feedbackInputId = `portal-feedback-${panelId}-${step.id}`;
+
+  return (
+    <div className="portal-interaction-panel">
+      <div className="portal-interaction-heading">
+        <span>{interactionStatusText(interaction.status)}</span>
+        <strong>{interaction.title}</strong>
+      </div>
+      <p>{interaction.message}</p>
+      {interaction.prompt && <em>{interaction.prompt}</em>}
+      {interaction.options.length > 0 && (
+        <div className="portal-option-row" aria-label={`${step.label} options`}>
+          {interaction.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={selectedOptionId === option.id ? "active" : ""}
+              aria-pressed={selectedOptionId === option.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectedOptionChange(option.id);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {canSubmitFeedback && (
+        <label className="portal-feedback-field" htmlFor={feedbackInputId}>
+          <span>Reply for {step.label}</span>
+          <textarea
+            id={feedbackInputId}
+            value={draft}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onDraftChange(event.target.value)}
+            placeholder="Reply for this step..."
+            rows={2}
+          />
+        </label>
+      )}
+      <div className="portal-interaction-actions">
+        {interaction.kind === "approval" && canSubmitFeedback && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSubmitFeedback(true);
+            }}
+          >
+            Approve
+          </button>
+        )}
+        {canSubmitFeedback && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSubmitFeedback(false);
+            }}
+          >
+            Send feedback
+          </button>
+        )}
+        {canResume && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onResume();
+            }}
+          >
+            Resume
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1177,6 +1608,7 @@ const styles = `
   .portal-context p,
   .portal-message p,
   .portal-step-card p,
+  .portal-interaction-panel p,
   .portal-record-row p,
   .portal-source-card p,
   .portal-result-summary p {
@@ -1232,7 +1664,9 @@ const styles = `
   .portal-chat-actions button,
   .portal-composer button,
   .portal-mini-steps button,
-  .portal-step-card,
+  .portal-step-card-select,
+  .portal-interaction-panel button,
+  .portal-interaction-panel textarea,
   .portal-filter-row button {
     font: inherit;
   }
@@ -1676,7 +2110,6 @@ const styles = `
 
   .portal-step-card {
     min-height: 190px;
-    cursor: pointer;
     color: #edf3fb;
     display: grid;
     align-content: start;
@@ -1685,17 +2118,31 @@ const styles = `
     text-align: left;
   }
 
+  .portal-step-card-select {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    align-content: start;
+    gap: 9px;
+    padding: 0;
+    text-align: left;
+  }
+
   .portal-step-card.active {
     border-color: #4f9cff;
     background: #122033;
   }
 
-  .portal-step-card strong {
+  .portal-step-card-select strong {
     font-size: 17px;
   }
 
-  .portal-step-card em,
-  .portal-step-card b,
+  .portal-step-card-select em,
+  .portal-step-card-select b,
   .portal-record-row em,
   .portal-source-card em,
   .portal-readiness-grid em {
@@ -1705,8 +2152,116 @@ const styles = `
     font-weight: 650;
   }
 
-  .portal-step-card b {
+  .portal-step-card-select b {
     color: #edf3fb;
+  }
+
+  .portal-interaction-panel {
+    min-width: 0;
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #0b1118;
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .portal-interaction-heading {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .portal-interaction-heading span {
+    width: fit-content;
+    border: 1px solid #6d4a1f;
+    border-radius: 999px;
+    background: #24180e;
+    color: #f59e42;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .portal-interaction-heading strong {
+    color: #edf3fb;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .portal-interaction-panel em {
+    color: #d8e8ff;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1.45;
+  }
+
+  .portal-option-row,
+  .portal-interaction-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .portal-option-row button,
+  .portal-interaction-actions button {
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #101721;
+    color: #aeb8c6;
+    cursor: pointer;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .portal-option-row button.active {
+    border-color: #4f9cff;
+    background: #10233a;
+    color: #edf3fb;
+  }
+
+  .portal-feedback-field {
+    display: grid;
+    gap: 5px;
+  }
+
+  .portal-feedback-field span {
+    color: #8d9bad;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .portal-feedback-field textarea {
+    width: 100%;
+    min-width: 0;
+    resize: vertical;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #090d13;
+    color: #edf3fb;
+    outline: 0;
+    padding: 8px;
+    line-height: 1.4;
+  }
+
+  .portal-interaction-actions button {
+    background: #2f7de1;
+    border-color: #31506f;
+    color: #ffffff;
+  }
+
+  .portal-interaction-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .portal-action-status-text {
+    color: #8d9bad;
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0;
   }
 
   .portal-record-row {
