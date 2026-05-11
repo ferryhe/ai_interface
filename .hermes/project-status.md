@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-source-evidence-drawer`
-- Scope: Frontend Portal source evidence drawer for provenance and artifacts.
+- Branch: `codex/portal-result-handoff-detail`
+- Scope: Frontend Portal result handoff detail drawer for final agent outputs.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -233,6 +233,10 @@ Updated: 2026-05-11
 - Portal source evidence validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Portal source evidence validation: `git diff --check` passed with CRLF warnings only.
 - Portal source evidence browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified Sources evidence buttons with source-specific accessible names, local evidence drawer, Chat/Steps/Data/Sources/Result presence, admin token dialog, and no console warnings/errors.
+- Portal result handoff validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal result handoff validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal result handoff validation: `git diff --check` passed with CRLF warnings only.
+- Portal result handoff browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified Result handoff buttons with item-specific accessible names, local handoff drawer, Chat/Steps/Data/Sources/Result presence, admin token dialog, and no console warnings/errors.
 - PR #15 was merged into `main` on 2026-05-11 at merge commit `982bb3f`; this branch starts the next autonomous Portal runtime visibility slice from latest `main`.
 - Added the Portal Runtime Progress API plan for a frontend-only Portal wire-up to the existing Agent Run API.
 - The frontstage Portal composer now attempts `POST /api/agent-runs` with `executionMode: "execute_ready"` and `metadata.source = "agent-portal"`.
@@ -254,6 +258,9 @@ Updated: 2026-05-11
 - Added the Portal Source Evidence Drawer plan for a frontend-only Portal Sources evidence view backed by existing module-run detail and artifact detail fetches.
 - Portal Sources can now open local evidence details and, for API-backed records, guarded source evidence drawers with module-run events and artifacts.
 - Opened PR #19 for `codex/portal-source-evidence-drawer`: https://github.com/ferryhe/ai_interface/pull/19
+- PR #19 was merged into `main` on 2026-05-11 at merge commit `ece66f3`; this branch starts the next autonomous Portal result handoff slice from latest `main`.
+- Added the Portal Result Handoff Detail plan for a frontend-only Result view handoff drawer backed by existing module-run detail and artifact detail fetches.
+- Portal Result can now open local handoff details and, for API-backed records, guarded result handoff drawers with module-run events and artifacts.
 
 ## Notes
 
@@ -264,4 +271,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Follow up PR #19 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
+- Implement, verify, commit, push, and open the Portal result handoff detail PR; then update the follow-up automation to check the new PR.

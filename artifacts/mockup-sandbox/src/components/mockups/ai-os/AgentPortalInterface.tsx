@@ -93,6 +93,19 @@ interface PortalSource {
   evidenceDetail: string;
 }
 
+type PortalResultItemKind = "agent_config" | "memory" | "source_package" | "handoff";
+
+interface PortalResultItem {
+  id: string;
+  kind: PortalResultItemKind;
+  title: string;
+  moduleId?: ModuleId;
+  runId?: string;
+  status: string;
+  summary: string;
+  detail: string;
+}
+
 interface PortalMessage {
   id: string;
   speaker: "user" | "agent";
@@ -187,6 +200,7 @@ interface PortalRunUiState {
   dataRecords: PortalDataRecord[];
   sources: PortalSource[];
   readiness: ReadonlyArray<readonly [string, string]>;
+  resultItems: PortalResultItem[];
 }
 
 const portalSteps: PortalStep[] = [
@@ -367,6 +381,27 @@ const readiness = [
   ["Published URL", "Locked until validation"],
   ["Agent version", "draft-0.3"],
 ] as const;
+
+const resultItems: PortalResultItem[] = [
+  {
+    id: "local-agent-config",
+    kind: "agent_config",
+    title: "Support agent draft",
+    moduleId: "rag_to_agent",
+    status: "Waiting for approval",
+    summary: "Draft prompt, tool policy, and handoff notes are ready for review.",
+    detail: "Generated from the indexed onboarding collection and waiting on the final approval step.",
+  },
+  {
+    id: "local-memory",
+    kind: "memory",
+    title: "Onboarding RAG memory",
+    moduleId: "md_to_rag",
+    status: "Indexing",
+    summary: "96 of 124 chunks are ready for retrieval.",
+    detail: "The published Agent will answer from this collection once indexing and validation complete.",
+  },
+];
 
 const navItems: Array<{ id: PortalView; label: string; icon: ReactNode }> = [
   { id: "chat", label: "Chat", icon: <MessageSquareText size={18} /> },
@@ -763,7 +798,47 @@ function toPortalUiState(response: PortalAgentRunApiResponse): PortalRunUiState 
     ["Completed steps", `${completedCount} / ${steps.length}`],
     ["Agent status", response.status.replace("_", " ")],
   ] as const;
-  return { response, steps, messages, dataRecords, sources, readiness };
+  const mappedResultItems: PortalResultItem[] = response.moduleRuns
+    .filter((run) => run.moduleId === "rag_to_agent" || run.outputJson)
+    .sort((first, second) => {
+      if (first.moduleId === second.moduleId) return 0;
+      if (first.moduleId === "rag_to_agent") return -1;
+      if (second.moduleId === "rag_to_agent") return 1;
+      return 0;
+    })
+    .map((run) => {
+      const step = modulePortalLabels[run.moduleId];
+      return {
+        id: `api-result-${run.id}`,
+        kind: run.moduleId === "rag_to_agent" ? "agent_config" : "handoff",
+        title: run.title ?? step.label,
+        moduleId: run.moduleId,
+        runId: run.id,
+        status: run.status,
+        summary: run.summary ?? metadataString(run.metadata, "action", step.fallbackSummary),
+        detail: run.outputJson
+          ? JSON.stringify(run.outputJson, null, 2)
+          : metadataString(
+              run.metadata,
+              "adapterReadinessHint",
+              "Open details to inspect final run artifacts.",
+            ),
+      };
+    });
+  const resultItems =
+    mappedResultItems.length > 0
+      ? mappedResultItems
+      : [
+          {
+            id: `api-result-${response.pipelineRun.id}`,
+            kind: "handoff" as const,
+            title: response.pipelineRun.title,
+            status: response.pipelineRun.status,
+            summary: response.agentMessage.content,
+            detail: response.plan.summary,
+          },
+        ];
+  return { response, steps, messages, dataRecords, sources, readiness, resultItems };
 }
 
 export function AgentPortalInterface() {
@@ -787,6 +862,7 @@ export function AgentPortalInterface() {
   const [selectedInteractionOptions, setSelectedInteractionOptions] = useState<Record<string, string>>({});
   const [selectedDataRecordId, setSelectedDataRecordId] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [selectedResultItemId, setSelectedResultItemId] = useState<string | null>(null);
   const [portalDetailStates, setPortalDetailStates] = useState<Record<string, PortalDetailState>>({});
   const [portalRunDetails, setPortalRunDetails] = useState<Record<string, PortalModuleRunDetail>>({});
   const [selectedArtifactByRunId, setSelectedArtifactByRunId] = useState<Record<string, string>>({});
@@ -797,6 +873,9 @@ export function AgentPortalInterface() {
   const [portalSourceStatusText, setPortalSourceStatusText] = useState(
     "Open a source to inspect evidence and provenance",
   );
+  const [portalResultStatusText, setPortalResultStatusText] = useState(
+    "Open a result item to inspect handoff details",
+  );
   const portalActionInFlightRef = useRef<Set<string>>(new Set());
 
   const displayedSteps = latestPortalRun?.steps ?? portalSteps;
@@ -804,6 +883,7 @@ export function AgentPortalInterface() {
   const displayedDataRecords = latestPortalRun?.dataRecords ?? dataRecords;
   const displayedSources = latestPortalRun?.sources ?? portalSources;
   const displayedReadiness = latestPortalRun?.readiness ?? readiness;
+  const displayedResultItems = latestPortalRun?.resultItems ?? resultItems;
 
   function beginPortalAction(stepId: string): boolean {
     if (portalActionInFlightRef.current.has(stepId)) return false;
@@ -866,6 +946,7 @@ export function AgentPortalInterface() {
     setSelectedInteractionOptions({});
     setSelectedDataRecordId(null);
     setSelectedSourceId(null);
+    setSelectedResultItemId(null);
     setPortalDetailStates({});
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
@@ -873,6 +954,7 @@ export function AgentPortalInterface() {
     setPortalActionStatusText("Feedback actions are local until API run data is available");
     setPortalDetailStatusText("Open a data record to inspect stored module artifacts");
     setPortalSourceStatusText("Open a source to inspect evidence and provenance");
+    setPortalResultStatusText("Open a result item to inspect handoff details");
     setPortalRunState("submitting");
     setPortalRunStatusText("Submitting to Agent Run API");
     setActiveView("steps");
@@ -1092,10 +1174,48 @@ export function AgentPortalInterface() {
     }
   }
 
+  async function openResultItem(item: PortalResultItem): Promise<void> {
+    setSelectedResultItemId(item.id);
+
+    if (!item.runId) {
+      setPortalResultStatusText("Local demo result - no API module run is connected");
+      return;
+    }
+
+    const runId = item.runId;
+    if (portalRunDetails[runId]) {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
+      setPortalResultStatusText(`Loaded result details for ${item.title}`);
+      return;
+    }
+
+    setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
+    setPortalResultStatusText(`Loading result details for ${item.title}`);
+
+    try {
+      const response = await fetch(`/api/module-runs/${encodeURIComponent(runId)}`);
+      if (!response.ok) throw new Error(`Module run detail API returned ${response.status}`);
+      const data = (await response.json()) as unknown;
+      if (!isPortalModuleRunDetail(data)) {
+        throw new Error("Module run detail API returned unexpected shape");
+      }
+
+      setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: data.artifacts.length > 0 || data.events.length > 0 ? "ready" : "empty",
+      }));
+      setPortalResultStatusText(`Loaded result details for ${item.title}`);
+    } catch {
+      setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
+      setPortalResultStatusText(`Result detail API failed for ${item.title}`);
+    }
+  }
+
   async function openArtifact(
     runId: string,
     artifact: PortalArtifact,
-    statusTarget: "data" | "source" = "data",
+    statusTarget: "data" | "source" | "result" = "data",
   ): Promise<void> {
     setSelectedArtifactByRunId((current) => ({ ...current, [runId]: artifact.id }));
     if (portalArtifactDetails[artifact.id]) return;
@@ -1107,6 +1227,10 @@ export function AgentPortalInterface() {
       if (!isPortalArtifact(data)) throw new Error("Artifact API returned unexpected shape");
       setPortalArtifactDetails((current) => ({ ...current, [artifact.id]: data }));
     } catch {
+      if (statusTarget === "result") {
+        setPortalResultStatusText(`Artifact API failed for ${artifact.title}`);
+        return;
+      }
       if (statusTarget === "source") {
         setPortalSourceStatusText(`Artifact API failed for ${artifact.title}`);
         return;
@@ -1266,6 +1390,15 @@ export function AgentPortalInterface() {
               readiness={displayedReadiness}
               latestPortalRun={latestPortalRun}
               runStatusText={portalRunStatusText}
+              resultItems={displayedResultItems}
+              selectedResultItemId={selectedResultItemId}
+              detailStates={portalDetailStates}
+              runDetails={portalRunDetails}
+              selectedArtifactByRunId={selectedArtifactByRunId}
+              artifactDetails={portalArtifactDetails}
+              resultStatusText={portalResultStatusText}
+              onOpenResultItem={openResultItem}
+              onOpenArtifact={(runId, artifact) => openArtifact(runId, artifact, "result")}
             />
           )}
         </section>
@@ -2011,11 +2144,34 @@ function ResultView({
   readiness,
   latestPortalRun,
   runStatusText,
+  resultItems,
+  selectedResultItemId,
+  detailStates,
+  runDetails,
+  selectedArtifactByRunId,
+  artifactDetails,
+  resultStatusText,
+  onOpenResultItem,
+  onOpenArtifact,
 }: {
   readiness: ReadonlyArray<readonly [string, string]>;
   latestPortalRun: PortalRunUiState | null;
   runStatusText: string;
+  resultItems: PortalResultItem[];
+  selectedResultItemId: string | null;
+  detailStates: Record<string, PortalDetailState>;
+  runDetails: Record<string, PortalModuleRunDetail>;
+  selectedArtifactByRunId: Record<string, string>;
+  artifactDetails: Record<string, PortalArtifact>;
+  resultStatusText: string;
+  onOpenResultItem: (item: PortalResultItem) => Promise<void>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
 }) {
+  const selectedResultItem =
+    resultItems.find((item) => item.id === selectedResultItemId) ?? null;
+  const selectedRunId = selectedResultItem?.runId;
+  const selectedRunDetail = selectedRunId ? runDetails[selectedRunId] ?? null : null;
+
   return (
     <section className="portal-view" aria-label="Portal result">
       <div className="portal-section-heading">
@@ -2038,7 +2194,146 @@ function ResultView({
           ))}
         </div>
       </div>
+      <div className="portal-result-handoff-grid">
+        {resultItems.map((item) => (
+          <article
+            key={item.id}
+            className={selectedResultItemId === item.id ? "portal-result-card active" : "portal-result-card"}
+          >
+            <span>{item.kind.replace("_", " ")}</span>
+            <strong>{item.title}</strong>
+            <p>{item.summary}</p>
+            <em>{item.status}</em>
+            <button
+              type="button"
+              aria-label={`Inspect result handoff for ${item.title}`}
+              onClick={() => void onOpenResultItem(item)}
+            >
+              Inspect result
+            </button>
+          </article>
+        ))}
+      </div>
+      <p className="portal-action-status-text">{resultStatusText}</p>
+      <PortalResultDetailDrawer
+        item={selectedResultItem}
+        detail={selectedRunDetail}
+        detailState={selectedRunId ? detailStates[selectedRunId] ?? "idle" : "idle"}
+        selectedArtifactId={selectedRunId ? selectedArtifactByRunId[selectedRunId] : undefined}
+        artifactDetails={artifactDetails}
+        onOpenArtifact={onOpenArtifact}
+      />
     </section>
+  );
+}
+
+function PortalResultDetailDrawer({
+  item,
+  detail,
+  detailState,
+  selectedArtifactId,
+  artifactDetails,
+  onOpenArtifact,
+}: {
+  item: PortalResultItem | null;
+  detail: PortalModuleRunDetail | null;
+  detailState: PortalDetailState;
+  selectedArtifactId: string | undefined;
+  artifactDetails: Record<string, PortalArtifact>;
+  onOpenArtifact: (runId: string, artifact: PortalArtifact) => Promise<void>;
+}) {
+  if (!item) {
+    return (
+      <aside className="portal-result-drawer">
+        <p>Select a result item to inspect handoff details.</p>
+      </aside>
+    );
+  }
+
+  if (!item.runId) {
+    return (
+      <aside className="portal-result-drawer">
+        <span className="portal-kicker">Local handoff</span>
+        <strong>{item.title}</strong>
+        <p>{item.detail}</p>
+        <em>{item.status}</em>
+      </aside>
+    );
+  }
+
+  const runId = item.runId;
+
+  if (detailState === "loading") {
+    return (
+      <aside className="portal-result-drawer">
+        <p>Loading result details...</p>
+      </aside>
+    );
+  }
+
+  if (detailState === "failed") {
+    return (
+      <aside className="portal-result-drawer">
+        <p>Result detail API failed for this item.</p>
+      </aside>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <aside className="portal-result-drawer">
+        <p>Open this result item to load handoff artifacts.</p>
+      </aside>
+    );
+  }
+
+  const selectedArtifact = selectedArtifactId
+    ? artifactDetails[selectedArtifactId] ??
+      detail.artifacts.find((artifact) => artifact.id === selectedArtifactId)
+    : null;
+  const artifactPreview =
+    selectedArtifact?.contentText ??
+    (selectedArtifact
+      ? JSON.stringify(selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {}, null, 2)
+      : item.detail);
+
+  return (
+    <aside className="portal-result-drawer">
+      <span className="portal-kicker">API handoff</span>
+      <strong>{detail.run.title ?? item.title}</strong>
+      <p>{detail.run.summary ?? item.summary}</p>
+      <div className="portal-result-detail-grid">
+        <div>
+          <em>Handoff events</em>
+          {detail.events.length === 0 ? (
+            <p>No events stored yet.</p>
+          ) : (
+            detail.events.map((event) => (
+              <span key={event.id}>{event.severity}: {event.title ?? event.eventType}</span>
+            ))
+          )}
+        </div>
+        <div>
+          <em>Result artifacts</em>
+          {detail.artifacts.length === 0 ? (
+            <p>No artifacts stored yet.</p>
+          ) : (
+            detail.artifacts.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                className={selectedArtifactId === artifact.id ? "active" : ""}
+                onClick={() => void onOpenArtifact(runId, artifact)}
+              >
+                {artifact.title}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+      {detailState === "empty" && <p>No handoff records were stored for this module run yet.</p>}
+      {artifactPreview && <pre className="portal-artifact-preview">{artifactPreview}</pre>}
+    </aside>
   );
 }
 
@@ -2152,7 +2447,9 @@ const styles = `
   .portal-detail-drawer p,
   .portal-source-card p,
   .portal-source-drawer p,
-  .portal-result-summary p {
+  .portal-result-summary p,
+  .portal-result-card p,
+  .portal-result-drawer p {
     color: #a5b1c2;
     line-height: 1.55;
     font-size: 13px;
@@ -2212,7 +2509,9 @@ const styles = `
   .portal-record-row button,
   .portal-detail-columns button,
   .portal-source-card button,
-  .portal-source-evidence-grid button {
+  .portal-source-evidence-grid button,
+  .portal-result-card button,
+  .portal-result-detail-grid button {
     font: inherit;
   }
 
@@ -2647,6 +2946,7 @@ const styles = `
   .portal-record-row,
   .portal-source-card,
   .portal-result-panel,
+  .portal-result-card,
   .portal-context-block {
     border: 1px solid #263445;
     border-radius: 8px;
@@ -3048,6 +3348,130 @@ const styles = `
     font-size: 24px;
   }
 
+  .portal-result-handoff-grid {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .portal-result-card {
+    min-width: 0;
+    min-height: 168px;
+    display: grid;
+    align-content: start;
+    gap: 9px;
+    padding: 13px;
+  }
+
+  .portal-result-card.active {
+    border-color: #4f9cff;
+    background: #122033;
+  }
+
+  .portal-result-card span {
+    color: #8d9bad;
+    font-size: 11px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: 0;
+  }
+
+  .portal-result-card strong {
+    color: #edf3fb;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-result-card em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-result-card button {
+    width: fit-content;
+    min-height: 30px;
+    border: 1px solid #31506f;
+    border-radius: 8px;
+    background: #10233a;
+    color: #d8e8ff;
+    cursor: pointer;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .portal-result-drawer {
+    min-width: 0;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #0b1118;
+    display: grid;
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .portal-result-drawer strong {
+    color: #edf3fb;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-result-drawer em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 650;
+  }
+
+  .portal-result-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .portal-result-detail-grid div {
+    min-width: 0;
+    border: 1px solid #1e2936;
+    border-radius: 8px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .portal-result-detail-grid span {
+    color: #aeb8c6;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-result-detail-grid button {
+    min-width: 0;
+    min-height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #101721;
+    color: #aeb8c6;
+    cursor: pointer;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-result-detail-grid button.active {
+    border-color: #4f9cff;
+    background: #10233a;
+    color: #edf3fb;
+  }
+
   .portal-readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3215,9 +3639,11 @@ const styles = `
     .portal-step-grid,
     .portal-source-grid,
     .portal-result-panel,
+    .portal-result-handoff-grid,
     .portal-readiness-grid,
     .portal-detail-columns,
-    .portal-source-evidence-grid {
+    .portal-source-evidence-grid,
+    .portal-result-detail-grid {
       grid-template-columns: 1fr;
     }
 
