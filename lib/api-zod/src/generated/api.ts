@@ -37,6 +37,61 @@ export const ListModulesResponse = zod.object({
 });
 
 /**
+ * Returns external tool adapter metadata and redacted readiness by environment variable name.
+ * @summary List tool adapters
+ */
+export const GetToolAdaptersResponse = zod.object({
+  adapters: zod.array(
+    zod.object({
+      adapterId: zod.string(),
+      moduleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      adapterKind: zod.enum(["http", "cli"]),
+      displayName: zod.string(),
+      description: zod.string(),
+      sourceRepo: zod.string(),
+      requiredEnv: zod.array(zod.string()),
+      optionalEnv: zod.array(zod.string()),
+      timeoutMs: zod.number(),
+      maxOutputBytes: zod.number(),
+      allowedCommands: zod.array(zod.string()),
+      supportsResume: zod.boolean(),
+      readinessHint: zod.string(),
+    }),
+  ),
+  readiness: zod.array(
+    zod.object({
+      adapterId: zod.string(),
+      moduleId: zod.enum([
+        "web_listening",
+        "doc_to_md",
+        "md_to_rag",
+        "rag_to_agent",
+      ]),
+      adapterKind: zod.enum(["http", "cli"]),
+      displayName: zod.string(),
+      description: zod.string(),
+      sourceRepo: zod.string(),
+      requiredEnv: zod.array(zod.string()),
+      optionalEnv: zod.array(zod.string()),
+      timeoutMs: zod.number(),
+      maxOutputBytes: zod.number(),
+      allowedCommands: zod.array(zod.string()),
+      supportsResume: zod.boolean(),
+      readinessHint: zod.string(),
+      configured: zod.boolean(),
+      status: zod.enum(["ready", "missing_required_env"]),
+      missingRequiredEnv: zod.array(zod.string()),
+      configuredOptionalEnv: zod.array(zod.string()),
+    }),
+  ),
+});
+
+/**
  * Idempotently creates or updates a module run by moduleId and externalRunId.
  * @summary Create or update a module run
  */

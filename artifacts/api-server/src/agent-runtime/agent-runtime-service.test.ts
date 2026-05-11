@@ -21,7 +21,8 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
     runtimeRepository,
     configRepository,
     {
-      message: "Watch the onboarding docs, convert them, index them, and draft an agent.",
+      message:
+        "Watch the onboarding docs, convert them, index them, and draft an agent.",
     },
     { env: {} },
   );
@@ -37,6 +38,16 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
   assert.deepEqual(
     result.moduleRuns.map((run) => run.moduleId),
     ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+  );
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterId"],
+    "web_listening.cli.v1",
+  );
+  assert.equal(result.moduleRuns[0]?.metadata?.["adapterKind"], "cli");
+  assert.equal(result.moduleRuns[0]?.metadata?.["supportsResume"], true);
+  assert.equal(
+    result.moduleRuns[1]?.metadata?.["adapterId"],
+    "doc_to_md.http.v1",
   );
   assert.equal(runtimeRepository.threads.length, 1);
   assert.equal(runtimeRepository.messages.length, 2);
@@ -114,7 +125,10 @@ test("uses an injected planner when OpenAI is configured", async () => {
             moduleId: "doc_to_md",
             title: "Convert source docs",
             action: "Convert uploaded source documents into Markdown.",
-            input: { sourceArtifactIds: ["artifact-source-1"], engine: "opendataloader" },
+            input: {
+              sourceArtifactIds: ["artifact-source-1"],
+              engine: "opendataloader",
+            },
             requiresApproval: false,
           },
           {
@@ -143,7 +157,10 @@ test("uses an injected planner when OpenAI is configured", async () => {
 
   assert.equal(result.status, "planned");
   assert.deepEqual(result.connection, { status: "configured" });
-  assert.equal(result.plan.summary, "Use document conversion first, then index the markdown.");
+  assert.equal(
+    result.plan.summary,
+    "Use document conversion first, then index the markdown.",
+  );
   assert.deepEqual(
     result.moduleRuns.map((run) => run.title),
     ["Convert source docs", "Index Markdown"],
@@ -159,10 +176,12 @@ test("applies configured approval overrides consistently", async () => {
   const configRepository = new InMemoryAgentConfigRepository();
 
   await updateAgentConfig(configRepository, {
-    businessSkillSettings: createDefaultBusinessSkillSettings().map((setting) => ({
-      ...setting,
-      approvalRequired: setting.moduleId === "doc_to_md",
-    })),
+    businessSkillSettings: createDefaultBusinessSkillSettings().map(
+      (setting) => ({
+        ...setting,
+        approvalRequired: setting.moduleId === "doc_to_md",
+      }),
+    ),
   });
 
   const planner: AgentPlanner = {
@@ -195,7 +214,10 @@ test("applies configured approval overrides consistently", async () => {
   assert.equal(result.status, "needs_approval");
   assert.equal(result.plan.steps[0]?.requiresApproval, true);
   assert.equal(result.moduleRuns[0]?.metadata?.["requiresApproval"], true);
-  assert.equal(runtimeRepository.runEvents[0]?.payload?.["requiresApproval"], true);
+  assert.equal(
+    runtimeRepository.runEvents[0]?.payload?.["requiresApproval"],
+    true,
+  );
 });
 
 test("keeps internal thread metadata source authoritative", async () => {
