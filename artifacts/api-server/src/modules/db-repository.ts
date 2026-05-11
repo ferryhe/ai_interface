@@ -16,6 +16,7 @@ import {
   type RunEventRecord,
   type ModuleRunStatus,
   type RunEventSeverity,
+  type ToolInteraction,
 } from "./ingest-service";
 import { moduleRegistry, type ModuleId } from "./registry";
 
@@ -180,6 +181,29 @@ export class DbModuleRunRepository implements ModuleRunRepository {
       .returning();
 
     return mapModuleRun(firstOrThrow(rows, "module run"));
+  }
+
+  async consumeResumableInteraction(
+    id: string,
+    interactionId: string,
+    interaction: ToolInteraction,
+  ): Promise<ModuleRunRecord | null> {
+    const rows = await db
+      .update(moduleRunsTable)
+      .set({
+        metadata: sql`jsonb_set(coalesce(${moduleRunsTable.metadata}, '{}'::jsonb), '{interaction}', ${JSON.stringify(interaction)}::jsonb, true)`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(moduleRunsTable.id, id),
+          sql`${moduleRunsTable.metadata}->'interaction'->>'interactionId' = ${interactionId}`,
+          sql`${moduleRunsTable.metadata}->'interaction'->>'status' = 'resumable'`,
+        ),
+      )
+      .returning();
+
+    return rows[0] ? mapModuleRun(rows[0]) : null;
   }
 
   async findModuleRunById(id: string): Promise<ModuleRunRecord | null> {

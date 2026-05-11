@@ -899,6 +899,94 @@ export const useSubmitModuleRunFeedback = <
 };
 
 /**
+ * Consumes a resumable tool interaction, records a resume request, and resumes through the safe fake adapter executor.
+ * @summary Resume execution for a module run
+ */
+export const getResumeModuleRunExecutionUrl = (runId: string) => {
+  return `/api/module-runs/${runId}/resume`;
+};
+
+export const resumeModuleRunExecution = async (
+  runId: string,
+  options?: RequestInit,
+): Promise<ToolInteractionResponse> => {
+  return customFetch<ToolInteractionResponse>(
+    getResumeModuleRunExecutionUrl(runId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getResumeModuleRunExecutionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resumeModuleRunExecution>>,
+    TError,
+    { runId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resumeModuleRunExecution>>,
+  TError,
+  { runId: string },
+  TContext
+> => {
+  const mutationKey = ["resumeModuleRunExecution"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resumeModuleRunExecution>>,
+    { runId: string }
+  > = (props) => {
+    const { runId } = props ?? {};
+
+    return resumeModuleRunExecution(runId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResumeModuleRunExecutionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resumeModuleRunExecution>>
+>;
+
+export type ResumeModuleRunExecutionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Resume execution for a module run
+ */
+export const useResumeModuleRunExecution = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resumeModuleRunExecution>>,
+    TError,
+    { runId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resumeModuleRunExecution>>,
+  TError,
+  { runId: string },
+  TContext
+> => {
+  return useMutation(getResumeModuleRunExecutionMutationOptions(options));
+};
+
+/**
  * @summary Get an artifact
  */
 export const getGetArtifactUrl = (artifactId: string) => {

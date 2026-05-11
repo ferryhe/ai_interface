@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/agent-run-execute-ready`
-- Scope: Add an optional Agent run `execute_ready` mode that kicks off safe fake execution for ready, non-approval module runs.
+- Branch: `codex/module-run-resume-execution`
+- Scope: Add a safe backend module-run resume endpoint for resumable tool interactions using the fake executor.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -66,6 +66,10 @@ Updated: 2026-05-11
 - PR #10 was merged into `main`; this branch starts the next autonomous runtime slice from latest `main`.
 - Added the Agent Run Execute-Ready Mode plan for a backend/API contract that lets `POST /api/agent-runs` optionally execute ready module runs through the safe fake executor while preserving plan-only as the default.
 - Implemented `executionMode` on Agent run creation. Default `plan_only` preserves pending module runs; `execute_ready` uses `FakeToolAdapterExecutor` through `executeModuleRunWithAdapter` for non-approval runs, records approval-required skips, preserves safe missing-env skips, refreshes module runs, and updates pipeline status/metadata.
+- PR #11 was merged into `main`; this branch starts the next autonomous runtime slice from latest `main`.
+- Added the Module Run Resume Execution plan for `POST /api/module-runs/{runId}/resume`, consuming `resumable` interactions through the safe fake executor while rejecting duplicate, unsupported, or non-resumable runs.
+- Implemented backend module-run resume execution: ready `resumable` interactions are atomically marked `resumed`, resume-requested events are recorded once, unsupported/non-resumable/duplicate resumes are rejected before execution, missing adapter config preserves retryable feedback, and execution uses `FakeToolAdapterExecutor` only.
+- Added `POST /api/module-runs/{runId}/resume` to the API route and OpenAPI contract, then regenerated API Zod and React client outputs.
 
 ## Verification
 
@@ -185,6 +189,14 @@ Updated: 2026-05-11
 - Execute-ready validation: `corepack pnpm run typecheck:libs` passed after codegen.
 - Execute-ready validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(|import\(" artifacts\api-server\src\agent-runtime artifacts\api-server\src\tool-adapters` found no matches.
 - Execute-ready validation: `git diff --check` passed with CRLF warnings only.
+- Resume execution TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed as expected before `resume-service.ts` existed.
+- Resume execution codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI client/Zod outputs, then failed only because the script invokes bare `pnpm`.
+- Resume execution validation: `corepack pnpm --filter @workspace/api-server run test` passed with 42 tests after adding atomic duplicate-resume and missing-env retry coverage.
+- Resume execution validation: `corepack pnpm run typecheck:libs` passed after codegen and refreshed generated declarations.
+- Resume execution validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Resume execution validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Resume execution validation: `rg "child_process|spawn|exec\(|execFile|fork\(|fetch\(" artifacts\api-server\src\modules\ingest-service.ts artifacts\api-server\src\tool-adapters artifacts\api-server\src\routes\modules.ts` found no matches.
+- Resume execution validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -193,4 +205,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Review the uncommitted execute-ready slice, then the parent agent can commit/push/open the PR when ready; this implementer run stopped before commit/push by instruction.
+- Review the uncommitted resume slice, then the parent agent can commit/push/open the PR when ready; this implementer run stopped before commit/push by instruction.

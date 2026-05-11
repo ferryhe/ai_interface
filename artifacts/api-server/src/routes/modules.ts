@@ -13,6 +13,8 @@ import {
   GetModuleRunParams,
   GetModuleRunResponse,
   ListModulesResponse,
+  ResumeModuleRunExecutionParams,
+  ResumeModuleRunExecutionResponse,
   SubmitModuleRunFeedbackBody,
   SubmitModuleRunFeedbackParams,
   UpdateModuleRunBody,
@@ -31,6 +33,10 @@ import {
   updateModuleRun,
 } from "../modules/ingest-service";
 import { moduleRegistry } from "../modules/registry";
+import {
+  ModuleRunResumeConflictError,
+  resumeModuleRunExecution,
+} from "../tool-adapters/resume-service";
 
 const router: IRouter = Router();
 const repository = new DbModuleRunRepository();
@@ -194,6 +200,36 @@ router.post("/module-runs/:runId/feedback", async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(404).json(errorResponse(message));
+  }
+});
+
+router.post("/module-runs/:runId/resume", async (req, res) => {
+  const params = ResumeModuleRunExecutionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json(errorResponse(params.error.message));
+    return;
+  }
+
+  try {
+    const result = await resumeModuleRunExecution(
+      repository,
+      params.data.runId,
+    );
+    const data = ResumeModuleRunExecutionResponse.parse(result);
+    res.json(data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith("Module run not found")) {
+      res.status(404).json(errorResponse(message));
+      return;
+    }
+    if (error instanceof ModuleRunResumeConflictError) {
+      res.status(409).json(errorResponse(message));
+      return;
+    }
+    res
+      .status(500)
+      .json(errorResponse("Failed to resume module run execution"));
   }
 });
 
