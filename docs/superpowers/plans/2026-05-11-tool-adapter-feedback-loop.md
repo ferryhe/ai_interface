@@ -271,7 +271,7 @@ git diff --check
 
 Expected: all pass, except codegen may have the known bare-`pnpm` script-tail issue after generating outputs.
 
-- [ ] **Step 3: Commit, push, and PR**
+- [x] **Step 3: Commit, push, and PR**
 
 Run:
 

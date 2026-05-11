@@ -50,6 +50,7 @@ Updated: 2026-05-11
 - Started `codex/tool-adapter-feedback-loop` from latest `main`.
 - Added a backend tool interaction/feedback contract: modules can request user questions, approvals, data, or unblock input; feedback marks the interaction `resumable`.
 - Added public API endpoints for `POST /api/module-runs/{runId}/interactions` and `POST /api/module-runs/{runId}/feedback`.
+- Opened PR #8 for `codex/tool-adapter-feedback-loop`: https://github.com/ferryhe/ai_interface/pull/8
 
 ## Verification
 
@@ -142,4 +143,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Finish full validation for `codex/tool-adapter-feedback-loop`, commit, push, and open the next PR.
+- Watch PR #8 checks and review/Copilot comments; perform the scheduled follow-up pass and apply only confirmed-safe fixes.
