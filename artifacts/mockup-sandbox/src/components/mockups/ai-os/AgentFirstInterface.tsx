@@ -31,6 +31,13 @@ type AgentEndpoint = "responses" | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 type MemoryPromotionMode = "manual" | "agent_suggested";
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
+type GeneralSkillId =
+  | "web_search"
+  | "browser"
+  | "github"
+  | "notion"
+  | "lark"
+  | "file_tools";
 
 interface ModuleDefinition {
   id: ModuleId;
@@ -60,12 +67,23 @@ interface DataRecord {
   updatedAt: string;
 }
 
-interface AgentSkillSetting {
+interface BusinessSkillSetting {
   moduleId: ModuleId;
   enabled: boolean;
   approvalRequired: boolean;
   canUseNetwork: boolean;
   canWriteDatabase: boolean;
+}
+
+interface GeneralSkillSetting {
+  skillId: GeneralSkillId;
+  name: string;
+  description: string;
+  enabled: boolean;
+  installed: boolean;
+  installOnDemand: boolean;
+  requiresApproval: boolean;
+  canUseNetwork: boolean;
 }
 
 interface AgentMemorySettings {
@@ -89,7 +107,8 @@ interface AgentConfigDraft {
   modelId: string;
   reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
-  skillSettings: AgentSkillSetting[];
+  businessSkillSettings: BusinessSkillSetting[];
+  generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
 }
@@ -153,13 +172,75 @@ const defaultAgentConfig: AgentConfigDraft = {
   reasoningEffort: "medium",
   systemPrompt:
     "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
-  skillSettings: modules.map((module) => ({
+  businessSkillSettings: modules.map((module) => ({
     moduleId: module.id,
     enabled: true,
     approvalRequired: module.id === "rag_to_agent",
     canUseNetwork: module.id === "web_listening",
     canWriteDatabase: true,
   })),
+  generalSkillSettings: [
+    {
+      skillId: "web_search",
+      name: "Web Search",
+      description: "Search current web sources when fresh outside context is needed.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "browser",
+      name: "Browser",
+      description: "Open, inspect, and smoke-test local or remote web pages.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "github",
+      name: "GitHub",
+      description: "Read PRs, issues, reviews, and check status when approved.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "notion",
+      name: "Notion",
+      description: "Capture decisions and read team knowledge when connected.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "lark",
+      name: "Lark",
+      description: "Use Lark messages, docs, calendar, tasks, and approvals.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "file_tools",
+      name: "File Tools",
+      description: "Read and prepare local workspace files inside project boundaries.",
+      enabled: true,
+      installed: true,
+      installOnDemand: false,
+      requiresApproval: false,
+      canUseNetwork: false,
+    },
+  ],
   memorySettings: {
     shortTermEnabled: true,
     longTermEnabled: true,
@@ -276,7 +357,8 @@ function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
     modelId: config.modelId,
     reasoningEffort: config.reasoningEffort,
     systemPrompt: config.systemPrompt,
-    skillSettings: config.skillSettings.map((skill) => ({ ...skill })),
+    businessSkillSettings: config.businessSkillSettings.map((skill) => ({ ...skill })),
+    generalSkillSettings: config.generalSkillSettings.map((skill) => ({ ...skill })),
     memorySettings: { ...config.memorySettings },
     safetySettings: { ...config.safetySettings },
   };
@@ -347,11 +429,27 @@ export function AgentFirstInterface() {
     setConfigStatus("Unsaved local draft");
   }
 
-  function updateSkill(moduleId: ModuleId, patch: Partial<AgentSkillSetting>): void {
+  function updateBusinessSkill(
+    moduleId: ModuleId,
+    patch: Partial<BusinessSkillSetting>,
+  ): void {
     setAgentConfig((current) => ({
       ...current,
-      skillSettings: current.skillSettings.map((skill) =>
+      businessSkillSettings: current.businessSkillSettings.map((skill) =>
         skill.moduleId === moduleId ? { ...skill, ...patch } : skill,
+      ),
+    }));
+    setConfigStatus("Unsaved local draft");
+  }
+
+  function updateGeneralSkill(
+    skillId: GeneralSkillId,
+    patch: Partial<GeneralSkillSetting>,
+  ): void {
+    setAgentConfig((current) => ({
+      ...current,
+      generalSkillSettings: current.generalSkillSettings.map((skill) =>
+        skill.skillId === skillId ? { ...skill, ...patch } : skill,
       ),
     }));
     setConfigStatus("Unsaved local draft");
@@ -502,7 +600,8 @@ export function AgentFirstInterface() {
               statusText={configStatus}
               isBusy={isConfigBusy}
               onUpdateConfig={updateConfig}
-              onUpdateSkill={updateSkill}
+              onUpdateBusinessSkill={updateBusinessSkill}
+              onUpdateGeneralSkill={updateGeneralSkill}
               onUpdateMemory={updateMemorySettings}
               onUpdateSafety={updateSafetySettings}
               onSave={saveAgentConfig}
@@ -821,7 +920,8 @@ function ConfigureView({
   statusText,
   isBusy,
   onUpdateConfig,
-  onUpdateSkill,
+  onUpdateBusinessSkill,
+  onUpdateGeneralSkill,
   onUpdateMemory,
   onUpdateSafety,
   onSave,
@@ -832,13 +932,25 @@ function ConfigureView({
   statusText: string;
   isBusy: boolean;
   onUpdateConfig: (patch: Partial<AgentConfigDraft>) => void;
-  onUpdateSkill: (moduleId: ModuleId, patch: Partial<AgentSkillSetting>) => void;
+  onUpdateBusinessSkill: (
+    moduleId: ModuleId,
+    patch: Partial<BusinessSkillSetting>,
+  ) => void;
+  onUpdateGeneralSkill: (
+    skillId: GeneralSkillId,
+    patch: Partial<GeneralSkillSetting>,
+  ) => void;
   onUpdateMemory: (patch: Partial<AgentMemorySettings>) => void;
   onUpdateSafety: (patch: Partial<AgentSafetySettings>) => void;
   onSave: () => void;
   onTestConnection: () => void;
 }) {
-  const enabledSkills = config.skillSettings.filter((skill) => skill.enabled).length;
+  const enabledBusinessSkills = config.businessSkillSettings.filter(
+    (skill) => skill.enabled,
+  ).length;
+  const enabledGeneralSkills = config.generalSkillSettings.filter(
+    (skill) => skill.enabled || skill.installOnDemand,
+  ).length;
   const memoryMode =
     config.memorySettings.shortTermEnabled && config.memorySettings.longTermEnabled
       ? "short + long"
@@ -946,12 +1058,12 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Layers3 size={16} />
-              Skills
+              Business Skills
             </span>
-            <em>{enabledSkills} enabled</em>
+            <em>{enabledBusinessSkills} enabled</em>
           </div>
           <div className="skill-settings-grid">
-            {config.skillSettings.map((skill) => {
+            {config.businessSkillSettings.map((skill) => {
               const module = moduleById(skill.moduleId);
               return (
                 <div key={skill.moduleId} className="skill-setting-row">
@@ -965,7 +1077,7 @@ function ConfigureView({
                       type="checkbox"
                       checked={skill.enabled}
                       onChange={(event) =>
-                        onUpdateSkill(skill.moduleId, { enabled: event.target.checked })
+                        onUpdateBusinessSkill(skill.moduleId, { enabled: event.target.checked })
                       }
                     />
                     Enabled
@@ -975,7 +1087,7 @@ function ConfigureView({
                       type="checkbox"
                       checked={skill.approvalRequired}
                       onChange={(event) =>
-                        onUpdateSkill(skill.moduleId, { approvalRequired: event.target.checked })
+                        onUpdateBusinessSkill(skill.moduleId, { approvalRequired: event.target.checked })
                       }
                     />
                     Approval
@@ -985,7 +1097,7 @@ function ConfigureView({
                       type="checkbox"
                       checked={skill.canUseNetwork}
                       onChange={(event) =>
-                        onUpdateSkill(skill.moduleId, { canUseNetwork: event.target.checked })
+                        onUpdateBusinessSkill(skill.moduleId, { canUseNetwork: event.target.checked })
                       }
                     />
                     Network
@@ -995,7 +1107,7 @@ function ConfigureView({
                       type="checkbox"
                       checked={skill.canWriteDatabase}
                       onChange={(event) =>
-                        onUpdateSkill(skill.moduleId, { canWriteDatabase: event.target.checked })
+                        onUpdateBusinessSkill(skill.moduleId, { canWriteDatabase: event.target.checked })
                       }
                     />
                     DB write
@@ -1003,6 +1115,75 @@ function ConfigureView({
                 </div>
               );
             })}
+          </div>
+        </article>
+
+        <article className="config-card config-card-wide">
+          <div className="config-card-heading">
+            <span>
+              <WandSparkles size={16} />
+              General Skills
+            </span>
+            <em>{enabledGeneralSkills} allowed</em>
+          </div>
+          <div className="skill-settings-grid">
+            {config.generalSkillSettings.map((skill) => (
+              <div key={skill.skillId} className="general-skill-row">
+                <span>
+                  <strong>{skill.name}</strong>
+                  <em>{skill.description}</em>
+                </span>
+                <b className={skill.installed ? "skill-state installed" : "skill-state"}>
+                  {skill.installed ? "Installed" : "Available"}
+                </b>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={skill.enabled}
+                    onChange={(event) =>
+                      onUpdateGeneralSkill(skill.skillId, { enabled: event.target.checked })
+                    }
+                  />
+                  Enabled
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={skill.installOnDemand}
+                    onChange={(event) =>
+                      onUpdateGeneralSkill(skill.skillId, {
+                        installOnDemand: event.target.checked,
+                      })
+                    }
+                  />
+                  On demand
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={skill.requiresApproval}
+                    onChange={(event) =>
+                      onUpdateGeneralSkill(skill.skillId, {
+                        requiresApproval: event.target.checked,
+                      })
+                    }
+                  />
+                  Approval
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={skill.canUseNetwork}
+                    onChange={(event) =>
+                      onUpdateGeneralSkill(skill.skillId, {
+                        canUseNetwork: event.target.checked,
+                      })
+                    }
+                  />
+                  Network
+                </label>
+              </div>
+            ))}
           </div>
         </article>
 
@@ -1130,7 +1311,7 @@ function ConfigureView({
             </span>
             <span>
               <strong>Skills</strong>
-              <em>{enabledSkills} modules can be called</em>
+              <em>{enabledBusinessSkills} business / {enabledGeneralSkills} general</em>
             </span>
             <span>
               <strong>Memory</strong>
@@ -2163,33 +2344,72 @@ const styles = `
     padding: 10px;
   }
 
+  .general-skill-row {
+    min-height: 66px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #121a25;
+    display: grid;
+    grid-template-columns: minmax(210px, 1fr) 92px repeat(4, minmax(86px, auto));
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+  }
+
   .skill-setting-row i {
     width: 8px;
     height: 8px;
     border-radius: 50%;
   }
 
-  .skill-setting-row span {
+  .skill-setting-row span,
+  .general-skill-row span {
     display: grid;
     gap: 4px;
     min-width: 0;
   }
 
   .skill-setting-row strong,
-  .skill-setting-row em {
+  .skill-setting-row em,
+  .general-skill-row strong,
+  .general-skill-row em {
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .skill-setting-row strong {
+  .skill-setting-row strong,
+  .general-skill-row strong {
     font-size: 13px;
   }
 
-  .skill-setting-row em {
+  .skill-setting-row em,
+  .general-skill-row em {
     color: #8290a3;
     font-size: 11px;
     font-style: normal;
     white-space: nowrap;
+  }
+
+  .skill-state {
+    width: fit-content;
+    min-width: 78px;
+    height: 26px;
+    border: 1px solid #f2c94c55;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 9px;
+    color: #f2c94c;
+    background: #211d0d;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .skill-state.installed {
+    color: #35d07f;
+    border-color: #35d07f66;
+    background: #0e2419;
   }
 
   .toggle-row {
@@ -2401,6 +2621,10 @@ const styles = `
     .skill-setting-row {
       grid-template-columns: 10px minmax(0, 1fr) repeat(2, minmax(90px, auto));
     }
+
+    .general-skill-row {
+      grid-template-columns: minmax(0, 1fr) 92px repeat(2, minmax(90px, auto));
+    }
   }
 
   @media (max-width: 760px) {
@@ -2491,12 +2715,18 @@ const styles = `
       gap: 5px;
     }
 
-    .skill-setting-row {
+    .skill-setting-row,
+    .general-skill-row {
       grid-template-columns: 10px minmax(0, 1fr);
       align-items: start;
     }
 
-    .skill-setting-row em {
+    .general-skill-row {
+      grid-template-columns: 1fr;
+    }
+
+    .skill-setting-row em,
+    .general-skill-row em {
       white-space: normal;
     }
 

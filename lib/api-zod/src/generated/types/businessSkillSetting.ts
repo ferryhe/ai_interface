@@ -7,7 +7,7 @@
  */
 import type { ModuleId } from "./moduleId";
 
-export interface AgentSkillSetting {
+export interface BusinessSkillSetting {
   moduleId: ModuleId;
   enabled: boolean;
   approvalRequired: boolean;

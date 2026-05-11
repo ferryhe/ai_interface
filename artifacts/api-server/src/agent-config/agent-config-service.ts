@@ -7,13 +7,31 @@ export type AgentEndpoint = "responses" | "agents_sdk";
 export type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type MemoryPromotionMode = "manual" | "agent_suggested";
 export type ConnectionStatus = "configured" | "missing_key";
+export type GeneralSkillId =
+  | "web_search"
+  | "browser"
+  | "github"
+  | "notion"
+  | "lark"
+  | "file_tools";
 
-export interface AgentSkillSetting {
+export interface BusinessSkillSetting {
   moduleId: ModuleId;
   enabled: boolean;
   approvalRequired: boolean;
   canUseNetwork: boolean;
   canWriteDatabase: boolean;
+}
+
+export interface GeneralSkillSetting {
+  skillId: GeneralSkillId;
+  name: string;
+  description: string;
+  enabled: boolean;
+  installed: boolean;
+  installOnDemand: boolean;
+  requiresApproval: boolean;
+  canUseNetwork: boolean;
 }
 
 export interface AgentMemorySettings {
@@ -39,7 +57,8 @@ export interface AgentConfigRecord {
   modelId: string;
   reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
-  skillSettings: AgentSkillSetting[];
+  businessSkillSettings: BusinessSkillSetting[];
+  generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
   createdAt: Date;
@@ -52,7 +71,8 @@ export interface UpdateAgentConfigInput {
   modelId?: string;
   reasoningEffort?: AgentReasoningEffort;
   systemPrompt?: string;
-  skillSettings?: AgentSkillSetting[];
+  businessSkillSettings?: BusinessSkillSetting[];
+  generalSkillSettings?: GeneralSkillSetting[];
   memorySettings?: AgentMemorySettings;
   safetySettings?: AgentSafetySettings;
 }
@@ -64,7 +84,8 @@ interface UpsertAgentConfigInput {
   modelId: string;
   reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
-  skillSettings: AgentSkillSetting[];
+  businessSkillSettings: BusinessSkillSetting[];
+  generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
 }
@@ -76,7 +97,7 @@ export interface AgentConfigRepository {
 
 export const defaultAgentConfigKey = "default";
 
-export function createDefaultSkillSettings(): AgentSkillSetting[] {
+export function createDefaultBusinessSkillSettings(): BusinessSkillSetting[] {
   return moduleRegistry.map((moduleDefinition) => ({
     moduleId: moduleDefinition.moduleId,
     enabled: true,
@@ -84,6 +105,71 @@ export function createDefaultSkillSettings(): AgentSkillSetting[] {
     canUseNetwork: moduleDefinition.moduleId === "web_listening",
     canWriteDatabase: true,
   }));
+}
+
+export function createDefaultGeneralSkillSettings(): GeneralSkillSetting[] {
+  return [
+    {
+      skillId: "web_search",
+      name: "Web Search",
+      description: "Search current web sources when the Agent needs fresh external context.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "browser",
+      name: "Browser",
+      description: "Open and inspect local or web pages during an Agent conversation.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "github",
+      name: "GitHub",
+      description: "Inspect repositories, issues, pull requests, reviews, and CI status.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "notion",
+      name: "Notion",
+      description: "Capture decisions, prepare documentation, and read workspace knowledge.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "lark",
+      name: "Lark",
+      description: "Work with Lark messages, docs, tasks, calendars, and approvals.",
+      enabled: false,
+      installed: false,
+      installOnDemand: true,
+      requiresApproval: true,
+      canUseNetwork: true,
+    },
+    {
+      skillId: "file_tools",
+      name: "File Tools",
+      description: "Read and prepare local project files inside the approved workspace.",
+      enabled: true,
+      installed: true,
+      installOnDemand: false,
+      requiresApproval: false,
+      canUseNetwork: false,
+    },
+  ];
 }
 
 export function createDefaultAgentConfig(): UpsertAgentConfigInput {
@@ -95,7 +181,8 @@ export function createDefaultAgentConfig(): UpsertAgentConfigInput {
     reasoningEffort: "medium",
     systemPrompt:
       "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
-    skillSettings: createDefaultSkillSettings(),
+    businessSkillSettings: createDefaultBusinessSkillSettings(),
+    generalSkillSettings: createDefaultGeneralSkillSettings(),
     memorySettings: {
       shortTermEnabled: true,
       longTermEnabled: true,
@@ -169,7 +256,9 @@ export async function updateAgentConfig(
     modelId: input.modelId ?? current.modelId,
     reasoningEffort: input.reasoningEffort ?? current.reasoningEffort,
     systemPrompt: input.systemPrompt ?? current.systemPrompt,
-    skillSettings: input.skillSettings ?? current.skillSettings,
+    businessSkillSettings:
+      input.businessSkillSettings ?? current.businessSkillSettings,
+    generalSkillSettings: input.generalSkillSettings ?? current.generalSkillSettings,
     memorySettings: input.memorySettings ?? current.memorySettings,
     safetySettings: input.safetySettings ?? current.safetySettings,
   });

@@ -96,12 +96,35 @@ export const MemoryPromotionMode = {
   agent_suggested: "agent_suggested",
 } as const;
 
-export interface AgentSkillSetting {
+export type GeneralSkillId =
+  (typeof GeneralSkillId)[keyof typeof GeneralSkillId];
+
+export const GeneralSkillId = {
+  web_search: "web_search",
+  browser: "browser",
+  github: "github",
+  notion: "notion",
+  lark: "lark",
+  file_tools: "file_tools",
+} as const;
+
+export interface BusinessSkillSetting {
   moduleId: ModuleId;
   enabled: boolean;
   approvalRequired: boolean;
   canUseNetwork: boolean;
   canWriteDatabase: boolean;
+}
+
+export interface GeneralSkillSetting {
+  skillId: GeneralSkillId;
+  name: string;
+  description: string;
+  enabled: boolean;
+  installed: boolean;
+  installOnDemand: boolean;
+  requiresApproval: boolean;
+  canUseNetwork: boolean;
 }
 
 export interface AgentMemorySettings {
@@ -129,7 +152,8 @@ export interface AgentConfig {
   modelId: string;
   reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
-  skillSettings: AgentSkillSetting[];
+  businessSkillSettings: BusinessSkillSetting[];
+  generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
   createdAt: string;
@@ -151,7 +175,8 @@ export interface UpdateAgentConfigRequest {
   modelId?: string;
   reasoningEffort?: AgentReasoningEffort;
   systemPrompt?: string;
-  skillSettings?: AgentSkillSetting[];
+  businessSkillSettings?: BusinessSkillSetting[];
+  generalSkillSettings?: GeneralSkillSetting[];
   memorySettings?: AgentMemorySettings;
   safetySettings?: AgentSafetySettings;
 }

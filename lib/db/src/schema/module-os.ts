@@ -249,7 +249,7 @@ export const agentConfigsTable = pgTable("agent_configs", {
     .notNull()
     .default("medium"),
   systemPrompt: text("system_prompt").notNull(),
-  skillSettings: jsonb("skill_settings")
+  businessSkillSettings: jsonb("business_skill_settings")
     .$type<
       Array<{
         moduleId: string;
@@ -257,6 +257,20 @@ export const agentConfigsTable = pgTable("agent_configs", {
         approvalRequired: boolean;
         canUseNetwork: boolean;
         canWriteDatabase: boolean;
+      }>
+    >()
+    .notNull(),
+  generalSkillSettings: jsonb("general_skill_settings")
+    .$type<
+      Array<{
+        skillId: string;
+        name: string;
+        description: string;
+        enabled: boolean;
+        installed: boolean;
+        installOnDemand: boolean;
+        requiresApproval: boolean;
+        canUseNetwork: boolean;
       }>
     >()
     .notNull(),

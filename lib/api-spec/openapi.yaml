@@ -327,7 +327,16 @@ components:
       enum:
         - manual
         - agent_suggested
-    AgentSkillSetting:
+    GeneralSkillId:
+      type: string
+      enum:
+        - web_search
+        - browser
+        - github
+        - notion
+        - lark
+        - file_tools
+    BusinessSkillSetting:
       type: object
       properties:
         moduleId:
@@ -346,6 +355,34 @@ components:
         - approvalRequired
         - canUseNetwork
         - canWriteDatabase
+    GeneralSkillSetting:
+      type: object
+      properties:
+        skillId:
+          $ref: "#/components/schemas/GeneralSkillId"
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        installed:
+          type: boolean
+        installOnDemand:
+          type: boolean
+        requiresApproval:
+          type: boolean
+        canUseNetwork:
+          type: boolean
+      required:
+        - skillId
+        - name
+        - description
+        - enabled
+        - installed
+        - installOnDemand
+        - requiresApproval
+        - canUseNetwork
     AgentMemorySettings:
       type: object
       properties:
@@ -401,10 +438,14 @@ components:
           $ref: "#/components/schemas/AgentReasoningEffort"
         systemPrompt:
           type: string
-        skillSettings:
+        businessSkillSettings:
           type: array
           items:
-            $ref: "#/components/schemas/AgentSkillSetting"
+            $ref: "#/components/schemas/BusinessSkillSetting"
+        generalSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneralSkillSetting"
         memorySettings:
           $ref: "#/components/schemas/AgentMemorySettings"
         safetySettings:
@@ -423,7 +464,8 @@ components:
         - modelId
         - reasoningEffort
         - systemPrompt
-        - skillSettings
+        - businessSkillSettings
+        - generalSkillSettings
         - memorySettings
         - safetySettings
         - createdAt
@@ -458,10 +500,14 @@ components:
           $ref: "#/components/schemas/AgentReasoningEffort"
         systemPrompt:
           type: string
-        skillSettings:
+        businessSkillSettings:
           type: array
           items:
-            $ref: "#/components/schemas/AgentSkillSetting"
+            $ref: "#/components/schemas/BusinessSkillSetting"
+        generalSkillSettings:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneralSkillSetting"
         memorySettings:
           $ref: "#/components/schemas/AgentMemorySettings"
         safetySettings:

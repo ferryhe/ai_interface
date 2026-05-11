@@ -1,6 +1,6 @@
 # ai_interface Project Status
 
-Updated: 2026-05-10
+Updated: 2026-05-11
 
 ## Active Work
 
@@ -28,6 +28,7 @@ Updated: 2026-05-10
 - Added a DB-backed Agent configuration model with default OpenAI Responses runtime settings, module skill controls, memory settings, and safety settings.
 - Added `/api/agent-config` GET/PUT and `/api/agent-config/test-connection`; the connection endpoint only reports whether `OPENAI_API_KEY` is present.
 - Added a Configure view to the Agent Module OS UI with Provider, Model, Skills, Memory, Safety, and Runtime Preview sections; it falls back to local draft state when `/api` is offline.
+- Split Configure skills into business module skills and lightweight general skills. Business skills remain the fixed module chain; general skills track installed/available status, on-demand install allowance, approval, and network flags.
 
 ## Verification
 
@@ -54,6 +55,13 @@ Updated: 2026-05-10
 - Configure validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Configure validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - Configure browser smoke opened `http://127.0.0.1:8081/`, clicked Configure, verified Provider/Model/Skills/Memory/Safety/Runtime Preview sections, and found no console warnings/errors.
+- Skill split validation: `corepack pnpm --filter @workspace/api-server run test` passed with 9 tests after first observing the expected failing tests for missing business/general skill fields.
+- Skill split validation: `corepack pnpm run typecheck:libs` passed.
+- Skill split validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Skill split validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Skill split validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Skill split validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Skill split browser smoke opened `http://127.0.0.1:8081/`, verified Business Skills and General Skills sections plus Web Search/File Tools rows, and found no console warnings/errors.
 
 ## Notes
 

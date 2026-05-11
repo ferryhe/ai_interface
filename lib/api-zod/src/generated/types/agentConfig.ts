@@ -10,7 +10,8 @@ import type { AgentMemorySettings } from "./agentMemorySettings";
 import type { AgentProvider } from "./agentProvider";
 import type { AgentReasoningEffort } from "./agentReasoningEffort";
 import type { AgentSafetySettings } from "./agentSafetySettings";
-import type { AgentSkillSetting } from "./agentSkillSetting";
+import type { BusinessSkillSetting } from "./businessSkillSetting";
+import type { GeneralSkillSetting } from "./generalSkillSetting";
 
 export interface AgentConfig {
   id: string;
@@ -20,7 +21,8 @@ export interface AgentConfig {
   modelId: string;
   reasoningEffort: AgentReasoningEffort;
   systemPrompt: string;
-  skillSettings: AgentSkillSetting[];
+  businessSkillSettings: BusinessSkillSetting[];
+  generalSkillSettings: GeneralSkillSetting[];
   memorySettings: AgentMemorySettings;
   safetySettings: AgentSafetySettings;
   createdAt: Date;

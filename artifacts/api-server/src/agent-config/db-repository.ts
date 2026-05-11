@@ -5,11 +5,12 @@ import {
   type AgentConfigRecord,
   type AgentConfigRepository,
   type AgentEndpoint,
+  type BusinessSkillSetting,
+  type GeneralSkillSetting,
   type AgentMemorySettings,
   type AgentProvider,
   type AgentReasoningEffort,
   type AgentSafetySettings,
-  type AgentSkillSetting,
 } from "./agent-config-service";
 
 type AgentConfigRow = typeof agentConfigsTable.$inferSelect;
@@ -31,7 +32,8 @@ function mapAgentConfig(row: AgentConfigRow): AgentConfigRecord {
     modelId: row.modelId,
     reasoningEffort: row.reasoningEffort as AgentReasoningEffort,
     systemPrompt: row.systemPrompt,
-    skillSettings: row.skillSettings as AgentSkillSetting[],
+    businessSkillSettings: row.businessSkillSettings as BusinessSkillSetting[],
+    generalSkillSettings: row.generalSkillSettings as GeneralSkillSetting[],
     memorySettings: row.memorySettings as AgentMemorySettings,
     safetySettings: row.safetySettings as AgentSafetySettings,
     createdAt: row.createdAt,
@@ -57,7 +59,8 @@ export class DbAgentConfigRepository implements AgentConfigRepository {
     modelId: string;
     reasoningEffort: AgentReasoningEffort;
     systemPrompt: string;
-    skillSettings: AgentSkillSetting[];
+    businessSkillSettings: BusinessSkillSetting[];
+    generalSkillSettings: GeneralSkillSetting[];
     memorySettings: AgentMemorySettings;
     safetySettings: AgentSafetySettings;
   }): Promise<AgentConfigRecord> {
@@ -72,7 +75,8 @@ export class DbAgentConfigRepository implements AgentConfigRepository {
           modelId: input.modelId,
           reasoningEffort: input.reasoningEffort,
           systemPrompt: input.systemPrompt,
-          skillSettings: input.skillSettings,
+          businessSkillSettings: input.businessSkillSettings,
+          generalSkillSettings: input.generalSkillSettings,
           memorySettings: input.memorySettings,
           safetySettings: input.safetySettings,
           updatedAt: new Date(),

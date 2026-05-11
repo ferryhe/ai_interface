@@ -283,7 +283,7 @@ export const GetAgentConfigResponse = zod.object({
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
     systemPrompt: zod.string(),
-    skillSettings: zod.array(
+    businessSkillSettings: zod.array(
       zod.object({
         moduleId: zod.enum([
           "web_listening",
@@ -295,6 +295,25 @@ export const GetAgentConfigResponse = zod.object({
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
         canWriteDatabase: zod.boolean(),
+      }),
+    ),
+    generalSkillSettings: zod.array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
       }),
     ),
     memorySettings: zod.object({
@@ -330,7 +349,7 @@ export const UpdateAgentConfigBody = zod.object({
     .enum(["none", "low", "medium", "high", "xhigh"])
     .optional(),
   systemPrompt: zod.string().optional(),
-  skillSettings: zod
+  businessSkillSettings: zod
     .array(
       zod.object({
         moduleId: zod.enum([
@@ -343,6 +362,27 @@ export const UpdateAgentConfigBody = zod.object({
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
         canWriteDatabase: zod.boolean(),
+      }),
+    )
+    .optional(),
+  generalSkillSettings: zod
+    .array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
       }),
     )
     .optional(),
@@ -374,7 +414,7 @@ export const UpdateAgentConfigResponse = zod.object({
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
     systemPrompt: zod.string(),
-    skillSettings: zod.array(
+    businessSkillSettings: zod.array(
       zod.object({
         moduleId: zod.enum([
           "web_listening",
@@ -386,6 +426,25 @@ export const UpdateAgentConfigResponse = zod.object({
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
         canWriteDatabase: zod.boolean(),
+      }),
+    ),
+    generalSkillSettings: zod.array(
+      zod.object({
+        skillId: zod.enum([
+          "web_search",
+          "browser",
+          "github",
+          "notion",
+          "lark",
+          "file_tools",
+        ]),
+        name: zod.string(),
+        description: zod.string(),
+        enabled: zod.boolean(),
+        installed: zod.boolean(),
+        installOnDemand: zod.boolean(),
+        requiresApproval: zod.boolean(),
+        canUseNetwork: zod.boolean(),
       }),
     ),
     memorySettings: zod.object({
