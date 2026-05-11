@@ -449,7 +449,7 @@ export async function createAgentRun(
     ? await repository.findThreadById(input.threadId)
     : await repository.createThread({
         title,
-        metadata: { source: "agent-runtime", ...(input.metadata ?? {}) },
+        metadata: { ...(input.metadata ?? {}), source: "agent-runtime" },
       });
 
   if (!thread) {
@@ -506,12 +506,19 @@ export async function createAgentRun(
     plan.warnings.push(...fallback.warnings);
   }
 
+  const effectivePlan: AgentRuntimePlan = {
+    ...plan,
+    steps: plan.steps.map((step) => ({
+      ...step,
+      requiresApproval:
+        step.requiresApproval ||
+        getBusinessSkillSetting(config.businessSkillSettings, step.moduleId)
+          ?.approvalRequired === true,
+    })),
+  };
+
   const moduleRuns: ModuleRunRecord[] = [];
-  for (const [index, step] of plan.steps.entries()) {
-    const skillSetting = getBusinessSkillSetting(
-      config.businessSkillSettings,
-      step.moduleId,
-    );
+  for (const [index, step] of effectivePlan.steps.entries()) {
     const definition = getBusinessSkillDefinition(step.moduleId);
     const { run } = await createModuleRun(repository, {
       moduleId: step.moduleId,
@@ -522,7 +529,7 @@ export async function createAgentRun(
       inputJson: step.input,
       metadata: {
         action: step.action,
-        requiresApproval: step.requiresApproval || skillSetting?.approvalRequired === true,
+        requiresApproval: step.requiresApproval,
         adapterMode: definition.adapterMode,
         canonicalEntrypoints: definition.canonicalEntrypoints,
         outputContracts: definition.outputContracts,
@@ -545,7 +552,7 @@ export async function createAgentRun(
   const status: AgentRuntimeStatus =
     connection.status === "missing_key"
       ? "missing_key"
-      : plan.steps.some((step) => step.requiresApproval)
+      : effectivePlan.steps.some((step) => step.requiresApproval)
         ? "needs_approval"
         : "planned";
 
@@ -579,7 +586,7 @@ export async function createAgentRun(
     agentMessage,
     pipelineRun,
     moduleRuns,
-    plan,
+    plan: effectivePlan,
   };
 }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createDefaultBusinessSkillSettings,
   InMemoryAgentConfigRepository,
   updateAgentConfig,
 } from "../agent-config/agent-config-service";
@@ -151,6 +152,69 @@ test("uses an injected planner when OpenAI is configured", async () => {
     sourceArtifactIds: ["artifact-source-1"],
     engine: "opendataloader",
   });
+});
+
+test("applies configured approval overrides consistently", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  await updateAgentConfig(configRepository, {
+    businessSkillSettings: createDefaultBusinessSkillSettings().map((setting) => ({
+      ...setting,
+      approvalRequired: setting.moduleId === "doc_to_md",
+    })),
+  });
+
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Convert source docs.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: false,
+          },
+        ],
+      };
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert this document.",
+    },
+    { env: { OPENAI_API_KEY: "sk-test-secret" }, planner },
+  );
+
+  assert.equal(result.status, "needs_approval");
+  assert.equal(result.plan.steps[0]?.requiresApproval, true);
+  assert.equal(result.moduleRuns[0]?.metadata?.["requiresApproval"], true);
+  assert.equal(runtimeRepository.runEvents[0]?.payload?.["requiresApproval"], true);
+});
+
+test("keeps internal thread metadata source authoritative", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Run with caller metadata.",
+      metadata: { source: "external-client", correlationId: "request-1" },
+    },
+    { env: {} },
+  );
+
+  assert.equal(result.thread.metadata?.["source"], "agent-runtime");
+  assert.equal(result.thread.metadata?.["correlationId"], "request-1");
+  assert.equal(result.userMessage.metadata?.["source"], "external-client");
 });
 
 test("rejects unknown thread ids", async () => {

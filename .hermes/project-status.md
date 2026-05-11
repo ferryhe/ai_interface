@@ -45,6 +45,7 @@ Updated: 2026-05-11
 - Added a deterministic missing-key planner for local/test mode and an OpenAI Responses planner seam for configured `OPENAI_API_KEY`.
 - Added a business skill registry with external adapter metadata for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
 - Opened PR #7 for `codex/agent-runtime-skill-orchestrator`: https://github.com/ferryhe/ai_interface/pull/7
+- PR #7 Copilot review returned three actionable comments; all were addressed by making approval overrides consistent across plan/module event/status data and preserving internal thread metadata `source`.
 
 ## Verification
 
@@ -118,6 +119,10 @@ Updated: 2026-05-11
 - Agent runtime validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
 - Agent runtime validation: `git diff --check` passed with CRLF warnings only.
 - Agent runtime codegen: `corepack pnpm --filter @workspace/api-spec run codegen` generated OpenAPI clients/Zod outputs, then failed only because the script invokes bare `pnpm`; equivalent `corepack pnpm run typecheck:libs` passed.
+- PR #7 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run test` passed with 16 tests.
+- PR #7 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #7 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
+- PR #7 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
