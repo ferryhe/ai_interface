@@ -32,6 +32,7 @@ Updated: 2026-05-11
 - Added detailed Configure explanations: a capability map, section-level explainers, and per-skill purpose/trigger/action/result/boundary guidance so users can understand what each feature does.
 - Reworked Configure skill explanations into compact per-row `?` help controls and added switch guides for business/general skill toggles.
 - PR #5 follow-up found two actionable Copilot comments and applied narrow fixes: `GET /api/agent-config` now returns a 500 `ErrorResponse` on unexpected failures, and Configure form controls now have programmatic label associations.
+- After the PR #5 follow-up push, GitHub still showed PR #5 as open with no checks reported; mergeability was temporarily `UNKNOWN` while GitHub recalculated. The API error-handling thread was marked outdated, and the Configure label thread remained unresolved remotely but was addressed and locally verified.
 
 ## Verification
 
