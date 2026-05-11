@@ -1315,6 +1315,7 @@ export function AgentPortalInterface() {
     setSelectedDataRecordId(null);
     setSelectedSourceId(null);
     setSelectedResultItemId(null);
+    portalDetailCacheGenerationRef.current += 1;
     setPortalDetailStates({});
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});

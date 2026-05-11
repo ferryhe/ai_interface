@@ -393,6 +393,10 @@ Updated: 2026-05-11
 - Portal refresh cache invalidation validation: `git diff --check` passed with CRLF warnings only.
 - Portal refresh cache invalidation HTTP smoke: local preview returned HTTP 200 for `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`.
 - Portal refresh cache invalidation browser smoke blocker: the Browser plugin could not acquire an active Codex browser pane (`No active Codex browser pane available`), so DOM/console smoke could not run in this heartbeat.
+- PR #28 Copilot follow-up returned one actionable comment; fixed by incrementing the detail-cache generation when a new Portal prompt clears detail/artifact caches, so stale in-flight detail requests cannot cross a new-run submit boundary.
+- PR #28 follow-up validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- PR #28 follow-up validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- PR #28 follow-up validation: `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 
