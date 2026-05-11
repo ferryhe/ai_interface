@@ -237,6 +237,7 @@ Updated: 2026-05-11
 - API-backed Portal feedback calls `POST /api/module-runs/{runId}/feedback`, API-backed resumable runs call `POST /api/module-runs/{runId}/resume`, and both responses are guarded before updating UI state.
 - Portal interaction controls now prevent duplicate action submits across the Steps card and context rail, expose selected options with `aria-pressed`, and use unique labeled feedback inputs per panel.
 - The Portal chat composer now has a programmatic label for the prompt textarea.
+- Opened PR #17 for `codex/portal-runtime-feedback-actions`: https://github.com/ferryhe/ai_interface/pull/17
 
 ## Notes
 
@@ -247,4 +248,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Commit, push, and open the Portal runtime feedback actions PR; then update the follow-up automation to check the new PR.
+- Follow up PR #17 checks and review comments; if clean and mergeable, merge it and continue the autonomous chain with the next narrow runtime slice.
