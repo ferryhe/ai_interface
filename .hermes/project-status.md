@@ -4,8 +4,8 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/portal-runtime-access-guard`
-- Scope: Portal-origin runtime writes now require a verified Publish Portal token while admin/mockup runtime calls remain available.
+- Branch: `codex/portal-runtime-auth-failure-ux`
+- Scope: Portal runtime `401`/`403` responses now return users to the token gate instead of falling back to local demo behavior.
 - Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
@@ -356,7 +356,20 @@ Updated: 2026-05-11
 - Portal runtime read access guard controller validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Portal runtime read access guard controller validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Portal runtime read access guard controller validation: `git diff --check` passed with CRLF warnings only.
+- PR #25 was merged into `main` on 2026-05-11; this branch starts the Portal runtime auth failure UX slice from latest `main`.
+- Portal runtime API `401`/`403` responses now lock the Portal and ask the user to re-enter a token instead of falling through to local demo status.
+- Offline/network runtime failures still preserve the existing local demo behavior.
+- Portal runtime auth failure UX validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime auth failure UX validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal runtime auth failure UX validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime auth failure UX spec reviewer: passed, with no missing plan requirements.
+- Portal runtime auth failure UX code quality reviewer: approved, with no blocking issues.
+- Portal runtime auth failure UX controller validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Portal runtime auth failure UX controller validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentPortalInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Portal runtime auth failure UX controller validation: `git diff --check` passed with CRLF warnings only.
+- Portal runtime auth failure UX browser smoke opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface?token=portal-demo-token`, verified local demo unlock plus Chat/Steps/Data/Sources/Result navigation, opened `http://127.0.0.1:8081/preview/ai-os/AgentPortalInterface`, verified the token lock screen, and found no console warnings/errors.
+- Portal runtime auth failure UX browser note: screenshot capture timed out in the current in-app browser connection, so rendered validation used DOM navigation and console checks.
 
 ## Next Action
 
-- Push/open the Portal runtime read access guard PR, then perform the scheduled follow-up for checks and remote review comments.
+- Push/open the Portal runtime auth failure UX PR, then perform the scheduled follow-up for checks and remote review comments.
