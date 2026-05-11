@@ -57,7 +57,7 @@ Updated: 2026-05-11
 - Added redacted adapter readiness so the UI can show whether each external tool is configured without exposing environment variable values.
 - Agent-created module runs now include adapter metadata needed by later executor/resume PRs.
 - Added `GET /api/tool-adapters` and regenerated API Zod/React clients.
-- PR #9 is currently in local controller review gates on `codex/adapter-metadata-config-contract`; it has not been pushed or opened yet.
+- Opened PR #9 for `codex/adapter-metadata-config-contract`: https://github.com/ferryhe/ai_interface/pull/9
 
 ## Verification
 
@@ -159,4 +159,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- After PR #9 local review gates pass, commit/push/open the adapter metadata contract PR, schedule the 15-minute follow-up, then continue the autonomous runtime/UI/memory/executor chain.
+- Watch PR #9 checks and review/Copilot comments; perform the scheduled follow-up pass, apply only confirmed-safe fixes, merge when clean, then continue the autonomous runtime/UI/memory/executor chain.
