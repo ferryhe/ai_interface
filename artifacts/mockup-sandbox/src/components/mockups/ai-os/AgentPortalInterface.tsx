@@ -528,6 +528,24 @@ function portalRunStateLabel(state: PortalRunSubmitState): string {
   return "Local demo";
 }
 
+function portalAutoRefreshLabel({
+  isAvailable,
+  isEnabled,
+  isActive,
+  isPaused,
+}: {
+  isAvailable: boolean;
+  isEnabled: boolean;
+  isActive: boolean;
+  isPaused: boolean;
+}): string {
+  if (!isAvailable) return "Auto idle";
+  if (!isEnabled) return "Auto off";
+  if (isActive) return "Auto active";
+  if (isPaused) return "Auto paused";
+  return "Auto on";
+}
+
 function portalAccessStateLabel(state: PortalAccessState): string {
   if (state === "checking") return "Checking";
   if (state === "authorized") return "API authorized";
@@ -1112,6 +1130,20 @@ export function AgentPortalInterface() {
     Boolean(latestPortalRun) &&
     isPortalRunInProgress &&
     portalRunState === "saved";
+  const isPortalAutoRefreshAvailable =
+    Boolean(latestPortalRun) && isPortalRunInProgress;
+  const isPortalAutoRefreshActive =
+    isPortalAutoRefreshEnabled && canAutoRefreshPortalRun;
+  const isPortalAutoRefreshPaused =
+    isPortalAutoRefreshEnabled &&
+    isPortalAutoRefreshAvailable &&
+    !canAutoRefreshPortalRun;
+  const portalAutoRefreshButtonLabel = portalAutoRefreshLabel({
+    isAvailable: isPortalAutoRefreshAvailable,
+    isEnabled: isPortalAutoRefreshEnabled,
+    isActive: isPortalAutoRefreshActive,
+    isPaused: isPortalAutoRefreshPaused,
+  });
 
   function beginPortalAction(stepId: string): boolean {
     if (portalActionInFlightRef.current.has(stepId)) return false;
@@ -2018,19 +2050,18 @@ export function AgentPortalInterface() {
               )}
               <button
                 type="button"
-                className={
-                  isPortalAutoRefreshEnabled
-                    ? "portal-refresh-button active"
-                    : "portal-refresh-button"
-                }
-                disabled={!latestPortalRun || !isPortalRunInProgress}
+                className={`portal-refresh-button${
+                  isPortalAutoRefreshActive ? " active" : ""
+                }${isPortalAutoRefreshPaused ? " paused" : ""}`}
+                disabled={!isPortalAutoRefreshAvailable}
                 aria-pressed={isPortalAutoRefreshEnabled}
+                title={portalAutoRefreshButtonLabel}
                 onClick={() =>
                   setIsPortalAutoRefreshEnabled((current) => !current)
                 }
               >
                 <RefreshCw size={15} />
-                {isPortalAutoRefreshEnabled ? "Auto on" : "Auto off"}
+                {portalAutoRefreshButtonLabel}
               </button>
               <button
                 type="button"
@@ -3547,6 +3578,12 @@ const styles = `
     border-color: #4f9cff;
     background: #10233a;
     color: #edf3fb;
+  }
+
+  .portal-refresh-button.paused {
+    border-color: #66552b;
+    background: #211c12;
+    color: #f2d68a;
   }
 
   .portal-refresh-button:disabled {
