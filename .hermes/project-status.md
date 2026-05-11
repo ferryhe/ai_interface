@@ -4,9 +4,9 @@ Updated: 2026-05-11
 
 ## Active Work
 
-- Branch: `codex/tool-adapter-feedback-loop`
-- Scope: Add the first generic tool interaction/feedback contract so external tools can pause for user input and resume.
-- Sibling repos: off-limits for this task. Module repos remain external CLI/API services.
+- Branch: `codex/adapter-metadata-config-contract`
+- Scope: Add redacted tool adapter metadata and readiness contract for the four business skills.
+- Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
 
 ## Current State
 
@@ -52,6 +52,13 @@ Updated: 2026-05-11
 - Added public API endpoints for `POST /api/module-runs/{runId}/interactions` and `POST /api/module-runs/{runId}/feedback`.
 - Opened PR #8 for `codex/tool-adapter-feedback-loop`: https://github.com/ferryhe/ai_interface/pull/8
 - PR #8 Copilot review returned one actionable comment; it was addressed by fully validating stored `metadata.interaction` before accepting feedback, so malformed/stale metadata is treated as no active interaction.
+- PR #8 was merged into `main`; this branch starts the next autonomous runtime slice from latest `main`.
+- Added a tool adapter registry for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent` with adapter kind, env requirements, timeout/output limits, allowed commands, resume support, and source repo metadata.
+- Added redacted adapter readiness so the UI can show whether each external tool is configured without exposing environment variable values.
+- Agent-created module runs now include adapter metadata needed by later executor/resume PRs.
+- Added `GET /api/tool-adapters` and regenerated API Zod/React clients.
+- Opened PR #9 for `codex/adapter-metadata-config-contract`: https://github.com/ferryhe/ai_interface/pull/9
+- PR #9 Copilot review returned two actionable comments; both were addressed by adding braces around a multi-line conditional and renaming adapter-derived module-run metadata keys to `adapterSupportsResume` and `adapterReadinessHint`.
 
 ## Verification
 
@@ -140,6 +147,16 @@ Updated: 2026-05-11
 - PR #8 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - PR #8 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
 - PR #8 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
+- Adapter metadata validation: `corepack pnpm --filter @workspace/api-server run test` passed.
+- Adapter metadata validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Adapter metadata validation: `corepack pnpm run typecheck:libs` passed.
+- Adapter metadata validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Adapter metadata validation: `git diff --check` passed with CRLF warnings only.
+- PR #9 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run test` passed with 24 tests.
+- PR #9 Copilot comment validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR #9 Copilot comment validation: `corepack pnpm run typecheck:libs` passed.
+- PR #9 Copilot comment validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- PR #9 Copilot comment validation: `git diff --check` passed with CRLF warnings only.
 
 ## Notes
 
@@ -148,4 +165,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Push the PR #8 Copilot fix, merge PR #8 once GitHub accepts it, then start the autonomous multi-PR runtime/UI/memory/executor chain from latest `main`.
+- Watch PR #9 checks and review/Copilot comments; perform the scheduled follow-up pass, apply only confirmed-safe fixes, merge when clean, then continue the autonomous runtime/UI/memory/executor chain.

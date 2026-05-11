@@ -89,7 +89,9 @@ export interface AgentRuntimeRepository extends ModuleRunRepository {
     },
   ): Promise<PipelineRunRecord>;
   findPipelineRunById(id: string): Promise<PipelineRunRecord | null>;
-  listModuleRunsByPipelineRunId(pipelineRunId: string): Promise<ModuleRunRecord[]>;
+  listModuleRunsByPipelineRunId(
+    pipelineRunId: string,
+  ): Promise<ModuleRunRecord[]>;
 }
 
 export interface AgentRuntimePlanStep {
@@ -156,13 +158,17 @@ function normalizePlan(
   rawPlan: AgentRuntimePlan,
   enabledSkills: BusinessSkillDefinition[],
 ): AgentRuntimePlan {
-  const enabledModuleIds = new Set(enabledSkills.map((skill) => skill.moduleId));
+  const enabledModuleIds = new Set(
+    enabledSkills.map((skill) => skill.moduleId),
+  );
   const warnings = [...rawPlan.warnings];
   const steps: AgentRuntimePlanStep[] = [];
 
   for (const rawStep of rawPlan.steps) {
     if (!isKnownModuleId(rawStep.moduleId)) {
-      warnings.push(`Planner returned unknown module: ${String(rawStep.moduleId)}`);
+      warnings.push(
+        `Planner returned unknown module: ${String(rawStep.moduleId)}`,
+      );
       continue;
     }
     if (!enabledModuleIds.has(rawStep.moduleId)) {
@@ -200,7 +206,7 @@ function deterministicPlan(
       adapterMode: skill.adapterMode,
       canonicalEntrypoints: skill.canonicalEntrypoints,
       outputContracts: skill.outputContracts,
-      sourceRepo: skill.sourceRepo,
+      sourceRepo: skill.adapter.sourceRepo,
     },
     requiresApproval: skill.permissionDefaults.approvalRequired,
   }));
@@ -228,7 +234,9 @@ function extractResponseText(payload: unknown): string {
     if (!Array.isArray(content)) continue;
     for (const part of content) {
       const partRecord = normalizeJsonObject(part);
-      if (typeof partRecord["text"] === "string") fragments.push(partRecord["text"]);
+      if (typeof partRecord["text"] === "string") {
+        fragments.push(partRecord["text"]);
+      }
     }
   }
   return fragments.join("\n");
@@ -243,7 +251,11 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
   async createPlan(request: PlannerRequest): Promise<AgentRuntimePlan> {
     const apiKey = this.env["OPENAI_API_KEY"]?.trim();
     if (!apiKey) {
-      return deterministicPlan(request.message, request.enabledSkills, "OPENAI_API_KEY is missing.");
+      return deterministicPlan(
+        request.message,
+        request.enabledSkills,
+        "OPENAI_API_KEY is missing.",
+      );
     }
 
     const moduleDescriptions = request.enabledSkills.map((skill) => ({
@@ -306,7 +318,13 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
                       input: { type: "object", additionalProperties: true },
                       requiresApproval: { type: "boolean" },
                     },
-                    required: ["moduleId", "title", "action", "input", "requiresApproval"],
+                    required: [
+                      "moduleId",
+                      "title",
+                      "action",
+                      "input",
+                      "requiresApproval",
+                    ],
                   },
                 },
               },
@@ -318,7 +336,9 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI planner request failed with status ${response.status}`);
+      throw new Error(
+        `OpenAI planner request failed with status ${response.status}`,
+      );
     }
 
     const payload = await response.json();
@@ -438,10 +458,14 @@ export async function createAgentRun(
   const env = options.env ?? process.env;
   const config = await getAgentConfig(configRepository);
   const connection = getConnectionStatus(env);
-  const enabledSkills = listEnabledBusinessSkillDefinitions(config.businessSkillSettings);
+  const enabledSkills = listEnabledBusinessSkillDefinitions(
+    config.businessSkillSettings,
+  );
 
   if (enabledSkills.length === 0) {
-    throw new Error("At least one business skill must be enabled before creating an Agent run.");
+    throw new Error(
+      "At least one business skill must be enabled before creating an Agent run.",
+    );
   }
 
   const title = input.title ?? trimTitle(input.message);
@@ -531,9 +555,18 @@ export async function createAgentRun(
         action: step.action,
         requiresApproval: step.requiresApproval,
         adapterMode: definition.adapterMode,
+        adapterId: definition.adapter.adapterId,
+        adapterKind: definition.adapter.adapterKind,
+        adapterRequiredEnv: definition.adapter.requiredEnv,
+        adapterOptionalEnv: definition.adapter.optionalEnv,
+        adapterTimeoutMs: definition.adapter.timeoutMs,
+        adapterMaxOutputBytes: definition.adapter.maxOutputBytes,
+        adapterAllowedCommands: definition.adapter.allowedCommands,
+        adapterSupportsResume: definition.adapter.supportsResume,
+        adapterReadinessHint: definition.adapter.readinessHint,
         canonicalEntrypoints: definition.canonicalEntrypoints,
         outputContracts: definition.outputContracts,
-        sourceRepo: definition.sourceRepo,
+        sourceRepo: definition.adapter.sourceRepo,
       },
     });
     await recordModuleRunEvent(repository, run.id, {

@@ -1,6 +1,10 @@
 import { moduleRegistry, type ModuleId } from "../modules/registry";
 import type { BusinessSkillSetting } from "../agent-config/agent-config-service";
 import type { JsonObject } from "../modules/ingest-service";
+import {
+  getAdapterDefinition,
+  type ToolAdapterDefinition,
+} from "../tool-adapters/adapter-registry";
 
 export type SkillAdapterMode = "external_api" | "external_cli_or_api";
 
@@ -8,10 +12,10 @@ export interface BusinessSkillDefinition {
   moduleId: ModuleId;
   displayName: string;
   description: string;
+  adapter: ToolAdapterDefinition;
   adapterMode: SkillAdapterMode;
   canonicalEntrypoints: string[];
   outputContracts: string[];
-  sourceRepo: string;
   inputSchema: JsonObject;
   permissionDefaults: {
     approvalRequired: boolean;
@@ -37,6 +41,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     moduleId: "web_listening",
     displayName: "Web Listening",
     description: moduleDescription("web_listening"),
+    adapter: getAdapterDefinition("web_listening"),
     adapterMode: "external_cli_or_api",
     canonicalEntrypoints: [
       "web-listening discover",
@@ -47,7 +52,6 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
       "web-listening export-manifest",
     ],
     outputContracts: ["web-listening-manifest.v1", "document_manifest.yaml"],
-    sourceRepo: "https://github.com/ferryhe/web_listening",
     inputSchema: {
       type: "object",
       properties: {
@@ -55,7 +59,14 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
         monitoringGoal: { type: "string" },
         stage: {
           type: "string",
-          enum: ["discover", "classify", "plan_scope", "bootstrap_scope", "run_scope", "export_manifest"],
+          enum: [
+            "discover",
+            "classify",
+            "plan_scope",
+            "bootstrap_scope",
+            "run_scope",
+            "export_manifest",
+          ],
         },
       },
       required: ["siteUrl", "monitoringGoal"],
@@ -70,6 +81,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     moduleId: "doc_to_md",
     displayName: "Doc to Markdown",
     description: moduleDescription("doc_to_md"),
+    adapter: getAdapterDefinition("doc_to_md"),
     adapterMode: "external_api",
     canonicalEntrypoints: [
       "GET /apps/conversion/engines",
@@ -77,8 +89,13 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
       "POST /apps/conversion/convert",
       "POST /apps/conversion/convert-inline",
     ],
-    outputContracts: ["doc_to_md.convert.v1", "markdown", "quality", "trace", "assets"],
-    sourceRepo: "https://github.com/ferryhe/doc_to_md",
+    outputContracts: [
+      "doc_to_md.convert.v1",
+      "markdown",
+      "quality",
+      "trace",
+      "assets",
+    ],
     inputSchema: {
       type: "object",
       properties: {
@@ -98,6 +115,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     moduleId: "md_to_rag",
     displayName: "Markdown to RAG",
     description: moduleDescription("md_to_rag"),
+    adapter: getAdapterDefinition("md_to_rag"),
     adapterMode: "external_cli_or_api",
     canonicalEntrypoints: [
       "cross2.py build-ready-data",
@@ -105,8 +123,11 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
       "cross2.py search sections",
       "cross2.py evidence",
     ],
-    outputContracts: ["ready_data_manifest.json", "rag_chunk", "embedding_metadata"],
-    sourceRepo: "https://github.com/ferryhe/c-ross-2",
+    outputContracts: [
+      "ready_data_manifest.json",
+      "rag_chunk",
+      "embedding_metadata",
+    ],
     inputSchema: {
       type: "object",
       properties: {
@@ -126,6 +147,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     moduleId: "rag_to_agent",
     displayName: "RAG to Agent",
     description: moduleDescription("rag_to_agent"),
+    adapter: getAdapterDefinition("rag_to_agent"),
     adapterMode: "external_api",
     canonicalEntrypoints: [
       "GET /api/engine/config",
@@ -133,7 +155,6 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
       "POST /api/engine/chat",
     ],
     outputContracts: ["agent_config", "agent_prompt", "agent_validation"],
-    sourceRepo: "https://github.com/ferryhe/c-ross-2",
     inputSchema: {
       type: "object",
       properties: {
@@ -154,7 +175,9 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
 export function getBusinessSkillDefinition(
   moduleId: ModuleId,
 ): BusinessSkillDefinition {
-  const definition = businessSkillDefinitions.find((skill) => skill.moduleId === moduleId);
+  const definition = businessSkillDefinitions.find(
+    (skill) => skill.moduleId === moduleId,
+  );
   if (!definition) {
     throw new Error(`Business skill is not registered: ${moduleId}`);
   }
@@ -165,7 +188,9 @@ export function listEnabledBusinessSkillDefinitions(
   settings: BusinessSkillSetting[],
 ): BusinessSkillDefinition[] {
   const enabledModuleIds = new Set(
-    settings.filter((setting) => setting.enabled).map((setting) => setting.moduleId),
+    settings
+      .filter((setting) => setting.enabled)
+      .map((setting) => setting.moduleId),
   );
 
   return businessSkillDefinitions.filter((definition) =>

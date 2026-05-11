@@ -35,6 +35,7 @@ import type {
   ModuleRunIngestResponse,
   RunEvent,
   SubmitToolFeedbackRequest,
+  ToolAdapterListResponse,
   ToolInteractionResponse,
   UpdateAgentConfigRequest,
   UpdateModuleRunRequest,
@@ -193,6 +194,82 @@ export function useListModules<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListModulesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns external tool adapter metadata and redacted readiness by environment variable name.
+ * @summary List tool adapters
+ */
+export const getGetToolAdaptersUrl = () => {
+  return `/api/tool-adapters`;
+};
+
+export const getToolAdapters = async (
+  options?: RequestInit,
+): Promise<ToolAdapterListResponse> => {
+  return customFetch<ToolAdapterListResponse>(getGetToolAdaptersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetToolAdaptersQueryKey = () => {
+  return [`/api/tool-adapters`] as const;
+};
+
+export const getGetToolAdaptersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getToolAdapters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getToolAdapters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetToolAdaptersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getToolAdapters>>> = ({
+    signal,
+  }) => getToolAdapters({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getToolAdapters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetToolAdaptersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getToolAdapters>>
+>;
+export type GetToolAdaptersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List tool adapters
+ */
+
+export function useGetToolAdapters<
+  TData = Awaited<ReturnType<typeof getToolAdapters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getToolAdapters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetToolAdaptersQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

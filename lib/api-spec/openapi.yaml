@@ -16,6 +16,8 @@ tags:
     description: Agent control plane configuration
   - name: agent-runs
     description: Agent runtime planning and module orchestration
+  - name: tool-adapters
+    description: External tool adapter metadata and readiness
 paths:
   /healthz:
     get:
@@ -43,6 +45,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleListResponse"
+  /tool-adapters:
+    get:
+      operationId: getToolAdapters
+      tags: [tool-adapters]
+      summary: List tool adapters
+      description: Returns external tool adapter metadata and redacted readiness by environment variable name.
+      responses:
+        "200":
+          description: Tool adapter metadata and readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolAdapterListResponse"
   /module-runs:
     post:
       operationId: createModuleRun
@@ -408,6 +423,144 @@ components:
         - succeeded
         - failed
         - cancelled
+    ToolAdapterKind:
+      type: string
+      enum:
+        - http
+        - cli
+    ToolAdapterReadinessStatus:
+      type: string
+      enum:
+        - ready
+        - missing_required_env
+    ToolAdapterDefinition:
+      type: object
+      properties:
+        adapterId:
+          type: string
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        adapterKind:
+          $ref: "#/components/schemas/ToolAdapterKind"
+        displayName:
+          type: string
+        description:
+          type: string
+        sourceRepo:
+          type: string
+        requiredEnv:
+          type: array
+          items:
+            type: string
+        optionalEnv:
+          type: array
+          items:
+            type: string
+        timeoutMs:
+          type: integer
+        maxOutputBytes:
+          type: integer
+        allowedCommands:
+          type: array
+          items:
+            type: string
+        supportsResume:
+          type: boolean
+        readinessHint:
+          type: string
+      required:
+        - adapterId
+        - moduleId
+        - adapterKind
+        - displayName
+        - description
+        - sourceRepo
+        - requiredEnv
+        - optionalEnv
+        - timeoutMs
+        - maxOutputBytes
+        - allowedCommands
+        - supportsResume
+        - readinessHint
+    ToolAdapterReadiness:
+      type: object
+      properties:
+        adapterId:
+          type: string
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        adapterKind:
+          $ref: "#/components/schemas/ToolAdapterKind"
+        displayName:
+          type: string
+        description:
+          type: string
+        sourceRepo:
+          type: string
+        requiredEnv:
+          type: array
+          items:
+            type: string
+        optionalEnv:
+          type: array
+          items:
+            type: string
+        timeoutMs:
+          type: integer
+        maxOutputBytes:
+          type: integer
+        allowedCommands:
+          type: array
+          items:
+            type: string
+        supportsResume:
+          type: boolean
+        readinessHint:
+          type: string
+        configured:
+          type: boolean
+        status:
+          $ref: "#/components/schemas/ToolAdapterReadinessStatus"
+        missingRequiredEnv:
+          type: array
+          items:
+            type: string
+        configuredOptionalEnv:
+          type: array
+          items:
+            type: string
+      required:
+        - adapterId
+        - moduleId
+        - adapterKind
+        - displayName
+        - description
+        - sourceRepo
+        - requiredEnv
+        - optionalEnv
+        - timeoutMs
+        - maxOutputBytes
+        - allowedCommands
+        - supportsResume
+        - readinessHint
+        - configured
+        - status
+        - missingRequiredEnv
+        - configuredOptionalEnv
+    ToolAdapterListResponse:
+      type: object
+      properties:
+        adapters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolAdapterDefinition"
+        readiness:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolAdapterReadiness"
+      required:
+        - adapters
+        - readiness
     RunEventSeverity:
       type: string
       enum:
@@ -1312,4 +1465,3 @@ components:
         - run
         - events
         - artifacts
-

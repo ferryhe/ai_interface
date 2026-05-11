@@ -47,6 +47,63 @@ export const ModuleRunStatus = {
   cancelled: "cancelled",
 } as const;
 
+export type ToolAdapterKind =
+  (typeof ToolAdapterKind)[keyof typeof ToolAdapterKind];
+
+export const ToolAdapterKind = {
+  http: "http",
+  cli: "cli",
+} as const;
+
+export type ToolAdapterReadinessStatus =
+  (typeof ToolAdapterReadinessStatus)[keyof typeof ToolAdapterReadinessStatus];
+
+export const ToolAdapterReadinessStatus = {
+  ready: "ready",
+  missing_required_env: "missing_required_env",
+} as const;
+
+export interface ToolAdapterDefinition {
+  adapterId: string;
+  moduleId: ModuleId;
+  adapterKind: ToolAdapterKind;
+  displayName: string;
+  description: string;
+  sourceRepo: string;
+  requiredEnv: string[];
+  optionalEnv: string[];
+  timeoutMs: number;
+  maxOutputBytes: number;
+  allowedCommands: string[];
+  supportsResume: boolean;
+  readinessHint: string;
+}
+
+export interface ToolAdapterReadiness {
+  adapterId: string;
+  moduleId: ModuleId;
+  adapterKind: ToolAdapterKind;
+  displayName: string;
+  description: string;
+  sourceRepo: string;
+  requiredEnv: string[];
+  optionalEnv: string[];
+  timeoutMs: number;
+  maxOutputBytes: number;
+  allowedCommands: string[];
+  supportsResume: boolean;
+  readinessHint: string;
+  configured: boolean;
+  status: ToolAdapterReadinessStatus;
+  missingRequiredEnv: string[];
+  configuredOptionalEnv: string[];
+}
+
+export interface ToolAdapterListResponse {
+  adapters: ToolAdapterDefinition[];
+  readiness: ToolAdapterReadiness[];
+}
+
 export type RunEventSeverity =
   (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
 
