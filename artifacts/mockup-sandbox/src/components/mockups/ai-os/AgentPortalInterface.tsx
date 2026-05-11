@@ -1074,6 +1074,7 @@ export function AgentPortalInterface() {
     "Open a result item to inspect handoff details",
   );
   const portalActionInFlightRef = useRef<Set<string>>(new Set());
+  const portalDetailCacheGenerationRef = useRef(0);
 
   const displayedSteps = latestPortalRun?.steps ?? portalSteps;
   const displayedMessages = latestPortalRun?.messages ?? portalMessages;
@@ -1160,6 +1161,23 @@ export function AgentPortalInterface() {
     setPortalDetailStatusText("Portal access rejected by runtime API");
     setPortalSourceStatusText("Portal access rejected by runtime API");
     setPortalResultStatusText("Portal access rejected by runtime API");
+  }
+
+  function resetPortalDetailCachesAfterRefresh(): void {
+    portalDetailCacheGenerationRef.current += 1;
+    setPortalDetailStates({});
+    setPortalRunDetails({});
+    setSelectedArtifactByRunId({});
+    setPortalArtifactDetails({});
+    setPortalDetailStatusText(
+      "Run refreshed - open a data record to reload module artifacts",
+    );
+    setPortalSourceStatusText(
+      "Run refreshed - open a source to reload evidence",
+    );
+    setPortalResultStatusText(
+      "Run refreshed - open a result item to reload handoff details",
+    );
   }
 
   async function verifyPortalToken(tokenInput: string): Promise<void> {
@@ -1297,6 +1315,7 @@ export function AgentPortalInterface() {
     setSelectedDataRecordId(null);
     setSelectedSourceId(null);
     setSelectedResultItemId(null);
+    portalDetailCacheGenerationRef.current += 1;
     setPortalDetailStates({});
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
@@ -1424,6 +1443,7 @@ export function AgentPortalInterface() {
 
       const uiState = toPortalUiState(data);
       setLatestPortalRun(uiState);
+      resetPortalDetailCachesAfterRefresh();
       setActiveStep((current) =>
         uiState.steps.some((step) => step.id === current)
           ? current
@@ -1601,6 +1621,7 @@ export function AgentPortalInterface() {
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
     setPortalDetailStatusText(`Loading details for ${record.title}`);
+    const requestGeneration = portalDetailCacheGenerationRef.current;
 
     try {
       const response = await fetch(
@@ -1618,9 +1639,15 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
+        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
       }
@@ -1635,6 +1662,9 @@ export function AgentPortalInterface() {
       }));
       setPortalDetailStatusText(`Loaded details for ${record.title}`);
     } catch {
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
       setPortalDetailStatusText(`Detail API failed for ${record.title}`);
     }
@@ -1659,6 +1689,7 @@ export function AgentPortalInterface() {
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
     setPortalSourceStatusText(`Loading evidence for ${source.label}`);
+    const requestGeneration = portalDetailCacheGenerationRef.current;
 
     try {
       const response = await fetch(
@@ -1676,9 +1707,15 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
+        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
       }
@@ -1693,6 +1730,9 @@ export function AgentPortalInterface() {
       }));
       setPortalSourceStatusText(`Loaded evidence for ${source.label}`);
     } catch {
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
       setPortalSourceStatusText(`Evidence API failed for ${source.label}`);
     }
@@ -1717,6 +1757,7 @@ export function AgentPortalInterface() {
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
     setPortalResultStatusText(`Loading result details for ${item.title}`);
+    const requestGeneration = portalDetailCacheGenerationRef.current;
 
     try {
       const response = await fetch(
@@ -1734,9 +1775,15 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
+        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+          return;
+        }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       if (!isPortalModuleRunDetail(data)) {
         throw new Error("Module run detail API returned unexpected shape");
       }
@@ -1751,6 +1798,9 @@ export function AgentPortalInterface() {
       }));
       setPortalResultStatusText(`Loaded result details for ${item.title}`);
     } catch {
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
       setPortalResultStatusText(`Result detail API failed for ${item.title}`);
     }
@@ -1766,6 +1816,7 @@ export function AgentPortalInterface() {
       [runId]: artifact.id,
     }));
     if (portalArtifactDetails[artifact.id]) return;
+    const requestGeneration = portalDetailCacheGenerationRef.current;
 
     try {
       const response = await fetch(
@@ -1779,9 +1830,15 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
+        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+          return;
+        }
         throw new Error(`Artifact API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       if (!isPortalArtifact(data))
         throw new Error("Artifact API returned unexpected shape");
       setPortalArtifactDetails((current) => ({
@@ -1789,6 +1846,9 @@ export function AgentPortalInterface() {
         [artifact.id]: data,
       }));
     } catch {
+      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        return;
+      }
       if (statusTarget === "result") {
         setPortalResultStatusText(`Artifact API failed for ${artifact.title}`);
         return;
