@@ -1,8 +1,4 @@
-export type ModuleId =
-  | "web_listening"
-  | "doc_to_md"
-  | "md_to_rag"
-  | "rag_to_agent";
+export type ModuleId = string;
 
 export interface ModuleDefinition {
   moduleId: ModuleId;

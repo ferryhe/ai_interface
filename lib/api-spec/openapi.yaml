@@ -20,6 +20,8 @@ tags:
     description: Agent runtime planning and module orchestration
   - name: tool-adapters
     description: External tool adapter metadata and readiness
+  - name: skills
+    description: Generic skill manifests, UI capabilities, and readiness
 paths:
   /healthz:
     get:
@@ -60,6 +62,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolAdapterListResponse"
+  /skills:
+    get:
+      operationId: getSkills
+      tags: [skills]
+      summary: List skill manifests
+      description: >-
+        Returns generic skill manifest metadata, redacted adapter readiness, and
+        project path readiness without exposing configured path or secret values.
+      responses:
+        "200":
+          description: Skill manifests and readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillListResponse"
   /module-runs:
     post:
       operationId: createModuleRun
@@ -558,11 +575,7 @@ components:
       additionalProperties: true
     ModuleId:
       type: string
-      enum:
-        - web_listening
-        - doc_to_md
-        - md_to_rag
-        - rag_to_agent
+      minLength: 1
     ModuleCategory:
       type: string
       enum:
@@ -715,6 +728,248 @@ components:
             $ref: "#/components/schemas/ToolAdapterReadiness"
       required:
         - adapters
+        - readiness
+    SkillId:
+      type: string
+      minLength: 1
+    SkillExecutionKind:
+      type: string
+      enum:
+        - http
+        - cli
+        - internal
+        - mcp
+    SkillArtifactRenderer:
+      type: string
+      enum:
+        - markdown
+        - table
+        - json
+        - text
+        - image
+        - file
+    SkillUiMode:
+      type: string
+      enum:
+        - html
+        - renderer
+        - auto
+    SkillProjectSource:
+      type: string
+      enum:
+        - builtin
+        - external
+    SkillProjectReadinessStatus:
+      type: string
+      enum:
+        - ready
+        - not_configured
+    SkillPermissionDefaults:
+      type: object
+      properties:
+        approvalRequired:
+          type: boolean
+        canUseNetwork:
+          type: boolean
+        canWriteDatabase:
+          type: boolean
+      required:
+        - approvalRequired
+        - canUseNetwork
+        - canWriteDatabase
+    SkillProjectMetadata:
+      type: object
+      properties:
+        source:
+          $ref: "#/components/schemas/SkillProjectSource"
+        defaultSiblingPath:
+          type: string
+        envPath:
+          type: string
+        repoUrl:
+          type: string
+        packageName:
+          type: string
+      required:
+        - source
+        - defaultSiblingPath
+    SkillUi:
+      type: object
+      properties:
+        mode:
+          $ref: "#/components/schemas/SkillUiMode"
+        htmlEntrypoint:
+          type: string
+        openOnTrigger:
+          type: boolean
+        preferredRenderer:
+          $ref: "#/components/schemas/SkillArtifactRenderer"
+      required:
+        - mode
+        - openOnTrigger
+        - preferredRenderer
+    SkillExecution:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/SkillExecutionKind"
+        adapterId:
+          type: string
+        requiredEnv:
+          type: array
+          items:
+            type: string
+        optionalEnv:
+          type: array
+          items:
+            type: string
+        timeoutMs:
+          type: integer
+        maxOutputBytes:
+          type: integer
+        allowedCommands:
+          type: array
+          items:
+            type: string
+        supportsResume:
+          type: boolean
+        readinessHint:
+          type: string
+      required:
+        - kind
+        - adapterId
+        - requiredEnv
+        - optionalEnv
+        - timeoutMs
+        - maxOutputBytes
+        - allowedCommands
+        - supportsResume
+    SkillManifest:
+      type: object
+      properties:
+        skillId:
+          $ref: "#/components/schemas/SkillId"
+        moduleId:
+          $ref: "#/components/schemas/ModuleId"
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: "#/components/schemas/ModuleCategory"
+        project:
+          $ref: "#/components/schemas/SkillProjectMetadata"
+        execution:
+          $ref: "#/components/schemas/SkillExecution"
+        inputSchema:
+          $ref: "#/components/schemas/JsonObject"
+        outputSchema:
+          $ref: "#/components/schemas/JsonObject"
+        interactionKinds:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolInteractionKind"
+        artifactKinds:
+          type: array
+          items:
+            type: string
+        ui:
+          $ref: "#/components/schemas/SkillUi"
+        permissions:
+          $ref: "#/components/schemas/SkillPermissionDefaults"
+      required:
+        - skillId
+        - moduleId
+        - name
+        - description
+        - category
+        - project
+        - execution
+        - inputSchema
+        - outputSchema
+        - interactionKinds
+        - artifactKinds
+        - ui
+        - permissions
+    SkillReadiness:
+      type: object
+      properties:
+        skillId:
+          $ref: "#/components/schemas/SkillId"
+        project:
+          type: object
+          properties:
+            status:
+              $ref: "#/components/schemas/SkillProjectReadinessStatus"
+            configuredBy:
+              type:
+                - string
+                - "null"
+            defaultSiblingPath:
+              type: string
+          required:
+            - status
+            - configuredBy
+            - defaultSiblingPath
+        adapter:
+          type: object
+          properties:
+            status:
+              $ref: "#/components/schemas/ToolAdapterReadinessStatus"
+            configured:
+              type: boolean
+            adapterId:
+              type: string
+            missingRequiredEnv:
+              type: array
+              items:
+                type: string
+            configuredOptionalEnv:
+              type: array
+              items:
+                type: string
+          required:
+            - status
+            - configured
+            - adapterId
+            - missingRequiredEnv
+            - configuredOptionalEnv
+        ui:
+          type: object
+          properties:
+            mode:
+              $ref: "#/components/schemas/SkillUiMode"
+            hasHtml:
+              type: boolean
+            openOnTrigger:
+              type: boolean
+            preferredRenderer:
+              $ref: "#/components/schemas/SkillArtifactRenderer"
+          required:
+            - mode
+            - hasHtml
+            - openOnTrigger
+            - preferredRenderer
+      required:
+        - skillId
+        - project
+        - adapter
+        - ui
+    SkillListResponse:
+      type: object
+      properties:
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillManifest"
+        readiness:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillReadiness"
+      required:
+        - skills
         - readiness
     RunEventSeverity:
       type: string
@@ -1322,6 +1577,8 @@ components:
     AgentRuntimePlanStep:
       type: object
       properties:
+        skillId:
+          $ref: "#/components/schemas/SkillId"
         moduleId:
           $ref: "#/components/schemas/ModuleId"
         title:
@@ -1333,6 +1590,7 @@ components:
         requiresApproval:
           type: boolean
       required:
+        - skillId
         - moduleId
         - title
         - action
@@ -1370,6 +1628,10 @@ components:
           $ref: "#/components/schemas/JsonObject"
         executionMode:
           $ref: "#/components/schemas/AgentRunExecutionMode"
+        enabledSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
       required:
         - message
     AgentRunResponse:
@@ -1455,6 +1717,8 @@ components:
     CreateModuleRunRequest:
       type: object
       properties:
+        skillId:
+          $ref: "#/components/schemas/SkillId"
         moduleId:
           $ref: "#/components/schemas/ModuleId"
         externalRunId:
@@ -1473,6 +1737,10 @@ components:
           $ref: "#/components/schemas/JsonObject"
         metadata:
           $ref: "#/components/schemas/JsonObject"
+        registeredSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
       required:
         - moduleId
         - externalRunId
@@ -1512,6 +1780,8 @@ components:
           format: uuid
         moduleId:
           $ref: "#/components/schemas/ModuleId"
+        skillId:
+          $ref: "#/components/schemas/SkillId"
         externalRunId:
           type: string
         title:
@@ -1649,6 +1919,8 @@ components:
             - type: "null"
         sourceModuleId:
           $ref: "#/components/schemas/ModuleId"
+        sourceSkillId:
+          $ref: "#/components/schemas/SkillId"
         sourceRunId:
           type: string
           format: uuid

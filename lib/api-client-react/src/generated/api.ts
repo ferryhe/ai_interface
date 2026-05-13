@@ -35,6 +35,7 @@ import type {
   ModuleRunIngestResponse,
   PortalAccessVerificationResponse,
   RunEvent,
+  SkillListResponse,
   SubmitToolFeedbackRequest,
   ToolAdapterListResponse,
   ToolInteractionResponse,
@@ -272,6 +273,74 @@ export function useGetToolAdapters<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetToolAdaptersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns generic skill manifest metadata, redacted adapter readiness, and project path readiness without exposing configured path or secret values.
+ * @summary List skill manifests
+ */
+export const getGetSkillsUrl = () => {
+  return `/api/skills`;
+};
+
+export const getSkills = async (
+  options?: RequestInit,
+): Promise<SkillListResponse> => {
+  return customFetch<SkillListResponse>(getGetSkillsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSkillsQueryKey = () => {
+  return [`/api/skills`] as const;
+};
+
+export const getGetSkillsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSkills>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getSkills>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSkillsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSkills>>> = ({
+    signal,
+  }) => getSkills({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSkills>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSkillsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSkills>>
+>;
+export type GetSkillsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List skill manifests
+ */
+
+export function useGetSkills<
+  TData = Awaited<ReturnType<typeof getSkills>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getSkills>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSkillsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

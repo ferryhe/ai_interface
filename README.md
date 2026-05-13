@@ -1,261 +1,197 @@
 # ai_interface
 
-A **pnpm monorepo** starter for building type-safe, full-stack TypeScript applications with an OpenAPI-driven workflow. It combines an Express 5 API server, a PostgreSQL database layer, auto-generated React Query hooks and Zod validators, and a React frontend sandbox — all wired together through a single OpenAPI specification.
+`ai_interface` is the top-level Agent OS console for composing AI skills and tools into inspectable workflows. The foreground is the user-facing agent experience; Backstage is the development and operations surface where each skill's manifest, runtime I/O, events, artifacts, readiness, and optional HTML UI can be inspected.
 
-## Table of Contents
+The current v1 wires a generic skill runtime around the existing four project skills:
 
-- [Architecture Overview](#architecture-overview)
-- [Repository Structure](#repository-structure)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Key Commands](#key-commands)
-- [Package Reference](#package-reference)
-- [Adding a New API Endpoint](#adding-a-new-api-endpoint)
-- [Database Schema](#database-schema)
-- [Security](#security)
-- [License](#license)
+| Skill | Project mapping | Role |
+|---|---|---|
+| `web_listening` | `../web_listening` | Monitor pages, capture snapshots, extract text, and detect changes. |
+| `doc_to_md` | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
+| `md_to_rag` | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |
+| `rag_to_agent` | `../c-ross-2` | Generate agent prompts, tool bindings, configs, and validation output. |
 
----
+This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
-## Architecture Overview
+## Agent OS Overview
 
+```mermaid
+flowchart LR
+  U["User prompt"] --> F["Foreground agent"]
+  F --> P["Manifest-based planner"]
+  P --> R["Skill runtime"]
+  R --> S1["web_listening"]
+  R --> S2["doc_to_md"]
+  R --> S3["md_to_rag"]
+  R --> S4["rag_to_agent"]
+  R --> DB["module_* tables and artifacts"]
+  DB --> B["Backstage inspection"]
+  S1 --> B
+  S2 --> B
+  S3 --> B
+  S4 --> B
 ```
-OpenAPI Spec  ──►  Orval codegen  ──►  React Query hooks  (@workspace/api-client-react)
-     │                              └►  Zod validators    (@workspace/api-zod)
-     │
-     └──► API Server  (@workspace/api-server)
-               │
-               └──► DB layer  (@workspace/db)  ──►  PostgreSQL (Drizzle ORM)
+
+The runtime preserves the existing module-run database/API compatibility while promoting the vocabulary to skills:
+
+- `moduleId` remains accepted and returned for existing routes and stored data.
+- `skillId` is now included in Agent plans and skill metadata.
+- `/api/skills` returns skill manifests plus redacted readiness.
+- Planner output is normalized against enabled skill manifests, unknown skills are ignored with warnings, and registered custom skill manifests can participate in a run.
+
+## Foreground vs Backstage
+
+Foreground is for the normal Agent conversation and workflow progress:
+
+- submit a request to the Agent;
+- see ordered skill steps;
+- inspect high-level progress, results, data, and sources;
+- keep user approval and feedback in the user-facing flow.
+
+Backstage is the Replit-style operations surface:
+
+- browse the skill catalog;
+- inspect each manifest, external project mapping, adapter readiness, UI capability, input/output schemas, and raw JSON;
+- view run I/O, events, and artifacts;
+- open a skill-provided HTML UI in a sandboxed iframe when `ui.htmlEntrypoint` exists;
+- fall back to generic renderers when a skill has no HTML UI.
+
+## Skill Manifest Contract
+
+Skill manifests describe what the Agent can plan and how the UI should display a skill:
+
+```ts
+interface SkillManifest {
+  skillId: string;
+  moduleId: string;
+  name: string;
+  description: string;
+  category: "source" | "transform" | "index" | "agent";
+  project: {
+    source: "builtin" | "external";
+    defaultSiblingPath: string;
+    envPath?: string;
+    repoUrl?: string;
+    packageName?: string;
+  };
+  execution: {
+    kind: "http" | "cli" | "internal" | "mcp";
+    adapterId: string;
+    requiredEnv: string[];
+    optionalEnv: string[];
+    supportsResume: boolean;
+  };
+  inputSchema: Record<string, unknown>;
+  outputSchema: Record<string, unknown>;
+  interactionKinds: Array<"question" | "approval" | "data_request" | "blocked">;
+  artifactKinds: string[];
+  ui: {
+    mode: "html" | "renderer" | "auto";
+    htmlEntrypoint?: string;
+    openOnTrigger: boolean;
+    preferredRenderer: "markdown" | "table" | "json" | "text" | "image" | "file";
+  };
+  permissions: {
+    approvalRequired: boolean;
+    canUseNetwork: boolean;
+    canWriteDatabase: boolean;
+  };
+}
 ```
 
-The OpenAPI specification (`lib/api-spec/openapi.yaml`) is the **single source of truth** for the entire API contract. All client-side types, React Query hooks, and Zod validators are generated from it automatically — meaning the frontend, server validation, and API documentation are always in sync.
-
----
+`GET /api/skills` reports readiness without exposing secret values or configured local paths. It returns env var names and default sibling path metadata only.
 
 ## Repository Structure
 
-```
+```text
 .
-├── lib/
-│   ├── api-spec/          # OpenAPI specification + Orval codegen config
-│   ├── api-client-react/  # Generated React Query hooks (+ custom fetch)
-│   ├── api-zod/           # Generated Zod schemas & TypeScript types
-│   └── db/                # Drizzle ORM client, schema definitions, migrations
 ├── artifacts/
-│   ├── api-server/        # Express 5 API server (bundled via esbuild)
-│   └── mockup-sandbox/    # React + Vite frontend sandbox (shadcn/ui + Tailwind)
-├── scripts/               # Utility / maintenance scripts
-├── pnpm-workspace.yaml    # Workspace definition, catalog versions, npmrc settings
-├── tsconfig.base.json     # Shared TypeScript compiler options
-└── package.json           # Root scripts (build, typecheck)
+│   ├── api-server/        # Express API, agent runtime, module ingest, skill runtime
+│   └── mockup-sandbox/    # React/Vite Agent OS interface
+├── lib/
+│   ├── api-spec/          # OpenAPI source of truth
+│   ├── api-client-react/  # Generated React Query client
+│   ├── api-zod/           # Generated Zod schemas/types
+│   └── db/                # Drizzle schema and database client
+├── docs/
+│   └── superpowers/plans/ # PR implementation plans
+└── scripts/
 ```
 
----
+## Built-in Projects
 
-## Tech Stack
+Default project path detection is intentionally shallow:
 
-| Layer | Technology |
-|---|---|
-| Monorepo | pnpm workspaces |
-| Language | TypeScript 5.9 |
-| Runtime | Node.js 24 |
-| API Framework | Express 5 |
-| Database | PostgreSQL + Drizzle ORM |
-| Validation | Zod v4 (`zod/v4`), `drizzle-zod` |
-| API Codegen | Orval (from OpenAPI spec) |
-| Client Data Fetching | TanStack React Query v5 |
-| Frontend Build | Vite 7 |
-| Frontend UI | React 19, shadcn/ui, Tailwind CSS v4, Radix UI |
-| Server Build | esbuild (CJS bundle) |
-| Logging | Pino + pino-http |
+- `web_listening` checks `WEB_LISTENING_PROJECT_PATH` or `../web_listening`;
+- `doc_to_md` checks `DOC_TO_MD_PROJECT_PATH` or `../doc_to_md`;
+- `md_to_rag` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`;
+- `rag_to_agent` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`.
 
----
+Readiness is a local existence check only. This PR does not execute real sibling project commands.
 
-## Getting Started
+## Development
 
-### Prerequisites
-
-- **Node.js** ≥ 24
-- **pnpm** (install via `npm install -g pnpm`)
-- **PostgreSQL** database (set `DATABASE_URL` environment variable)
-
-### Installation
+Install dependencies:
 
 ```bash
-# Clone the repository
-git clone https://github.com/ferryhe/ai_interface.git
-cd ai_interface
-
-# Install all workspace dependencies
-pnpm install
+corepack pnpm install
 ```
 
-### Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://user:pass@localhost:5432/mydb` |
-
----
-
-## Development Workflow
-
-### 1. Push the database schema
-
-After modifying `lib/db/src/schema/`, apply changes to your local database:
+Run the API server:
 
 ```bash
-pnpm --filter @workspace/db run push
+corepack pnpm --filter @workspace/api-server run dev
 ```
 
-### 2. Start the API server
+Run the Agent OS interface on port 8080:
+
+```powershell
+$env:PORT='8080'
+$env:BASE_PATH='/'
+$env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'
+corepack pnpm --dir artifacts/mockup-sandbox run dev
+```
+
+Regenerate API clients after editing `lib/api-spec/openapi.yaml`:
 
 ```bash
-pnpm --filter @workspace/api-server run dev
+corepack pnpm --filter @workspace/api-spec run codegen
 ```
 
-The server will be available at `http://localhost:<PORT>/api`.
+## Verification
 
-### 3. Start the frontend sandbox
+Recommended checks for this project:
 
 ```bash
-pnpm --filter @workspace/mockup-sandbox run dev
+corepack pnpm --filter @workspace/api-server run test
+corepack pnpm --filter @workspace/api-server run build
+corepack pnpm --filter @workspace/api-spec run codegen
+corepack pnpm run typecheck:libs
+corepack pnpm --dir artifacts/mockup-sandbox run typecheck
 ```
 
-### 4. Regenerate API client code (after editing the OpenAPI spec)
+Windows build smoke for the current UI:
 
-```bash
-pnpm --filter @workspace/api-spec run codegen
+```powershell
+$env:PORT='8080'
+$env:BASE_PATH='/'
+$env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'
+corepack pnpm --dir artifacts/mockup-sandbox run build
+git diff --check
 ```
 
-This regenerates:
-- `lib/api-client-react/src/generated/` — React Query hooks
-- `lib/api-zod/src/generated/` — Zod schemas and TypeScript types
+Browser smoke should verify:
 
----
-
-## Key Commands
-
-| Command | Description |
-|---|---|
-| `pnpm run build` | Typecheck + build all packages |
-| `pnpm run typecheck` | Full TypeScript typecheck across all packages |
-| `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks and Zod schemas from OpenAPI spec |
-| `pnpm --filter @workspace/db run push` | Push DB schema changes (dev only) |
-| `pnpm --filter @workspace/db run push-force` | Force-push DB schema changes (destructive, dev only) |
-| `pnpm --filter @workspace/api-server run dev` | Build and run API server locally |
-| `pnpm --filter @workspace/api-server run build` | Build API server production bundle |
-| `pnpm --filter @workspace/mockup-sandbox run dev` | Start frontend dev server |
-| `pnpm --filter @workspace/mockup-sandbox run build` | Build frontend for production |
-
----
-
-## Package Reference
-
-### `@workspace/api-spec` — `lib/api-spec/`
-
-Contains the OpenAPI 3.1 specification (`openapi.yaml`) and the Orval codegen configuration (`orval.config.ts`). Running `codegen` in this package writes generated files into `api-client-react` and `api-zod`.
-
-### `@workspace/api-client-react` — `lib/api-client-react/`
-
-Auto-generated TanStack React Query hooks for each API operation. Also contains `custom-fetch.ts`, which provides the underlying fetch implementation used by every hook. Import hooks from this package in frontend code.
-
-### `@workspace/api-zod` — `lib/api-zod/`
-
-Auto-generated Zod schemas and TypeScript types for all API request/response shapes. Used in the API server for runtime validation (e.g. `HealthCheckResponse.parse(...)`).
-
-### `@workspace/db` — `lib/db/`
-
-Database access layer. Exports:
-- `db` — Drizzle ORM client connected via `DATABASE_URL`
-- `pool` — raw `pg.Pool` instance
-- All table definitions and types from `src/schema/`
-
-Define new tables in `lib/db/src/schema/` and re-export them from `src/schema/index.ts`.
-
-### `@workspace/api-server` — `artifacts/api-server/`
-
-Express 5 HTTP server. Routes are defined under `src/routes/` and mounted at `/api`. Built to a single ESM bundle via esbuild for deployment.
-
-### `@workspace/mockup-sandbox` — `artifacts/mockup-sandbox/`
-
-Vite-powered React 19 frontend used for UI prototyping. Pre-loaded with all shadcn/ui components, Tailwind CSS v4, Radix UI primitives, and Framer Motion. Intended as a sandbox for building and iterating on UI features.
-
-### `scripts` — `scripts/`
-
-Standalone utility scripts runnable with `pnpm --filter @workspace/scripts run <script>`.
-
----
-
-## Adding a New API Endpoint
-
-1. **Define the endpoint** in `lib/api-spec/openapi.yaml` — add a path, operation, and any new component schemas.
-
-2. **Run codegen** to update client hooks and Zod schemas:
-   ```bash
-   pnpm --filter @workspace/api-spec run codegen
-   ```
-
-3. **Implement the route** in `artifacts/api-server/src/routes/`. Use the generated Zod schema for request/response validation:
-   ```ts
-   import { MyResponseSchema } from "@workspace/api-zod";
-
-   router.get("/my-endpoint", (_req, res) => {
-     const data = MyResponseSchema.parse({ ... });
-     res.json(data);
-   });
-   ```
-
-4. **Register the router** in `artifacts/api-server/src/routes/index.ts`.
-
-5. **Use the hook** in the frontend sandbox:
-   ```ts
-   import { useMyEndpointQuery } from "@workspace/api-client-react";
-   ```
-
----
-
-## Database Schema
-
-Database tables are defined using Drizzle ORM in `lib/db/src/schema/`. Each model file should export:
-- A `pgTable` definition
-- An insert schema via `createInsertSchema` from `drizzle-zod`
-- TypeScript `Insert*` and select types
-
-Example:
-
-```ts
-// lib/db/src/schema/posts.ts
-import { pgTable, text, serial } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
-
-export const postsTable = pgTable("posts", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-});
-
-export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-export type InsertPost = z.infer<typeof insertPostSchema>;
-export type Post = typeof postsTable.$inferSelect;
-```
-
-Re-export from `lib/db/src/schema/index.ts`, then apply with:
-
-```bash
-pnpm --filter @workspace/db run push
-```
-
----
+- Foreground renders and can submit/show a flow;
+- Backstage is switchable from the top bar;
+- the skill catalog shows all four project skills;
+- selected skill detail shows manifest, readiness, I/O, events, artifacts, and raw JSON;
+- skills with `htmlEntrypoint` show a sandboxed Skill UI tab;
+- trigger/approval runs select the corresponding Backstage Skill UI tab.
 
 ## Security
 
-The workspace enforces a **minimum package release age of 1,440 minutes (1 day)** for all npm dependencies via pnpm's `minimumReleaseAge` setting. This provides a meaningful buffer against supply-chain attacks, as malicious package versions are typically identified and revoked within hours of publication.
-
-Only packages from explicitly trusted publishers (e.g. `@replit/*`) are exempted from this restriction.
-
----
+Skill readiness is redacted by design. The API reports missing/configured env var names but not values, and it does not expose configured local path values. Real adapter execution remains behind the safe runtime path and, in this v1, no sibling project command is executed.
 
 ## License
 

@@ -8,8 +8,10 @@
 import type { JsonObject } from "./jsonObject";
 import type { ModuleId } from "./moduleId";
 import type { ModuleRunStatus } from "./moduleRunStatus";
+import type { SkillId } from "./skillId";
 
 export interface CreateModuleRunRequest {
+  skillId?: SkillId;
   moduleId: ModuleId;
   /** @minLength 1 */
   externalRunId: string;
@@ -19,4 +21,5 @@ export interface CreateModuleRunRequest {
   inputJson?: JsonObject;
   outputJson?: JsonObject;
   metadata?: JsonObject;
+  registeredSkillIds?: SkillId[];
 }

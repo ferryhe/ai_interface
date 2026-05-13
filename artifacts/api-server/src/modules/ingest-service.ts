@@ -37,6 +37,7 @@ export interface CreateModuleRunInput {
   inputJson?: JsonObject;
   outputJson?: JsonObject;
   metadata?: JsonObject;
+  registeredSkillIds?: string[];
 }
 
 interface CreateModuleRunRecordInput {
@@ -369,7 +370,8 @@ export async function createModuleRun(
   repository: ModuleRunRepository,
   input: CreateModuleRunInput,
 ): Promise<{ created: boolean; run: ModuleRunRecord }> {
-  if (!isKnownModuleId(input.moduleId)) {
+  const registeredSkillIds = new Set(input.registeredSkillIds ?? []);
+  if (!isKnownModuleId(input.moduleId) && !registeredSkillIds.has(input.moduleId)) {
     throw new Error(`Unknown moduleId: ${input.moduleId}`);
   }
 

@@ -54,6 +54,35 @@ test("rejects unknown module ids before storing a run", async () => {
   assert.equal(repository.moduleRuns.length, 0);
 });
 
+test("creates registered custom skill runs idempotently by skill and external run id", async () => {
+  const repository = new InMemoryModuleRunRepository();
+
+  const first = await createModuleRun(repository, {
+    moduleId: "custom_reporter",
+    externalRunId: "report-001",
+    title: "Create custom report",
+    inputJson: { topic: "onboarding" },
+    registeredSkillIds: ["custom_reporter"],
+  });
+
+  const second = await createModuleRun(repository, {
+    moduleId: "custom_reporter",
+    externalRunId: "report-001",
+    status: "succeeded",
+    outputJson: { report: "done" },
+    registeredSkillIds: ["custom_reporter"],
+  });
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(second.run.id, first.run.id);
+  assert.equal(second.run.moduleId, "custom_reporter");
+  assert.equal(second.run.status, "succeeded");
+  assert.deepEqual(second.run.inputJson, { topic: "onboarding" });
+  assert.deepEqual(second.run.outputJson, { report: "done" });
+  assert.equal(repository.moduleRuns.length, 1);
+});
+
 test("rejects unknown pipeline runs before storing a run", async () => {
   const repository = new InMemoryModuleRunRepository();
 

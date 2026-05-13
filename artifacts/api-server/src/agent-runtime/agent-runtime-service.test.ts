@@ -38,6 +38,27 @@ function singleDocToMarkdownPlanner(input: {
   };
 }
 
+function customReporterPlanner(): AgentPlanner {
+  return {
+    async createPlan() {
+      return {
+        summary: "Create a custom report.",
+        warnings: [],
+        steps: [
+          {
+            skillId: "custom_reporter",
+            moduleId: "custom_reporter",
+            title: "Create custom report",
+            action: "Summarize the available artifacts.",
+            input: { topic: "onboarding" },
+            requiresApproval: false,
+          },
+        ],
+      };
+    },
+  };
+}
+
 test("creates a deterministic missing-key plan and stores module runs", async () => {
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
   const configRepository = new InMemoryAgentConfigRepository();
@@ -198,6 +219,118 @@ test("uses an injected planner when OpenAI is configured", async () => {
     sourceArtifactIds: ["artifact-source-1"],
     engine: "opendataloader",
   });
+});
+
+test("uses registered custom skill manifests in planner output", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Create a custom onboarding report.",
+      enabledSkillIds: ["custom_reporter"],
+    },
+    {
+      env: { OPENAI_API_KEY: "sk-test-secret" },
+      planner: customReporterPlanner(),
+      skillManifests: [
+        {
+          skillId: "custom_reporter",
+          moduleId: "custom_reporter",
+          name: "Custom Reporter",
+          description: "Create custom reports from artifacts.",
+          category: "agent",
+          project: {
+            source: "external",
+            defaultSiblingPath: "../custom_reporter",
+          },
+          inputSchema: { type: "object" },
+          outputSchema: { type: "object" },
+          artifactKinds: ["report_markdown"],
+          interactionKinds: ["question"],
+          execution: {
+            kind: "internal",
+            adapterId: "custom_reporter.internal.v1",
+            supportsResume: false,
+            timeoutMs: 30000,
+            maxOutputBytes: 65536,
+            requiredEnv: [],
+            optionalEnv: [],
+            allowedCommands: [],
+          },
+          ui: {
+            mode: "auto",
+            preferredRenderer: "markdown",
+            openOnTrigger: false,
+          },
+          permissions: {
+            approvalRequired: false,
+            canUseNetwork: false,
+            canWriteDatabase: true,
+          },
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.plan.steps[0]?.skillId, "custom_reporter");
+  assert.equal(result.plan.steps[0]?.moduleId, "custom_reporter");
+  assert.equal(result.moduleRuns[0]?.moduleId, "custom_reporter");
+  assert.equal(result.moduleRuns[0]?.metadata?.["skillId"], "custom_reporter");
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterId"],
+    "custom_reporter.internal.v1",
+  );
+});
+
+test("drops unknown planner skill ids with a warning", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Try an unknown skill.",
+        warnings: [],
+        steps: [
+          {
+            skillId: "unknown_skill",
+            moduleId: "unknown_skill",
+            title: "Unknown",
+            action: "This should be ignored.",
+            input: {},
+            requiresApproval: false,
+          },
+        ],
+      };
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Try a bad skill.",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    {
+      env: { OPENAI_API_KEY: "sk-test-secret" },
+      planner,
+    },
+  );
+
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.moduleId),
+    ["doc_to_md"],
+  );
+  assert.equal(
+    result.plan.warnings.some((warning) =>
+      warning.includes("unknown skill: unknown_skill"),
+    ),
+    true,
+  );
 });
 
 test("defaults to plan-only mode and leaves configured module runs pending", async () => {

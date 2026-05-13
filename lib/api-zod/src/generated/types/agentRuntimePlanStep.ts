@@ -7,8 +7,10 @@
  */
 import type { JsonObject } from "./jsonObject";
 import type { ModuleId } from "./moduleId";
+import type { SkillId } from "./skillId";
 
 export interface AgentRuntimePlanStep {
+  skillId: SkillId;
   moduleId: ModuleId;
   title: string;
   action: string;

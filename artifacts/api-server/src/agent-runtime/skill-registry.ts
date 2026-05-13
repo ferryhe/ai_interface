@@ -5,10 +5,15 @@ import {
   getAdapterDefinition,
   type ToolAdapterDefinition,
 } from "../tool-adapters/adapter-registry";
+import {
+  manifestAdapterDefinition,
+  type SkillManifest,
+} from "../skill-runtime/skill-manifest";
 
 export type SkillAdapterMode = "external_api" | "external_cli_or_api";
 
 export interface BusinessSkillDefinition {
+  skillId: string;
   moduleId: ModuleId;
   displayName: string;
   description: string;
@@ -22,6 +27,7 @@ export interface BusinessSkillDefinition {
     canUseNetwork: boolean;
     canWriteDatabase: boolean;
   };
+  manifest?: SkillManifest;
 }
 
 const moduleDefinitionById = new Map(
@@ -38,6 +44,7 @@ function moduleDescription(moduleId: ModuleId): string {
 
 export const businessSkillDefinitions: BusinessSkillDefinition[] = [
   {
+    skillId: "web_listening",
     moduleId: "web_listening",
     displayName: "Web Listening",
     description: moduleDescription("web_listening"),
@@ -78,6 +85,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     },
   },
   {
+    skillId: "doc_to_md",
     moduleId: "doc_to_md",
     displayName: "Doc to Markdown",
     description: moduleDescription("doc_to_md"),
@@ -112,6 +120,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     },
   },
   {
+    skillId: "md_to_rag",
     moduleId: "md_to_rag",
     displayName: "Markdown to RAG",
     description: moduleDescription("md_to_rag"),
@@ -144,6 +153,7 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     },
   },
   {
+    skillId: "rag_to_agent",
     moduleId: "rag_to_agent",
     displayName: "RAG to Agent",
     description: moduleDescription("rag_to_agent"),
@@ -171,6 +181,32 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     },
   },
 ];
+
+export function businessSkillDefinitionFromManifest(
+  manifest: SkillManifest,
+): BusinessSkillDefinition {
+  return {
+    skillId: manifest.skillId,
+    moduleId: manifest.moduleId,
+    displayName: manifest.title ?? manifest.name,
+    description: manifest.description,
+    adapter: manifestAdapterDefinition(manifest),
+    adapterMode:
+      manifest.execution.kind === "http" ? "external_api" : "external_cli_or_api",
+    canonicalEntrypoints:
+      manifest.execution.allowedCommands.length > 0
+        ? [...manifest.execution.allowedCommands]
+        : [manifest.execution.adapterId],
+    outputContracts: [...manifest.artifactKinds],
+    inputSchema: manifest.inputSchema,
+    permissionDefaults: {
+      approvalRequired: manifest.permissions.approvalRequired,
+      canUseNetwork: manifest.permissions.canUseNetwork,
+      canWriteDatabase: manifest.permissions.canWriteDatabase,
+    },
+    manifest,
+  };
+}
 
 export function getBusinessSkillDefinition(
   moduleId: ModuleId,

@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
+type WorkspaceMode = "foreground" | "backstage";
+type BackstageTab = "io" | "artifacts" | "events" | "ui" | "raw";
 type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
 type RuntimeExecutionMode = "plan_only" | "execute_ready";
@@ -120,6 +122,7 @@ interface AgentRunApiModuleRun {
 }
 
 interface AgentRunApiPlanStep {
+  skillId?: ModuleId;
   moduleId: ModuleId;
   title: string;
   action: string;
@@ -183,6 +186,46 @@ interface CapabilityGuide {
   action: string;
   output: string;
   boundary: string;
+}
+
+type ArtifactRendererKind = "markdown" | "table" | "json" | "text" | "image" | "file";
+
+interface SkillArtifactSample {
+  id: string;
+  title: string;
+  kind: string;
+  renderer: ArtifactRendererKind;
+  content: string | JsonObject | JsonObject[];
+}
+
+interface SkillManifestPreview {
+  id: ModuleId;
+  name: string;
+  description: string;
+  project: {
+    defaultSiblingPath: string;
+    envPath: string;
+    readiness: "ready" | "not_configured";
+  };
+  execution: {
+    adapterId: string;
+    kind: "cli" | "http";
+    requiredEnv: string[];
+    supportsResume: boolean;
+  };
+  ui: {
+    mode: "html" | "renderer" | "auto";
+    htmlEntrypoint?: string;
+    openOnTrigger: boolean;
+    preferredRenderer: ArtifactRendererKind;
+  };
+  artifactKinds: string[];
+  interactionKinds: Array<"question" | "approval" | "data_request" | "blocked">;
+  inputSchema: JsonObject;
+  outputSchema: JsonObject;
+  sampleInput: JsonObject;
+  sampleOutput: JsonObject;
+  sampleArtifacts: SkillArtifactSample[];
 }
 
 interface BusinessSkillSetting {
@@ -293,6 +336,252 @@ const modules: ModuleDefinition[] = [
     records: 2,
     result: "waiting for RAG index",
     color: "#f97316",
+  },
+];
+
+const skillManifestPreviews: SkillManifestPreview[] = [
+  {
+    id: "web_listening",
+    name: "web_listening",
+    description: "Monitor URLs, create page snapshots, extract text, and detect changes.",
+    project: {
+      defaultSiblingPath: "../web_listening",
+      envPath: "WEB_LISTENING_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "web_listening.cli.v1",
+      kind: "cli",
+      requiredEnv: ["WEB_LISTENING_CLI_PATH"],
+      supportsResume: true,
+    },
+    ui: {
+      mode: "html",
+      htmlEntrypoint: "/skill-ui/web_listening",
+      openOnTrigger: true,
+      preferredRenderer: "json",
+    },
+    artifactKinds: ["web_snapshot", "extracted_text", "change_event"],
+    interactionKinds: ["question", "approval", "blocked"],
+    inputSchema: {
+      type: "object",
+      required: ["siteUrl", "monitoringGoal"],
+      properties: {
+        siteUrl: { type: "string" },
+        monitoringGoal: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        snapshots: { type: "array" },
+        events: { type: "array" },
+      },
+    },
+    sampleInput: {
+      siteUrl: "https://docs.example.com/getting-started",
+      monitoringGoal: "Detect onboarding doc changes",
+    },
+    sampleOutput: {
+      snapshots: 18,
+      changes: 3,
+      manifest: "document_manifest.yaml",
+    },
+    sampleArtifacts: [
+      {
+        id: "snap_018",
+        title: "Latest page snapshot",
+        kind: "web_snapshot",
+        renderer: "json",
+        content: {
+          url: "https://docs.example.com/getting-started",
+          status: 200,
+          extractedTextBytes: 18442,
+          changedSelectors: ["nav.docs", "main h2:nth-of-type(2)"],
+        },
+      },
+    ],
+  },
+  {
+    id: "doc_to_md",
+    name: "doc_to_md",
+    description: "Convert source documents into Markdown with warnings and extracted assets.",
+    project: {
+      defaultSiblingPath: "../doc_to_md",
+      envPath: "DOC_TO_MD_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "doc_to_md.http.v1",
+      kind: "http",
+      requiredEnv: ["DOC_TO_MD_API_BASE_URL"],
+      supportsResume: true,
+    },
+    ui: {
+      mode: "renderer",
+      openOnTrigger: false,
+      preferredRenderer: "markdown",
+    },
+    artifactKinds: ["markdown_document", "conversion_warning", "document_asset"],
+    interactionKinds: ["question", "data_request"],
+    inputSchema: {
+      type: "object",
+      required: ["sourceArtifactIds"],
+      properties: {
+        sourceArtifactIds: { type: "array", items: { type: "string" } },
+        includeAssets: { type: "boolean" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        markdown: { type: "string" },
+        quality: { type: "object" },
+        assets: { type: "array" },
+      },
+    },
+    sampleInput: {
+      sourceArtifactIds: ["snap_018", "onboarding.pdf"],
+      includeAssets: true,
+    },
+    sampleOutput: {
+      markdownArtifactId: "md_006",
+      warnings: 1,
+      assets: 3,
+    },
+    sampleArtifacts: [
+      {
+        id: "md_006",
+        title: "onboarding.md",
+        kind: "markdown_document",
+        renderer: "markdown",
+        content:
+          "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.\n\n- Source snapshots are linked to provenance.\n- Conversion warnings stay attached to the run.\n- Assets are stored beside Markdown output.",
+      },
+    ],
+  },
+  {
+    id: "md_to_rag",
+    name: "md_to_rag",
+    description: "Chunk Markdown, prepare embedding metadata, and build RAG index records.",
+    project: {
+      defaultSiblingPath: "../c-ross-2",
+      envPath: "CROSS2_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "md_to_rag.cli.v1",
+      kind: "cli",
+      requiredEnv: ["CROSS2_CLI_PATH"],
+      supportsResume: false,
+    },
+    ui: {
+      mode: "renderer",
+      openOnTrigger: false,
+      preferredRenderer: "table",
+    },
+    artifactKinds: ["rag_chunk", "embedding_metadata", "rag_index"],
+    interactionKinds: ["question", "data_request", "blocked"],
+    inputSchema: {
+      type: "object",
+      required: ["markdownArtifactIds", "collection"],
+      properties: {
+        markdownArtifactIds: { type: "array", items: { type: "string" } },
+        collection: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        chunks: { type: "array" },
+        manifest: { type: "object" },
+      },
+    },
+    sampleInput: {
+      markdownArtifactIds: ["md_006"],
+      collection: "onboarding",
+    },
+    sampleOutput: {
+      chunks: 124,
+      readyDataManifest: "ready_data_manifest.json",
+    },
+    sampleArtifacts: [
+      {
+        id: "chunk_096",
+        title: "Chunk table",
+        kind: "rag_chunk",
+        renderer: "table",
+        content: [
+          { chunk: 94, tokens: 788, source: "onboarding.md", status: "ready" },
+          { chunk: 95, tokens: 801, source: "onboarding.md", status: "ready" },
+          { chunk: 96, tokens: 812, source: "onboarding.md", status: "pending_adapter" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "rag_to_agent",
+    name: "rag_to_agent",
+    description: "Generate agent configs, prompts, tools, and validation results.",
+    project: {
+      defaultSiblingPath: "../c-ross-2",
+      envPath: "CROSS2_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "rag_to_agent.http.v1",
+      kind: "http",
+      requiredEnv: ["RAG_TO_AGENT_API_BASE_URL"],
+      supportsResume: true,
+    },
+    ui: {
+      mode: "html",
+      htmlEntrypoint: "/skill-ui/rag_to_agent",
+      openOnTrigger: true,
+      preferredRenderer: "json",
+    },
+    artifactKinds: ["agent_config", "agent_prompt", "agent_validation"],
+    interactionKinds: ["question", "approval", "blocked"],
+    inputSchema: {
+      type: "object",
+      required: ["ragIndexArtifactId", "agentName"],
+      properties: {
+        ragIndexArtifactId: { type: "string" },
+        agentName: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        agentConfig: { type: "object" },
+        prompt: { type: "string" },
+        validation: { type: "object" },
+      },
+    },
+    sampleInput: {
+      ragIndexArtifactId: "chunk_096",
+      agentName: "Onboarding Guide",
+      publishMode: "draft",
+    },
+    sampleOutput: {
+      agentConfigId: "agent_cfg_002",
+      tools: ["rag.search", "artifact.open"],
+      validation: "pending_approval",
+    },
+    sampleArtifacts: [
+      {
+        id: "agent_cfg_002",
+        title: "Agent config draft",
+        kind: "agent_config",
+        renderer: "json",
+        content: {
+          name: "Onboarding Guide",
+          model: "gpt-4.1-mini",
+          tools: ["rag.search", "artifact.open"],
+          approvalGate: "publish",
+        },
+      },
+    ],
   },
 ];
 
@@ -707,6 +996,21 @@ function moduleById(moduleId: ModuleId): ModuleDefinition {
   return modules.find((item) => item.id === moduleId) ?? modules[0]!;
 }
 
+function skillManifestById(skillId: ModuleId): SkillManifestPreview {
+  return skillManifestPreviews.find((item) => item.id === skillId) ?? skillManifestPreviews[0]!;
+}
+
+function shouldOpenBackstageForRun(run: RuntimeModuleRun): boolean {
+  const manifest = skillManifestById(run.moduleId);
+  return (
+    manifest.ui.openOnTrigger &&
+    (run.status === "approval_required" ||
+      run.status === "waiting_for_user" ||
+      run.status === "waiting_for_data" ||
+      run.status === "blocked")
+  );
+}
+
 function stringFromMetadata(
   metadata: JsonObject | null,
   key: string,
@@ -909,8 +1213,11 @@ function agentRunStateLabel(state: AgentRunSubmitState): string {
 }
 
 export function AgentFirstInterface() {
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("foreground");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
+  const [selectedSkillId, setSelectedSkillId] = useState<ModuleId>("rag_to_agent");
+  const [backstageTab, setBackstageTab] = useState<BackstageTab>("ui");
   const [command, setCommand] = useState("");
   const [planMode, setPlanMode] = useState(true);
   const [executionMode, setExecutionMode] =
@@ -945,6 +1252,7 @@ export function AgentFirstInterface() {
     useState("Runtime actions are local until API run data is available");
 
   const selectedModule = moduleById(selectedModuleId);
+  const selectedSkillManifest = skillManifestById(selectedSkillId);
   const displayedRuntimeRuns = latestAgentRun?.runtimeRuns ?? mockRuntimeRuns;
   const filteredRecords = useMemo(
     () =>
@@ -954,11 +1262,25 @@ export function AgentFirstInterface() {
     [selectedRecordKind],
   );
 
+  useEffect(() => {
+    const triggeredRun = displayedRuntimeRuns.find(shouldOpenBackstageForRun);
+    if (!triggeredRun) return;
+    setSelectedSkillId(triggeredRun.moduleId);
+    setBackstageTab("ui");
+  }, [displayedRuntimeRuns]);
+
   function openModules(moduleId?: ModuleId): void {
     if (moduleId) {
       setSelectedModuleId(moduleId);
     }
     setActiveView("modules");
+    setWorkspaceMode("foreground");
+  }
+
+  function openBackstageSkill(moduleId: ModuleId, tab: BackstageTab = "io"): void {
+    setSelectedSkillId(moduleId);
+    setBackstageTab(tab);
+    setWorkspaceMode("backstage");
   }
 
   function updateRuntimeRun(updatedRun: RuntimeModuleRun): void {
@@ -1204,14 +1526,19 @@ export function AgentFirstInterface() {
       }
 
       const data = (await response.json()) as AgentRunApiResponse;
+      const runtimeRuns = toRuntimeRunsFromAgentRun(data);
       setLatestAgentRun({
         response: data,
-        runtimeRuns: toRuntimeRunsFromAgentRun(data),
+        runtimeRuns,
       });
       setConnectionStatus(data.connection.status);
       setAgentRunState("saved");
       setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
       setRuntimeActionStatusText("Runtime actions are connected to API run data");
+      const triggeredRun = runtimeRuns.find(shouldOpenBackstageForRun);
+      if (triggeredRun) {
+        openBackstageSkill(triggeredRun.moduleId, "ui");
+      }
     } catch {
       setLatestAgentRun(null);
       setAgentRunState("offline");
@@ -1261,7 +1588,10 @@ export function AgentFirstInterface() {
               key={item.id}
               type="button"
               className={activeView === item.id ? "rail-button active" : "rail-button"}
-              onClick={() => setActiveView(item.id)}
+              onClick={() => {
+                setWorkspaceMode("foreground");
+                setActiveView(item.id);
+              }}
               title={item.label}
               aria-label={item.label}
             >
@@ -1279,6 +1609,22 @@ export function AgentFirstInterface() {
             <span>Agent Module OS</span>
           </div>
           <div className="topbar-actions">
+            <div className="workspace-switch" aria-label="Workspace mode">
+              <button
+                type="button"
+                className={workspaceMode === "foreground" ? "active" : ""}
+                onClick={() => setWorkspaceMode("foreground")}
+              >
+                Foreground
+              </button>
+              <button
+                type="button"
+                className={workspaceMode === "backstage" ? "active" : ""}
+                onClick={() => setWorkspaceMode("backstage")}
+              >
+                Backstage
+              </button>
+            </div>
             <button
               type="button"
               className="topbar-mode-switch"
@@ -1303,6 +1649,26 @@ export function AgentFirstInterface() {
         </header>
 
         <main className="view-frame">
+          {workspaceMode === "backstage" ? (
+            <BackstageView
+              selectedSkill={selectedSkillManifest}
+              selectedSkillId={selectedSkillId}
+              tab={backstageTab}
+              runtimeRuns={displayedRuntimeRuns}
+              latestAgentRun={latestAgentRun}
+              onSelectSkill={(skillId) => {
+                setSelectedSkillId(skillId);
+                setSelectedModuleId(skillId);
+              }}
+              onSetTab={setBackstageTab}
+              onOpenForeground={(moduleId) => {
+                setSelectedModuleId(moduleId);
+                setWorkspaceMode("foreground");
+                setActiveView("modules");
+              }}
+            />
+          ) : (
+            <>
           {activeView === "agent" && (
             <AgentView
               queuedPrompt={queuedPrompt}
@@ -1314,6 +1680,7 @@ export function AgentFirstInterface() {
               latestAgentRun={latestAgentRun}
               onSetExecutionMode={setExecutionMode}
               onOpenModules={openModules}
+              onOpenBackstage={openBackstageSkill}
               onOpenProgress={() => setActiveView("progress")}
               onOpenData={() => setActiveView("data")}
             />
@@ -1328,6 +1695,7 @@ export function AgentFirstInterface() {
               onSelectModule={setSelectedModuleId}
               onOpenData={() => setActiveView("data")}
               onResumeRuntimeRun={resumeRuntimeRun}
+              onOpenBackstage={openBackstageSkill}
             />
           )}
           {activeView === "progress" && (
@@ -1342,7 +1710,7 @@ export function AgentFirstInterface() {
               latestAgentRun={latestAgentRun}
               onOpenConfigure={() => setActiveView("configure")}
               onOpenData={() => setActiveView("data")}
-              onOpenModules={openModules}
+              onOpenBackstage={openBackstageSkill}
               onResumeRuntimeRun={resumeRuntimeRun}
             />
           )}
@@ -1379,17 +1747,21 @@ export function AgentFirstInterface() {
               onSavePublishSettings={savePublishSettings}
             />
           )}
+            </>
+          )}
         </main>
 
-        <Composer
-          value={command}
-          planMode={planMode}
-          onChange={setCommand}
-          onTogglePlanMode={() => setPlanMode((value) => !value)}
-          onSubmit={submitCommand}
-          onOpenConfigure={() => setActiveView("configure")}
-          isSubmitting={agentRunState === "submitting"}
-        />
+        {workspaceMode === "foreground" && (
+          <Composer
+            value={command}
+            planMode={planMode}
+            onChange={setCommand}
+            onTogglePlanMode={() => setPlanMode((value) => !value)}
+            onSubmit={submitCommand}
+            onOpenConfigure={() => setActiveView("configure")}
+            isSubmitting={agentRunState === "submitting"}
+          />
+        )}
 
         <nav className="mobile-nav" aria-label="Mobile navigation">
           {navItems.map((item) => (
@@ -1397,7 +1769,10 @@ export function AgentFirstInterface() {
               key={item.id}
               type="button"
               className={activeView === item.id ? "mobile-nav-button active" : "mobile-nav-button"}
-              onClick={() => setActiveView(item.id)}
+              onClick={() => {
+                setWorkspaceMode("foreground");
+                setActiveView(item.id);
+              }}
               aria-label={item.label}
             >
               {item.icon}
@@ -1422,6 +1797,7 @@ function AgentView({
   latestAgentRun,
   onSetExecutionMode,
   onOpenModules,
+  onOpenBackstage,
   onOpenProgress,
   onOpenData,
 }: {
@@ -1434,6 +1810,7 @@ function AgentView({
   latestAgentRun: AgentRunUiState | null;
   onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
   onOpenModules: (moduleId?: ModuleId) => void;
+  onOpenBackstage: (moduleId: ModuleId, tab?: BackstageTab) => void;
   onOpenProgress: () => void;
   onOpenData: () => void;
 }) {
@@ -1477,6 +1854,13 @@ function AgentView({
                 </button>
                 <button type="button" className="small-action" onClick={() => onOpenModules()}>
                   Modules
+                </button>
+                <button
+                  type="button"
+                  className="small-action"
+                  onClick={() => onOpenBackstage("rag_to_agent", "ui")}
+                >
+                  Backstage
                 </button>
               </>
             }
@@ -1527,6 +1911,7 @@ function AgentView({
                 key={module.id}
                 type="button"
                 className={module.id === selectedModule.id ? "memory-node active" : "memory-node"}
+                onClick={() => onOpenBackstage(module.id, "io")}
               >
                 <i style={{ background: module.color }} />
                 <strong>{module.name}</strong>
@@ -1542,6 +1927,302 @@ function AgentView({
         </div>
       </div>
     </section>
+  );
+}
+
+function BackstageView({
+  selectedSkill,
+  selectedSkillId,
+  tab,
+  runtimeRuns,
+  latestAgentRun,
+  onSelectSkill,
+  onSetTab,
+  onOpenForeground,
+}: {
+  selectedSkill: SkillManifestPreview;
+  selectedSkillId: ModuleId;
+  tab: BackstageTab;
+  runtimeRuns: RuntimeModuleRun[];
+  latestAgentRun: AgentRunUiState | null;
+  onSelectSkill: (skillId: ModuleId) => void;
+  onSetTab: (tab: BackstageTab) => void;
+  onOpenForeground: (moduleId: ModuleId) => void;
+}) {
+  const selectedRun = runtimeRuns.find((run) => run.moduleId === selectedSkill.id);
+  const selectedRecords = dataRecords.filter((record) => record.moduleId === selectedSkill.id);
+  const tabs: Array<{ id: BackstageTab; label: string; enabled: boolean }> = [
+    { id: "io", label: "Run I/O", enabled: true },
+    { id: "artifacts", label: "Artifacts", enabled: true },
+    { id: "events", label: "Events", enabled: true },
+    { id: "ui", label: "Skill UI", enabled: Boolean(selectedSkill.ui.htmlEntrypoint) },
+    { id: "raw", label: "Raw JSON", enabled: true },
+  ];
+
+  return (
+    <section className="backstage-layout">
+      <aside className="skill-catalog" aria-label="Skill catalog">
+        <div className="panel-heading">
+          <span>
+            <Boxes size={16} />
+            Skills
+          </span>
+          <span className="soft-label">{skillManifestPreviews.length} loaded</span>
+        </div>
+        {skillManifestPreviews.map((skill) => {
+          const run = runtimeRuns.find((item) => item.moduleId === skill.id);
+          return (
+            <button
+              key={skill.id}
+              type="button"
+              className={skill.id === selectedSkillId ? "skill-row active" : "skill-row"}
+              onClick={() => onSelectSkill(skill.id)}
+            >
+              <i style={{ background: moduleById(skill.id).color }} />
+              <span>
+                <strong>{skill.name}</strong>
+                <em>{skill.project.defaultSiblingPath}</em>
+              </span>
+              <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
+                {run ? runtimeStatusLabel(run.status) : "Queued"}
+              </b>
+            </button>
+          );
+        })}
+      </aside>
+
+      <div className="backstage-main">
+        <div className="backstage-header">
+          <div>
+            <span className="soft-label">Skill manifest</span>
+            <h1>{selectedSkill.name}</h1>
+            <p>{selectedSkill.description}</p>
+          </div>
+          <button
+            type="button"
+            className="small-action"
+            onClick={() => onOpenForeground(selectedSkill.id)}
+          >
+            Foreground detail
+          </button>
+        </div>
+
+        <div className="backstage-metrics">
+          <Metric label="Project" value={selectedSkill.project.defaultSiblingPath} />
+          <Metric
+            label="Readiness"
+            value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
+          />
+          <Metric label="Adapter" value={selectedSkill.execution.adapterId} />
+          <Metric
+            label="UI"
+            value={selectedSkill.ui.htmlEntrypoint ? "HTML tab" : selectedSkill.ui.preferredRenderer}
+          />
+        </div>
+
+        <div className="backstage-tabs" role="tablist" aria-label="Backstage tabs">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              disabled={!item.enabled}
+              aria-selected={tab === item.id}
+              className={tab === item.id ? "active" : ""}
+              onClick={() => item.enabled && onSetTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "io" && (
+          <div className="backstage-grid two">
+            <JsonInspector title="Input" value={selectedRun?.id ? selectedSkill.sampleInput : selectedSkill.inputSchema} />
+            <JsonInspector title="Output" value={selectedSkill.sampleOutput} />
+          </div>
+        )}
+
+        {tab === "artifacts" && (
+          <div className="artifact-grid">
+            {selectedSkill.sampleArtifacts.map((artifact) => (
+              <ArtifactRenderer key={artifact.id} artifact={artifact} />
+            ))}
+            {selectedRecords.map((record) => (
+              <div key={record.id} className="artifact-card">
+                <div className="artifact-title">
+                  <FileText size={15} />
+                  <span>{record.title}</span>
+                </div>
+                <p>{record.summary}</p>
+                <code>{record.id}</code>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "events" && (
+          <div className="event-feed">
+            {(selectedRun ? [selectedRun] : runtimeRuns.filter((run) => run.moduleId === selectedSkill.id)).map(
+              (run) => (
+                <div key={run.id} className="event-row">
+                  <span className={runtimeStatusClass(run.status)}>{runtimeStatusLabel(run.status)}</span>
+                  <strong>{run.title}</strong>
+                  <p>{run.event}</p>
+                  <em>{run.updatedAt}</em>
+                </div>
+              ),
+            )}
+            {selectedRun?.interaction && (
+              <div className="event-row attention">
+                <span className="runtime-status approval_required">Interaction</span>
+                <strong>{selectedRun.interaction.title}</strong>
+                <p>{selectedRun.interaction.message}</p>
+                <em>{selectedRun.interaction.resumeHandle}</em>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "ui" && <SkillHtmlPanel skill={selectedSkill} run={selectedRun} />}
+
+        {tab === "raw" && (
+          <div className="backstage-grid two">
+            <JsonInspector title="Manifest" value={selectedSkill} />
+            <JsonInspector
+              title="Runtime"
+              value={{
+                run: selectedRun ?? null,
+                latestPlan: latestAgentRun?.response.plan ?? null,
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function JsonInspector({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div className="json-inspector">
+      <div className="artifact-title">
+        <Database size={15} />
+        <span>{title}</span>
+      </div>
+      <pre>{JSON.stringify(value, null, 2)}</pre>
+    </div>
+  );
+}
+
+function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
+  return (
+    <div className="artifact-card">
+      <div className="artifact-title">
+        <FileText size={15} />
+        <span>{artifact.title}</span>
+        <em>{artifact.renderer}</em>
+      </div>
+      {artifact.renderer === "markdown" && (
+        <div className="markdown-preview">
+          {String(artifact.content)
+            .split("\n")
+            .map((line, index) =>
+              line.startsWith("# ") ? (
+                <h3 key={`${artifact.id}-${index}`}>{line.replace(/^#\s*/, "")}</h3>
+              ) : line.startsWith("- ") ? (
+                <p key={`${artifact.id}-${index}`} className="markdown-list-line">
+                  {line}
+                </p>
+              ) : (
+                <p key={`${artifact.id}-${index}`}>{line || "\u00a0"}</p>
+              ),
+            )}
+        </div>
+      )}
+      {artifact.renderer === "table" && Array.isArray(artifact.content) && (
+        <div className="artifact-table-wrap">
+          <table className="artifact-table">
+            <thead>
+              <tr>
+                {Object.keys((artifact.content[0] as JsonObject) ?? {}).map((key) => (
+                  <th key={key}>{key}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(artifact.content as JsonObject[]).map((row, index) => (
+                <tr key={`${artifact.id}-${index}`}>
+                  {Object.values(row).map((value, valueIndex) => (
+                    <td key={`${artifact.id}-${index}-${valueIndex}`}>{String(value)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {artifact.renderer === "json" && (
+        <pre className="artifact-json">{JSON.stringify(artifact.content, null, 2)}</pre>
+      )}
+      {artifact.renderer === "text" && <pre className="artifact-json">{String(artifact.content)}</pre>}
+      {(artifact.renderer === "image" || artifact.renderer === "file") && (
+        <div className="file-preview">
+          <FileText size={18} />
+          <span>{artifact.id}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SkillHtmlPanel({
+  skill,
+  run,
+}: {
+  skill: SkillManifestPreview;
+  run?: RuntimeModuleRun;
+}) {
+  if (!skill.ui.htmlEntrypoint) {
+    return (
+      <div className="json-inspector empty-state">
+        <strong>Generic renderer</strong>
+        <p>This skill does not ship an HTML backstage surface.</p>
+      </div>
+    );
+  }
+
+  const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #101820; color: #edf3fb; }
+      main { padding: 22px; display: grid; gap: 14px; }
+      section { border: 1px solid #263545; border-radius: 8px; padding: 14px; background: #121d27; }
+      h1 { font-size: 20px; margin: 0 0 6px; }
+      p { color: #9fb0c3; margin: 0; line-height: 1.5; }
+      code { color: #8bd7ff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>${skill.name}</h1>
+        <p>Backstage HTML entrypoint: <code>${skill.ui.htmlEntrypoint}</code></p>
+      </section>
+      <section>
+        <p>Run status: <code>${run ? runtimeStatusLabel(run.status) : "queued"}</code></p>
+        <p>Adapter: <code>${skill.execution.adapterId}</code></p>
+      </section>
+    </main>
+  </body>
+</html>`;
+
+  return (
+    <div className="skill-ui-frame">
+      <iframe title={`${skill.name} backstage UI`} sandbox="" srcDoc={html} />
+    </div>
   );
 }
 
@@ -1616,6 +2297,7 @@ function ModulesView({
   onSelectModule,
   onOpenData,
   onResumeRuntimeRun,
+  onOpenBackstage,
 }: {
   selectedModule: ModuleDefinition;
   selectedModuleId: ModuleId;
@@ -1625,6 +2307,7 @@ function ModulesView({
   onSelectModule: (moduleId: ModuleId) => void;
   onOpenData: () => void;
   onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
+  onOpenBackstage: (moduleId: ModuleId, tab?: BackstageTab) => void;
 }) {
   const selectedRuntimeRun = runtimeRuns.find((run) => run.moduleId === selectedModule.id);
   const selectedActionState = selectedRuntimeRun
@@ -1727,6 +2410,13 @@ function ModulesView({
                 <button type="button" className="small-action" onClick={onOpenData}>
                   Open data
                 </button>
+                <button
+                  type="button"
+                  className="small-action"
+                  onClick={() => onOpenBackstage(selectedModule.id, "io")}
+                >
+                  Backstage
+                </button>
               </div>
             </div>
             {(selectedActionState === "succeeded" || selectedActionState === "failed") && (
@@ -1772,7 +2462,7 @@ function ProgressView({
   latestAgentRun,
   onOpenConfigure,
   onOpenData,
-  onOpenModules,
+  onOpenBackstage,
   onResumeRuntimeRun,
 }: {
   queuedPrompt: string | null;
@@ -1785,7 +2475,7 @@ function ProgressView({
   latestAgentRun: AgentRunUiState | null;
   onOpenConfigure: () => void;
   onOpenData: () => void;
-  onOpenModules: (moduleId?: ModuleId) => void;
+  onOpenBackstage: (moduleId: ModuleId, tab?: BackstageTab) => void;
   onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
 }) {
   function runtimeAction(run: RuntimeModuleRun): ReactNode {
@@ -1810,7 +2500,7 @@ function ProgressView({
       run.status === "blocked"
     ) {
       return (
-        <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
+        <button type="button" className="small-action" onClick={() => onOpenBackstage(run.moduleId, "ui")}>
           Review
         </button>
       );
@@ -1830,7 +2520,7 @@ function ProgressView({
       );
     }
     return (
-      <button type="button" className="small-action" onClick={() => onOpenModules(run.moduleId)}>
+      <button type="button" className="small-action" onClick={() => onOpenBackstage(run.moduleId, "io")}>
         View run
       </button>
     );
@@ -2911,9 +3601,12 @@ const styles = `
   .small-action,
   .primary-action,
   .module-row,
+  .skill-row,
   .memory-node,
   .filter-chip,
-  .segmented-button {
+  .segmented-button,
+  .workspace-switch button,
+  .backstage-tabs button {
     font-family: inherit;
     cursor: pointer;
   }
@@ -2960,6 +3653,7 @@ const styles = `
   .topbar-actions,
   .topbar-pill,
   .topbar-mode-switch,
+  .workspace-switch,
   .panel-heading,
   .panel-heading span,
   .primary-action,
@@ -2978,6 +3672,33 @@ const styles = `
 
   .topbar-actions {
     gap: 8px;
+  }
+
+  .workspace-switch {
+    height: 30px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #121a24;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .workspace-switch button {
+    height: 24px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #8f9db0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0 10px;
+  }
+
+  .workspace-switch button.active {
+    background: #253246;
+    color: #edf3fb;
   }
 
   .topbar-pill {
@@ -3033,6 +3754,310 @@ const styles = `
 
   .module-layout {
     grid-template-columns: 390px minmax(0, 1fr);
+  }
+
+  .backstage-layout {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .skill-catalog,
+  .backstage-main,
+  .json-inspector,
+  .artifact-card,
+  .event-row {
+    border: 1px solid #1f2b39;
+    border-radius: 8px;
+    background: #101720;
+  }
+
+  .skill-catalog {
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+  }
+
+  .skill-row {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #dfe7f2;
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .skill-row + .skill-row {
+    margin-top: 8px;
+  }
+
+  .skill-row.active {
+    border-color: #31506f;
+    background: #142234;
+  }
+
+  .skill-row i {
+    width: 9px;
+    height: 34px;
+    border-radius: 6px;
+  }
+
+  .skill-row span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .skill-row strong,
+  .skill-row em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .skill-row strong {
+    font-size: 13px;
+  }
+
+  .skill-row em {
+    color: #8795a8;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  .backstage-main {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .backstage-header,
+  .artifact-title,
+  .runtime-action-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .backstage-header {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .backstage-header h1 {
+    margin: 2px 0 5px;
+    font-size: 24px;
+    letter-spacing: 0;
+  }
+
+  .backstage-header p {
+    margin: 0;
+    color: #95a4b7;
+    line-height: 1.45;
+  }
+
+  .backstage-metrics,
+  .backstage-grid.two {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .backstage-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .backstage-tabs {
+    display: flex;
+    gap: 6px;
+    border-bottom: 1px solid #233042;
+    padding-bottom: 8px;
+    overflow-x: auto;
+  }
+
+  .backstage-tabs button {
+    border: 1px solid #273648;
+    border-radius: 7px;
+    background: #121c27;
+    color: #91a0b3;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+
+  .backstage-tabs button.active {
+    border-color: #4f9cff88;
+    background: #17304c;
+    color: #edf3fb;
+  }
+
+  .backstage-tabs button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .json-inspector {
+    min-width: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .json-inspector pre,
+  .artifact-json {
+    max-height: 360px;
+    overflow: auto;
+    margin: 10px 0 0;
+    border-radius: 7px;
+    background: #081019;
+    color: #cfe1f5;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .artifact-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .artifact-card {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .artifact-card p {
+    color: #9aa9bb;
+    line-height: 1.5;
+  }
+
+  .artifact-card code {
+    color: #8bd7ff;
+  }
+
+  .artifact-title {
+    gap: 8px;
+    color: #edf3fb;
+    font-weight: 850;
+  }
+
+  .artifact-title em {
+    margin-left: auto;
+    color: #8ea0b5;
+    font-size: 11px;
+    font-style: normal;
+    text-transform: uppercase;
+  }
+
+  .markdown-preview {
+    margin-top: 10px;
+    color: #dbe8f6;
+  }
+
+  .markdown-preview h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+  }
+
+  .markdown-preview p {
+    margin: 5px 0;
+  }
+
+  .markdown-list-line {
+    color: #b8c7d8;
+  }
+
+  .artifact-table-wrap {
+    margin-top: 10px;
+    overflow: auto;
+  }
+
+  .artifact-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .artifact-table th,
+  .artifact-table td {
+    border-bottom: 1px solid #243244;
+    padding: 8px;
+    text-align: left;
+  }
+
+  .artifact-table th {
+    color: #9fb0c3;
+    background: #121d29;
+  }
+
+  .event-feed {
+    display: grid;
+    gap: 10px;
+  }
+
+  .event-row {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: center;
+  }
+
+  .event-row p {
+    grid-column: 2 / 4;
+    margin: 0;
+    color: #9baabd;
+  }
+
+  .event-row em {
+    color: #8795a8;
+    font-style: normal;
+    font-size: 12px;
+  }
+
+  .event-row.attention {
+    border-color: #f9731655;
+    background: #1d1710;
+  }
+
+  .skill-ui-frame {
+    min-height: 420px;
+    border: 1px solid #263545;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0b1118;
+  }
+
+  .skill-ui-frame iframe {
+    width: 100%;
+    height: 420px;
+    border: 0;
+    display: block;
+  }
+
+  .file-preview,
+  .empty-state {
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    min-height: 180px;
+    color: #9fb0c3;
+    text-align: center;
   }
 
   .chat-panel,
@@ -4665,7 +5690,8 @@ const styles = `
 
   @media (max-width: 1020px) {
     .agent-layout,
-    .module-layout {
+    .module-layout,
+    .backstage-layout {
       grid-template-columns: 1fr;
       height: auto;
     }
@@ -4689,6 +5715,12 @@ const styles = `
     }
 
     .runtime-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .backstage-metrics,
+    .backstage-grid.two,
+    .artifact-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -4733,6 +5765,10 @@ const styles = `
 
     .topbar-actions {
       display: flex;
+    }
+
+    .workspace-switch button {
+      padding: 0 8px;
     }
 
     .topbar-actions .topbar-pill {
@@ -4801,8 +5837,25 @@ const styles = `
     .publish-form-grid,
     .runtime-status-grid,
     .runtime-meta-grid,
+    .backstage-metrics,
+    .backstage-grid.two,
+    .artifact-grid,
     .memory-map {
       grid-template-columns: 1fr;
+    }
+
+    .backstage-header,
+    .event-row {
+      align-items: stretch;
+      grid-template-columns: 1fr;
+    }
+
+    .backstage-header {
+      flex-direction: column;
+    }
+
+    .event-row p {
+      grid-column: auto;
     }
 
     .publish-settings-header {

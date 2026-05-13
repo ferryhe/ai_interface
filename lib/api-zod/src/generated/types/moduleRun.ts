@@ -8,12 +8,14 @@
 import type { JsonObject } from "./jsonObject";
 import type { ModuleId } from "./moduleId";
 import type { ModuleRunStatus } from "./moduleRunStatus";
+import type { SkillId } from "./skillId";
 
 export interface ModuleRun {
   id: string;
   /** @nullable */
   pipelineRunId: string | null;
   moduleId: ModuleId;
+  skillId?: SkillId;
   externalRunId: string;
   /** @nullable */
   title: string | null;
