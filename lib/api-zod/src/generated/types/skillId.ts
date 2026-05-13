@@ -9,4 +9,4 @@
 /**
  * @minLength 1
  */
-export type ModuleId = string;
+export type SkillId = string;

@@ -9,7 +9,7 @@ import {
   type ModuleRunRepository,
   type ModuleRunStatus,
 } from "../modules/ingest-service";
-import { type ModuleId, isKnownModuleId } from "../modules/registry";
+import { type ModuleId } from "../modules/registry";
 import {
   getAgentConfig,
   getConnectionStatus,
@@ -17,6 +17,7 @@ import {
   type AgentConfigRepository,
 } from "../agent-config/agent-config-service";
 import {
+  businessSkillDefinitionFromManifest,
   getBusinessSkillDefinition,
   getBusinessSkillSetting,
   listEnabledBusinessSkillDefinitions,
@@ -26,6 +27,10 @@ import {
   executeModuleRunWithAdapter,
   FakeToolAdapterExecutor,
 } from "../tool-adapters/executor";
+import {
+  createSkillManifestRegistry,
+  type SkillManifest,
+} from "../skill-runtime/skill-manifest";
 
 export type AgentRuntimeStatus =
   | "planned"
@@ -101,6 +106,16 @@ export interface AgentRuntimeRepository extends ModuleRunRepository {
 }
 
 export interface AgentRuntimePlanStep {
+  skillId: string;
+  moduleId: ModuleId;
+  title: string;
+  action: string;
+  input: JsonObject;
+  requiresApproval: boolean;
+}
+
+export interface AgentRuntimePlannerStep {
+  skillId?: string;
   moduleId: ModuleId;
   title: string;
   action: string;
@@ -114,6 +129,12 @@ export interface AgentRuntimePlan {
   warnings: string[];
 }
 
+export interface AgentRuntimePlannerPlan {
+  summary: string;
+  steps: AgentRuntimePlannerStep[];
+  warnings: string[];
+}
+
 interface PlannerRequest {
   message: string;
   config: AgentConfigRecord;
@@ -121,7 +142,7 @@ interface PlannerRequest {
 }
 
 export interface AgentPlanner {
-  createPlan(request: PlannerRequest): Promise<AgentRuntimePlan>;
+  createPlan(request: PlannerRequest): Promise<AgentRuntimePlannerPlan>;
 }
 
 export interface CreateAgentRunInput {
@@ -130,6 +151,7 @@ export interface CreateAgentRunInput {
   title?: string;
   metadata?: JsonObject;
   executionMode?: AgentRunExecutionMode;
+  enabledSkillIds?: string[];
 }
 
 export interface AgentRunResponse {
@@ -206,29 +228,33 @@ function countExecutedModuleRuns(moduleRuns: ModuleRunRecord[]): number {
 }
 
 function normalizePlan(
-  rawPlan: AgentRuntimePlan,
+  rawPlan: AgentRuntimePlannerPlan,
   enabledSkills: BusinessSkillDefinition[],
+  registeredSkillIds: Set<string>,
 ): AgentRuntimePlan {
-  const enabledModuleIds = new Set(
-    enabledSkills.map((skill) => skill.moduleId),
+  const enabledSkillById = new Map(
+    enabledSkills.map((skill) => [skill.skillId, skill]),
   );
   const warnings = [...rawPlan.warnings];
   const steps: AgentRuntimePlanStep[] = [];
 
   for (const rawStep of rawPlan.steps) {
-    if (!isKnownModuleId(rawStep.moduleId)) {
-      warnings.push(
-        `Planner returned unknown module: ${String(rawStep.moduleId)}`,
-      );
+    const rawSkillId =
+      typeof rawStep.skillId === "string" && rawStep.skillId.trim()
+        ? rawStep.skillId
+        : rawStep.moduleId;
+    if (!registeredSkillIds.has(rawSkillId)) {
+      warnings.push(`Planner returned unknown skill: ${String(rawSkillId)}`);
       continue;
     }
-    if (!enabledModuleIds.has(rawStep.moduleId)) {
-      warnings.push(`Planner returned disabled module: ${rawStep.moduleId}`);
+    const definition = enabledSkillById.get(rawSkillId);
+    if (!definition) {
+      warnings.push(`Planner returned disabled skill: ${rawSkillId}`);
       continue;
     }
-    const definition = getBusinessSkillDefinition(rawStep.moduleId);
     steps.push({
-      moduleId: rawStep.moduleId,
+      skillId: definition.skillId,
+      moduleId: definition.moduleId,
       title: rawStep.title || definition.displayName,
       action: rawStep.action || definition.description,
       input: normalizeJsonObject(rawStep.input),
@@ -249,6 +275,7 @@ function deterministicPlan(
   reason: string,
 ): AgentRuntimePlan {
   const steps = enabledSkills.map((skill) => ({
+    skillId: skill.skillId,
     moduleId: skill.moduleId,
     title: skill.displayName,
     action: `Prepare ${skill.displayName} handoff for: ${trimTitle(message)}`,
@@ -335,7 +362,7 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
             content:
               `${request.config.systemPrompt}\n\n` +
               "Return only JSON with {summary, steps, warnings}. " +
-              "Each step must use one enabled moduleId and must not claim external execution has already happened.",
+              "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
           },
           {
             role: "user",
@@ -364,6 +391,7 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
                     additionalProperties: false,
                     properties: {
                       moduleId: { type: "string" },
+                      skillId: { type: "string" },
                       title: { type: "string" },
                       action: { type: "string" },
                       input: { type: "object", additionalProperties: true },
@@ -395,7 +423,11 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
     const payload = await response.json();
     const text = extractResponseText(payload);
     const parsed = JSON.parse(text) as AgentRuntimePlan;
-    return normalizePlan(parsed, request.enabledSkills);
+    return normalizePlan(
+      parsed,
+      request.enabledSkills,
+      new Set(request.enabledSkills.map((skill) => skill.skillId)),
+    );
   }
 }
 
@@ -504,14 +536,26 @@ export async function createAgentRun(
   options: {
     env?: Record<string, string | undefined>;
     planner?: AgentPlanner;
+    skillManifests?: SkillManifest[];
   } = {},
 ): Promise<AgentRunResponse> {
   const env = options.env ?? process.env;
   const executionMode = input.executionMode ?? "plan_only";
   const config = await getAgentConfig(configRepository);
   const connection = getConnectionStatus(env);
-  const enabledSkills = listEnabledBusinessSkillDefinitions(
-    config.businessSkillSettings,
+  const skillRegistry = createSkillManifestRegistry(options.skillManifests);
+  const registeredSkillIds = new Set(skillRegistry.listSkillIds());
+  const requestedSkillIds =
+    input.enabledSkillIds ??
+    listEnabledBusinessSkillDefinitions(config.businessSkillSettings).map(
+      (skill) => skill.skillId,
+    );
+  const enabledSkills = requestedSkillIds
+    .map((skillId) => skillRegistry.getSkill(skillId))
+    .filter((manifest): manifest is SkillManifest => Boolean(manifest))
+    .map((manifest) => businessSkillDefinitionFromManifest(manifest));
+  const enabledSkillById = new Map(
+    enabledSkills.map((skill) => [skill.skillId, skill]),
   );
 
   if (enabledSkills.length === 0) {
@@ -570,7 +614,7 @@ export async function createAgentRun(
     config,
     enabledSkills,
   });
-  const plan = normalizePlan(rawPlan, enabledSkills);
+  const plan = normalizePlan(rawPlan, enabledSkills, registeredSkillIds);
 
   if (plan.steps.length === 0) {
     const fallback = deterministicPlan(
@@ -595,15 +639,21 @@ export async function createAgentRun(
 
   const moduleRuns: ModuleRunRecord[] = [];
   for (const [index, step] of effectivePlan.steps.entries()) {
-    const definition = getBusinessSkillDefinition(step.moduleId);
+    const stepSkillId = step.skillId ?? step.moduleId;
+    const definition =
+      enabledSkillById.get(stepSkillId) ??
+      getBusinessSkillDefinition(step.moduleId);
     const { run } = await createModuleRun(repository, {
       moduleId: step.moduleId,
-      externalRunId: `${pipelineRun.id}:${index + 1}:${step.moduleId}`,
+      externalRunId: `${pipelineRun.id}:${index + 1}:${stepSkillId}`,
       pipelineRunId: pipelineRun.id,
       title: step.title,
       status: "pending",
       inputJson: step.input,
+      registeredSkillIds: Array.from(new Set([step.moduleId, stepSkillId])),
       metadata: {
+        skillId: stepSkillId,
+        skillName: definition.displayName,
         action: step.action,
         requiresApproval: step.requiresApproval,
         adapterMode: definition.adapterMode,
@@ -619,6 +669,9 @@ export async function createAgentRun(
         canonicalEntrypoints: definition.canonicalEntrypoints,
         outputContracts: definition.outputContracts,
         sourceRepo: definition.adapter.sourceRepo,
+        project: definition.manifest?.project,
+        skillUi: definition.manifest?.ui,
+        artifactKinds: definition.manifest?.artifactKinds,
       },
     });
     await recordModuleRunEvent(repository, run.id, {
@@ -628,6 +681,7 @@ export async function createAgentRun(
       payload: {
         pipelineRunId: pipelineRun.id,
         moduleId: step.moduleId,
+        skillId: stepSkillId,
         requiresApproval: step.requiresApproval,
       },
     });
@@ -651,7 +705,10 @@ export async function createAgentRun(
 
       if (step.requiresApproval) {
         skippedApprovalModuleRunCount += 1;
-        const definition = getBusinessSkillDefinition(step.moduleId);
+        const stepSkillId = step.skillId ?? step.moduleId;
+        const definition =
+          enabledSkillById.get(stepSkillId) ??
+          getBusinessSkillDefinition(step.moduleId);
         await repository.updateModuleRun(run.id, {
           status: "pending",
           metadata: executionMetadata(run.metadata, "approval_required"),

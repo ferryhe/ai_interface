@@ -19,15 +19,11 @@ export const HealthCheckResponse = zod.object({
  * Returns the module catalog available to Agent.
  * @summary List registered modules
  */
+
 export const ListModulesResponse = zod.object({
   modules: zod.array(
     zod.object({
-      moduleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      moduleId: zod.string().min(1),
       displayName: zod.string(),
       description: zod.string(),
       category: zod.enum(["source", "transform", "index", "agent"]),
@@ -40,16 +36,12 @@ export const ListModulesResponse = zod.object({
  * Returns external tool adapter metadata and redacted readiness by environment variable name.
  * @summary List tool adapters
  */
+
 export const GetToolAdaptersResponse = zod.object({
   adapters: zod.array(
     zod.object({
       adapterId: zod.string(),
-      moduleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      moduleId: zod.string().min(1),
       adapterKind: zod.enum(["http", "cli"]),
       displayName: zod.string(),
       description: zod.string(),
@@ -66,12 +58,7 @@ export const GetToolAdaptersResponse = zod.object({
   readiness: zod.array(
     zod.object({
       adapterId: zod.string(),
-      moduleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      moduleId: zod.string().min(1),
       adapterKind: zod.enum(["http", "cli"]),
       displayName: zod.string(),
       description: zod.string(),
@@ -92,17 +79,103 @@ export const GetToolAdaptersResponse = zod.object({
 });
 
 /**
+ * Returns generic skill manifest metadata, redacted adapter readiness, and project path readiness without exposing configured path or secret values.
+ * @summary List skill manifests
+ */
+
+export const GetSkillsResponse = zod.object({
+  skills: zod.array(
+    zod.object({
+      skillId: zod.string().min(1),
+      moduleId: zod.string().min(1),
+      name: zod.string(),
+      title: zod.string().optional(),
+      description: zod.string(),
+      category: zod.enum(["source", "transform", "index", "agent"]),
+      project: zod.object({
+        source: zod.enum(["builtin", "external"]),
+        defaultSiblingPath: zod.string(),
+        envPath: zod.string().optional(),
+        repoUrl: zod.string().optional(),
+        packageName: zod.string().optional(),
+      }),
+      execution: zod.object({
+        kind: zod.enum(["http", "cli", "internal", "mcp"]),
+        adapterId: zod.string(),
+        requiredEnv: zod.array(zod.string()),
+        optionalEnv: zod.array(zod.string()),
+        timeoutMs: zod.number(),
+        maxOutputBytes: zod.number(),
+        allowedCommands: zod.array(zod.string()),
+        supportsResume: zod.boolean(),
+        readinessHint: zod.string().optional(),
+      }),
+      inputSchema: zod.record(zod.string(), zod.unknown()),
+      outputSchema: zod.record(zod.string(), zod.unknown()),
+      interactionKinds: zod.array(
+        zod.enum(["question", "approval", "data_request", "blocked"]),
+      ),
+      artifactKinds: zod.array(zod.string()),
+      ui: zod.object({
+        mode: zod.enum(["html", "renderer", "auto"]),
+        htmlEntrypoint: zod.string().optional(),
+        openOnTrigger: zod.boolean(),
+        preferredRenderer: zod.enum([
+          "markdown",
+          "table",
+          "json",
+          "text",
+          "image",
+          "file",
+        ]),
+      }),
+      permissions: zod.object({
+        approvalRequired: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+        canWriteDatabase: zod.boolean(),
+      }),
+    }),
+  ),
+  readiness: zod.array(
+    zod.object({
+      skillId: zod.string().min(1),
+      project: zod.object({
+        status: zod.enum(["ready", "not_configured"]),
+        configuredBy: zod.string().nullable(),
+        defaultSiblingPath: zod.string(),
+      }),
+      adapter: zod.object({
+        status: zod.enum(["ready", "missing_required_env"]),
+        configured: zod.boolean(),
+        adapterId: zod.string(),
+        missingRequiredEnv: zod.array(zod.string()),
+        configuredOptionalEnv: zod.array(zod.string()),
+      }),
+      ui: zod.object({
+        mode: zod.enum(["html", "renderer", "auto"]),
+        hasHtml: zod.boolean(),
+        openOnTrigger: zod.boolean(),
+        preferredRenderer: zod.enum([
+          "markdown",
+          "table",
+          "json",
+          "text",
+          "image",
+          "file",
+        ]),
+      }),
+    }),
+  ),
+});
+
+/**
  * Idempotently creates or updates a module run by moduleId and externalRunId.
  * @summary Create or update a module run
  */
 
 export const CreateModuleRunBody = zod.object({
-  moduleId: zod.enum([
-    "web_listening",
-    "doc_to_md",
-    "md_to_rag",
-    "rag_to_agent",
-  ]),
+  skillId: zod.string().min(1).optional(),
+  moduleId: zod.string().min(1),
   externalRunId: zod.string().min(1),
   pipelineRunId: zod.string().uuid().optional(),
   title: zod.string().optional(),
@@ -112,6 +185,7 @@ export const CreateModuleRunBody = zod.object({
   inputJson: zod.record(zod.string(), zod.unknown()).optional(),
   outputJson: zod.record(zod.string(), zod.unknown()).optional(),
   metadata: zod.record(zod.string(), zod.unknown()).optional(),
+  registeredSkillIds: zod.array(zod.string().min(1)).optional(),
 });
 
 export const CreateModuleRunResponse = zod.object({
@@ -119,12 +193,8 @@ export const CreateModuleRunResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.enum([
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-    ]),
+    moduleId: zod.string().min(1),
+    skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
     status: zod.enum([
@@ -175,12 +245,8 @@ export const GetModuleRunResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.enum([
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-    ]),
+    moduleId: zod.string().min(1),
+    skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
     status: zod.enum([
@@ -224,12 +290,8 @@ export const GetModuleRunResponse = zod.object({
         zod.record(zod.string(), zod.unknown()),
         zod.null(),
       ]),
-      sourceModuleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      sourceModuleId: zod.string().min(1),
+      sourceSkillId: zod.string().min(1).optional(),
       sourceRunId: zod.string().uuid(),
       parentArtifactId: zod.string().uuid().nullable(),
       provenance: zod.union([
@@ -264,12 +326,8 @@ export const UpdateModuleRunBody = zod.object({
 export const UpdateModuleRunResponse = zod.object({
   id: zod.string().uuid(),
   pipelineRunId: zod.string().uuid().nullable(),
-  moduleId: zod.enum([
-    "web_listening",
-    "doc_to_md",
-    "md_to_rag",
-    "rag_to_agent",
-  ]),
+  moduleId: zod.string().min(1),
+  skillId: zod.string().min(1).optional(),
   externalRunId: zod.string(),
   title: zod.string().nullable(),
   status: zod.enum(["pending", "running", "succeeded", "failed", "cancelled"]),
@@ -379,12 +437,8 @@ export const SubmitModuleRunFeedbackResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.enum([
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-    ]),
+    moduleId: zod.string().min(1),
+    skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
     status: zod.enum([
@@ -484,12 +538,8 @@ export const ResumeModuleRunExecutionResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.enum([
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-    ]),
+    moduleId: zod.string().min(1),
+    skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
     status: zod.enum([
@@ -591,12 +641,8 @@ export const GetArtifactResponse = zod.object({
   title: zod.string(),
   contentText: zod.string().nullable(),
   contentJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
-  sourceModuleId: zod.enum([
-    "web_listening",
-    "doc_to_md",
-    "md_to_rag",
-    "rag_to_agent",
-  ]),
+  sourceModuleId: zod.string().min(1),
+  sourceSkillId: zod.string().min(1).optional(),
   sourceRunId: zod.string().uuid(),
   parentArtifactId: zod.string().uuid().nullable(),
   provenance: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
@@ -629,6 +675,7 @@ export const CreateAgentRunBody = zod.object({
   title: zod.string().optional(),
   metadata: zod.record(zod.string(), zod.unknown()).optional(),
   executionMode: zod.enum(["plan_only", "execute_ready"]).optional(),
+  enabledSkillIds: zod.array(zod.string().min(1)).optional(),
 });
 
 export const CreateAgentRunResponse = zod.object({
@@ -671,10 +718,7 @@ export const CreateAgentRunResponse = zod.object({
       "failed",
       "cancelled",
     ]),
-    activeModuleId: zod.union([
-      zod.enum(["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"]),
-      zod.null(),
-    ]),
+    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
     metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -683,12 +727,8 @@ export const CreateAgentRunResponse = zod.object({
     zod.object({
       id: zod.string().uuid(),
       pipelineRunId: zod.string().uuid().nullable(),
-      moduleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      moduleId: zod.string().min(1),
+      skillId: zod.string().min(1).optional(),
       externalRunId: zod.string(),
       title: zod.string().nullable(),
       status: zod.enum([
@@ -721,12 +761,8 @@ export const CreateAgentRunResponse = zod.object({
     summary: zod.string(),
     steps: zod.array(
       zod.object({
-        moduleId: zod.enum([
-          "web_listening",
-          "doc_to_md",
-          "md_to_rag",
-          "rag_to_agent",
-        ]),
+        skillId: zod.string().min(1),
+        moduleId: zod.string().min(1),
         title: zod.string(),
         action: zod.string(),
         input: zod.record(zod.string(), zod.unknown()),
@@ -793,10 +829,7 @@ export const GetAgentRunResponse = zod.object({
       "failed",
       "cancelled",
     ]),
-    activeModuleId: zod.union([
-      zod.enum(["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"]),
-      zod.null(),
-    ]),
+    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
     metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -805,12 +838,8 @@ export const GetAgentRunResponse = zod.object({
     zod.object({
       id: zod.string().uuid(),
       pipelineRunId: zod.string().uuid().nullable(),
-      moduleId: zod.enum([
-        "web_listening",
-        "doc_to_md",
-        "md_to_rag",
-        "rag_to_agent",
-      ]),
+      moduleId: zod.string().min(1),
+      skillId: zod.string().min(1).optional(),
       externalRunId: zod.string(),
       title: zod.string().nullable(),
       status: zod.enum([
@@ -857,12 +886,7 @@ export const GetAgentConfigResponse = zod.object({
     systemPrompt: zod.string(),
     businessSkillSettings: zod.array(
       zod.object({
-        moduleId: zod.enum([
-          "web_listening",
-          "doc_to_md",
-          "md_to_rag",
-          "rag_to_agent",
-        ]),
+        moduleId: zod.string().min(1),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
@@ -932,12 +956,7 @@ export const UpdateAgentConfigBody = zod.object({
   businessSkillSettings: zod
     .array(
       zod.object({
-        moduleId: zod.enum([
-          "web_listening",
-          "doc_to_md",
-          "md_to_rag",
-          "rag_to_agent",
-        ]),
+        moduleId: zod.string().min(1),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
@@ -1004,12 +1023,7 @@ export const UpdateAgentConfigResponse = zod.object({
     systemPrompt: zod.string(),
     businessSkillSettings: zod.array(
       zod.object({
-        moduleId: zod.enum([
-          "web_listening",
-          "doc_to_md",
-          "md_to_rag",
-          "rag_to_agent",
-        ]),
+        moduleId: zod.string().min(1),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),

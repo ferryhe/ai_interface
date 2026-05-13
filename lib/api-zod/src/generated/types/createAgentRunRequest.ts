@@ -7,6 +7,7 @@
  */
 import type { AgentRunExecutionMode } from "./agentRunExecutionMode";
 import type { JsonObject } from "./jsonObject";
+import type { SkillId } from "./skillId";
 
 export interface CreateAgentRunRequest {
   /** @minLength 1 */
@@ -15,4 +16,5 @@ export interface CreateAgentRunRequest {
   title?: string;
   metadata?: JsonObject;
   executionMode?: AgentRunExecutionMode;
+  enabledSkillIds?: SkillId[];
 }

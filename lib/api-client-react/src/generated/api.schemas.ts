@@ -17,14 +17,10 @@ export interface JsonObject {
   [key: string]: unknown;
 }
 
-export type ModuleId = (typeof ModuleId)[keyof typeof ModuleId];
-
-export const ModuleId = {
-  web_listening: "web_listening",
-  doc_to_md: "doc_to_md",
-  md_to_rag: "md_to_rag",
-  rag_to_agent: "rag_to_agent",
-} as const;
+/**
+ * @minLength 1
+ */
+export type ModuleId = string;
 
 export type ModuleCategory =
   (typeof ModuleCategory)[keyof typeof ModuleCategory];
@@ -104,14 +100,89 @@ export interface ToolAdapterListResponse {
   readiness: ToolAdapterReadiness[];
 }
 
-export type RunEventSeverity =
-  (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
+/**
+ * @minLength 1
+ */
+export type SkillId = string;
 
-export const RunEventSeverity = {
-  info: "info",
-  warning: "warning",
-  error: "error",
+export type SkillExecutionKind =
+  (typeof SkillExecutionKind)[keyof typeof SkillExecutionKind];
+
+export const SkillExecutionKind = {
+  http: "http",
+  cli: "cli",
+  internal: "internal",
+  mcp: "mcp",
 } as const;
+
+export type SkillArtifactRenderer =
+  (typeof SkillArtifactRenderer)[keyof typeof SkillArtifactRenderer];
+
+export const SkillArtifactRenderer = {
+  markdown: "markdown",
+  table: "table",
+  json: "json",
+  text: "text",
+  image: "image",
+  file: "file",
+} as const;
+
+export type SkillUiMode = (typeof SkillUiMode)[keyof typeof SkillUiMode];
+
+export const SkillUiMode = {
+  html: "html",
+  renderer: "renderer",
+  auto: "auto",
+} as const;
+
+export type SkillProjectSource =
+  (typeof SkillProjectSource)[keyof typeof SkillProjectSource];
+
+export const SkillProjectSource = {
+  builtin: "builtin",
+  external: "external",
+} as const;
+
+export type SkillProjectReadinessStatus =
+  (typeof SkillProjectReadinessStatus)[keyof typeof SkillProjectReadinessStatus];
+
+export const SkillProjectReadinessStatus = {
+  ready: "ready",
+  not_configured: "not_configured",
+} as const;
+
+export interface SkillPermissionDefaults {
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+}
+
+export interface SkillProjectMetadata {
+  source: SkillProjectSource;
+  defaultSiblingPath: string;
+  envPath?: string;
+  repoUrl?: string;
+  packageName?: string;
+}
+
+export interface SkillUi {
+  mode: SkillUiMode;
+  htmlEntrypoint?: string;
+  openOnTrigger: boolean;
+  preferredRenderer: SkillArtifactRenderer;
+}
+
+export interface SkillExecution {
+  kind: SkillExecutionKind;
+  adapterId: string;
+  requiredEnv: string[];
+  optionalEnv: string[];
+  timeoutMs: number;
+  maxOutputBytes: number;
+  allowedCommands: string[];
+  supportsResume: boolean;
+  readinessHint?: string;
+}
 
 export type ToolInteractionKind =
   (typeof ToolInteractionKind)[keyof typeof ToolInteractionKind];
@@ -121,6 +192,66 @@ export const ToolInteractionKind = {
   approval: "approval",
   data_request: "data_request",
   blocked: "blocked",
+} as const;
+
+export interface SkillManifest {
+  skillId: SkillId;
+  moduleId: ModuleId;
+  name: string;
+  title?: string;
+  description: string;
+  category: ModuleCategory;
+  project: SkillProjectMetadata;
+  execution: SkillExecution;
+  inputSchema: JsonObject;
+  outputSchema: JsonObject;
+  interactionKinds: ToolInteractionKind[];
+  artifactKinds: string[];
+  ui: SkillUi;
+  permissions: SkillPermissionDefaults;
+}
+
+export type SkillReadinessProject = {
+  status: SkillProjectReadinessStatus;
+  /** @nullable */
+  configuredBy: string | null;
+  defaultSiblingPath: string;
+};
+
+export type SkillReadinessAdapter = {
+  status: ToolAdapterReadinessStatus;
+  configured: boolean;
+  adapterId: string;
+  missingRequiredEnv: string[];
+  configuredOptionalEnv: string[];
+};
+
+export type SkillReadinessUi = {
+  mode: SkillUiMode;
+  hasHtml: boolean;
+  openOnTrigger: boolean;
+  preferredRenderer: SkillArtifactRenderer;
+};
+
+export interface SkillReadiness {
+  skillId: SkillId;
+  project: SkillReadinessProject;
+  adapter: SkillReadinessAdapter;
+  ui: SkillReadinessUi;
+}
+
+export interface SkillListResponse {
+  skills: SkillManifest[];
+  readiness: SkillReadiness[];
+}
+
+export type RunEventSeverity =
+  (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
+
+export const RunEventSeverity = {
+  info: "info",
+  warning: "warning",
+  error: "error",
 } as const;
 
 export type ToolInteractionStatus =
@@ -197,6 +328,7 @@ export interface ModuleRun {
   /** @nullable */
   pipelineRunId: string | null;
   moduleId: ModuleId;
+  skillId?: SkillId;
   externalRunId: string;
   /** @nullable */
   title: string | null;
@@ -495,6 +627,7 @@ export interface PipelineRun {
 }
 
 export interface AgentRuntimePlanStep {
+  skillId: SkillId;
   moduleId: ModuleId;
   title: string;
   action: string;
@@ -515,6 +648,7 @@ export interface CreateAgentRunRequest {
   title?: string;
   metadata?: JsonObject;
   executionMode?: AgentRunExecutionMode;
+  enabledSkillIds?: SkillId[];
 }
 
 export interface AgentRunResponse {
@@ -548,6 +682,7 @@ export interface ModuleListResponse {
 }
 
 export interface CreateModuleRunRequest {
+  skillId?: SkillId;
   moduleId: ModuleId;
   /** @minLength 1 */
   externalRunId: string;
@@ -557,6 +692,7 @@ export interface CreateModuleRunRequest {
   inputJson?: JsonObject;
   outputJson?: JsonObject;
   metadata?: JsonObject;
+  registeredSkillIds?: SkillId[];
 }
 
 export interface UpdateModuleRunRequest {
@@ -592,6 +728,7 @@ export interface Artifact {
   contentText: string | null;
   contentJson: JsonObject | null;
   sourceModuleId: ModuleId;
+  sourceSkillId?: SkillId;
   sourceRunId: string;
   /** @nullable */
   parentArtifactId: string | null;

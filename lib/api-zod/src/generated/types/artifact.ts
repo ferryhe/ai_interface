@@ -7,6 +7,7 @@
  */
 import type { JsonObject } from "./jsonObject";
 import type { ModuleId } from "./moduleId";
+import type { SkillId } from "./skillId";
 
 export interface Artifact {
   id: string;
@@ -16,6 +17,7 @@ export interface Artifact {
   contentText: string | null;
   contentJson: JsonObject | null;
   sourceModuleId: ModuleId;
+  sourceSkillId?: SkillId;
   sourceRunId: string;
   /** @nullable */
   parentArtifactId: string | null;

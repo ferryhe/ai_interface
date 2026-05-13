@@ -1,15 +1,27 @@
 # ai_interface Project Status
 
-Updated: 2026-05-11
+Updated: 2026-05-13
 
 ## Active Work
 
-- Branch: `codex/portal-agent-run-refresh`
-- Scope: Frontstage Portal users can refresh an API-backed Agent run from `GET /api/agent-runs/{pipelineRunId}` after the original submit.
-- Sibling repos: off-limits. Adapter source repo URLs are metadata only; no external code is read or copied.
+- Branch: `codex/skill-os-interface-runtime`
+- Scope: Replit-style Skill OS interface plus generic skill manifest runtime for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
+- Sibling repos: referenced only by explicitly requested default paths (`../web_listening`, `../doc_to_md`, `../c-ross-2`). This PR edits only `ai_interface` and does not copy/read secrets or modify sibling repositories.
 
 ## Current State
 
+- Added `skill-runtime` manifest contracts, built-in skill manifests, custom skill registry support, and redacted skill readiness.
+- Added `GET /api/skills` and mounted the route.
+- Preserved existing `moduleId` compatibility while allowing registered custom `skillId` values in Agent planning/module-run creation.
+- Agent planner normalization now uses enabled skill manifests, drops unknown/disabled planner skill IDs with warnings, and stores skill/project/UI/artifact metadata on created module runs.
+- OpenAPI now includes `/skills`, skill manifest/readiness schemas, `skillId` plan fields, and regenerated Zod/React clients.
+- `AgentFirstInterface` now has Foreground/Backstage switching. Backstage includes a skill catalog, manifest details, Run I/O, Events, Artifacts, Raw JSON, and sandboxed Skill UI iframe tabs.
+- README now describes Agent OS, Foreground/Backstage, skill manifests, built-in project mappings, setup, and verification.
+- Added PR plan doc at `docs/superpowers/plans/2026-05-13-skill-os-interface-runtime.md`.
+- Opened PR #32 for `codex/skill-os-interface-runtime`: https://github.com/ferryhe/ai_interface/pull/32
+- Scheduled follow-up automation `pr-32-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
+- PR #32 follow-up found no configured GitHub checks and no standalone comments. Copilot left a COMMENTED review with low-confidence suggestions; confirmed-safe fixes were applied for planner compatibility and tighter per-step skill identity handling.
+- PR #32 follow-up fix: Agent planner raw steps can still omit `skillId`, normalized/public plan steps still require it, the OpenAI planner schema keeps `skillId` optional, `externalRunId` uses the step skill id, and module-run creation only passes the current step's module/skill ids as registered skill bypasses.
 - Replit Run button/workflow now starts the mockup sandbox on port 8080 and opens the Agent Module OS page by default.
 - Mockup sandbox root can render `ai-os/AgentFirstInterface` when `VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface` is set.
 - Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
@@ -80,6 +92,18 @@ Updated: 2026-05-11
 
 ## Verification
 
+- Skill OS validation: `corepack pnpm --filter @workspace/api-server run test` passed with 78 tests.
+- Skill OS validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed after keeping raw planner steps compatible with legacy `moduleId`-only planner seams.
+- Skill OS validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Skill OS validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Skill OS validation: `corepack pnpm run typecheck:libs` passed.
+- Skill OS validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Skill OS validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Skill OS validation: `git diff --check` passed with CRLF warnings only.
+- Skill OS smoke: started the mockup sandbox on `http://127.0.0.1:8080/`; HTTP checks confirmed root/source availability plus Foreground, Backstage, Skill catalog, Skill UI, and the four built-in skill IDs in the rendered source path. Browser automation tooling was not exposed in this session, so the rendered smoke is limited to the running in-app target plus HTTP/source checks.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 78 tests.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Run action validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Run action validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Run action validation: `.replit` parsed as TOML with `runButton = "Project"`, `Agent Module OS` workflow, and port 8080 mapped to external 80.
@@ -429,4 +453,4 @@ Updated: 2026-05-11
 
 ## Next Action
 
-- Push/open the Portal auto-refresh pause-state PR, then perform the scheduled follow-up for checks and remote review comments.
+- Perform the scheduled PR #32 follow-up for checks and remote review comments.
