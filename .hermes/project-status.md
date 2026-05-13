@@ -18,6 +18,8 @@ Updated: 2026-05-13
 - `AgentFirstInterface` now has Foreground/Backstage switching. Backstage includes a skill catalog, manifest details, Run I/O, Events, Artifacts, Raw JSON, and sandboxed Skill UI iframe tabs.
 - README now describes Agent OS, Foreground/Backstage, skill manifests, built-in project mappings, setup, and verification.
 - Added PR plan doc at `docs/superpowers/plans/2026-05-13-skill-os-interface-runtime.md`.
+- Opened PR #32 for `codex/skill-os-interface-runtime`: https://github.com/ferryhe/ai_interface/pull/32
+- Scheduled follow-up automation `pr-32-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 - Replit Run button/workflow now starts the mockup sandbox on port 8080 and opens the Agent Module OS page by default.
 - Mockup sandbox root can render `ai-os/AgentFirstInterface` when `VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface` is set.
 - Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
@@ -446,4 +448,4 @@ Updated: 2026-05-13
 
 ## Next Action
 
-- Commit, push, open the Skill OS PR, then perform the scheduled follow-up for checks and remote review comments.
+- Perform the scheduled PR #32 follow-up for checks and remote review comments.
