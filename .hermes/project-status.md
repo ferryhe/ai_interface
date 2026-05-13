@@ -20,6 +20,8 @@ Updated: 2026-05-13
 - Added PR plan doc at `docs/superpowers/plans/2026-05-13-skill-os-interface-runtime.md`.
 - Opened PR #32 for `codex/skill-os-interface-runtime`: https://github.com/ferryhe/ai_interface/pull/32
 - Scheduled follow-up automation `pr-32-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
+- PR #32 follow-up found no configured GitHub checks and no standalone comments. Copilot left a COMMENTED review with low-confidence suggestions; confirmed-safe fixes were applied for planner compatibility and tighter per-step skill identity handling.
+- PR #32 follow-up fix: Agent planner raw steps can still omit `skillId`, normalized/public plan steps still require it, the OpenAI planner schema keeps `skillId` optional, `externalRunId` uses the step skill id, and module-run creation only passes the current step's module/skill ids as registered skill bypasses.
 - Replit Run button/workflow now starts the mockup sandbox on port 8080 and opens the Agent Module OS page by default.
 - Mockup sandbox root can render `ai-os/AgentFirstInterface` when `VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface` is set.
 - Follow-up for PR #4 evaluated Copilot review comments and applied confirmed-safe fixes.
@@ -99,6 +101,9 @@ Updated: 2026-05-13
 - Skill OS validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Skill OS validation: `git diff --check` passed with CRLF warnings only.
 - Skill OS smoke: started the mockup sandbox on `http://127.0.0.1:8080/`; HTTP checks confirmed root/source availability plus Foreground, Backstage, Skill catalog, Skill UI, and the four built-in skill IDs in the rendered source path. Browser automation tooling was not exposed in this session, so the rendered smoke is limited to the running in-app target plus HTTP/source checks.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 78 tests.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- PR #32 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Run action validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
 - Run action validation: `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
 - Run action validation: `.replit` parsed as TOML with `runButton = "Project"`, `Agent Module OS` workflow, and port 8080 mapped to external 80.

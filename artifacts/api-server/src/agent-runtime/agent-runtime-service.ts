@@ -106,6 +106,15 @@ export interface AgentRuntimeRepository extends ModuleRunRepository {
 }
 
 export interface AgentRuntimePlanStep {
+  skillId: string;
+  moduleId: ModuleId;
+  title: string;
+  action: string;
+  input: JsonObject;
+  requiresApproval: boolean;
+}
+
+export interface AgentRuntimePlannerStep {
   skillId?: string;
   moduleId: ModuleId;
   title: string;
@@ -120,6 +129,12 @@ export interface AgentRuntimePlan {
   warnings: string[];
 }
 
+export interface AgentRuntimePlannerPlan {
+  summary: string;
+  steps: AgentRuntimePlannerStep[];
+  warnings: string[];
+}
+
 interface PlannerRequest {
   message: string;
   config: AgentConfigRecord;
@@ -127,7 +142,7 @@ interface PlannerRequest {
 }
 
 export interface AgentPlanner {
-  createPlan(request: PlannerRequest): Promise<AgentRuntimePlan>;
+  createPlan(request: PlannerRequest): Promise<AgentRuntimePlannerPlan>;
 }
 
 export interface CreateAgentRunInput {
@@ -213,7 +228,7 @@ function countExecutedModuleRuns(moduleRuns: ModuleRunRecord[]): number {
 }
 
 function normalizePlan(
-  rawPlan: AgentRuntimePlan,
+  rawPlan: AgentRuntimePlannerPlan,
   enabledSkills: BusinessSkillDefinition[],
   registeredSkillIds: Set<string>,
 ): AgentRuntimePlan {
@@ -384,7 +399,6 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
                     },
                     required: [
                       "moduleId",
-                      "skillId",
                       "title",
                       "action",
                       "input",
@@ -631,12 +645,12 @@ export async function createAgentRun(
       getBusinessSkillDefinition(step.moduleId);
     const { run } = await createModuleRun(repository, {
       moduleId: step.moduleId,
-      externalRunId: `${pipelineRun.id}:${index + 1}:${step.moduleId}`,
+      externalRunId: `${pipelineRun.id}:${index + 1}:${stepSkillId}`,
       pipelineRunId: pipelineRun.id,
       title: step.title,
       status: "pending",
       inputJson: step.input,
-      registeredSkillIds: [...registeredSkillIds],
+      registeredSkillIds: Array.from(new Set([step.moduleId, stepSkillId])),
       metadata: {
         skillId: stepSkillId,
         skillName: definition.displayName,
