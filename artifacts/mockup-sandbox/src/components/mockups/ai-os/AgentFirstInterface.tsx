@@ -25,7 +25,12 @@ import {
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type WorkspaceMode = "foreground" | "backstage";
 type BackstageTab = "io" | "artifacts" | "events" | "ui" | "raw";
-type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
+type ModuleId =
+  | "web_listening"
+  | "doc_to_md"
+  | "md_to_rag"
+  | "rag_to_agent"
+  | "climate_monitor";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
 type RuntimeExecutionMode = "plan_only" | "execute_ready";
 type RuntimeRunStatus =
@@ -53,6 +58,14 @@ type GeneralSkillId =
   | "notion"
   | "lark"
   | "file_tools";
+
+const requiredBusinessModuleIds: Record<ModuleId, true> = {
+  web_listening: true,
+  doc_to_md: true,
+  md_to_rag: true,
+  rag_to_agent: true,
+  climate_monitor: true,
+};
 
 interface ModuleDefinition {
   id: ModuleId;
@@ -300,6 +313,49 @@ interface AgentConnectionApiResponse {
   checkedAt: string;
 }
 
+type ClimateMonitorRunMode = "dry_run" | "live_run";
+type ClimateMonitorApiState = "loading" | "api" | "offline";
+type ClimateMonitorRunState = "idle" | "submitting" | "succeeded" | "offline" | "failed";
+type ClimateWarningSeverity = "info" | "warning" | "critical";
+
+interface ClimateReport {
+  id: string;
+  title: string;
+  status: string;
+  generatedAt: string;
+  summary: string;
+}
+
+interface ClimateScopeCoverage {
+  label: string;
+  covered: number;
+  total: number;
+  status: string;
+}
+
+interface ClimateWarningPlaceholder {
+  id: string;
+  label: string;
+  severity: ClimateWarningSeverity;
+  detail: string;
+}
+
+interface ClimateDedupStatus {
+  candidates: number;
+  merged: number;
+  pending: number;
+  lastChecked: string;
+}
+
+interface ClimateMonitorStatus {
+  configured: boolean;
+  latestReport: ClimateReport | null;
+  scopeCoverage: ClimateScopeCoverage[];
+  warnings: ClimateWarningPlaceholder[];
+  dedup: ClimateDedupStatus;
+  updatedAt: string;
+}
+
 const modules: ModuleDefinition[] = [
   {
     id: "web_listening",
@@ -336,6 +392,15 @@ const modules: ModuleDefinition[] = [
     records: 2,
     result: "waiting for RAG index",
     color: "#f97316",
+  },
+  {
+    id: "climate_monitor",
+    name: "climate_monitor",
+    description: "Track climate and actuarial monitor reports, source coverage, warnings, and run controls.",
+    status: "waiting",
+    records: 6,
+    result: "latest monitor report",
+    color: "#14b8a6",
   },
 ];
 
@@ -583,6 +648,87 @@ const skillManifestPreviews: SkillManifestPreview[] = [
       },
     ],
   },
+  {
+    id: "climate_monitor",
+    name: "climate_monitor",
+    description: "Track climate and actuarial monitor reports, source scope coverage, and run controls.",
+    project: {
+      defaultSiblingPath: "../climate_monitor_wiki",
+      envPath: "CLIMATE_MONITOR_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "climate_monitor.cli.v1",
+      kind: "cli",
+      requiredEnv: ["CLIMATE_MONITOR_PROJECT_PATH"],
+      supportsResume: false,
+    },
+    ui: {
+      mode: "renderer",
+      openOnTrigger: true,
+      preferredRenderer: "json",
+    },
+    artifactKinds: [
+      "climate_monitor_report",
+      "climate_monitor_run_json",
+      "climate_monitor_scope_status",
+    ],
+    interactionKinds: ["approval", "blocked"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        dryRun: { type: "boolean" },
+        date: { type: "string" },
+        manifestFixture: { type: "string" },
+        researchFixture: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        report_date: { type: "string" },
+        report_path: { type: "string" },
+        items: { type: "array" },
+        warnings: { type: "array" },
+      },
+    },
+    sampleInput: {
+      dryRun: true,
+      date: "2026-05-14",
+    },
+    sampleOutput: {
+      report_date: "2026-05-14",
+      report_path: "wiki/climate-monitor-2026-05-14.md",
+      items: 5,
+      warnings: 0,
+    },
+    sampleArtifacts: [
+      {
+        id: "climate_monitor_report_014",
+        title: "Latest climate and actuarial monitor report",
+        kind: "climate_monitor_report",
+        renderer: "json",
+        content: {
+          reportDate: "2026-05-14",
+          reportPath: "wiki/climate-monitor-2026-05-14.md",
+          climateItems: 5,
+          actuarialClimateItems: 2,
+          liveRunEnabled: false,
+        },
+      },
+      {
+        id: "climate_monitor_scope_014",
+        title: "Source scope coverage",
+        kind: "climate_monitor_scope_status",
+        renderer: "table",
+        content: [
+          { scope: "Excel URL-bearing sources", covered: "34 / 34", status: "complete" },
+          { scope: "Site scopes", covered: "34 / 34", status: "complete" },
+          { scope: "Missing scopes", covered: "0", status: "ready" },
+        ],
+      },
+    ],
+  },
 ];
 
 const moduleGuides: Record<ModuleId, CapabilityGuide> = {
@@ -613,6 +759,13 @@ const moduleGuides: Record<ModuleId, CapabilityGuide> = {
     action: "The Agent asks for prompts, tool definitions, validation checks, and final handoff state.",
     output: "Generated agent configs, prompts, tool bindings, and validation results appear before Publish.",
     boundary: "Keep approval on for this skill because it can shape what the final agent is allowed to do.",
+  },
+  climate_monitor: {
+    summary: "Keeps the climate and actuarial monitor reports, source scopes, and guarded run state visible to operators.",
+    trigger: "Use when report freshness, Excel-derived website coverage, or research deduplication state must be checked.",
+    action: "The Agent reads Climate Monitor status through ai_interface and can request dry-run or configured live-run executions.",
+    output: "Latest report metadata, source/scope coverage, warnings, dedup status, and run JSON appear in Backstage.",
+    boundary: "Live execution remains disabled until CLIMATE_MONITOR_PROJECT_PATH is configured and live runs are explicitly enabled.",
   },
 };
 
@@ -722,8 +875,8 @@ const defaultAgentConfig: AgentConfigDraft = {
   businessSkillSettings: modules.map((module) => ({
     moduleId: module.id,
     enabled: true,
-    approvalRequired: module.id === "rag_to_agent",
-    canUseNetwork: module.id === "web_listening",
+    approvalRequired: module.id === "rag_to_agent" || module.id === "climate_monitor",
+    canUseNetwork: module.id === "web_listening" || module.id === "climate_monitor",
     canWriteDatabase: true,
   })),
   generalSkillSettings: [
@@ -812,6 +965,43 @@ const defaultPublishSettings: PublishSettingsApi = {
   versionLabel: "draft-0.3",
 };
 
+const mockClimateMonitorStatus: ClimateMonitorStatus = {
+  configured: false,
+  latestReport: {
+    id: "climate-monitor-2026-05-14",
+    title: "Daily Climate & Actuarial Monitor - 2026-05-14",
+    status: "ready",
+    generatedAt: "2026-05-14",
+    summary: "Latest summary covers climate-related website and report changes from monitored supranational sources.",
+  },
+  scopeCoverage: [
+    { label: "Source registry", covered: 34, total: 34, status: "complete" },
+    { label: "Scoped sources", covered: 34, total: 34, status: "complete" },
+    { label: "Missing scopes", covered: 0, total: 34, status: "ready" },
+  ],
+  warnings: [
+    {
+      id: "cm-warn-live-disabled",
+      label: "Live runs disabled",
+      severity: "warning",
+      detail: "Dry-run is available; live execution requires explicit server-side enablement.",
+    },
+    {
+      id: "cm-warn-api-fallback",
+      label: "Local fallback",
+      severity: "info",
+      detail: "The panel uses mock status until the ai_interface API is reachable.",
+    },
+  ],
+  dedup: {
+    candidates: 5,
+    merged: 5,
+    pending: 0,
+    lastChecked: "2026-05-14",
+  },
+  updatedAt: "2026-05-14",
+};
+
 const runSteps: RunStep[] = [
   {
     id: "listen",
@@ -844,6 +1034,14 @@ const runSteps: RunStep[] = [
     detail: "Queued until the index passes validation.",
     status: "waiting",
     time: "Next",
+  },
+  {
+    id: "climate",
+    moduleId: "climate_monitor",
+    title: "Climate monitor ops check",
+    detail: "Latest report, scope coverage, warnings, and dedup state are ready for Backstage review.",
+    status: "waiting",
+    time: "On demand",
   },
 ];
 
@@ -914,6 +1112,19 @@ const mockRuntimeRuns: RuntimeModuleRun[] = [
     missingRequiredEnv: [],
     updatedAt: "09:42",
   },
+  {
+    id: "run-climate-monitor-014",
+    moduleId: "climate_monitor",
+    title: "Checked climate monitor ops",
+    status: "skipped",
+    adapterId: "climate_monitor.cli.v1",
+    adapterKind: "cli",
+    externalRunId: "climate-monitor-014",
+    event: "Dry-run is available after the Climate Monitor project path is configured.",
+    resultRecordIds: ["climate_monitor_report_014"],
+    missingRequiredEnv: ["CLIMATE_MONITOR_PROJECT_PATH"],
+    updatedAt: "08:20",
+  },
 ];
 
 const dataRecords: DataRecord[] = [
@@ -948,6 +1159,14 @@ const dataRecords: DataRecord[] = [
     moduleId: "rag_to_agent",
     summary: "Draft prompt, search tool binding, validation pending.",
     updatedAt: "09:42",
+  },
+  {
+    id: "climate_monitor_report_014",
+    kind: "climate_monitor_report",
+    title: "Daily Climate & Actuarial Monitor",
+    moduleId: "climate_monitor",
+    summary: "Climate-related source changes, document links, and actuarial research matches are summarized for operator review.",
+    updatedAt: "08:20",
   },
 ];
 
@@ -1000,6 +1219,15 @@ function skillManifestById(skillId: ModuleId): SkillManifestPreview {
   return skillManifestPreviews.find((item) => item.id === skillId) ?? skillManifestPreviews[0]!;
 }
 
+function hasBackstageSkillUi(skill: SkillManifestPreview): boolean {
+  return skill.id === "climate_monitor" || Boolean(skill.ui.htmlEntrypoint);
+}
+
+function backstageUiLabel(skill: SkillManifestPreview): string {
+  if (skill.id === "climate_monitor") return "Ops panel";
+  return skill.ui.htmlEntrypoint ? "HTML tab" : skill.ui.preferredRenderer;
+}
+
 function shouldOpenBackstageForRun(run: RuntimeModuleRun): boolean {
   const manifest = skillManifestById(run.moduleId);
   return (
@@ -1028,6 +1256,338 @@ function stringArrayFromMetadata(
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringFromObject(value: JsonObject, key: string, fallback: string): string {
+  const field = value[key];
+  return typeof field === "string" ? field : fallback;
+}
+
+function numberFromObject(value: JsonObject, key: string, fallback: number): number {
+  const field = value[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : fallback;
+}
+
+function booleanFromObject(value: JsonObject, key: string, fallback: boolean): boolean {
+  const field = value[key];
+  return typeof field === "boolean" ? field : fallback;
+}
+
+function stringFromNullableObject(
+  value: JsonObject,
+  key: string,
+  fallback: string,
+  nullFallback: string,
+): string {
+  return Object.prototype.hasOwnProperty.call(value, key) && value[key] === null
+    ? nullFallback
+    : stringFromObject(value, key, fallback);
+}
+
+function climateWarningSeverity(value: unknown): ClimateWarningSeverity {
+  if (value === "critical" || value === "warning" || value === "info") return value;
+  return "info";
+}
+
+function climateStatusRoot(payload: unknown): JsonObject | null {
+  if (!isJsonObject(payload)) return null;
+  if (isJsonObject(payload["status"])) return payload["status"];
+  if (isJsonObject(payload["climateMonitor"])) return payload["climateMonitor"];
+  return payload;
+}
+
+function reportIdFromPath(path: string, fallback: string): string {
+  const filename = path.split(/[\\/]/).pop();
+  return filename?.replace(/\.md$/i, "") || fallback;
+}
+
+function climateReportFallback(fallback: ClimateReport | null): ClimateReport {
+  return (
+    fallback ?? {
+      id: "climate-monitor-run",
+      title: "Climate monitor run",
+      status: "pending",
+      generatedAt: climateTimestamp(),
+      summary: "Climate monitor report metadata is not available yet.",
+    }
+  );
+}
+
+function normalizeClimateReport(
+  value: unknown,
+  fallback: ClimateReport | null,
+  root?: JsonObject,
+): ClimateReport | null {
+  if (!isJsonObject(value)) return fallback;
+
+  const reportFallback = climateReportFallback(fallback);
+  const path = stringFromObject(value, "path", "");
+  const date = stringFromObject(
+    value,
+    "date",
+    stringFromObject(value, "report_date", reportFallback.generatedAt),
+  );
+  const project = root && isJsonObject(root["project"]) ? root["project"] : null;
+  const command = root && isJsonObject(root["command"]) ? root["command"] : null;
+  const dryRun = command ? booleanFromObject(command, "dryRun", true) : true;
+
+  return {
+    id: stringFromObject(
+      value,
+      "id",
+      stringFromObject(
+        value,
+        "reportId",
+        reportIdFromPath(stringFromObject(value, "report_path", path), reportFallback.id),
+      ),
+    ),
+    title: stringFromNullableObject(
+      value,
+      "title",
+      reportFallback.title,
+      "Untitled climate report",
+    ),
+    status: stringFromObject(
+      value,
+      "status",
+      command
+        ? dryRun
+          ? "dry-run completed"
+          : "live run completed"
+        : project
+          ? stringFromObject(project, "status", reportFallback.status)
+          : reportFallback.status,
+    ),
+    generatedAt: stringFromObject(
+      value,
+      "generatedAt",
+      stringFromObject(value, "generated_at", date),
+    ),
+    summary: stringFromNullableObject(
+      value,
+      "summary",
+      reportFallback.summary,
+      "No summary was returned by the Climate Monitor API.",
+    ),
+  };
+}
+
+function normalizeBackendCoverage(
+  value: JsonObject,
+  fallback: ClimateScopeCoverage[],
+): ClimateScopeCoverage[] {
+  const sourceCount = numberFromObject(value, "sourceCount", 0);
+  const scopeCount = numberFromObject(value, "scopeCount", 0);
+  const scopedSourceCount = numberFromObject(value, "scopedSourceCount", 0);
+  const missingScopeCount = numberFromObject(value, "missingScopeCount", 0);
+  const status = stringFromObject(value, "status", "unknown");
+  if (sourceCount === 0 && scopeCount === 0 && scopedSourceCount === 0) return fallback;
+
+  return [
+    {
+      label: "Source registry",
+      covered: sourceCount,
+      total: sourceCount,
+      status,
+    },
+    {
+      label: "Scoped sources",
+      covered: scopedSourceCount,
+      total: sourceCount,
+      status,
+    },
+    {
+      label: "Site scopes",
+      covered: scopeCount,
+      total: sourceCount,
+      status,
+    },
+    {
+      label: "Missing scopes",
+      covered: missingScopeCount,
+      total: sourceCount,
+      status: missingScopeCount > 0 ? "review" : "ready",
+    },
+  ];
+}
+
+function normalizeClimateScopeCoverage(
+  value: unknown,
+  fallback: ClimateScopeCoverage[],
+): ClimateScopeCoverage[] {
+  if (isJsonObject(value)) return normalizeBackendCoverage(value, fallback);
+  if (!Array.isArray(value)) return fallback;
+
+  const normalized = value.flatMap((item, index) => {
+    if (!isJsonObject(item)) return [];
+    const fallbackItem = fallback[index] ?? {
+      label: "Scope",
+      covered: 0,
+      total: 0,
+      status: "unknown",
+    };
+
+    return [
+      {
+        label: stringFromObject(
+          item,
+          "label",
+          stringFromObject(item, "scope", fallbackItem.label),
+        ),
+        covered: numberFromObject(item, "covered", fallbackItem.covered),
+        total: numberFromObject(item, "total", fallbackItem.total),
+        status: stringFromObject(item, "status", fallbackItem.status),
+      },
+    ];
+  });
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function normalizeClimateWarnings(
+  value: unknown,
+  fallback: ClimateWarningPlaceholder[],
+): ClimateWarningPlaceholder[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const normalized = value.flatMap((item, index) => {
+    if (typeof item === "string") {
+      return [
+        {
+          id: `cm-warning-${index}`,
+          label: "Run warning",
+          severity: "warning" as const,
+          detail: item,
+        },
+      ];
+    }
+    if (!isJsonObject(item)) return [];
+    const fallbackItem = fallback[index] ?? {
+      id: `cm-warning-${index}`,
+      label: "Warning placeholder",
+      severity: "info" as const,
+      detail: "Pending review",
+    };
+
+    return [
+      {
+        id: stringFromObject(item, "id", fallbackItem.id),
+        label: stringFromObject(item, "label", fallbackItem.label),
+        severity: climateWarningSeverity(item["severity"]),
+        detail: stringFromObject(item, "detail", fallbackItem.detail),
+      },
+    ];
+  });
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function normalizeClimateRunParsedReport(
+  parsed: JsonObject,
+  root: JsonObject,
+  fallback: ClimateReport | null,
+): ClimateReport {
+  const reportFallback = climateReportFallback(fallback);
+  const items = Array.isArray(parsed["items"]) ? parsed["items"].length : 0;
+  const reportDate = stringFromObject(parsed, "report_date", reportFallback.generatedAt);
+  const reportPath = stringFromObject(parsed, "report_path", reportFallback.id);
+  return normalizeClimateReport(
+    {
+      id: reportIdFromPath(reportPath, reportFallback.id),
+      title: `Climate monitor run - ${reportDate}`,
+      report_date: reportDate,
+      report_path: reportPath,
+      summary:
+        items === 1
+          ? "1 climate-related item matched the run filters."
+          : `${items} climate-related items matched the run filters.`,
+    },
+    reportFallback,
+    root,
+  ) ?? reportFallback;
+}
+
+function normalizeClimateDedup(
+  value: unknown,
+  fallback: ClimateDedupStatus,
+): ClimateDedupStatus {
+  if (!isJsonObject(value)) return fallback;
+
+  return {
+    candidates: numberFromObject(value, "candidates", fallback.candidates),
+    merged: numberFromObject(value, "merged", fallback.merged),
+    pending: numberFromObject(value, "pending", fallback.pending),
+    lastChecked: stringFromObject(
+      value,
+      "lastChecked",
+      stringFromObject(value, "last_checked", fallback.lastChecked),
+    ),
+  };
+}
+
+function normalizeClimateMonitorStatus(
+  payload: unknown,
+  fallback: ClimateMonitorStatus = mockClimateMonitorStatus,
+): ClimateMonitorStatus {
+  const root = climateStatusRoot(payload);
+  if (!root) return fallback;
+
+  const parsedRun = isJsonObject(root["parsed"]) ? root["parsed"] : null;
+  const latestReportValue =
+    root["latestReport"] !== undefined
+      ? root["latestReport"]
+      : root["latest_report"] !== undefined
+        ? root["latest_report"]
+        : root["report"] !== undefined
+          ? root["report"]
+          : parsedRun;
+  const scopeCoverageValue =
+    root["scopeCoverage"] ?? root["scope_coverage"] ?? root["coverage"];
+  const project = isJsonObject(root["project"]) ? root["project"] : null;
+
+  return {
+    configured: booleanFromObject(
+      root,
+      "configured",
+      project
+        ? stringFromObject(project, "status", "") === "ready"
+        : booleanFromObject(root, "liveConfigured", fallback.configured),
+    ),
+    latestReport: parsedRun
+      ? normalizeClimateRunParsedReport(parsedRun, root, fallback.latestReport)
+      : latestReportValue === null
+        ? null
+      : normalizeClimateReport(latestReportValue, fallback.latestReport, root),
+    scopeCoverage: normalizeClimateScopeCoverage(
+      scopeCoverageValue,
+      fallback.scopeCoverage,
+    ),
+    warnings: normalizeClimateWarnings(
+      parsedRun?.["warnings"] ?? root["warnings"],
+      fallback.warnings,
+    ),
+    dedup: normalizeClimateDedup(
+      root["dedup"] ?? root["deduplication"],
+      fallback.dedup,
+    ),
+    updatedAt: stringFromObject(
+      root,
+      "updatedAt",
+      stringFromObject(
+        root,
+        "updated_at",
+        parsedRun
+          ? stringFromObject(parsedRun, "report_date", fallback.updatedAt)
+          : isJsonObject(latestReportValue)
+            ? stringFromObject(latestReportValue, "date", fallback.updatedAt)
+            : fallback.updatedAt,
+      ),
+    ),
+  };
 }
 
 function isInteractionKind(value: unknown): value is ToolInteractionApi["kind"] {
@@ -1818,6 +2378,11 @@ function AgentView({
   const approvalCount = runtimeRuns.filter((run) => run.status === "approval_required").length;
   const configNeededCount = runtimeRuns.filter((run) => run.status === "skipped").length;
   const succeededCount = runtimeRuns.filter((run) => run.status === "succeeded").length;
+  const storedRecordCount = modules.reduce((total, module) => total + module.records, 0);
+  const artifactCount = skillManifestPreviews.reduce(
+    (total, skill) => total + skill.sampleArtifacts.length,
+    0,
+  );
 
   return (
     <section className="agent-layout">
@@ -1837,7 +2402,7 @@ function AgentView({
             Build an onboarding knowledge agent from the watched docs and keep every module result in the database.
           </ChatBubble>
           <ChatBubble role="agent">
-            I will run the four-module chain and store snapshots, Markdown, chunks, and agent config records in Postgres.
+            I will run the five-module chain and store snapshots, Markdown, chunks, agent config, and climate report records in Postgres.
           </ChatBubble>
 
           <RunCard
@@ -1921,9 +2486,9 @@ function AgentView({
           </div>
         </div>
         <div className="agent-summary-grid">
-          <Metric label="Runs" value="4" />
-          <Metric label="Records" value="150" />
-          <Metric label="Artifacts" value="12" />
+          <Metric label="Runs" value={String(Math.max(runtimeRuns.length, modules.length))} />
+          <Metric label="Records" value={String(storedRecordCount)} />
+          <Metric label="Artifacts" value={String(artifactCount)} />
         </div>
       </div>
     </section>
@@ -1955,7 +2520,7 @@ function BackstageView({
     { id: "io", label: "Run I/O", enabled: true },
     { id: "artifacts", label: "Artifacts", enabled: true },
     { id: "events", label: "Events", enabled: true },
-    { id: "ui", label: "Skill UI", enabled: Boolean(selectedSkill.ui.htmlEntrypoint) },
+    { id: "ui", label: "Skill UI", enabled: hasBackstageSkillUi(selectedSkill) },
     { id: "raw", label: "Raw JSON", enabled: true },
   ];
 
@@ -2014,10 +2579,7 @@ function BackstageView({
             value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
           />
           <Metric label="Adapter" value={selectedSkill.execution.adapterId} />
-          <Metric
-            label="UI"
-            value={selectedSkill.ui.htmlEntrypoint ? "HTML tab" : selectedSkill.ui.preferredRenderer}
-          />
+          <Metric label="UI" value={backstageUiLabel(selectedSkill)} />
         </div>
 
         <div className="backstage-tabs" role="tablist" aria-label="Backstage tabs">
@@ -2183,6 +2745,10 @@ function SkillHtmlPanel({
   skill: SkillManifestPreview;
   run?: RuntimeModuleRun;
 }) {
+  if (skill.id === "climate_monitor") {
+    return <ClimateMonitorOpsPanel run={run} />;
+  }
+
   if (!skill.ui.htmlEntrypoint) {
     return (
       <div className="json-inspector empty-state">
@@ -2222,6 +2788,317 @@ function SkillHtmlPanel({
   return (
     <div className="skill-ui-frame">
       <iframe title={`${skill.name} backstage UI`} sandbox="" srcDoc={html} />
+    </div>
+  );
+}
+
+function climateApiStateLabel(state: ClimateMonitorApiState): string {
+  if (state === "api") return "API";
+  if (state === "loading") return "Loading";
+  return "Mock fallback";
+}
+
+function climateApiStateClass(state: ClimateMonitorApiState): string {
+  if (state === "api") return "runtime-status succeeded";
+  if (state === "loading") return "runtime-status running";
+  return "runtime-status skipped";
+}
+
+function climateRunStateLabel(state: ClimateMonitorRunState): string {
+  if (state === "submitting") return "Submitting";
+  if (state === "succeeded") return "Accepted";
+  if (state === "offline") return "Local fallback";
+  if (state === "failed") return "Failed";
+  return "Idle";
+}
+
+function climateTimestamp(): string {
+  return new Date().toISOString().slice(0, 16).replace("T", " ");
+}
+
+function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
+  const [status, setStatus] = useState<ClimateMonitorStatus>(mockClimateMonitorStatus);
+  const [apiState, setApiState] = useState<ClimateMonitorApiState>("loading");
+  const [runState, setRunState] = useState<ClimateMonitorRunState>("idle");
+  const [statusText, setStatusText] = useState("Loading Climate Monitor status");
+  const [runDate, setRunDate] = useState("");
+  const [manifestFixture, setManifestFixture] = useState("");
+  const [researchFixture, setResearchFixture] = useState("");
+  const missingEnv =
+    run?.missingRequiredEnv.length
+      ? run.missingRequiredEnv
+      : status.configured
+        ? []
+        : ["CLIMATE_MONITOR_PROJECT_PATH"];
+  const liveRunDisabled = !status.configured || runState === "submitting";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClimateStatus(): Promise<void> {
+      try {
+        const response = await fetch("/api/climate-monitor/status", {
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error(`Climate Monitor status returned ${response.status}`);
+        }
+
+        const data = (await response.json()) as unknown;
+        if (cancelled) return;
+
+        setStatus(normalizeClimateMonitorStatus(data));
+        setApiState("api");
+        setStatusText("Status loaded from API");
+      } catch {
+        if (cancelled) return;
+        setStatus(mockClimateMonitorStatus);
+        setApiState("offline");
+        setStatusText("API offline - local mock status");
+      }
+    }
+
+    void loadClimateStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function submitClimateRun(mode: ClimateMonitorRunMode): Promise<void> {
+    if (mode === "live_run" && !status.configured) return;
+
+    setRunState("submitting");
+    setStatusText(mode === "dry_run" ? "Submitting dry-run" : "Submitting live run");
+
+    const runRequest: {
+      dryRun: boolean;
+      date?: string;
+      manifestFixture?: string;
+      researchFixture?: string;
+    } = {
+      dryRun: mode === "dry_run",
+    };
+    const normalizedDate = runDate.trim();
+    const normalizedManifestFixture = manifestFixture.trim();
+    const normalizedResearchFixture = researchFixture.trim();
+    if (normalizedDate) runRequest.date = normalizedDate;
+    if (normalizedManifestFixture) runRequest.manifestFixture = normalizedManifestFixture;
+    if (normalizedResearchFixture) runRequest.researchFixture = normalizedResearchFixture;
+
+    try {
+      const response = await fetch("/api/climate-monitor/runs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-AI-Interface-Command-Intent": "climate-monitor-run",
+        },
+        body: JSON.stringify(runRequest),
+      });
+      if (!response.ok) {
+        throw new Error(`Climate Monitor run returned ${response.status}`);
+      }
+
+      const data = (await response.json()) as unknown;
+      setStatus(normalizeClimateMonitorStatus(data, status));
+      setApiState("api");
+      setRunState("succeeded");
+      setStatusText(mode === "dry_run" ? "Dry-run accepted by API" : "Live run accepted by API");
+    } catch {
+      const updatedAt = climateTimestamp();
+      setStatus((current) => ({
+        ...current,
+        latestReport: current.latestReport
+          ? {
+              ...current.latestReport,
+              status: mode === "dry_run" ? "dry-run queued" : current.latestReport.status,
+              generatedAt: updatedAt,
+            }
+          : null,
+        updatedAt,
+      }));
+      setApiState("offline");
+      setRunState(mode === "dry_run" ? "offline" : "failed");
+      setStatusText(
+        mode === "dry_run"
+          ? "Dry-run queued locally; API offline"
+          : "Live-run API unavailable",
+      );
+    }
+  }
+
+  return (
+    <div className="climate-ops-panel">
+      <div className="panel-heading">
+        <span>
+          <Globe2 size={16} />
+          Climate Monitor Ops
+        </span>
+        <span className={climateApiStateClass(apiState)}>{climateApiStateLabel(apiState)}</span>
+      </div>
+
+      <div className="climate-ops-metrics">
+        <Metric label="Configured" value={status.configured ? "Yes" : "No"} />
+        <Metric label="Run state" value={climateRunStateLabel(runState)} />
+        <Metric label="Updated" value={status.updatedAt} />
+        <Metric label="Warnings" value={String(status.warnings.length)} />
+      </div>
+
+      {status.latestReport ? (
+        <section className="climate-report-card">
+          <div>
+            <span className="soft-label">Latest report</span>
+            <h2>{status.latestReport.title}</h2>
+            <p>{status.latestReport.summary}</p>
+          </div>
+          <div className="climate-report-meta">
+            <strong>{status.latestReport.id}</strong>
+            <span>{status.latestReport.status}</span>
+            <em>{status.latestReport.generatedAt}</em>
+          </div>
+        </section>
+      ) : (
+        <section className="climate-report-card empty-report">
+          <div>
+            <span className="soft-label">Latest report</span>
+            <h2>No report yet</h2>
+            <p>The API did not return a current Climate Monitor report.</p>
+          </div>
+          <div className="climate-report-meta">
+            <strong>not_available</strong>
+            <span>{status.configured ? "ready to run" : "not configured"}</span>
+            <em>{status.updatedAt}</em>
+          </div>
+        </section>
+      )}
+
+      <div className="climate-ops-grid">
+        <section className="climate-ops-card">
+          <div className="artifact-title">
+            <Database size={15} />
+            <span>Scope coverage</span>
+          </div>
+          <div className="climate-coverage-list">
+            {status.scopeCoverage.map((item) => {
+              const coverage =
+                item.total > 0 ? Math.min(100, Math.round((item.covered / item.total) * 100)) : 0;
+              return (
+                <div key={item.label} className="climate-coverage-row">
+                  <span>
+                    <strong>{item.label}</strong>
+                    <em>{item.status}</em>
+                  </span>
+                  <b>
+                    {item.covered} / {item.total}
+                  </b>
+                  <div className="climate-progress" aria-label={`${item.label} ${coverage}%`}>
+                    <i style={{ width: `${coverage}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="climate-ops-card">
+          <div className="artifact-title">
+            <CircleAlert size={15} />
+            <span>Warnings</span>
+          </div>
+          <div className="climate-warning-list">
+            {status.warnings.map((warning) => (
+              <div key={warning.id} className={`climate-warning-row ${warning.severity}`}>
+                <strong>{warning.label}</strong>
+                <span>{warning.detail}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="climate-ops-card climate-dedup-card">
+          <div className="artifact-title">
+            <Layers3 size={15} />
+            <span>Dedup placeholders</span>
+          </div>
+          <div className="climate-dedup-grid">
+            <span>
+              <strong>{status.dedup.candidates}</strong>
+              <em>Candidates</em>
+            </span>
+            <span>
+              <strong>{status.dedup.merged}</strong>
+              <em>Merged</em>
+            </span>
+            <span>
+              <strong>{status.dedup.pending}</strong>
+              <em>Pending</em>
+            </span>
+            <span>
+              <strong>{status.dedup.lastChecked}</strong>
+              <em>Last checked</em>
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <div className="runtime-action-row climate-actions">
+        <div className="runtime-chip-row">
+          {missingEnv.length > 0 ? (
+            missingEnv.map((envName) => <span key={envName}>{envName}</span>)
+          ) : (
+            <span>configured</span>
+          )}
+        </div>
+        <div className="climate-run-options">
+          <label>
+            <span>Date</span>
+            <input
+              type="date"
+              value={runDate}
+              onChange={(event) => setRunDate(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Manifest</span>
+            <input
+              type="text"
+              value={manifestFixture}
+              onChange={(event) => setManifestFixture(event.target.value)}
+              placeholder="fixtures/sample-manifest.json"
+            />
+          </label>
+          <label>
+            <span>Research</span>
+            <input
+              type="text"
+              value={researchFixture}
+              onChange={(event) => setResearchFixture(event.target.value)}
+              placeholder="fixtures/sample-research.json"
+            />
+          </label>
+        </div>
+        <div className="runtime-action-row">
+          <button
+            type="button"
+            className="small-action"
+            disabled={runState === "submitting"}
+            onClick={() => void submitClimateRun("dry_run")}
+          >
+            <Activity size={14} />
+            {runState === "submitting" ? "Submitting" : "Dry-run"}
+          </button>
+          <button
+            type="button"
+            className="primary-action"
+            disabled={liveRunDisabled}
+            onClick={() => void submitClimateRun("live_run")}
+          >
+            <ShieldCheck size={14} />
+            Live run
+          </button>
+        </div>
+      </div>
+      <p className="runtime-action-feedback">{statusText}</p>
     </div>
   );
 }
@@ -2313,7 +3190,7 @@ function ModulesView({
   const selectedActionState = selectedRuntimeRun
     ? runtimeActionStates[selectedRuntimeRun.id] ?? "idle"
     : "idle";
-  const supportsResume = selectedModule.id !== "md_to_rag";
+  const supportsResume = skillManifestById(selectedModule.id).execution.supportsResume;
 
   return (
     <section className="module-layout">
@@ -2323,7 +3200,7 @@ function ModulesView({
             <Boxes size={16} />
             Modules
           </span>
-          <span className="soft-label">4 registered</span>
+          <span className="soft-label">{modules.length} registered</span>
         </div>
         {modules.map((module) => (
           <button
@@ -4035,6 +4912,214 @@ const styles = `
     background: #1d1710;
   }
 
+  .climate-ops-panel {
+    display: grid;
+    gap: 12px;
+  }
+
+  .climate-ops-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .climate-report-card,
+  .climate-ops-card {
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #121a25;
+  }
+
+  .climate-report-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px;
+  }
+
+  .climate-report-card h2 {
+    margin: 4px 0 7px;
+    font-size: 18px;
+    letter-spacing: 0;
+  }
+
+  .climate-report-card p {
+    margin: 0;
+    color: #9aa7b8;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .climate-report-card.empty-report {
+    border-style: dashed;
+    background: #101720;
+  }
+
+  .climate-report-meta {
+    min-width: 180px;
+    display: grid;
+    justify-items: end;
+    align-content: start;
+    gap: 5px;
+    text-align: right;
+  }
+
+  .climate-report-meta strong {
+    color: #edf3fb;
+    font-size: 14px;
+  }
+
+  .climate-report-meta span,
+  .climate-report-meta em {
+    color: #8d9bad;
+    font-size: 12px;
+    font-style: normal;
+  }
+
+  .climate-ops-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 12px;
+  }
+
+  .climate-ops-card {
+    min-width: 0;
+    padding: 12px;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+  }
+
+  .climate-dedup-card {
+    grid-column: 1 / -1;
+  }
+
+  .climate-coverage-list,
+  .climate-warning-list {
+    display: grid;
+    gap: 9px;
+  }
+
+  .climate-coverage-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 12px;
+    align-items: center;
+  }
+
+  .climate-coverage-row span,
+  .climate-warning-row {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  .climate-coverage-row strong,
+  .climate-warning-row strong {
+    color: #edf3fb;
+    font-size: 12px;
+  }
+
+  .climate-coverage-row em,
+  .climate-warning-row span,
+  .climate-dedup-grid em {
+    color: #8d9bad;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1.4;
+  }
+
+  .climate-coverage-row b {
+    color: #cde7f8;
+    font-size: 12px;
+  }
+
+  .climate-progress {
+    grid-column: 1 / -1;
+    height: 7px;
+    border-radius: 999px;
+    background: #0a1119;
+    overflow: hidden;
+  }
+
+  .climate-progress i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #14b8a6;
+  }
+
+  .climate-warning-row {
+    border-left: 3px solid #4f9cff;
+    padding-left: 9px;
+  }
+
+  .climate-warning-row.warning {
+    border-left-color: #f2c94c;
+  }
+
+  .climate-warning-row.critical {
+    border-left-color: #ef4444;
+  }
+
+  .climate-dedup-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .climate-dedup-grid span {
+    min-width: 0;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #0d141d;
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+  }
+
+  .climate-dedup-grid strong {
+    color: #edf3fb;
+    font-size: 15px;
+  }
+
+  .climate-actions {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .climate-run-options {
+    min-width: min(100%, 560px);
+    display: grid;
+    grid-template-columns: 128px minmax(150px, 1fr) minmax(150px, 1fr);
+    gap: 8px;
+  }
+
+  .climate-run-options label {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    color: #8d9bad;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .climate-run-options input {
+    min-width: 0;
+    height: 32px;
+    border: 1px solid #344456;
+    border-radius: 7px;
+    background: #0d141d;
+    color: #edf3fb;
+    padding: 0 9px;
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .climate-run-options input::placeholder {
+    color: #66758a;
+  }
+
   .skill-ui-frame {
     min-height: 420px;
     border: 1px solid #263545;
@@ -5720,8 +6805,14 @@ const styles = `
 
     .backstage-metrics,
     .backstage-grid.two,
-    .artifact-grid {
+    .artifact-grid,
+    .climate-ops-metrics,
+    .climate-dedup-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .climate-ops-grid {
+      grid-template-columns: 1fr;
     }
 
     .capability-map {
@@ -5840,8 +6931,23 @@ const styles = `
     .backstage-metrics,
     .backstage-grid.two,
     .artifact-grid,
+    .climate-ops-metrics,
+    .climate-ops-grid,
+    .climate-dedup-grid,
+    .climate-run-options,
     .memory-map {
       grid-template-columns: 1fr;
+    }
+
+    .climate-report-card,
+    .climate-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .climate-report-meta {
+      justify-items: start;
+      text-align: left;
     }
 
     .backstage-header,

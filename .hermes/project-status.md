@@ -1,15 +1,21 @@
 # ai_interface Project Status
 
-Updated: 2026-05-13
+Updated: 2026-05-14
 
 ## Active Work
 
-- Branch: `codex/skill-os-interface-runtime`
-- Scope: Replit-style Skill OS interface plus generic skill manifest runtime for `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
-- Sibling repos: referenced only by explicitly requested default paths (`../web_listening`, `../doc_to_md`, `../c-ross-2`). This PR edits only `ai_interface` and does not copy/read secrets or modify sibling repositories.
+- Branch: `codex/climate-monitor-ops-interface`
+- Scope: Add `climate_monitor` as the fifth business skill, with ai_interface status/run APIs, generated client contracts, and a dedicated Backstage Climate Monitor Ops panel.
+- Sibling repos: reads the explicitly requested `../climate_monitor_wiki` project via `CLIMATE_MONITOR_PROJECT_PATH`; PR edits remain confined to `ai_interface`. Dry-runs write temporary outputs under ai_interface `.tmp/`.
 
 ## Current State
 
+- PR4 ready for review: `climate_monitor` is registered in module, adapter, skill manifest, default agent config, Agent runtime skill registry, OpenAPI, generated Zod/React clients, and the Agent Module OS mockup.
+- Added `GET /api/climate-monitor/status` for redacted climate monitor project status, latest report metadata, source/scope coverage, and git clean/dirty state.
+- Added `POST /api/climate-monitor/runs` for fixed `python scripts/run_climate_monitor.py --json` execution. Dry-run is the default, uses `ai_interface_workspace`, writes under `.tmp/ai-interface-climate-monitor`, requires the `X-AI-Interface-Command-Intent: climate-monitor-run` guard plus loopback-only host/origin checks, and blocks live runs unless `CLIMATE_MONITOR_ALLOW_LIVE_RUNS=1`.
+- Backstage Skill UI now renders a Climate Monitor Ops panel with report, source coverage, warning, dedup, run date, manifest fixture, research fixture, dry-run, and live-run controls. It falls back to mock data only when `/api` is unavailable, renders an empty report state when the API explicitly returns `latestReport: null`, and uses neutral text instead of mock content when nullable report fields are empty.
+- The generated React client path goes through the shared custom fetch mutator, which now attaches the Climate Monitor command-intent header for `POST /api/climate-monitor/runs`.
+- Real website smoke against `climate_monitor_wiki` completed with live web listening enabled. The full scoped source run returned 0 new climate items and no report, which is expected for a fresh `.tmp` state baseline; warnings were limited to site-side 403/404/certificate failures rather than pipeline failure.
 - Added `skill-runtime` manifest contracts, built-in skill manifests, custom skill registry support, and redacted skill readiness.
 - Added `GET /api/skills` and mounted the route.
 - Preserved existing `moduleId` compatibility while allowing registered custom `skillId` values in Agent planning/module-run creation.
@@ -92,6 +98,19 @@ Updated: 2026-05-13
 
 ## Verification
 
+- Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
+- Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Climate Monitor Ops validation: `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+- Climate Monitor Ops validation: `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+- Climate Monitor Ops validation: `corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck` passed.
+- Climate Monitor Ops validation: `git diff --check` passed with CRLF warnings only.
+- Climate Monitor Ops API smoke: with `CLIMATE_MONITOR_PROJECT_PATH=C:\Project\climate_monitor_wiki`, direct service status returned `ready`, `sourceCount=34`, `scopeCount=34`, and latest report `sources/climate-monitor-2026-04-25.md`; direct dry-run returned 3 fixture items and safe command metadata with `cwd=ai_interface_workspace`.
+- Climate Monitor Ops API smoke: built API server on `127.0.0.1:4177` rejected a missing-command-intent run with 403, then accepted `POST /api/climate-monitor/runs` with `X-AI-Interface-Command-Intent: climate-monitor-run`; dry-run returned 3 fixture items and wrote `.tmp/ai-interface-climate-monitor/sources/climate-monitor-2026-05-14.md`.
+- Climate Monitor Ops generated-client smoke: `createClimateMonitorRun({ dryRun: true })` through `setBaseUrl(...)` reached a local test server with `x-ai-interface-command-intent: climate-monitor-run`.
+- Climate Monitor Ops real website smoke: `CLIMATE_MONITOR_ENABLE_LIVE_WEB_LISTENING=1` and `WEB_LISTENING_PROJECT_PATH=C:\Project\web_listening` against the full scoped source list completed successfully using `.tmp` state/output. It returned `item_count=0`, `report_path=null`, and `synced=false`, which is the expected baseline behavior when no new climate items are detected; warnings were limited to site-side 403/404/certificate failures rather than pipeline failure. `C:\Project\climate_monitor_wiki` remained clean afterward.
+- Climate Monitor Ops frontend/source smoke: source checks confirmed the Climate Monitor Ops panel, `climate_monitor.cli.v1`, `CLIMATE_MONITOR_PROJECT_PATH`, `X-AI-Interface-Command-Intent`, empty report state, and run date/manifest/research controls are present. Browser automation tooling was not exposed in this session, so rendered smoke used build/source/API checks.
 - Skill OS validation: `corepack pnpm --filter @workspace/api-server run test` passed with 78 tests.
 - Skill OS validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed after keeping raw planner steps compatible with legacy `moduleId`-only planner seams.
 - Skill OS validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
@@ -453,4 +472,4 @@ Updated: 2026-05-13
 
 ## Next Action
 
-- Perform the scheduled PR #32 follow-up for checks and remote review comments.
+- Open PR4 for `codex/climate-monitor-ops-interface`, then check GitHub/Copilot feedback and merge if clean.

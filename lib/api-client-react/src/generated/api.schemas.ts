@@ -100,6 +100,118 @@ export interface ToolAdapterListResponse {
   readiness: ToolAdapterReadiness[];
 }
 
+export type ClimateMonitorProjectReadinessStatus =
+  (typeof ClimateMonitorProjectReadinessStatus)[keyof typeof ClimateMonitorProjectReadinessStatus];
+
+export const ClimateMonitorProjectReadinessStatus = {
+  ready: "ready",
+  not_configured: "not_configured",
+} as const;
+
+export type ClimateMonitorGitStatus =
+  (typeof ClimateMonitorGitStatus)[keyof typeof ClimateMonitorGitStatus];
+
+export const ClimateMonitorGitStatus = {
+  clean: "clean",
+  dirty: "dirty",
+  unavailable: "unavailable",
+} as const;
+
+export type ClimateMonitorCoverageStatus =
+  (typeof ClimateMonitorCoverageStatus)[keyof typeof ClimateMonitorCoverageStatus];
+
+export const ClimateMonitorCoverageStatus = {
+  complete: "complete",
+  partial: "partial",
+  unknown: "unknown",
+} as const;
+
+export type ClimateMonitorProjectStatusConfiguredBy =
+  (typeof ClimateMonitorProjectStatusConfiguredBy)[keyof typeof ClimateMonitorProjectStatusConfiguredBy];
+
+export const ClimateMonitorProjectStatusConfiguredBy = {
+  CLIMATE_MONITOR_PROJECT_PATH: "CLIMATE_MONITOR_PROJECT_PATH",
+  defaultSiblingPath: "defaultSiblingPath",
+} as const;
+
+export interface ClimateMonitorProjectStatus {
+  status: ClimateMonitorProjectReadinessStatus;
+  configuredBy: ClimateMonitorProjectStatusConfiguredBy;
+  defaultSiblingPath: string;
+  script: string;
+}
+
+export interface ClimateMonitorGit {
+  /** @nullable */
+  branch: string | null;
+  dirty: boolean;
+  status: ClimateMonitorGitStatus;
+}
+
+export interface ClimateMonitorLatestReport {
+  date: string;
+  path: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  summary: string | null;
+}
+
+export interface ClimateMonitorCoverage {
+  sourceCount: number;
+  scopeCount: number;
+  scopedSourceCount: number;
+  missingScopeCount: number;
+  status: ClimateMonitorCoverageStatus;
+}
+
+export interface ClimateMonitorStatusResponse {
+  project: ClimateMonitorProjectStatus;
+  git: ClimateMonitorGit;
+  latestReport: ClimateMonitorLatestReport | null;
+  coverage: ClimateMonitorCoverage;
+}
+
+export interface ClimateMonitorRunRequest {
+  /** Preferred camelCase dry-run flag. Defaults to true. */
+  dryRun?: boolean;
+  /** Backward-compatible snake_case dry-run flag. Defaults to true. */
+  dry_run?: boolean;
+  /** Optional report date in YYYY-MM-DD format. */
+  date?: string;
+  /** Optional project-relative web listening manifest fixture. */
+  manifestFixture?: string;
+  /** Optional project-relative research results fixture. */
+  researchFixture?: string;
+}
+
+export type ClimateMonitorRunCommandCwd =
+  (typeof ClimateMonitorRunCommandCwd)[keyof typeof ClimateMonitorRunCommandCwd];
+
+export const ClimateMonitorRunCommandCwd = {
+  CLIMATE_MONITOR_PROJECT_PATH: "CLIMATE_MONITOR_PROJECT_PATH",
+  defaultSiblingPath: "defaultSiblingPath",
+  ai_interface_workspace: "ai_interface_workspace",
+} as const;
+
+export interface ClimateMonitorRunCommand {
+  executable: string;
+  args: string[];
+  cwd: ClimateMonitorRunCommandCwd;
+  shell: boolean;
+  timeoutMs: number;
+  maxOutputBytes: number;
+  dryRun: boolean;
+}
+
+export interface ClimateMonitorRunResponse {
+  parsed: JsonObject;
+  command: ClimateMonitorRunCommand;
+  /** @nullable */
+  exitCode: number | null;
+  stderr: string;
+}
+
 /**
  * @minLength 1
  */

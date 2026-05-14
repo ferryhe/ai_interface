@@ -85,6 +85,39 @@ export const businessSkillDefinitions: BusinessSkillDefinition[] = [
     },
   },
   {
+    skillId: "climate_monitor",
+    moduleId: "climate_monitor",
+    displayName: "Climate Monitor",
+    description: moduleDescription("climate_monitor"),
+    adapter: getAdapterDefinition("climate_monitor"),
+    adapterMode: "external_cli_or_api",
+    canonicalEntrypoints: [
+      "scripts/run_climate_monitor.py --json",
+      "scripts/run_climate_monitor.py --json --dry-run",
+      "scripts/run_climate_monitor.py --json --manifest-fixture <path>",
+      "scripts/run_climate_monitor.py --json --research-fixture <path>",
+    ],
+    outputContracts: [
+      "climate_monitor_report",
+      "climate_monitor_run_json",
+      "climate_monitor_scope_status",
+    ],
+    inputSchema: {
+      type: "object",
+      properties: {
+        dryRun: { type: "boolean" },
+        date: { type: "string" },
+        manifestFixture: { type: "string" },
+        researchFixture: { type: "string" },
+      },
+    },
+    permissionDefaults: {
+      approvalRequired: true,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  },
+  {
     skillId: "doc_to_md",
     moduleId: "doc_to_md",
     displayName: "Doc to Markdown",

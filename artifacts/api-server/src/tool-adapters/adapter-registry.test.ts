@@ -11,10 +11,24 @@ import {
 test("registers one adapter for each business module", () => {
   assert.deepEqual(
     adapterDefinitions.map((adapter) => adapter.moduleId),
-    ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    [
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+      "climate_monitor",
+    ],
   );
   assert.equal(getAdapterDefinition("doc_to_md").adapterKind, "http");
   assert.equal(getAdapterDefinition("md_to_rag").adapterKind, "cli");
+  const climateMonitor = getAdapterDefinition("climate_monitor");
+  assert.equal(climateMonitor.adapterId, "climate_monitor.cli.v1");
+  assert.deepEqual(climateMonitor.requiredEnv, [
+    "CLIMATE_MONITOR_PROJECT_PATH",
+  ]);
+  assert.deepEqual(climateMonitor.allowedCommands, [
+    "scripts/run_climate_monitor.py",
+  ]);
 });
 
 test("reports missing required env without exposing env values", () => {
@@ -36,6 +50,14 @@ test("reports missing required env without exposing env values", () => {
   assert.equal(webListening?.status, "missing_required_env");
   assert.deepEqual(webListening?.missingRequiredEnv, [
     "WEB_LISTENING_CLI_PATH",
+  ]);
+
+  const climateMonitor = readiness.find(
+    (item) => item.moduleId === "climate_monitor",
+  );
+  assert.equal(climateMonitor?.status, "missing_required_env");
+  assert.deepEqual(climateMonitor?.missingRequiredEnv, [
+    "CLIMATE_MONITOR_PROJECT_PATH",
   ]);
 });
 

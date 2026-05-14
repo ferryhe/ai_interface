@@ -7,7 +7,7 @@ import {
   listSkillReadiness,
 } from "./skill-manifest";
 
-test("built-in skill manifests map the four project skills", () => {
+test("built-in skill manifests map the five project skills", () => {
   assert.deepEqual(
     builtinSkillManifests.map((skill) => [
       skill.skillId,
@@ -18,6 +18,7 @@ test("built-in skill manifests map the four project skills", () => {
       ["doc_to_md", "../doc_to_md"],
       ["md_to_rag", "../c-ross-2"],
       ["rag_to_agent", "../c-ross-2"],
+      ["climate_monitor", "../climate_monitor_wiki"],
     ],
   );
 
@@ -27,6 +28,19 @@ test("built-in skill manifests map the four project skills", () => {
   assert.equal(docToMd?.execution.kind, "http");
   assert.equal(docToMd?.ui.preferredRenderer, "markdown");
   assert.deepEqual(docToMd?.interactionKinds, ["question", "data_request"]);
+
+  const climateMonitor = builtinSkillManifests.find(
+    (skill) => skill.skillId === "climate_monitor",
+  );
+  assert.equal(climateMonitor?.project.envPath, "CLIMATE_MONITOR_PROJECT_PATH");
+  assert.equal(climateMonitor?.execution.adapterId, "climate_monitor.cli.v1");
+  assert.deepEqual(climateMonitor?.artifactKinds, [
+    "climate_monitor_report",
+    "climate_monitor_run_json",
+    "climate_monitor_scope_status",
+  ]);
+  assert.equal(climateMonitor?.permissions.approvalRequired, true);
+  assert.equal(climateMonitor?.permissions.canUseNetwork, true);
 });
 
 test("skill manifest registry accepts registered custom skills", () => {

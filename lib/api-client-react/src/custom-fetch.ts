@@ -10,6 +10,8 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const CLIMATE_MONITOR_COMMAND_INTENT_HEADER = "X-AI-Interface-Command-Intent";
+const CLIMATE_MONITOR_COMMAND_INTENT = "climate-monitor-run";
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -76,6 +78,22 @@ function resolveUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
   if (isUrl(input)) return input.toString();
   return input.url;
+}
+
+function requestPath(input: RequestInfo | URL): string {
+  const rawUrl = resolveUrl(input);
+  try {
+    return new URL(rawUrl, "http://ai-interface.local").pathname;
+  } catch {
+    return rawUrl.split("?", 1)[0] ?? rawUrl;
+  }
+}
+
+function requiresClimateMonitorCommandIntent(
+  input: RequestInfo | URL,
+  method: string,
+): boolean {
+  return method === "POST" && requestPath(input) === "/api/climate-monitor/runs";
 }
 
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
@@ -347,6 +365,16 @@ export async function customFetch<T = unknown>(
 
   if (responseType === "json" && !headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
+  }
+
+  if (
+    requiresClimateMonitorCommandIntent(input, method) &&
+    !headers.has(CLIMATE_MONITOR_COMMAND_INTENT_HEADER)
+  ) {
+    headers.set(
+      CLIMATE_MONITOR_COMMAND_INTENT_HEADER,
+      CLIMATE_MONITOR_COMMAND_INTENT,
+    );
   }
 
   // Attach bearer token when an auth getter is configured and no

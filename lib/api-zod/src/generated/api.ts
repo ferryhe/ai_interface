@@ -169,6 +169,95 @@ export const GetSkillsResponse = zod.object({
 });
 
 /**
+ * Returns redacted climate monitor repository status, latest report summary, source/scope coverage, and git branch/dirty state without exposing configured absolute paths or secret values.
+ * @summary Get climate monitor status
+ */
+export const GetClimateMonitorStatusResponse = zod.object({
+  project: zod.object({
+    status: zod.enum(["ready", "not_configured"]),
+    configuredBy: zod.enum([
+      "CLIMATE_MONITOR_PROJECT_PATH",
+      "defaultSiblingPath",
+    ]),
+    defaultSiblingPath: zod.string(),
+    script: zod.string(),
+  }),
+  git: zod.object({
+    branch: zod.string().nullable(),
+    dirty: zod.boolean(),
+    status: zod.enum(["clean", "dirty", "unavailable"]),
+  }),
+  latestReport: zod.union([
+    zod.object({
+      date: zod.string(),
+      path: zod.string(),
+      title: zod.string().nullable(),
+      summary: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
+  coverage: zod.object({
+    sourceCount: zod.number(),
+    scopeCount: zod.number(),
+    scopedSourceCount: zod.number(),
+    missingScopeCount: zod.number(),
+    status: zod.enum(["complete", "partial", "unknown"]),
+  }),
+});
+
+/**
+ * Runs the fixed `python scripts/run_climate_monitor.py --json` command. Dry runs are the default, write outputs under the ai_interface workspace `.tmp` directory, and add no-sync/no-state-update guards. Live runs are rejected unless `CLIMATE_MONITOR_ALLOW_LIVE_RUNS=1` is set on the server. The request must include an explicit local command intent header and pass same-origin checks. Responses include parsed JSON plus safe command metadata.
+ * @summary Run the climate monitor
+ */
+export const CreateClimateMonitorRunHeader = zod.object({
+  "X-AI-Interface-Command-Intent": zod
+    .enum(["climate-monitor-run"])
+    .describe("Required command intent guard for local climate monitor runs."),
+});
+
+export const CreateClimateMonitorRunBody = zod.object({
+  dryRun: zod
+    .boolean()
+    .optional()
+    .describe("Preferred camelCase dry-run flag. Defaults to true."),
+  dry_run: zod
+    .boolean()
+    .optional()
+    .describe("Backward-compatible snake_case dry-run flag. Defaults to true."),
+  date: zod
+    .string()
+    .optional()
+    .describe("Optional report date in YYYY-MM-DD format."),
+  manifestFixture: zod
+    .string()
+    .optional()
+    .describe("Optional project-relative web listening manifest fixture."),
+  researchFixture: zod
+    .string()
+    .optional()
+    .describe("Optional project-relative research results fixture."),
+});
+
+export const CreateClimateMonitorRunResponse = zod.object({
+  parsed: zod.record(zod.string(), zod.unknown()),
+  command: zod.object({
+    executable: zod.string(),
+    args: zod.array(zod.string()),
+    cwd: zod.enum([
+      "CLIMATE_MONITOR_PROJECT_PATH",
+      "defaultSiblingPath",
+      "ai_interface_workspace",
+    ]),
+    shell: zod.literal(false),
+    timeoutMs: zod.number(),
+    maxOutputBytes: zod.number(),
+    dryRun: zod.boolean(),
+  }),
+  exitCode: zod.number().nullable(),
+  stderr: zod.string(),
+});
+
+/**
  * Idempotently creates or updates a module run by moduleId and externalRunId.
  * @summary Create or update a module run
  */

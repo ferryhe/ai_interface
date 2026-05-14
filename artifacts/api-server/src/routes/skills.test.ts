@@ -52,7 +52,13 @@ test("/skills returns built-in manifests and readiness", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(
     json.skills.map((skill) => skill.skillId),
-    ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    [
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+      "climate_monitor",
+    ],
   );
   assert.equal(json.skills[0]?.project.defaultSiblingPath, "../web_listening");
   assert.equal(json.skills[0]?.ui.mode, "html");
@@ -64,6 +70,7 @@ test("/skills returns built-in manifests and readiness", async () => {
       ["doc_to_md", "not_configured"],
       ["md_to_rag", "not_configured"],
       ["rag_to_agent", "not_configured"],
+      ["climate_monitor", "not_configured"],
     ],
   );
 });

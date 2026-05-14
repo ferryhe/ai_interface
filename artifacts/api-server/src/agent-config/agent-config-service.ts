@@ -150,8 +150,12 @@ export function createDefaultBusinessSkillSettings(): BusinessSkillSetting[] {
   return moduleRegistry.map((moduleDefinition) => ({
     moduleId: moduleDefinition.moduleId,
     enabled: true,
-    approvalRequired: moduleDefinition.moduleId === "rag_to_agent",
-    canUseNetwork: moduleDefinition.moduleId === "web_listening",
+    approvalRequired:
+      moduleDefinition.moduleId === "rag_to_agent" ||
+      moduleDefinition.moduleId === "climate_monitor",
+    canUseNetwork:
+      moduleDefinition.moduleId === "web_listening" ||
+      moduleDefinition.moduleId === "climate_monitor",
     canWriteDatabase: true,
   }));
 }

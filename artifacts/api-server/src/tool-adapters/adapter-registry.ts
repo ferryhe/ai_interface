@@ -101,6 +101,22 @@ export const adapterDefinitions: ToolAdapterDefinition[] = [
     supportsResume: true,
     readinessHint: "Set RAG_TO_AGENT_API_BASE_URL to enable HTTP handoffs.",
   },
+  {
+    adapterId: "climate_monitor.cli.v1",
+    moduleId: "climate_monitor",
+    adapterKind: "cli",
+    displayName: "Climate Monitor CLI Adapter",
+    description: "Fixed CLI contract for the climate monitor wiki runner.",
+    sourceRepo: "https://github.com/ferryhe/climate_monitor_wiki",
+    requiredEnv: ["CLIMATE_MONITOR_PROJECT_PATH"],
+    optionalEnv: ["CLIMATE_MONITOR_ALLOW_LIVE_RUNS"],
+    timeoutMs: 120000,
+    maxOutputBytes: 1048576,
+    allowedCommands: ["scripts/run_climate_monitor.py"],
+    supportsResume: false,
+    readinessHint:
+      "Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.",
+  },
 ];
 
 export function getAdapterDefinition(
