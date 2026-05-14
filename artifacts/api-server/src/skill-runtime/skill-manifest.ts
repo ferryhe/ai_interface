@@ -319,6 +319,56 @@ export const builtinSkillManifests: SkillManifest[] = [
       canWriteDatabase: true,
     },
   },
+  {
+    skillId: "climate_monitor",
+    moduleId: "climate_monitor",
+    name: "Climate Monitor",
+    description:
+      "Run the climate monitor wiki workflow and summarize report, source, and scope coverage.",
+    category: "source",
+    project: {
+      source: "builtin",
+      defaultSiblingPath: "../climate_monitor_wiki",
+      envPath: "CLIMATE_MONITOR_PROJECT_PATH",
+      repoUrl: "https://github.com/ferryhe/climate_monitor_wiki",
+      packageName: "climate_monitor_wiki",
+    },
+    execution: executionFromAdapter(getAdapterDefinition("climate_monitor")),
+    inputSchema: {
+      type: "object",
+      properties: {
+        dryRun: { type: "boolean" },
+        date: { type: "string" },
+        manifestFixture: { type: "string" },
+        researchFixture: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        report_date: { type: "string" },
+        report_path: { type: "string" },
+        items: { type: "array" },
+        warnings: { type: "array" },
+      },
+    },
+    interactionKinds: ["approval", "blocked"],
+    artifactKinds: [
+      "climate_monitor_report",
+      "climate_monitor_run_json",
+      "climate_monitor_scope_status",
+    ],
+    ui: {
+      mode: "renderer",
+      openOnTrigger: false,
+      preferredRenderer: "json",
+    },
+    permissions: {
+      approvalRequired: true,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  },
 ];
 
 export function createSkillManifestRegistry(
@@ -378,6 +428,7 @@ function hasEnvValue(
 function projectCandidatePath(
   project: SkillProjectMetadata,
   env: Record<string, string | undefined>,
+  pathExistsFn: (path: string) => boolean,
 ): { candidatePath: string; configuredBy: string | null } {
   if (project.envPath && hasEnvValue(env, project.envPath)) {
     return {
@@ -386,10 +437,23 @@ function projectCandidatePath(
     };
   }
 
+  const defaultCandidates = defaultProjectCandidates(project.defaultSiblingPath);
+  const readyDefault = defaultCandidates.find(pathExistsFn);
   return {
-    candidatePath: resolve(process.cwd(), project.defaultSiblingPath),
+    candidatePath:
+      readyDefault ??
+      defaultCandidates[0] ??
+      resolve(process.cwd(), project.defaultSiblingPath),
     configuredBy: project.defaultSiblingPath ? "defaultSiblingPath" : null,
   };
+}
+
+function defaultProjectCandidates(defaultSiblingPathValue: string): string[] {
+  return [
+    resolve(process.cwd(), defaultSiblingPathValue),
+    resolve(process.cwd(), "..", defaultSiblingPathValue),
+    resolve(process.cwd(), "..", "..", defaultSiblingPathValue),
+  ].filter((path, index, paths) => paths.indexOf(path) === index);
 }
 
 export function listSkillReadiness(
@@ -403,7 +467,7 @@ export function listSkillReadiness(
   const pathExists = options.pathExists ?? existsSync;
 
   return registry.listSkills().map((manifest) => {
-    const project = projectCandidatePath(manifest.project, env);
+    const project = projectCandidatePath(manifest.project, env, pathExists);
     const adapterReadiness = getAdapterReadiness(
       manifestAdapterDefinition(manifest),
       env,

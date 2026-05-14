@@ -37,6 +37,18 @@ export const moduleRegistry: ModuleDefinition[] = [
     category: "agent",
     resultKinds: ["agent_config", "agent_prompt", "agent_validation"],
   },
+  {
+    moduleId: "climate_monitor",
+    displayName: "Climate Monitor",
+    description:
+      "Run the climate monitor wiki workflow and summarize report, source, and scope coverage.",
+    category: "source",
+    resultKinds: [
+      "climate_monitor_report",
+      "climate_monitor_run_json",
+      "climate_monitor_scope_status",
+    ],
+  },
 ];
 
 export function isKnownModuleId(moduleId: string): moduleId is ModuleId {

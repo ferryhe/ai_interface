@@ -83,7 +83,13 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
   assert.equal(result.agentMessage.role, "agent");
   assert.deepEqual(
     result.moduleRuns.map((run) => run.moduleId),
-    ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    [
+      "web_listening",
+      "climate_monitor",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+    ],
   );
   assert.equal(
     result.moduleRuns[0]?.metadata?.["adapterId"],
@@ -97,13 +103,21 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
   );
   assert.equal(
     result.moduleRuns[1]?.metadata?.["adapterId"],
+    "climate_monitor.cli.v1",
+  );
+  assert.deepEqual(
+    result.moduleRuns[1]?.metadata?.["adapterAllowedCommands"],
+    ["scripts/run_climate_monitor.py"],
+  );
+  assert.equal(
+    result.moduleRuns[2]?.metadata?.["adapterId"],
     "doc_to_md.http.v1",
   );
   assert.equal(runtimeRepository.threads.length, 1);
   assert.equal(runtimeRepository.messages.length, 2);
   assert.equal(runtimeRepository.pipelineRuns.length, 1);
-  assert.equal(runtimeRepository.moduleRuns.length, 4);
-  assert.equal(runtimeRepository.runEvents.length, 4);
+  assert.equal(runtimeRepository.moduleRuns.length, 5);
+  assert.equal(runtimeRepository.runEvents.length, 5);
 });
 
 test("respects disabled business skills", async () => {
@@ -725,5 +739,5 @@ test("reads agent run detail from the stored pipeline", async () => {
   assert.equal(detail.thread.id, created.thread.id);
   assert.equal(detail.pipelineRun.id, created.pipelineRun.id);
   assert.equal(detail.messages.length, 2);
-  assert.equal(detail.moduleRuns.length, 4);
+  assert.equal(detail.moduleRuns.length, 5);
 });

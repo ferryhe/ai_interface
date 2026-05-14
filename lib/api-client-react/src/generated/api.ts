@@ -22,6 +22,9 @@ import type {
   AgentRunDetail,
   AgentRunResponse,
   Artifact,
+  ClimateMonitorRunRequest,
+  ClimateMonitorRunResponse,
+  ClimateMonitorStatusResponse,
   CreateAgentRunRequest,
   CreateArtifactRequest,
   CreateModuleRunRequest,
@@ -348,6 +351,177 @@ export function useGetSkills<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns redacted climate monitor repository status, latest report summary, source/scope coverage, and git branch/dirty state without exposing configured absolute paths or secret values.
+ * @summary Get climate monitor status
+ */
+export const getGetClimateMonitorStatusUrl = () => {
+  return `/api/climate-monitor/status`;
+};
+
+export const getClimateMonitorStatus = async (
+  options?: RequestInit,
+): Promise<ClimateMonitorStatusResponse> => {
+  return customFetch<ClimateMonitorStatusResponse>(
+    getGetClimateMonitorStatusUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetClimateMonitorStatusQueryKey = () => {
+  return [`/api/climate-monitor/status`] as const;
+};
+
+export const getGetClimateMonitorStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClimateMonitorStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getClimateMonitorStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetClimateMonitorStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getClimateMonitorStatus>>
+  > = ({ signal }) => getClimateMonitorStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getClimateMonitorStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetClimateMonitorStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClimateMonitorStatus>>
+>;
+export type GetClimateMonitorStatusQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get climate monitor status
+ */
+
+export function useGetClimateMonitorStatus<
+  TData = Awaited<ReturnType<typeof getClimateMonitorStatus>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getClimateMonitorStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClimateMonitorStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Runs the fixed `python scripts/run_climate_monitor.py --json` command. Dry runs are the default, write outputs under the ai_interface workspace `.tmp` directory, and add no-sync/no-state-update guards. Live runs are rejected unless `CLIMATE_MONITOR_ALLOW_LIVE_RUNS=1` is set on the server. The request must include an explicit local command intent header and pass same-origin checks. Responses include parsed JSON plus safe command metadata.
+ * @summary Run the climate monitor
+ */
+export const getCreateClimateMonitorRunUrl = () => {
+  return `/api/climate-monitor/runs`;
+};
+
+export const createClimateMonitorRun = async (
+  climateMonitorRunRequest: ClimateMonitorRunRequest,
+  options?: RequestInit,
+): Promise<ClimateMonitorRunResponse> => {
+  return customFetch<ClimateMonitorRunResponse>(
+    getCreateClimateMonitorRunUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(climateMonitorRunRequest),
+    },
+  );
+};
+
+export const getCreateClimateMonitorRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createClimateMonitorRun>>,
+    TError,
+    { data: BodyType<ClimateMonitorRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createClimateMonitorRun>>,
+  TError,
+  { data: BodyType<ClimateMonitorRunRequest> },
+  TContext
+> => {
+  const mutationKey = ["createClimateMonitorRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createClimateMonitorRun>>,
+    { data: BodyType<ClimateMonitorRunRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createClimateMonitorRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateClimateMonitorRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createClimateMonitorRun>>
+>;
+export type CreateClimateMonitorRunMutationBody =
+  BodyType<ClimateMonitorRunRequest>;
+export type CreateClimateMonitorRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Run the climate monitor
+ */
+export const useCreateClimateMonitorRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createClimateMonitorRun>>,
+    TError,
+    { data: BodyType<ClimateMonitorRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createClimateMonitorRun>>,
+  TError,
+  { data: BodyType<ClimateMonitorRunRequest> },
+  TContext
+> => {
+  return useMutation(getCreateClimateMonitorRunMutationOptions(options));
+};
 
 /**
  * Idempotently creates or updates a module run by moduleId and externalRunId.

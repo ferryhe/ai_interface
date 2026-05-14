@@ -21,8 +21,19 @@ test("creates the default agent config with business and general skills", async 
   assert.equal(config.reasoningEffort, "medium");
   assert.deepEqual(
     config.businessSkillSettings.map((skill) => skill.moduleId),
-    ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    [
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+      "climate_monitor",
+    ],
   );
+  const climateMonitor = config.businessSkillSettings.find(
+    (skill) => skill.moduleId === "climate_monitor",
+  );
+  assert.equal(climateMonitor?.approvalRequired, true);
+  assert.equal(climateMonitor?.canUseNetwork, true);
   assert.deepEqual(
     config.generalSkillSettings.map((skill) => skill.skillId),
     ["web_search", "browser", "github", "notion", "lark", "file_tools"],

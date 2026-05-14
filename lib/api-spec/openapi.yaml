@@ -22,6 +22,8 @@ tags:
     description: External tool adapter metadata and readiness
   - name: skills
     description: Generic skill manifests, UI capabilities, and readiness
+  - name: climate-monitor
+    description: Climate monitor repository status and guarded run operations
 paths:
   /healthz:
     get:
@@ -77,6 +79,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillListResponse"
+  /climate-monitor/status:
+    get:
+      operationId: getClimateMonitorStatus
+      tags: [climate-monitor]
+      summary: Get climate monitor status
+      description: >-
+        Returns redacted climate monitor repository status, latest report
+        summary, source/scope coverage, and git branch/dirty state without
+        exposing configured absolute paths or secret values.
+      responses:
+        "200":
+          description: Climate monitor status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClimateMonitorStatusResponse"
+        "500":
+          description: Failed to read climate monitor status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /climate-monitor/runs:
+    post:
+      operationId: createClimateMonitorRun
+      tags: [climate-monitor]
+      summary: Run the climate monitor
+      description: >-
+        Runs the fixed `python scripts/run_climate_monitor.py --json` command.
+        Dry runs are the default, write outputs under the ai_interface workspace
+        `.tmp` directory, and add no-sync/no-state-update guards. Live runs are
+        rejected unless `CLIMATE_MONITOR_ALLOW_LIVE_RUNS=1` is set on the server.
+        The request must include an explicit local command intent header and
+        pass same-origin checks. Responses include parsed JSON plus safe command
+        metadata.
+      parameters:
+        - in: header
+          name: X-AI-Interface-Command-Intent
+          required: true
+          schema:
+            type: string
+            enum: [climate-monitor-run]
+          description: Required command intent guard for local climate monitor runs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClimateMonitorRunRequest"
+      responses:
+        "200":
+          description: Climate monitor run result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClimateMonitorRunResponse"
+        "400":
+          description: Invalid request or climate monitor not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Command guard rejected the request or live runs are disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to run climate monitor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /module-runs:
     post:
       operationId: createModuleRun
@@ -729,6 +805,183 @@ components:
       required:
         - adapters
         - readiness
+    ClimateMonitorProjectReadinessStatus:
+      type: string
+      enum:
+        - ready
+        - not_configured
+    ClimateMonitorGitStatus:
+      type: string
+      enum:
+        - clean
+        - dirty
+        - unavailable
+    ClimateMonitorCoverageStatus:
+      type: string
+      enum:
+        - complete
+        - partial
+        - unknown
+    ClimateMonitorProjectStatus:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ClimateMonitorProjectReadinessStatus"
+        configuredBy:
+          type: string
+          enum:
+            - CLIMATE_MONITOR_PROJECT_PATH
+            - defaultSiblingPath
+        defaultSiblingPath:
+          type: string
+        script:
+          type: string
+      required:
+        - status
+        - configuredBy
+        - defaultSiblingPath
+        - script
+    ClimateMonitorGit:
+      type: object
+      properties:
+        branch:
+          type:
+            - string
+            - "null"
+        dirty:
+          type: boolean
+        status:
+          $ref: "#/components/schemas/ClimateMonitorGitStatus"
+      required:
+        - branch
+        - dirty
+        - status
+    ClimateMonitorLatestReport:
+      type: object
+      properties:
+        date:
+          type: string
+        path:
+          type: string
+        title:
+          type:
+            - string
+            - "null"
+        summary:
+          type:
+            - string
+            - "null"
+      required:
+        - date
+        - path
+        - title
+        - summary
+    ClimateMonitorCoverage:
+      type: object
+      properties:
+        sourceCount:
+          type: integer
+        scopeCount:
+          type: integer
+        scopedSourceCount:
+          type: integer
+        missingScopeCount:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ClimateMonitorCoverageStatus"
+      required:
+        - sourceCount
+        - scopeCount
+        - scopedSourceCount
+        - missingScopeCount
+        - status
+    ClimateMonitorStatusResponse:
+      type: object
+      properties:
+        project:
+          $ref: "#/components/schemas/ClimateMonitorProjectStatus"
+        git:
+          $ref: "#/components/schemas/ClimateMonitorGit"
+        latestReport:
+          oneOf:
+            - $ref: "#/components/schemas/ClimateMonitorLatestReport"
+            - type: "null"
+        coverage:
+          $ref: "#/components/schemas/ClimateMonitorCoverage"
+      required:
+        - project
+        - git
+        - latestReport
+        - coverage
+    ClimateMonitorRunRequest:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+          description: Preferred camelCase dry-run flag. Defaults to true.
+        dry_run:
+          type: boolean
+          description: Backward-compatible snake_case dry-run flag. Defaults to true.
+        date:
+          type: string
+          description: Optional report date in YYYY-MM-DD format.
+        manifestFixture:
+          type: string
+          description: Optional project-relative web listening manifest fixture.
+        researchFixture:
+          type: string
+          description: Optional project-relative research results fixture.
+    ClimateMonitorRunCommand:
+      type: object
+      properties:
+        executable:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+        cwd:
+          type: string
+          enum:
+            - CLIMATE_MONITOR_PROJECT_PATH
+            - defaultSiblingPath
+            - ai_interface_workspace
+        shell:
+          type: boolean
+          enum:
+            - false
+        timeoutMs:
+          type: integer
+        maxOutputBytes:
+          type: integer
+        dryRun:
+          type: boolean
+      required:
+        - executable
+        - args
+        - cwd
+        - shell
+        - timeoutMs
+        - maxOutputBytes
+        - dryRun
+    ClimateMonitorRunResponse:
+      type: object
+      properties:
+        parsed:
+          $ref: "#/components/schemas/JsonObject"
+        command:
+          $ref: "#/components/schemas/ClimateMonitorRunCommand"
+        exitCode:
+          type:
+            - integer
+            - "null"
+        stderr:
+          type: string
+      required:
+        - parsed
+        - command
+        - exitCode
+        - stderr
     SkillId:
       type: string
       minLength: 1
