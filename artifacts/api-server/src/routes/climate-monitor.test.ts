@@ -4,11 +4,15 @@ import test from "node:test";
 import express from "express";
 import { request as httpRequest, type Server } from "node:http";
 
-import { createClimateMonitorRouter } from "./climate-monitor";
+import {
+  __privateClimateMonitorRouteGuards,
+  createClimateMonitorRouter,
+} from "./climate-monitor";
 import type {
   ClimateMonitorRunResult,
   ClimateMonitorStatus,
 } from "../climate-monitor/service";
+import { ClimateMonitorProcessError } from "../climate-monitor/service";
 
 async function withClimateMonitorApp<T>(
   dependencies: Parameters<typeof createClimateMonitorRouter>[0],
@@ -248,6 +252,33 @@ test("/climate-monitor/runs rejects cross-site command requests", async () => {
   assert.equal(startRunCalled, false);
 });
 
+test("/climate-monitor/runs rejects loopback origins on a different host", async () => {
+  let startRunCalled = false;
+
+  const response = await withClimateMonitorApp(
+    {
+      getStatus: async () => {
+        throw new Error("not used");
+      },
+      startRun: async () => {
+        startRunCalled = true;
+        throw new Error("not used");
+      },
+    },
+    async (baseUrl) => {
+      const port = new URL(baseUrl).port;
+      return rawPost(baseUrl, {
+        host: `127.0.0.1:${port}`,
+        origin: `http://localhost:${port}`,
+      });
+    },
+  );
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(startRunCalled, false);
+  assert.match(response.text, /Origin does not match/);
+});
+
 test("/climate-monitor/runs rejects non-local command hosts before starting a process", async () => {
   let startRunCalled = false;
 
@@ -279,4 +310,45 @@ test("/climate-monitor/runs rejects non-local command hosts before starting a pr
   assert.equal(startRunCalled, false);
   assert.match(responses[0]?.text ?? "", /localhost/);
   assert.match(responses[1]?.text ?? "", /localhost/);
+});
+
+test("/climate-monitor/runs maps process failures to server errors", async () => {
+  const response = await withClimateMonitorApp(
+    {
+      getStatus: async () => {
+        throw new Error("not used");
+      },
+      startRun: async () => {
+        throw new ClimateMonitorProcessError("Climate monitor returned invalid JSON");
+      },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/climate-monitor/runs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-AI-Interface-Command-Intent": "climate-monitor-run",
+        },
+        body: JSON.stringify({ dryRun: true }),
+      }),
+  );
+
+  const text = await response.text();
+  assert.equal(response.status, 500);
+  assert.match(text, /invalid JSON/);
+});
+
+test("climate monitor route remote guard accepts only loopback addresses", () => {
+  assert.equal(
+    __privateClimateMonitorRouteGuards.isLoopbackRemoteAddress("127.0.0.1"),
+    true,
+  );
+  assert.equal(
+    __privateClimateMonitorRouteGuards.isLoopbackRemoteAddress("::ffff:127.0.0.1"),
+    true,
+  );
+  assert.equal(
+    __privateClimateMonitorRouteGuards.isLoopbackRemoteAddress("203.0.113.10"),
+    false,
+  );
 });

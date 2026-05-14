@@ -7,6 +7,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
+  ClimateMonitorProcessError,
   getClimateMonitorStatus,
   runClimateMonitor,
   type ClimateMonitorSpawn,
@@ -156,12 +157,16 @@ test("dry run spawns the fixed climate monitor script with JSON and fixture opti
       dryRun: true,
       manifestFixture: "monitoring/fixtures/web_listening_manifest_sample.json",
       researchFixture: "monitoring/fixtures/research_results_sample.json",
-    },
-    {
-      env: { CLIMATE_MONITOR_PROJECT_PATH: projectPath },
-      cwd: workspacePath,
-      spawn,
-    },
+      },
+      {
+        env: {
+          CLIMATE_MONITOR_PROJECT_PATH: projectPath,
+          DATABASE_URL: "postgres://secret.example/internal",
+          OPENAI_API_KEY: "sk-test",
+        },
+        cwd: workspacePath,
+        spawn,
+      },
   );
 
   assert.equal(calls.length, 1);
@@ -192,6 +197,16 @@ test("dry run spawns the fixed climate monitor script with JSON and fixture opti
   ]);
   assert.equal(calls[0]?.options["cwd"], workspacePath);
   assert.equal(calls[0]?.options["shell"], false);
+  assert.equal(
+    JSON.stringify(calls[0]?.options["env"]).includes("DATABASE_URL"),
+    false,
+  );
+  assert.equal(
+    (calls[0]?.options["env"] as Record<string, string> | undefined)?.[
+      "OPENAI_API_KEY"
+    ],
+    "sk-test",
+  );
   assert.equal(JSON.stringify(result).includes(projectPath), false);
   assert.deepEqual(result.command, {
     executable: "python",
@@ -203,6 +218,53 @@ test("dry run spawns the fixed climate monitor script with JSON and fixture opti
     dryRun: true,
   });
   assert.equal(result.parsed.report_date, "2026-05-14");
+});
+
+test("process output redaction handles resolved and slash-normalized project paths", async () => {
+  const rootPath = mkdtempSync(join(tmpdir(), "climate-monitor-redaction-root-"));
+  const projectPath = createProjectFixture(join(rootPath, "climate_monitor_wiki"));
+  const workspacePath = mkdtempSync(join(tmpdir(), "climate-monitor-api-workspace-"));
+  const posixProjectPath = projectPath.replace(/\\/g, "/");
+  const { spawn } = createSpawnStub(
+    JSON.stringify({
+      report_date: "2026-05-14",
+      report_path: `${posixProjectPath}/sources/climate-monitor-2026-05-14.md`,
+      items: [{ path: join(projectPath, "downloads", "report.pdf") }],
+    }),
+  );
+
+  const result = await runClimateMonitor(
+    { dryRun: true },
+    {
+      env: { CLIMATE_MONITOR_PROJECT_PATH: projectPath },
+      cwd: workspacePath,
+      spawn,
+    },
+  );
+
+  const serialized = JSON.stringify(result);
+  assert.equal(serialized.includes(projectPath), false);
+  assert.equal(serialized.includes(posixProjectPath), false);
+  assert.match(serialized, /\[climate-monitor-project\]/);
+});
+
+test("process failures are classified separately from request validation", async () => {
+  const projectPath = createProjectFixture();
+  const workspacePath = mkdtempSync(join(tmpdir(), "climate-monitor-api-workspace-"));
+  const { spawn } = createSpawnStub("{not-json");
+
+  await assert.rejects(
+    () =>
+      runClimateMonitor(
+        { dryRun: true },
+        {
+          env: { CLIMATE_MONITOR_PROJECT_PATH: projectPath },
+          cwd: workspacePath,
+          spawn,
+        },
+      ),
+    ClimateMonitorProcessError,
+  );
 });
 
 test("live climate monitor runs are rejected unless explicitly enabled", async () => {

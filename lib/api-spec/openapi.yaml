@@ -197,6 +197,7 @@ paths:
         - $ref: "#/components/parameters/RunId"
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       responses:
         "200":
           description: Module run detail
@@ -334,6 +335,7 @@ paths:
         - $ref: "#/components/parameters/RunId"
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       requestBody:
         required: true
         content:
@@ -374,6 +376,7 @@ paths:
         - $ref: "#/components/parameters/RunId"
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       responses:
         "200":
           description: Resume accepted
@@ -412,6 +415,7 @@ paths:
         - $ref: "#/components/parameters/ArtifactId"
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       responses:
         "200":
           description: Artifact detail
@@ -445,6 +449,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       requestBody:
         required: true
         content:
@@ -489,6 +494,7 @@ paths:
         - $ref: "#/components/parameters/PipelineRunId"
         - $ref: "#/components/parameters/PortalSurface"
         - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
       responses:
         "200":
           description: Agent run detail
@@ -608,6 +614,15 @@ components:
       description: >-
         Optional Portal access token for Portal-origin runtime calls.
         `Authorization: Bearer <token>` is also accepted by the server.
+      schema:
+        type: string
+    AuthorizationHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: >-
+        Optional Bearer token alternative to `X-Portal-Token` for Portal-origin
+        runtime calls.
       schema:
         type: string
     RunId:

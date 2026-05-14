@@ -328,6 +328,12 @@ export const GetModuleRunHeader = zod.object({
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
     ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
 });
 
 export const GetModuleRunResponse = zod.object({
@@ -511,6 +517,12 @@ export const SubmitModuleRunFeedbackHeader = zod.object({
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
     ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
 });
 
 export const SubmitModuleRunFeedbackBody = zod.object({
@@ -621,6 +633,12 @@ export const ResumeModuleRunExecutionHeader = zod.object({
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
     ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
 });
 
 export const ResumeModuleRunExecutionResponse = zod.object({
@@ -722,6 +740,12 @@ export const GetArtifactHeader = zod.object({
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
     ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
 });
 
 export const GetArtifactResponse = zod.object({
@@ -755,6 +779,12 @@ export const CreateAgentRunHeader = zod.object({
     .optional()
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
     ),
 });
 
@@ -882,6 +912,12 @@ export const GetAgentRunHeader = zod.object({
     .optional()
     .describe(
       "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
     ),
 });
 

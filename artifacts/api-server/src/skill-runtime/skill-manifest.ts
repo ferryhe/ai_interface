@@ -347,9 +347,12 @@ export const builtinSkillManifests: SkillManifest[] = [
       type: "object",
       properties: {
         report_date: { type: "string" },
-        report_path: { type: "string" },
+        report_path: { type: ["string", "null"] },
+        item_count: { type: "integer" },
         items: { type: "array" },
+        dedup_notes: { type: "array" },
         warnings: { type: "array" },
+        synced: { type: "boolean" },
       },
     },
     interactionKinds: ["approval", "blocked"],
@@ -415,6 +418,13 @@ export function manifestAdapterDefinition(
     readinessHint:
       manifest.execution.readinessHint ??
       `Configure ${manifest.execution.adapterId} to enable skill handoffs.`,
+    projectFallback:
+      manifest.moduleId === "climate_monitor"
+        ? {
+            defaultSiblingPath: manifest.project.defaultSiblingPath,
+            requiredPath: "scripts/run_climate_monitor.py",
+          }
+        : undefined,
   };
 }
 
@@ -429,6 +439,7 @@ function projectCandidatePath(
   project: SkillProjectMetadata,
   env: Record<string, string | undefined>,
   pathExistsFn: (path: string) => boolean,
+  cwd: string,
 ): { candidatePath: string; configuredBy: string | null } {
   if (project.envPath && hasEnvValue(env, project.envPath)) {
     return {
@@ -437,22 +448,28 @@ function projectCandidatePath(
     };
   }
 
-  const defaultCandidates = defaultProjectCandidates(project.defaultSiblingPath);
+  const defaultCandidates = defaultProjectCandidates(
+    project.defaultSiblingPath,
+    cwd,
+  );
   const readyDefault = defaultCandidates.find(pathExistsFn);
   return {
     candidatePath:
       readyDefault ??
       defaultCandidates[0] ??
-      resolve(process.cwd(), project.defaultSiblingPath),
+      resolve(cwd, project.defaultSiblingPath),
     configuredBy: project.defaultSiblingPath ? "defaultSiblingPath" : null,
   };
 }
 
-function defaultProjectCandidates(defaultSiblingPathValue: string): string[] {
+function defaultProjectCandidates(
+  defaultSiblingPathValue: string,
+  cwd: string,
+): string[] {
   return [
-    resolve(process.cwd(), defaultSiblingPathValue),
-    resolve(process.cwd(), "..", defaultSiblingPathValue),
-    resolve(process.cwd(), "..", "..", defaultSiblingPathValue),
+    resolve(cwd, defaultSiblingPathValue),
+    resolve(cwd, "..", defaultSiblingPathValue),
+    resolve(cwd, "..", "..", defaultSiblingPathValue),
   ].filter((path, index, paths) => paths.indexOf(path) === index);
 }
 
@@ -461,16 +478,24 @@ export function listSkillReadiness(
   options: {
     env?: Record<string, string | undefined>;
     pathExists?: (path: string) => boolean;
+    cwd?: string;
   } = {},
 ): SkillReadiness[] {
   const env = options.env ?? process.env;
   const pathExists = options.pathExists ?? existsSync;
+  const cwd = options.cwd ?? process.cwd();
 
   return registry.listSkills().map((manifest) => {
-    const project = projectCandidatePath(manifest.project, env, pathExists);
+    const project = projectCandidatePath(
+      manifest.project,
+      env,
+      pathExists,
+      cwd,
+    );
     const adapterReadiness = getAdapterReadiness(
       manifestAdapterDefinition(manifest),
       env,
+      { cwd, pathExists },
     );
 
     return {

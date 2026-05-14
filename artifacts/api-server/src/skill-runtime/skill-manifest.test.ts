@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -143,4 +144,26 @@ test("skill readiness reports missing project paths without leaking env values",
     JSON.stringify(readiness).includes("C:/very/secret/local/path"),
     false,
   );
+});
+
+test("climate skill adapter readiness accepts the default sibling project", () => {
+  const registry = createSkillManifestRegistry();
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const climateProject = resolve("workspace", "climate_monitor_wiki");
+  const readyScript = resolve(
+    climateProject,
+    "scripts",
+    "run_climate_monitor.py",
+  );
+
+  const readiness = listSkillReadiness(registry, {
+    env: {},
+    cwd,
+    pathExists: (path) => path === climateProject || path === readyScript,
+  }).find((item) => item.skillId === "climate_monitor");
+
+  assert.equal(readiness?.project.status, "ready");
+  assert.equal(readiness?.project.configuredBy, "defaultSiblingPath");
+  assert.equal(readiness?.adapter.configured, true);
+  assert.deepEqual(readiness?.adapter.missingRequiredEnv, []);
 });
