@@ -69,6 +69,14 @@ function hostNameFromHeader(host: string): string | null {
   }
 }
 
+function normalizedHostFromHeader(host: string): string | null {
+  try {
+    return new URL(`http://${host}`).host;
+  } catch {
+    return null;
+  }
+}
+
 function isLoopbackHost(host: string): boolean {
   const hostname = hostNameFromHeader(host);
   const normalizedHostname = hostname?.toLowerCase();
@@ -118,7 +126,8 @@ function climateCommandGuardError(req: Request): string | null {
 
   try {
     const parsedOrigin = new URL(origin);
-    return parsedOrigin.host === host
+    const normalizedHost = normalizedHostFromHeader(host);
+    return normalizedHost !== null && parsedOrigin.host === normalizedHost
       ? null
       : "Origin does not match the ai_interface host";
   } catch {

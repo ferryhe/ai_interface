@@ -279,6 +279,50 @@ test("/climate-monitor/runs rejects loopback origins on a different host", async
   assert.match(response.text, /Origin does not match/);
 });
 
+test("/climate-monitor/runs accepts same-origin requests with mixed-case Host headers", async () => {
+  const runResult: ClimateMonitorRunResult = {
+    parsed: {
+      report_date: "2026-05-14",
+      report_path: "climate-monitor-2026-05-14.md",
+      items: [],
+    },
+    command: {
+      executable: "python",
+      args: ["scripts/run_climate_monitor.py", "--json"],
+      cwd: "ai_interface_workspace",
+      shell: false,
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      dryRun: true,
+    },
+    exitCode: 0,
+    stderr: "",
+  };
+  let startRunCalled = false;
+
+  const response = await withClimateMonitorApp(
+    {
+      getStatus: async () => {
+        throw new Error("not used");
+      },
+      startRun: async () => {
+        startRunCalled = true;
+        return runResult;
+      },
+    },
+    async (baseUrl) => {
+      const port = new URL(baseUrl).port;
+      return rawPost(baseUrl, {
+        host: `LOCALHOST:${port}`,
+        origin: `http://localhost:${port}`,
+      });
+    },
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(startRunCalled, true);
+});
+
 test("/climate-monitor/runs rejects non-local command hosts before starting a process", async () => {
   let startRunCalled = false;
 
