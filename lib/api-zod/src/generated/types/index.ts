@@ -30,6 +30,7 @@ export * from "./agentSafetySettings";
 export * from "./agentThread";
 export * from "./agentThreadStatus";
 export * from "./artifact";
+export * from "./authorizationHeaderParameter";
 export * from "./businessSkillSetting";
 export * from "./climateMonitorCoverage";
 export * from "./climateMonitorCoverageStatus";

@@ -59,14 +59,6 @@ type GeneralSkillId =
   | "lark"
   | "file_tools";
 
-const requiredBusinessModuleIds: Record<ModuleId, true> = {
-  web_listening: true,
-  doc_to_md: true,
-  md_to_rag: true,
-  rag_to_agent: true,
-  climate_monitor: true,
-};
-
 interface ModuleDefinition {
   id: ModuleId;
   name: string;
@@ -687,9 +679,12 @@ const skillManifestPreviews: SkillManifestPreview[] = [
       type: "object",
       properties: {
         report_date: { type: "string" },
-        report_path: { type: "string" },
+        report_path: { type: ["string", "null"] },
+        item_count: { type: "integer" },
         items: { type: "array" },
+        dedup_notes: { type: "array" },
         warnings: { type: "array" },
+        synced: { type: "boolean" },
       },
     },
     sampleInput: {
@@ -699,8 +694,16 @@ const skillManifestPreviews: SkillManifestPreview[] = [
     sampleOutput: {
       report_date: "2026-05-14",
       report_path: "wiki/climate-monitor-2026-05-14.md",
-      items: 5,
-      warnings: 0,
+      item_count: 5,
+      items: [
+        {
+          title: "Climate supervision update",
+          lane: "website",
+        },
+      ],
+      dedup_notes: [],
+      warnings: [],
+      synced: true,
     },
     sampleArtifacts: [
       {
@@ -1385,7 +1388,14 @@ function normalizeBackendCoverage(
   const scopedSourceCount = numberFromObject(value, "scopedSourceCount", 0);
   const missingScopeCount = numberFromObject(value, "missingScopeCount", 0);
   const status = stringFromObject(value, "status", "unknown");
-  if (sourceCount === 0 && scopeCount === 0 && scopedSourceCount === 0) return fallback;
+  const hasCoverageFields = [
+    "sourceCount",
+    "scopeCount",
+    "scopedSourceCount",
+    "missingScopeCount",
+    "status",
+  ].some((key) => Object.prototype.hasOwnProperty.call(value, key));
+  if (!hasCoverageFields) return fallback;
 
   return [
     {
@@ -1453,6 +1463,7 @@ function normalizeClimateWarnings(
   fallback: ClimateWarningPlaceholder[],
 ): ClimateWarningPlaceholder[] {
   if (!Array.isArray(value)) return fallback;
+  if (value.length === 0) return [];
 
   const normalized = value.flatMap((item, index) => {
     if (typeof item === "string") {
@@ -2824,12 +2835,12 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
   const [runDate, setRunDate] = useState("");
   const [manifestFixture, setManifestFixture] = useState("");
   const [researchFixture, setResearchFixture] = useState("");
-  const missingEnv =
-    run?.missingRequiredEnv.length
+  const missingEnv = status.configured
+    ? []
+    : run?.missingRequiredEnv.length
       ? run.missingRequiredEnv
-      : status.configured
-        ? []
-        : ["CLIMATE_MONITOR_PROJECT_PATH"];
+      : ["CLIMATE_MONITOR_PROJECT_PATH"];
+  const dryRunDisabled = !status.configured || runState === "submitting";
   const liveRunDisabled = !status.configured || runState === "submitting";
 
   useEffect(() => {
@@ -2865,8 +2876,20 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
     };
   }, []);
 
+  async function climateRunErrorMessage(response: Response): Promise<string> {
+    try {
+      const payload = (await response.json()) as unknown;
+      if (isJsonObject(payload) && typeof payload["error"] === "string") {
+        return payload["error"];
+      }
+    } catch {
+      // Fall through to the generic HTTP status message.
+    }
+    return `Climate Monitor run returned ${response.status}`;
+  }
+
   async function submitClimateRun(mode: ClimateMonitorRunMode): Promise<void> {
-    if (mode === "live_run" && !status.configured) return;
+    if (!status.configured) return;
 
     setRunState("submitting");
     setStatusText(mode === "dry_run" ? "Submitting dry-run" : "Submitting live run");
@@ -2896,7 +2919,10 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
         body: JSON.stringify(runRequest),
       });
       if (!response.ok) {
-        throw new Error(`Climate Monitor run returned ${response.status}`);
+        setApiState("api");
+        setRunState("failed");
+        setStatusText(await climateRunErrorMessage(response));
+        return;
       }
 
       const data = (await response.json()) as unknown;
@@ -2921,7 +2947,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       setRunState(mode === "dry_run" ? "offline" : "failed");
       setStatusText(
         mode === "dry_run"
-          ? "Dry-run queued locally; API offline"
+          ? "Dry-run was not submitted; API offline"
           : "Live-run API unavailable",
       );
     }
@@ -3081,7 +3107,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
           <button
             type="button"
             className="small-action"
-            disabled={runState === "submitting"}
+            disabled={dryRunDisabled}
             onClick={() => void submitClimateRun("dry_run")}
           >
             <Activity size={14} />
@@ -6449,7 +6475,7 @@ const styles = `
   }
 
   .publish-settings-header p {
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 12px;
     line-height: 1.5;
     margin: 0;
@@ -6460,7 +6486,7 @@ const styles = `
   .publish-save-badge {
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 999px;
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0;
@@ -6491,7 +6517,7 @@ const styles = `
   }
 
   .publish-field span {
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -6524,7 +6550,7 @@ const styles = `
   }
 
   .publish-token-meta em {
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 11px;
     font-style: normal;
     line-height: 1.35;
@@ -6589,7 +6615,7 @@ const styles = `
   }
 
   .publish-card-kicker {
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -6602,7 +6628,7 @@ const styles = `
 
   .publish-access-card p,
   .publish-access-card em {
-    color: var(--muted);
+    color: hsl(var(--muted-foreground));
     font-size: 12px;
     line-height: 1.5;
   }

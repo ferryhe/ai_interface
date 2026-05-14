@@ -129,6 +129,8 @@ export class ClimateMonitorLiveRunDisabledError extends Error {}
 
 export class ClimateMonitorRunError extends Error {}
 
+export class ClimateMonitorProcessError extends Error {}
+
 function resolveProject(
   env: Record<string, string | undefined>,
   cwd: string,
@@ -488,12 +490,32 @@ function buildRunPlan(
   };
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function pathRedactionVariants(projectPath: string): string[] {
+  const baseCandidates = [projectPath, resolve(projectPath)];
+  const variants = new Set<string>();
+  for (const candidate of baseCandidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    variants.add(trimmed);
+    variants.add(trimmed.replace(/\//g, "\\"));
+    variants.add(trimmed.replace(/\\/g, "/"));
+  }
+  return [...variants].sort((left, right) => right.length - left.length);
+}
+
 function sanitizeString(projectPath: string, value: string): string {
-  return value
-    .split(projectPath)
-    .join("[climate-monitor-project]")
-    .split(projectPath.replace(/\//g, "\\"))
-    .join("[climate-monitor-project]");
+  let sanitized = value;
+  for (const variant of pathRedactionVariants(projectPath)) {
+    sanitized = sanitized.replace(
+      new RegExp(escapeRegExp(variant), "gi"),
+      "[climate-monitor-project]",
+    );
+  }
+  return sanitized;
 }
 
 function sanitizeJsonValue(projectPath: string, value: JsonValue): JsonValue {
@@ -517,11 +539,11 @@ function parseJsonObject(projectPath: string, stdout: string): JsonObject {
   try {
     parsed = JSON.parse(stdout);
   } catch {
-    throw new ClimateMonitorRunError("Climate monitor returned invalid JSON");
+    throw new ClimateMonitorProcessError("Climate monitor returned invalid JSON");
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new ClimateMonitorRunError(
+    throw new ClimateMonitorProcessError(
       "Climate monitor returned a non-object JSON payload",
     );
   }
@@ -566,7 +588,7 @@ function executeClimateMonitorProcess(
         resolveProcess(result);
         return;
       }
-      rejectProcess(new ClimateMonitorRunError("Climate monitor run failed"));
+      rejectProcess(new ClimateMonitorProcessError("Climate monitor run failed"));
     }
 
     function appendOutput(kind: "stdout" | "stderr", chunk: unknown): void {
@@ -596,19 +618,19 @@ function executeClimateMonitorProcess(
     child.stderr?.on("data", (chunk) => appendOutput("stderr", chunk));
     child.on("error", (error) => {
       settle(
-        new ClimateMonitorRunError(
+        new ClimateMonitorProcessError(
           `Failed to start climate monitor: ${error.message}`,
         ),
       );
     });
     child.on("close", (exitCode) => {
       if (timedOut) {
-        settle(new ClimateMonitorRunError("Climate monitor run timed out"));
+        settle(new ClimateMonitorProcessError("Climate monitor run timed out"));
         return;
       }
       if (outputTooLarge) {
         settle(
-          new ClimateMonitorRunError(
+          new ClimateMonitorProcessError(
             "Climate monitor output exceeded the maximum size",
           ),
         );
@@ -616,19 +638,76 @@ function executeClimateMonitorProcess(
       }
       if (exitCode !== 0) {
         settle(
-          new ClimateMonitorRunError(
+          new ClimateMonitorProcessError(
             `Climate monitor exited with code ${String(exitCode)}`,
           ),
         );
         return;
       }
+      let parsed: JsonObject;
+      try {
+        parsed = parseJsonObject(projectPath, stdout);
+      } catch (error) {
+        settle(
+          error instanceof Error
+            ? error
+            : new ClimateMonitorProcessError(
+                "Climate monitor returned invalid JSON",
+              ),
+        );
+        return;
+      }
       settle(null, {
         exitCode,
-        parsed: parseJsonObject(projectPath, stdout),
+        parsed,
         stderr: sanitizeString(projectPath, stderr),
       });
     });
   });
+}
+
+function climateMonitorProcessEnv(
+  env: Record<string, string | undefined>,
+): NodeJS.ProcessEnv {
+  const allowedEnvNames = [
+    "APPDATA",
+    "COMSPEC",
+    "HOME",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NO_PROXY",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_ORG_ID",
+    "PATH",
+    "PATHEXT",
+    "Path",
+    "PYTHONIOENCODING",
+    "PYTHONUTF8",
+    "PYTHONUNBUFFERED",
+    "REQUESTS_CA_BUNDLE",
+    "SSL_CERT_FILE",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "WEB_LISTENING_PROJECT_PATH",
+    "WINDIR",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "CLIMATE_MONITOR_ENABLE_LIVE_RESEARCH",
+    "CLIMATE_MONITOR_ENABLE_LIVE_WEB_LISTENING",
+    "CLIMATE_MONITOR_SEARCH_MODEL",
+  ];
+  return Object.fromEntries(
+    allowedEnvNames.flatMap((name) => {
+      const value = env[name];
+      return value === undefined ? [] : [[name, value]];
+    }),
+  );
 }
 
 export async function runClimateMonitor(
@@ -676,6 +755,7 @@ export async function runClimateMonitor(
     plan.spawnArgs,
     {
       cwd: plan.spawnCwd,
+      env: climateMonitorProcessEnv(env),
       shell: false,
       windowsHide: true,
     },

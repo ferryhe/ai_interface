@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+
 import type { ModuleId } from "../modules/registry";
 
 export type ToolAdapterKind = "http" | "cli";
@@ -17,6 +20,10 @@ export interface ToolAdapterDefinition {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  projectFallback?: {
+    defaultSiblingPath: string;
+    requiredPath: string;
+  };
 }
 
 export interface ToolAdapterReadiness extends ToolAdapterDefinition {
@@ -116,6 +123,10 @@ export const adapterDefinitions: ToolAdapterDefinition[] = [
     supportsResume: false,
     readinessHint:
       "Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.",
+    projectFallback: {
+      defaultSiblingPath: "../climate_monitor_wiki",
+      requiredPath: "scripts/run_climate_monitor.py",
+    },
   },
 ];
 
@@ -138,21 +149,58 @@ function hasEnvValue(
   return Boolean(env[name]?.trim());
 }
 
+interface AdapterReadinessOptions {
+  cwd?: string;
+  pathExists?: (path: string) => boolean;
+}
+
+function defaultProjectCandidates(
+  defaultSiblingPath: string,
+  cwd: string,
+): string[] {
+  return [
+    resolve(cwd, defaultSiblingPath),
+    resolve(cwd, "..", defaultSiblingPath),
+    resolve(cwd, "..", "..", defaultSiblingPath),
+  ].filter((path, index, paths) => paths.indexOf(path) === index);
+}
+
+function hasReadyProjectFallback(
+  definition: ToolAdapterDefinition,
+  options: AdapterReadinessOptions,
+): boolean {
+  const fallback = definition.projectFallback;
+  if (!fallback) return false;
+  const pathExists = options.pathExists ?? existsSync;
+  const cwd = options.cwd ?? process.cwd();
+  return defaultProjectCandidates(fallback.defaultSiblingPath, cwd).some(
+    (candidate) => pathExists(join(candidate, fallback.requiredPath)),
+  );
+}
+
 export function listAdapterReadiness(
   env: Record<string, string | undefined> = process.env,
+  options: AdapterReadinessOptions = {},
 ): ToolAdapterReadiness[] {
   return adapterDefinitions.map((definition) =>
-    getAdapterReadiness(definition, env),
+    getAdapterReadiness(definition, env, options),
   );
 }
 
 export function getAdapterReadiness(
   definition: ToolAdapterDefinition,
   env: Record<string, string | undefined> = process.env,
+  options: AdapterReadinessOptions = {},
 ): ToolAdapterReadiness {
-  const missingRequiredEnv = definition.requiredEnv.filter(
+  let missingRequiredEnv = definition.requiredEnv.filter(
     (name) => !hasEnvValue(env, name),
   );
+  if (
+    missingRequiredEnv.length > 0 &&
+    hasReadyProjectFallback(definition, options)
+  ) {
+    missingRequiredEnv = [];
+  }
   const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
     hasEnvValue(env, name),
   );
@@ -163,6 +211,9 @@ export function getAdapterReadiness(
     requiredEnv: [...definition.requiredEnv],
     optionalEnv: [...definition.optionalEnv],
     allowedCommands: [...definition.allowedCommands],
+    projectFallback: definition.projectFallback
+      ? { ...definition.projectFallback }
+      : undefined,
     configured,
     status: configured ? "ready" : "missing_required_env",
     missingRequiredEnv,

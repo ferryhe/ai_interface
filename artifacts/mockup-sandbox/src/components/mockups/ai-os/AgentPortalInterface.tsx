@@ -1195,7 +1195,7 @@ export function AgentPortalInterface() {
 
   async function isPortalApiUnavailable(): Promise<boolean> {
     try {
-      const healthResponse = await fetch("/api/health", {
+      const healthResponse = await fetch("/api/healthz", {
         headers: { Accept: "application/json" },
       });
       const contentType = healthResponse.headers.get("content-type") ?? "";

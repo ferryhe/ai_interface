@@ -1,10 +1,15 @@
 import { Router, type IRouter } from "express";
 import type { Request } from "express";
 import { isIP } from "node:net";
+import {
+  CreateClimateMonitorRunResponse,
+  GetClimateMonitorStatusResponse,
+} from "@workspace/api-zod";
 
 import {
   ClimateMonitorLiveRunDisabledError,
   ClimateMonitorNotConfiguredError,
+  ClimateMonitorProcessError,
   ClimateMonitorRunError,
   getClimateMonitorStatus,
   runClimateMonitor,
@@ -64,6 +69,14 @@ function hostNameFromHeader(host: string): string | null {
   }
 }
 
+function normalizedHostFromHeader(host: string): string | null {
+  try {
+    return new URL(`http://${host}`).host;
+  } catch {
+    return null;
+  }
+}
+
 function isLoopbackHost(host: string): boolean {
   const hostname = hostNameFromHeader(host);
   const normalizedHostname = hostname?.toLowerCase();
@@ -81,6 +94,16 @@ function isAllowedClimateCommandHost(host: string | undefined): boolean {
   return Boolean(host && isLoopbackHost(host));
 }
 
+function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
+  if (!remoteAddress) return false;
+  const normalized = remoteAddress.trim().toLowerCase();
+  if (normalized === "::1") return true;
+  if (normalized.startsWith("::ffff:")) {
+    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
+  }
+  return isIP(normalized) === 4 && normalized.startsWith("127.");
+}
+
 function climateCommandGuardError(req: Request): string | null {
   if (req.get("x-ai-interface-command-intent") !== "climate-monitor-run") {
     return "Climate monitor run requires explicit command intent";
@@ -91,7 +114,10 @@ function climateCommandGuardError(req: Request): string | null {
   }
 
   const host = req.get("host");
-  if (!isAllowedClimateCommandHost(host)) {
+  if (
+    !isAllowedClimateCommandHost(host) ||
+    !isLoopbackRemoteAddress(req.socket.remoteAddress)
+  ) {
     return "Climate monitor runs are only allowed from localhost";
   }
 
@@ -100,14 +126,18 @@ function climateCommandGuardError(req: Request): string | null {
 
   try {
     const parsedOrigin = new URL(origin);
-    return isLoopbackHost(parsedOrigin.host) &&
-      (parsedOrigin.host === host || isLoopbackHost(host))
+    const normalizedHost = normalizedHostFromHeader(host);
+    return normalizedHost !== null && parsedOrigin.host === normalizedHost
       ? null
       : "Origin does not match the ai_interface host";
   } catch {
     return "Invalid Origin header";
   }
 }
+
+export const __privateClimateMonitorRouteGuards = {
+  isLoopbackRemoteAddress,
+};
 
 export function createClimateMonitorRouter(
   dependencies: ClimateMonitorRouterDependencies = {},
@@ -118,7 +148,8 @@ export function createClimateMonitorRouter(
 
   router.get("/climate-monitor/status", async (_req, res) => {
     try {
-      res.json(await getStatus());
+      const data = GetClimateMonitorStatusResponse.parse(await getStatus());
+      res.json(data);
     } catch {
       res
         .status(500)
@@ -143,11 +174,16 @@ export function createClimateMonitorRouter(
     }
 
     try {
-      res.json(await startRun(input));
+      const data = CreateClimateMonitorRunResponse.parse(await startRun(input));
+      res.json(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (error instanceof ClimateMonitorLiveRunDisabledError) {
         res.status(403).json(errorResponse(message));
+        return;
+      }
+      if (error instanceof ClimateMonitorProcessError) {
+        res.status(500).json(errorResponse(message));
         return;
       }
       if (

@@ -875,3 +875,8 @@ export const PortalSurfaceParameter = {
  * Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.
  */
 export type PortalTokenParameter = string;
+
+/**
+ * Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.
+ */
+export type AuthorizationHeaderParameter = string;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -32,10 +33,13 @@ test("registers one adapter for each business module", () => {
 });
 
 test("reports missing required env without exposing env values", () => {
-  const readiness = listAdapterReadiness({
-    DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
-    DOC_TO_MD_API_TOKEN: "secret-token",
-  });
+  const readiness = listAdapterReadiness(
+    {
+      DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+      DOC_TO_MD_API_TOKEN: "secret-token",
+    },
+    { pathExists: () => false },
+  );
 
   const docToMd = readiness.find((item) => item.moduleId === "doc_to_md");
   assert.equal(docToMd?.status, "ready");
@@ -62,9 +66,12 @@ test("reports missing required env without exposing env values", () => {
 });
 
 test("treats blank env values as missing", () => {
-  const readiness = listAdapterReadiness({
-    RAG_TO_AGENT_API_BASE_URL: "   ",
-  });
+  const readiness = listAdapterReadiness(
+    {
+      RAG_TO_AGENT_API_BASE_URL: "   ",
+    },
+    { pathExists: () => false },
+  );
 
   const ragToAgent = readiness.find((item) => item.moduleId === "rag_to_agent");
   assert.equal(ragToAgent?.configured, false);
@@ -90,6 +97,29 @@ test("reports readiness for a single adapter with copied arrays", () => {
   assert.equal(JSON.stringify(readiness).includes("web-listening.exe"), false);
   assert.notEqual(readiness.requiredEnv, definition.requiredEnv);
   assert.notEqual(readiness.allowedCommands, definition.allowedCommands);
+});
+
+test("uses the climate monitor sibling fallback for adapter readiness", () => {
+  const definition = getAdapterDefinition("climate_monitor");
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const readyScript = resolve(
+    "workspace",
+    "climate_monitor_wiki",
+    "scripts",
+    "run_climate_monitor.py",
+  );
+  const readiness = getAdapterReadiness(
+    definition,
+    {},
+    {
+      cwd,
+      pathExists: (path) => path === readyScript,
+    },
+  );
+
+  assert.equal(readiness.status, "ready");
+  assert.equal(readiness.configured, true);
+  assert.deepEqual(readiness.missingRequiredEnv, []);
 });
 
 test("throws for unknown adapter module ids", () => {
