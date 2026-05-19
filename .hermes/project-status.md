@@ -35,6 +35,8 @@ Updated: 2026-05-19
 - Extended skill project sources to `builtin`, `community`, `custom`, and `external`; default loader roots now discover `skills/builtin`, `skills/community`, and `skills/custom` with the documented override policy.
 - Added `corepack pnpm run skill:validate` for redacted manifest validation summaries, plus `skills/community/example_reporter/skill.yaml`, community contributor docs, `skills/custom/.gitkeep`, and `.gitignore` rules for local custom skills.
 - Default Agent config now keeps community/custom skills discoverable but disabled by default; the validation-only `example_reporter` requires `EXAMPLE_REPORTER_ENABLED` and approval before it can run.
+- Opened PR #38 for `codex/custom-community-skill-dx`: https://github.com/ferryhe/ai_interface/pull/38
+- Scheduled follow-up automation `pr-38-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -525,4 +527,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Commit, push, and open PR3 for `codex/custom-community-skill-dx`, then schedule the remote follow-up for GitHub checks and Copilot/review comments.
+- Wait for `pr-38-follow-up`, then evaluate PR #38 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR4 from latest `main`.
