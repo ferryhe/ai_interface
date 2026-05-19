@@ -17,6 +17,8 @@ Updated: 2026-05-19
 - Preserved compatibility exports for modules, adapters, and business skills through the default runtime registry.
 - Added registry injection through skills/modules/tool-adapters routes, Agent config/runtime, module-run creation, adapter execution, resume execution, and DB catalog definition resolution.
 - Added tests for default built-in order, custom manifest derivation, injected route behavior, custom module-run creation, custom execute-ready/resume adapter resolution, split `skillId`/`moduleId` planner normalization, OpenAI planner payload skill IDs, and DB catalog writer seam.
+- Opened PR #36 for `codex/skill-runtime-registry-context`: https://github.com/ferryhe/ai_interface/pull/36
+- Scheduled follow-up automation `pr-36-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -489,4 +491,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Commit and push `codex/skill-runtime-registry-context`, open PR1, then run the required remote follow-up check before merge and branch cleanup.
+- Wait for `pr-36-follow-up`, then evaluate PR #36 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR2 from latest `main`.
