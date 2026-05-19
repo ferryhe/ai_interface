@@ -4,8 +4,8 @@ Updated: 2026-05-19
 
 ## Active Work
 
-- Branch: `codex/skill-runtime-registry-context`
-- Scope: PR1 of the Skill Registry Generalization program: introduce a single injectable runtime registry context while preserving the current five built-in TypeScript manifests and behavior.
+- Branch: `codex/yaml-skill-loader`
+- Scope: PR2 of the Skill Registry Generalization program: add a YAML skill loader and migrate the five built-in skill manifests into `skills/builtin/*/skill.yaml` while preserving runtime behavior.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -20,6 +20,8 @@ Updated: 2026-05-19
 - Opened PR #36 for `codex/skill-runtime-registry-context`: https://github.com/ferryhe/ai_interface/pull/36
 - Scheduled follow-up automation `pr-36-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - PR #36 follow-up found no configured GitHub checks and one Copilot style comment; the confirmed-safe import cleanup was applied.
+- PR #36 was merged into `main` on 2026-05-19 at merge commit `961b62be0caf80881ea37942863416611b95e774`; the local and remote work branches were confirmed absent after cleanup.
+- Started PR2 from latest `main` on branch `codex/yaml-skill-loader`.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -496,4 +498,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Wait for `pr-36-follow-up`, then evaluate PR #36 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR2 from latest `main`.
+- Dispatch the PR2 development agent for YAML skill loader and built-in manifest migration, then run spec and code-quality review agents before controller validation.
