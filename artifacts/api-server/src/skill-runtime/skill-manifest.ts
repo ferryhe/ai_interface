@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import type { JsonObject, ToolInteractionKind } from "../modules/ingest-service";
 import type { ModuleId } from "../modules/registry";

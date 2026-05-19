@@ -19,6 +19,7 @@ Updated: 2026-05-19
 - Added tests for default built-in order, custom manifest derivation, injected route behavior, custom module-run creation, custom execute-ready/resume adapter resolution, split `skillId`/`moduleId` planner normalization, OpenAI planner payload skill IDs, and DB catalog writer seam.
 - Opened PR #36 for `codex/skill-runtime-registry-context`: https://github.com/ferryhe/ai_interface/pull/36
 - Scheduled follow-up automation `pr-36-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #36 follow-up found no configured GitHub checks and one Copilot style comment; the confirmed-safe import cleanup was applied.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -117,6 +118,10 @@ Updated: 2026-05-19
 - Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Registry Context PR1 validation: `git diff --check` passed with CRLF warnings only.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run test` passed with 110 tests.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `git diff --check` passed with CRLF warnings only.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
