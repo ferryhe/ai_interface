@@ -26,6 +26,8 @@ Updated: 2026-05-19
 - Added `loadSkillManifests()` with YAML parsing, manifest defaults, validation, duplicate `skillId`/`moduleId` detection, deterministic ordering, and cwd-aware default root discovery from `skills/builtin`.
 - Moved the five built-in skill manifests to `skills/builtin/<skillId>/skill.yaml` and kept test-only in-memory registry construction through `createSkillRuntimeRegistry(manifests)`.
 - Added README documentation for built-in YAML manifests and the `climate_monitor` built-in mapping.
+- Opened PR #37 for `codex/yaml-skill-loader`: https://github.com/ferryhe/ai_interface/pull/37
+- Scheduled follow-up automation `pr-37-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -508,4 +510,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Commit, push, and open PR2 for `codex/yaml-skill-loader`, then schedule the remote follow-up for GitHub checks and Copilot/review comments.
+- Wait for `pr-37-follow-up`, then evaluate PR #37 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR3 from latest `main`.
