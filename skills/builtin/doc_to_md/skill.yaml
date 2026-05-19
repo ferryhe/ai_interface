@@ -1,0 +1,54 @@
+skillId: doc_to_md
+moduleId: doc_to_md
+name: Doc to Markdown
+description: Convert source documents into Markdown with warnings and extracted assets.
+category: transform
+project:
+  source: builtin
+  defaultSiblingPath: ../doc_to_md
+  envPath: DOC_TO_MD_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/doc_to_md
+  packageName: doc_to_md
+execution:
+  kind: http
+  adapterId: doc_to_md.http.v1
+  requiredEnv:
+    - DOC_TO_MD_API_BASE_URL
+  optionalEnv:
+    - DOC_TO_MD_API_TOKEN
+  supportsResume: true
+  readinessHint: Set DOC_TO_MD_API_BASE_URL to enable HTTP handoffs.
+inputSchema:
+  type: object
+  properties:
+    sourceArtifactIds:
+      type: array
+      items:
+        type: string
+    engine:
+      type: string
+    includeAssets:
+      type: boolean
+  required:
+    - sourceArtifactIds
+outputSchema:
+  type: object
+  properties:
+    markdown:
+      type: string
+    quality:
+      type: object
+    trace:
+      type: array
+    assets:
+      type: array
+interactionKinds:
+  - question
+  - data_request
+artifactKinds:
+  - markdown_document
+  - conversion_warning
+  - document_asset
+ui:
+  mode: renderer
+  preferredRenderer: markdown

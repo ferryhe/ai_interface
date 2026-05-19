@@ -22,6 +22,10 @@ Updated: 2026-05-19
 - PR #36 follow-up found no configured GitHub checks and one Copilot style comment; the confirmed-safe import cleanup was applied.
 - PR #36 was merged into `main` on 2026-05-19 at merge commit `961b62be0caf80881ea37942863416611b95e774`; the local and remote work branches were confirmed absent after cleanup.
 - Started PR2 from latest `main` on branch `codex/yaml-skill-loader`.
+- PR2 implementation completed through the managed multi-agent loop: development agent migrated built-in manifests to YAML and added the loader, spec review approved, code-quality review requested a cwd/default-root fix, the development agent added regression coverage and fixed it, and code-quality re-review approved.
+- Added `loadSkillManifests()` with YAML parsing, manifest defaults, validation, duplicate `skillId`/`moduleId` detection, deterministic ordering, and cwd-aware default root discovery from `skills/builtin`.
+- Moved the five built-in skill manifests to `skills/builtin/<skillId>/skill.yaml` and kept test-only in-memory registry construction through `createSkillRuntimeRegistry(manifests)`.
+- Added README documentation for built-in YAML manifests and the `climate_monitor` built-in mapping.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -124,6 +128,12 @@ Updated: 2026-05-19
 - Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run build` passed.
 - Registry Context PR1 follow-up validation after Copilot import cleanup: `git diff --check` passed with CRLF warnings only.
+- YAML Skill Loader PR2 validation: `corepack pnpm --filter @workspace/api-server run test` passed with 118 tests.
+- YAML Skill Loader PR2 validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- YAML Skill Loader PR2 validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- YAML Skill Loader PR2 validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- YAML Skill Loader PR2 validation: `corepack pnpm run typecheck:libs` passed.
+- YAML Skill Loader PR2 validation: `git diff --check` passed with CRLF warnings only.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
@@ -498,4 +508,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Dispatch the PR2 development agent for YAML skill loader and built-in manifest migration, then run spec and code-quality review agents before controller validation.
+- Commit, push, and open PR2 for `codex/yaml-skill-loader`, then schedule the remote follow-up for GitHub checks and Copilot/review comments.

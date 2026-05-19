@@ -1,0 +1,71 @@
+skillId: web_listening
+moduleId: web_listening
+name: Web Listening
+description: Monitor web pages, create snapshots, extract text, and detect changes.
+category: source
+project:
+  source: builtin
+  defaultSiblingPath: ../web_listening
+  envPath: WEB_LISTENING_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/web_listening
+  packageName: web_listening
+execution:
+  kind: cli
+  adapterId: web_listening.cli.v1
+  requiredEnv:
+    - WEB_LISTENING_CLI_PATH
+  optionalEnv:
+    - WEB_LISTENING_WORKDIR
+    - WEB_LISTENING_API_BASE_URL
+  allowedCommands:
+    - discover
+    - classify
+    - plan-scope
+    - bootstrap-scope
+    - run-scope
+    - export-manifest
+  supportsResume: true
+  readinessHint: Set WEB_LISTENING_CLI_PATH to enable CLI handoffs.
+inputSchema:
+  type: object
+  properties:
+    siteUrl:
+      type: string
+    monitoringGoal:
+      type: string
+    stage:
+      type: string
+      enum:
+        - discover
+        - classify
+        - plan_scope
+        - bootstrap_scope
+        - run_scope
+        - export_manifest
+  required:
+    - siteUrl
+    - monitoringGoal
+outputSchema:
+  type: object
+  properties:
+    manifest:
+      type: object
+    snapshots:
+      type: array
+    events:
+      type: array
+interactionKinds:
+  - question
+  - approval
+  - blocked
+artifactKinds:
+  - web_snapshot
+  - extracted_text
+  - change_event
+ui:
+  mode: html
+  htmlEntrypoint: /skill-ui/web_listening
+  openOnTrigger: true
+permissions:
+  approvalRequired: true
+  canUseNetwork: true

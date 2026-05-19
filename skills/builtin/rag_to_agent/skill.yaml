@@ -1,0 +1,58 @@
+skillId: rag_to_agent
+moduleId: rag_to_agent
+name: RAG to Agent
+description: Generate agent configs, prompts, tools, and validation results.
+category: agent
+project:
+  source: builtin
+  defaultSiblingPath: ../c-ross-2
+  envPath: CROSS2_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/c-ross-2
+  packageName: c-ross-2
+execution:
+  kind: http
+  adapterId: rag_to_agent.http.v1
+  requiredEnv:
+    - RAG_TO_AGENT_API_BASE_URL
+  optionalEnv:
+    - RAG_TO_AGENT_API_TOKEN
+  supportsResume: true
+  readinessHint: Set RAG_TO_AGENT_API_BASE_URL to enable HTTP handoffs.
+inputSchema:
+  type: object
+  properties:
+    ragIndexArtifactId:
+      type: string
+    agentName:
+      type: string
+    publishMode:
+      type: string
+      enum:
+        - draft
+        - validated
+  required:
+    - ragIndexArtifactId
+    - agentName
+outputSchema:
+  type: object
+  properties:
+    agentConfig:
+      type: object
+    prompt:
+      type: string
+    validation:
+      type: object
+interactionKinds:
+  - question
+  - approval
+  - blocked
+artifactKinds:
+  - agent_config
+  - agent_prompt
+  - agent_validation
+ui:
+  mode: html
+  htmlEntrypoint: /skill-ui/rag_to_agent
+  openOnTrigger: true
+permissions:
+  approvalRequired: true

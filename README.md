@@ -2,7 +2,7 @@
 
 `ai_interface` is the top-level Agent OS console for composing AI skills and tools into inspectable workflows. The foreground is the user-facing agent experience; Backstage is the development and operations surface where each skill's manifest, runtime I/O, events, artifacts, readiness, and optional HTML UI can be inspected.
 
-The current v1 wires a generic skill runtime around the existing four project skills:
+The current v1 wires a generic skill runtime around the built-in project skills loaded from `skills/builtin/*/skill.yaml`:
 
 | Skill | Project mapping | Role |
 |---|---|---|
@@ -10,6 +10,7 @@ The current v1 wires a generic skill runtime around the existing four project sk
 | `doc_to_md` | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
 | `md_to_rag` | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |
 | `rag_to_agent` | `../c-ross-2` | Generate agent prompts, tool bindings, configs, and validation output. |
+| `climate_monitor` | `../climate_monitor_wiki` | Run the climate monitor workflow and summarize report/source/scope coverage. |
 
 This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
@@ -99,6 +100,8 @@ interface SkillManifest {
 }
 ```
 
+Built-in manifests live in `skills/builtin/<skillId>/skill.yaml`. The API server loads and validates those YAML files at startup, applies documented defaults for omitted UI, execution, permissions, interaction, and artifact fields, and keeps runtime ordering deterministic for existing API behavior.
+
 `GET /api/skills` reports readiness without exposing secret values or configured local paths. It returns env var names and default sibling path metadata only.
 
 ## Repository Structure
@@ -126,6 +129,7 @@ Default project path detection is intentionally shallow:
 - `doc_to_md` checks `DOC_TO_MD_PROJECT_PATH` or `../doc_to_md`;
 - `md_to_rag` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`;
 - `rag_to_agent` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`.
+- `climate_monitor` checks `CLIMATE_MONITOR_PROJECT_PATH` or `../climate_monitor_wiki`.
 
 Readiness is a local existence check only. This PR does not execute real sibling project commands.
 

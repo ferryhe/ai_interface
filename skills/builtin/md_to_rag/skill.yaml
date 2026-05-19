@@ -1,0 +1,60 @@
+skillId: md_to_rag
+moduleId: md_to_rag
+name: Markdown to RAG
+description: Chunk Markdown, prepare embeddings, and build RAG index records.
+category: index
+project:
+  source: builtin
+  defaultSiblingPath: ../c-ross-2
+  envPath: CROSS2_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/c-ross-2
+  packageName: c-ross-2
+execution:
+  kind: cli
+  adapterId: md_to_rag.cli.v1
+  requiredEnv:
+    - CROSS2_CLI_PATH
+  optionalEnv:
+    - CROSS2_WORKDIR
+    - CROSS2_API_BASE_URL
+  timeoutMs: 180000
+  allowedCommands:
+    - build-ready-data
+    - validate-ready-data
+    - search sections
+    - evidence
+  readinessHint: Set CROSS2_CLI_PATH to enable CLI handoffs.
+inputSchema:
+  type: object
+  properties:
+    markdownArtifactIds:
+      type: array
+      items:
+        type: string
+    collection:
+      type: string
+    chunkingStrategy:
+      type: string
+  required:
+    - markdownArtifactIds
+    - collection
+outputSchema:
+  type: object
+  properties:
+    manifest:
+      type: object
+    chunks:
+      type: array
+    embeddings:
+      type: array
+interactionKinds:
+  - question
+  - data_request
+  - blocked
+artifactKinds:
+  - rag_chunk
+  - embedding_metadata
+  - rag_index
+ui:
+  mode: renderer
+  preferredRenderer: table
