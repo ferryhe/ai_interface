@@ -12,6 +12,11 @@ Updated: 2026-05-19
 
 - PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
 - Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
+- PR1 implementation completed through the managed multi-agent loop: development agent implemented the registry context base, spec review requested and verified fixes, code-quality review requested and verified fixes, and controller validation passed.
+- Added `SkillRuntimeRegistry` as the single derived registry context for skill manifests, module definitions, adapter definitions, and business skill definitions.
+- Preserved compatibility exports for modules, adapters, and business skills through the default runtime registry.
+- Added registry injection through skills/modules/tool-adapters routes, Agent config/runtime, module-run creation, adapter execution, resume execution, and DB catalog definition resolution.
+- Added tests for default built-in order, custom manifest derivation, injected route behavior, custom module-run creation, custom execute-ready/resume adapter resolution, split `skillId`/`moduleId` planner normalization, OpenAI planner payload skill IDs, and DB catalog writer seam.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -106,6 +111,10 @@ Updated: 2026-05-19
 
 ## Verification
 
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run test` passed with 110 tests.
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Registry Context PR1 validation: `git diff --check` passed with CRLF warnings only.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
@@ -480,4 +489,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Dispatch the PR1 development agent for the registry context base, then run spec and code-quality review agents before controller validation.
+- Commit and push `codex/skill-runtime-registry-context`, open PR1, then run the required remote follow-up check before merge and branch cleanup.

@@ -9,6 +9,8 @@ import {
   InMemoryAgentConfigRepository,
   updateAgentConfig,
 } from "../agent-config/agent-config-service";
+import type { SkillManifest } from "../skill-runtime/skill-manifest";
+import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import {
   createModuleRun,
   InMemoryModuleRunRepository,
@@ -22,10 +24,17 @@ async function withModulesApp<T>(
   repository: InMemoryModuleRunRepository,
   configRepository: InMemoryAgentConfigRepository,
   callback: (baseUrl: string) => Promise<T>,
+  manifests?: SkillManifest[],
 ): Promise<T> {
   const app = express();
   app.use(express.json());
-  app.use(createModulesRouter(repository, configRepository));
+  app.use(
+    createModulesRouter(
+      repository,
+      configRepository,
+      manifests ? createSkillRuntimeRegistry(manifests) : undefined,
+    ),
+  );
 
   const server = app.listen(0);
   await once(server, "listening");
@@ -41,6 +50,44 @@ async function withModulesApp<T>(
       (server as Server).close((error) => (error ? reject(error) : resolve()));
     });
   }
+}
+
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+    },
+    execution: {
+      kind: "cli",
+      adapterId: "custom_reporter.cli.v1",
+      requiredEnv: ["CUSTOM_REPORTER_CLI_PATH"],
+      optionalEnv: [],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: ["custom-reporter run"],
+      supportsResume: false,
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_report"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+  };
 }
 
 async function createInteractiveRun(
@@ -93,6 +140,66 @@ test("modules route rejects Portal feedback without a token before mutating the 
     (run?.metadata?.["interaction"] as { status?: string }).status,
     "waiting_for_approval",
   );
+});
+
+test("/modules can be served from an injected custom registry", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const response = await withModulesApp(
+    repository,
+    configRepository,
+    (baseUrl) => fetch(`${baseUrl}/modules`),
+    [customReporterManifest()],
+  );
+  const json = (await response.json()) as {
+    modules: Array<{
+      moduleId: string;
+      displayName: string;
+      resultKinds: string[];
+    }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(json.modules, [
+    {
+      moduleId: "custom_reporter",
+      displayName: "Custom Reporter",
+      description: "Create custom reports from artifacts.",
+      category: "agent",
+      resultKinds: ["custom_report"],
+    },
+  ]);
+});
+
+test("modules route creates module runs from an injected custom registry", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const response = await withModulesApp(
+    repository,
+    configRepository,
+    (baseUrl) =>
+      fetch(`${baseUrl}/module-runs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          moduleId: "custom_reporter",
+          externalRunId: "route-custom-report-001",
+          title: "Create custom report",
+          inputJson: { topic: "routes" },
+        }),
+      }),
+    [customReporterManifest()],
+  );
+  const json = (await response.json()) as {
+    run: { moduleId: string; inputJson: Record<string, unknown> };
+  };
+
+  assert.equal(response.status, 201);
+  assert.equal(json.run.moduleId, "custom_reporter");
+  assert.deepEqual(json.run.inputJson, { topic: "routes" });
+  assert.equal(repository.moduleRuns.length, 1);
 });
 
 test("modules route accepts Portal feedback with a published matching token", async () => {

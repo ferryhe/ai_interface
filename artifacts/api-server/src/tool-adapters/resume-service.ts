@@ -10,9 +10,11 @@ import {
   FakeToolAdapterExecutor,
   executeModuleRunWithAdapter,
 } from "./executor";
+import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 
 export interface ResumeModuleRunExecutionOptions {
   env?: Record<string, string | undefined>;
+  registry?: SkillRuntimeRegistry;
 }
 
 export class ModuleRunResumeConflictError extends Error {
@@ -69,7 +71,7 @@ export async function resumeModuleRunExecution(
   const currentInteraction = getCurrentInteraction(existing);
   assertResumableInteraction(currentInteraction, runId);
 
-  const adapter = getAdapterDefinition(existing.moduleId);
+  const adapter = getAdapterDefinition(existing.moduleId, options.registry);
   if (!adapter.supportsResume) {
     throw new ModuleRunResumeConflictError(
       `Adapter does not support resume: ${adapter.adapterId}`,
@@ -83,7 +85,7 @@ export async function resumeModuleRunExecution(
       repository,
       existing.id,
       new FakeToolAdapterExecutor(),
-      { env },
+      { env, registry: options.registry },
     );
     return {
       run: execution.run,
@@ -121,7 +123,7 @@ export async function resumeModuleRunExecution(
     repository,
     consumedRun.id,
     new FakeToolAdapterExecutor(),
-    { env },
+    { env, registry: options.registry },
   );
 
   return {

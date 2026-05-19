@@ -3,12 +3,53 @@ import test from "node:test";
 
 import {
   InMemoryAgentConfigRepository,
+  createDefaultBusinessSkillSettings,
   getAgentConfig,
   getConnectionStatus,
   toPublicAgentConfig,
   updateAgentConfig,
   verifyPortalAccess,
 } from "./agent-config-service";
+import type { SkillManifest } from "../skill-runtime/skill-manifest";
+import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
+
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+    },
+    execution: {
+      kind: "internal",
+      adapterId: "custom_reporter.internal.v1",
+      requiredEnv: [],
+      optionalEnv: [],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: false,
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_report"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  };
+}
 
 test("creates the default agent config with business and general skills", async () => {
   const repository = new InMemoryAgentConfigRepository();
@@ -54,6 +95,22 @@ test("creates default publish settings without a portal token", async () => {
   assert.equal(config.publishSettings.portalTokenHash, null);
   assert.equal(config.publishSettings.portalTokenLast4, null);
   assert.equal(config.publishSettings.versionLabel, "draft-0.3");
+});
+
+test("creates default business skill settings from an injected registry", () => {
+  const settings = createDefaultBusinessSkillSettings(
+    createSkillRuntimeRegistry([customReporterManifest()]),
+  );
+
+  assert.deepEqual(settings, [
+    {
+      moduleId: "custom_reporter",
+      enabled: true,
+      approvalRequired: false,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  ]);
 });
 
 test("updates model, business skills, general skills, memory, and safety settings", async () => {

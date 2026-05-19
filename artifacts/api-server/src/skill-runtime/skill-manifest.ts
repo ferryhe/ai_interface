@@ -1,20 +1,18 @@
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { resolve } from "node:path";
 
 import type { JsonObject, ToolInteractionKind } from "../modules/ingest-service";
 import type { ModuleId } from "../modules/registry";
-import {
-  getAdapterDefinition,
-  getAdapterReadiness,
-  type ToolAdapterDefinition,
-  type ToolAdapterKind,
-} from "../tool-adapters/adapter-registry";
+import type { ToolAdapterDefinition } from "../tool-adapters/adapter-registry";
 
 export type SkillId = string;
 
 export type SkillCategory = "source" | "transform" | "index" | "agent";
 
-export type SkillExecutionKind = ToolAdapterKind | "internal" | "mcp";
+export type SkillToolAdapterKind = "http" | "cli";
+
+export type SkillExecutionKind = SkillToolAdapterKind | "internal" | "mcp";
 
 export type SkillArtifactRenderer =
   | "markdown"
@@ -109,20 +107,12 @@ export interface SkillReadiness {
   };
 }
 
-function executionFromAdapter(
-  adapter: ToolAdapterDefinition,
-  kind: SkillExecutionKind = adapter.adapterKind,
-): SkillExecution {
+function skillExecution(input: SkillExecution): SkillExecution {
   return {
-    kind,
-    adapterId: adapter.adapterId,
-    requiredEnv: [...adapter.requiredEnv],
-    optionalEnv: [...adapter.optionalEnv],
-    timeoutMs: adapter.timeoutMs,
-    maxOutputBytes: adapter.maxOutputBytes,
-    allowedCommands: [...adapter.allowedCommands],
-    supportsResume: adapter.supportsResume,
-    readinessHint: adapter.readinessHint,
+    ...input,
+    requiredEnv: [...input.requiredEnv],
+    optionalEnv: [...input.optionalEnv],
+    allowedCommands: [...input.allowedCommands],
   };
 }
 
@@ -141,7 +131,24 @@ export const builtinSkillManifests: SkillManifest[] = [
       repoUrl: "https://github.com/ferryhe/web_listening",
       packageName: "web_listening",
     },
-    execution: executionFromAdapter(getAdapterDefinition("web_listening")),
+    execution: skillExecution({
+      kind: "cli",
+      adapterId: "web_listening.cli.v1",
+      requiredEnv: ["WEB_LISTENING_CLI_PATH"],
+      optionalEnv: ["WEB_LISTENING_WORKDIR", "WEB_LISTENING_API_BASE_URL"],
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      allowedCommands: [
+        "discover",
+        "classify",
+        "plan-scope",
+        "bootstrap-scope",
+        "run-scope",
+        "export-manifest",
+      ],
+      supportsResume: true,
+      readinessHint: "Set WEB_LISTENING_CLI_PATH to enable CLI handoffs.",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -197,7 +204,17 @@ export const builtinSkillManifests: SkillManifest[] = [
       repoUrl: "https://github.com/ferryhe/doc_to_md",
       packageName: "doc_to_md",
     },
-    execution: executionFromAdapter(getAdapterDefinition("doc_to_md")),
+    execution: skillExecution({
+      kind: "http",
+      adapterId: "doc_to_md.http.v1",
+      requiredEnv: ["DOC_TO_MD_API_BASE_URL"],
+      optionalEnv: ["DOC_TO_MD_API_TOKEN"],
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      allowedCommands: [],
+      supportsResume: true,
+      readinessHint: "Set DOC_TO_MD_API_BASE_URL to enable HTTP handoffs.",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -243,7 +260,22 @@ export const builtinSkillManifests: SkillManifest[] = [
       repoUrl: "https://github.com/ferryhe/c-ross-2",
       packageName: "c-ross-2",
     },
-    execution: executionFromAdapter(getAdapterDefinition("md_to_rag")),
+    execution: skillExecution({
+      kind: "cli",
+      adapterId: "md_to_rag.cli.v1",
+      requiredEnv: ["CROSS2_CLI_PATH"],
+      optionalEnv: ["CROSS2_WORKDIR", "CROSS2_API_BASE_URL"],
+      timeoutMs: 180000,
+      maxOutputBytes: 1048576,
+      allowedCommands: [
+        "build-ready-data",
+        "validate-ready-data",
+        "search sections",
+        "evidence",
+      ],
+      supportsResume: false,
+      readinessHint: "Set CROSS2_CLI_PATH to enable CLI handoffs.",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -287,7 +319,17 @@ export const builtinSkillManifests: SkillManifest[] = [
       repoUrl: "https://github.com/ferryhe/c-ross-2",
       packageName: "c-ross-2",
     },
-    execution: executionFromAdapter(getAdapterDefinition("rag_to_agent")),
+    execution: skillExecution({
+      kind: "http",
+      adapterId: "rag_to_agent.http.v1",
+      requiredEnv: ["RAG_TO_AGENT_API_BASE_URL"],
+      optionalEnv: ["RAG_TO_AGENT_API_TOKEN"],
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      allowedCommands: [],
+      supportsResume: true,
+      readinessHint: "Set RAG_TO_AGENT_API_BASE_URL to enable HTTP handoffs.",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -333,7 +375,18 @@ export const builtinSkillManifests: SkillManifest[] = [
       repoUrl: "https://github.com/ferryhe/climate_monitor_wiki",
       packageName: "climate_monitor_wiki",
     },
-    execution: executionFromAdapter(getAdapterDefinition("climate_monitor")),
+    execution: skillExecution({
+      kind: "cli",
+      adapterId: "climate_monitor.cli.v1",
+      requiredEnv: ["CLIMATE_MONITOR_PROJECT_PATH"],
+      optionalEnv: ["CLIMATE_MONITOR_ALLOW_LIVE_RUNS"],
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      allowedCommands: ["scripts/run_climate_monitor.py"],
+      supportsResume: false,
+      readinessHint:
+        "Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -399,6 +452,34 @@ export function createSkillManifestRegistry(
 export function manifestAdapterDefinition(
   manifest: SkillManifest,
 ): ToolAdapterDefinition {
+  const builtinAdapterText: Record<
+    string,
+    { displayName: string; description: string }
+  > = {
+    web_listening: {
+      displayName: "Web Listening CLI Adapter",
+      description: "Metadata contract for the Web Listening CLI module adapter.",
+    },
+    doc_to_md: {
+      displayName: "Doc to Markdown HTTP Adapter",
+      description:
+        "Metadata contract for the Doc to Markdown HTTP module adapter.",
+    },
+    md_to_rag: {
+      displayName: "Markdown to RAG CLI Adapter",
+      description:
+        "Metadata contract for the Markdown to RAG CLI module adapter.",
+    },
+    rag_to_agent: {
+      displayName: "RAG to Agent HTTP Adapter",
+      description: "Metadata contract for the RAG to Agent HTTP module adapter.",
+    },
+    climate_monitor: {
+      displayName: "Climate Monitor CLI Adapter",
+      description: "Fixed CLI contract for the climate monitor wiki runner.",
+    },
+  };
+  const adapterText = builtinAdapterText[manifest.skillId];
   return {
     adapterId: manifest.execution.adapterId,
     moduleId: manifest.moduleId,
@@ -406,8 +487,9 @@ export function manifestAdapterDefinition(
       manifest.execution.kind === "http" || manifest.execution.kind === "cli"
         ? manifest.execution.kind
         : "cli",
-    displayName: `${manifest.title ?? manifest.name} Adapter`,
-    description: manifest.description,
+    displayName:
+      adapterText?.displayName ?? `${manifest.title ?? manifest.name} Adapter`,
+    description: adapterText?.description ?? manifest.description,
     sourceRepo: manifest.project.repoUrl ?? manifest.project.packageName ?? "",
     requiredEnv: [...manifest.execution.requiredEnv],
     optionalEnv: [...manifest.execution.optionalEnv],
@@ -473,6 +555,55 @@ function defaultProjectCandidates(
   ].filter((path, index, paths) => paths.indexOf(path) === index);
 }
 
+function hasReadyProjectFallback(
+  definition: ToolAdapterDefinition,
+  options: {
+    cwd: string;
+    pathExists: (path: string) => boolean;
+  },
+): boolean {
+  const fallback = definition.projectFallback;
+  if (!fallback) return false;
+  return defaultProjectCandidates(fallback.defaultSiblingPath, options.cwd).some(
+    (candidate) => options.pathExists(join(candidate, fallback.requiredPath)),
+  );
+}
+
+function adapterReadiness(
+  definition: ToolAdapterDefinition,
+  env: Record<string, string | undefined>,
+  options: {
+    cwd: string;
+    pathExists: (path: string) => boolean;
+  },
+): {
+  status: "ready" | "missing_required_env";
+  configured: boolean;
+  missingRequiredEnv: string[];
+  configuredOptionalEnv: string[];
+} {
+  let missingRequiredEnv = definition.requiredEnv.filter(
+    (name) => !hasEnvValue(env, name),
+  );
+  if (
+    missingRequiredEnv.length > 0 &&
+    hasReadyProjectFallback(definition, options)
+  ) {
+    missingRequiredEnv = [];
+  }
+
+  const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
+    hasEnvValue(env, name),
+  );
+  const configured = missingRequiredEnv.length === 0;
+  return {
+    status: configured ? "ready" : "missing_required_env",
+    configured,
+    missingRequiredEnv,
+    configuredOptionalEnv,
+  };
+}
+
 export function listSkillReadiness(
   registry: SkillManifestRegistry,
   options: {
@@ -492,7 +623,7 @@ export function listSkillReadiness(
       pathExists,
       cwd,
     );
-    const adapterReadiness = getAdapterReadiness(
+    const adapterReadinessResult = adapterReadiness(
       manifestAdapterDefinition(manifest),
       env,
       { cwd, pathExists },
@@ -506,11 +637,13 @@ export function listSkillReadiness(
         defaultSiblingPath: manifest.project.defaultSiblingPath,
       },
       adapter: {
-        status: adapterReadiness.status,
-        configured: adapterReadiness.configured,
+        status: adapterReadinessResult.status,
+        configured: adapterReadinessResult.configured,
         adapterId: manifest.execution.adapterId,
-        missingRequiredEnv: [...adapterReadiness.missingRequiredEnv],
-        configuredOptionalEnv: [...adapterReadiness.configuredOptionalEnv],
+        missingRequiredEnv: [...adapterReadinessResult.missingRequiredEnv],
+        configuredOptionalEnv: [
+          ...adapterReadinessResult.configuredOptionalEnv,
+        ],
       },
       ui: {
         mode: manifest.ui.mode,

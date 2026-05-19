@@ -1,6 +1,10 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
-import { moduleRegistry, type ModuleId } from "../modules/registry";
+import type { ModuleId } from "../modules/registry";
+import {
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 
 export type AgentProvider = "openai";
 export type AgentEndpoint = "responses" | "agents_sdk";
@@ -146,18 +150,21 @@ export interface AgentConfigRepository {
 
 export const defaultAgentConfigKey = "default";
 
-export function createDefaultBusinessSkillSettings(): BusinessSkillSetting[] {
-  return moduleRegistry.map((moduleDefinition) => ({
-    moduleId: moduleDefinition.moduleId,
-    enabled: true,
-    approvalRequired:
-      moduleDefinition.moduleId === "rag_to_agent" ||
-      moduleDefinition.moduleId === "climate_monitor",
-    canUseNetwork:
-      moduleDefinition.moduleId === "web_listening" ||
-      moduleDefinition.moduleId === "climate_monitor",
-    canWriteDatabase: true,
-  }));
+export function createDefaultBusinessSkillSettings(
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
+): BusinessSkillSetting[] {
+  return registry.listModuleDefinitions().map((moduleDefinition) => {
+    const definition = registry.getBusinessSkillDefinition(
+      moduleDefinition.moduleId,
+    );
+    return {
+      moduleId: definition.moduleId,
+      enabled: true,
+      approvalRequired: definition.permissionDefaults.approvalRequired,
+      canUseNetwork: definition.permissionDefaults.canUseNetwork,
+      canWriteDatabase: definition.permissionDefaults.canWriteDatabase,
+    };
+  });
 }
 
 export function createDefaultGeneralSkillSettings(): GeneralSkillSetting[] {
@@ -284,7 +291,9 @@ function mergePublishSettings(
   };
 }
 
-export function createDefaultAgentConfig(): UpsertAgentConfigInput {
+export function createDefaultAgentConfig(
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
+): UpsertAgentConfigInput {
   return {
     configKey: defaultAgentConfigKey,
     provider: "openai",
@@ -293,7 +302,7 @@ export function createDefaultAgentConfig(): UpsertAgentConfigInput {
     reasoningEffort: "medium",
     systemPrompt:
       "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
-    businessSkillSettings: createDefaultBusinessSkillSettings(),
+    businessSkillSettings: createDefaultBusinessSkillSettings(registry),
     generalSkillSettings: createDefaultGeneralSkillSettings(),
     memorySettings: {
       shortTermEnabled: true,
@@ -349,18 +358,20 @@ export class InMemoryAgentConfigRepository implements AgentConfigRepository {
 
 export async function getAgentConfig(
   repository: AgentConfigRepository,
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): Promise<AgentConfigRecord> {
   const existing = await repository.findConfig(defaultAgentConfigKey);
   if (existing) return existing;
 
-  return repository.upsertConfig(createDefaultAgentConfig());
+  return repository.upsertConfig(createDefaultAgentConfig(registry));
 }
 
 export async function updateAgentConfig(
   repository: AgentConfigRepository,
   input: UpdateAgentConfigInput,
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): Promise<AgentConfigRecord> {
-  const current = await getAgentConfig(repository);
+  const current = await getAgentConfig(repository, registry);
 
   return repository.upsertConfig({
     configKey: current.configKey,

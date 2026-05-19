@@ -33,11 +33,14 @@ import {
   submitModuleRunFeedback,
   updateModuleRun,
 } from "../modules/ingest-service";
-import { moduleRegistry } from "../modules/registry";
 import {
   ModuleRunResumeConflictError,
   resumeModuleRunExecution,
 } from "../tool-adapters/resume-service";
+import {
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 import {
   isPortalRuntimeRequest,
   requirePortalRuntimeAccess,
@@ -67,11 +70,14 @@ const lazyConfigRepository = createLazyRepository<AgentConfigRepository>(
 export function createModulesRouter(
   repository: ModuleRunRepository,
   agentConfigRepository: AgentConfigRepository,
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): IRouter {
   const router: IRouter = Router();
 
   router.get("/modules", (_req, res) => {
-    const data = ListModulesResponse.parse({ modules: moduleRegistry });
+    const data = ListModulesResponse.parse({
+      modules: registry.listModuleDefinitions(),
+    });
     res.json(data);
   });
 
@@ -83,7 +89,7 @@ export function createModulesRouter(
     }
 
     try {
-      const result = await createModuleRun(repository, body.data);
+      const result = await createModuleRun(repository, body.data, { registry });
       const data = CreateModuleRunResponse.parse(result);
       res.status(result.created ? 201 : 200).json(data);
     } catch (error) {
@@ -280,6 +286,7 @@ export function createModulesRouter(
       const result = await resumeModuleRunExecution(
         repository,
         params.data.runId,
+        { registry },
       );
       const data = ResumeModuleRunExecutionResponse.parse(result);
       res.json(data);
