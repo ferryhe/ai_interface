@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { SkillManifest } from "../skill-runtime/skill-manifest";
+import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import {
   InMemoryModuleRunRepository,
   createModuleRun,
@@ -9,6 +11,44 @@ import {
   requestModuleRunInteraction,
   submitModuleRunFeedback,
 } from "./ingest-service";
+
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+    },
+    execution: {
+      kind: "internal",
+      adapterId: "custom_reporter.internal.v1",
+      requiredEnv: [],
+      optionalEnv: [],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: false,
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_report"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+  };
+}
 
 test("creates module runs idempotently by module and external run id", async () => {
   const repository = new InMemoryModuleRunRepository();
@@ -80,6 +120,26 @@ test("creates registered custom skill runs idempotently by skill and external ru
   assert.equal(second.run.status, "succeeded");
   assert.deepEqual(second.run.inputJson, { topic: "onboarding" });
   assert.deepEqual(second.run.outputJson, { report: "done" });
+  assert.equal(repository.moduleRuns.length, 1);
+});
+
+test("creates custom module runs through an injected registry without per-call bypass ids", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const registry = createSkillRuntimeRegistry([customReporterManifest()]);
+
+  const { run } = await createModuleRun(
+    repository,
+    {
+      moduleId: "custom_reporter",
+      externalRunId: "report-registry-001",
+      title: "Create custom report",
+      inputJson: { topic: "registry" },
+    },
+    { registry },
+  );
+
+  assert.equal(run.moduleId, "custom_reporter");
+  assert.deepEqual(run.inputJson, { topic: "registry" });
   assert.equal(repository.moduleRuns.length, 1);
 });
 

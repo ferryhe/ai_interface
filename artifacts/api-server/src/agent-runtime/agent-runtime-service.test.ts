@@ -10,6 +10,7 @@ import {
   createAgentRun,
   getAgentRunDetail,
   InMemoryAgentRuntimeRepository,
+  OpenAIResponsesPlanner,
   type AgentPlanner,
 } from "./agent-runtime-service";
 
@@ -55,6 +56,65 @@ function customReporterPlanner(): AgentPlanner {
           },
         ],
       };
+    },
+  };
+}
+
+function customReporterModuleOnlyPlanner(): AgentPlanner {
+  return {
+    async createPlan() {
+      return {
+        summary: "Create a custom report from module-only planner output.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "custom_reporter_module",
+            title: "Create custom report",
+            action: "Summarize the available artifacts.",
+            input: { topic: "onboarding" },
+            requiresApproval: false,
+          },
+        ],
+      };
+    },
+  };
+}
+
+function customReporterSplitManifest() {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter_module",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent" as const,
+    project: {
+      source: "external" as const,
+      defaultSiblingPath: "../custom_reporter",
+      repoUrl: "https://example.com/custom-reporter",
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["report_markdown"],
+    interactionKinds: ["question" as const],
+    execution: {
+      kind: "http" as const,
+      adapterId: "custom_reporter.http.v1",
+      supportsResume: true,
+      timeoutMs: 30000,
+      maxOutputBytes: 65536,
+      requiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+      optionalEnv: [],
+      allowedCommands: [],
+    },
+    ui: {
+      mode: "auto" as const,
+      preferredRenderer: "markdown" as const,
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
     },
   };
 }
@@ -298,6 +358,166 @@ test("uses registered custom skill manifests in planner output", async () => {
     result.moduleRuns[0]?.metadata?.["adapterId"],
     "custom_reporter.internal.v1",
   );
+});
+
+test("OpenAI planner sends skill ids with module descriptions", async () => {
+  const requests: unknown[] = [];
+  const fetchFn = (async (_url: string, init?: RequestInit) => {
+    requests.push(JSON.parse(String(init?.body)));
+    return new Response(
+      JSON.stringify({
+        output_text: JSON.stringify({
+          summary: "Use custom reporter.",
+          warnings: [],
+          steps: [
+            {
+              moduleId: "custom_reporter_module",
+              title: "Create custom report",
+              action: "Summarize artifacts.",
+              input: { topic: "onboarding" },
+              requiresApproval: false,
+            },
+          ],
+        }),
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  const planner = new OpenAIResponsesPlanner(
+    { OPENAI_API_KEY: "sk-test-secret" },
+    fetchFn,
+  );
+
+  await planner.createPlan({
+    message: "Create a custom report.",
+    config: {
+      id: "config-1",
+      configKey: "default",
+      provider: "openai",
+      endpoint: "responses",
+      modelId: "gpt-5.5",
+      reasoningEffort: "medium",
+      systemPrompt: "Plan.",
+      businessSkillSettings: [],
+      generalSkillSettings: [],
+      memorySettings: {
+        shortTermEnabled: true,
+        longTermEnabled: true,
+        promotionMode: "agent_suggested",
+        ragCollection: "agent-module-os",
+        retentionDays: 90,
+      },
+      safetySettings: {
+        requireApprovalForExternalActions: true,
+        requireApprovalForPublishing: true,
+        allowSelfLearning: true,
+        maxToolSteps: 12,
+      },
+      publishSettings: {
+        status: "draft",
+        portalAccessMode: "token",
+        portalTokenHash: null,
+        portalTokenLast4: null,
+        portalTokenUpdatedAt: null,
+        publishedAt: null,
+        versionLabel: "draft-0.3",
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    enabledSkills: [
+      {
+        skillId: "custom_reporter",
+        moduleId: "custom_reporter_module",
+        displayName: "Custom Reporter",
+        description: "Create custom reports from artifacts.",
+        adapter: {
+          adapterId: "custom_reporter.http.v1",
+          moduleId: "custom_reporter_module",
+          adapterKind: "http",
+          displayName: "Custom Reporter Adapter",
+          description: "Create custom reports from artifacts.",
+          sourceRepo: "https://example.com/custom-reporter",
+          requiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+          optionalEnv: [],
+          timeoutMs: 30000,
+          maxOutputBytes: 65536,
+          allowedCommands: [],
+          supportsResume: true,
+          readinessHint: "Configure custom reporter.",
+        },
+        adapterMode: "external_api",
+        canonicalEntrypoints: ["custom_reporter.http.v1"],
+        outputContracts: ["report_markdown"],
+        inputSchema: { type: "object" },
+        permissionDefaults: {
+          approvalRequired: false,
+          canUseNetwork: false,
+          canWriteDatabase: true,
+        },
+      },
+    ],
+  });
+
+  const [request] = requests as Array<{
+    input: Array<{ role: string; content: string }>;
+  }>;
+  const userPayload = JSON.parse(request.input[1]!.content) as {
+    enabledBusinessSkills: Array<{ skillId?: string; moduleId: string }>;
+  };
+  assert.deepEqual(userPayload.enabledBusinessSkills[0], {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter_module",
+    description: "Create custom reports from artifacts.",
+    canonicalEntrypoints: ["custom_reporter.http.v1"],
+    outputContracts: ["report_markdown"],
+    permissionDefaults: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+  });
+});
+
+test("execute_ready uses injected registry adapters when custom skill id differs from module id", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Create a custom onboarding report.",
+      enabledSkillIds: ["custom_reporter"],
+      executionMode: "execute_ready",
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        CUSTOM_REPORTER_API_BASE_URL: "https://report.example.internal",
+      },
+      planner: customReporterModuleOnlyPlanner(),
+      skillManifests: [customReporterSplitManifest()],
+    },
+  );
+
+  assert.equal(result.status, "planned");
+  assert.equal(result.plan.steps[0]?.skillId, "custom_reporter");
+  assert.equal(result.plan.steps[0]?.moduleId, "custom_reporter_module");
+  assert.equal(result.moduleRuns[0]?.moduleId, "custom_reporter_module");
+  assert.equal(result.moduleRuns[0]?.status, "succeeded");
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterId"],
+    "custom_reporter.http.v1",
+  );
+  assert.deepEqual(result.moduleRuns[0]?.outputJson, {
+    adapterId: "custom_reporter.http.v1",
+    moduleId: "custom_reporter_module",
+    externalRunId: result.moduleRuns[0]?.externalRunId,
+    inputJson: { topic: "onboarding" },
+    simulated: true,
+  });
+  assert.equal(JSON.stringify(result).includes("report.example.internal"), false);
 });
 
 test("drops unknown planner skill ids with a warning", async () => {

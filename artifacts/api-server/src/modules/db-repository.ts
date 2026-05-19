@@ -18,7 +18,11 @@ import {
   type RunEventSeverity,
   type ToolInteraction,
 } from "./ingest-service";
-import { moduleRegistry, type ModuleId } from "./registry";
+import type { ModuleDefinition, ModuleId } from "./registry";
+import {
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 
 type ModuleRunRow = typeof moduleRunsTable.$inferSelect;
 type RunEventRow = typeof runEventsTable.$inferSelect;
@@ -80,37 +84,63 @@ function mapArtifact(row: ArtifactRow): ArtifactRecord {
   };
 }
 
-async function ensureModuleCatalog(moduleId: ModuleId): Promise<void> {
-  const definition = moduleRegistry.find(
-    (moduleDefinition) => moduleDefinition.moduleId === moduleId,
-  );
-
+export function resolveModuleCatalogDefinition(
+  moduleId: ModuleId,
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
+): ModuleDefinition {
+  const definition = registry
+    .listModuleDefinitions()
+    .find((moduleDefinition) => moduleDefinition.moduleId === moduleId);
   if (!definition) {
     throw new Error(`Unknown moduleId: ${moduleId}`);
   }
+  return definition;
+}
 
-  await db
-    .insert(moduleCatalogTable)
-    .values({
-      moduleId: definition.moduleId,
-      displayName: definition.displayName,
-      description: definition.description,
-      category: definition.category,
-      outputSchema: { resultKinds: definition.resultKinds },
-    })
-    .onConflictDoUpdate({
-      target: moduleCatalogTable.moduleId,
-      set: {
+export type ModuleCatalogWriter = (
+  definition: ModuleDefinition,
+) => Promise<void>;
+
+export async function ensureModuleCatalogWithWriter(
+  moduleId: ModuleId,
+  registry: SkillRuntimeRegistry,
+  writer: ModuleCatalogWriter,
+): Promise<void> {
+  await writer(resolveModuleCatalogDefinition(moduleId, registry));
+}
+
+async function ensureModuleCatalog(
+  moduleId: ModuleId,
+  registry: SkillRuntimeRegistry,
+): Promise<void> {
+  await ensureModuleCatalogWithWriter(moduleId, registry, async (definition) => {
+    await db
+      .insert(moduleCatalogTable)
+      .values({
+        moduleId: definition.moduleId,
         displayName: definition.displayName,
         description: definition.description,
         category: definition.category,
         outputSchema: { resultKinds: definition.resultKinds },
-        updatedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: moduleCatalogTable.moduleId,
+        set: {
+          displayName: definition.displayName,
+          description: definition.description,
+          category: definition.category,
+          outputSchema: { resultKinds: definition.resultKinds },
+          updatedAt: new Date(),
+        },
+      });
+  });
 }
 
 export class DbModuleRunRepository implements ModuleRunRepository {
+  constructor(
+    private readonly registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
+  ) {}
+
   async findModuleRunByExternalId(
     moduleId: ModuleId,
     externalRunId: string,
@@ -139,7 +169,7 @@ export class DbModuleRunRepository implements ModuleRunRepository {
     outputJson: JsonObject | null;
     metadata: JsonObject | null;
   }): Promise<ModuleRunRecord> {
-    await ensureModuleCatalog(input.moduleId);
+    await ensureModuleCatalog(input.moduleId, this.registry);
 
     const rows = await db
       .insert(moduleRunsTable)
@@ -248,7 +278,7 @@ export class DbModuleRunRepository implements ModuleRunRepository {
     parentArtifactId: string | null;
     provenance: JsonObject | null;
   }): Promise<ArtifactRecord> {
-    await ensureModuleCatalog(input.sourceModuleId);
+    await ensureModuleCatalog(input.sourceModuleId, this.registry);
 
     const rows = await db.insert(artifactsTable).values(input).returning();
     return mapArtifact(firstOrThrow(rows, "artifact"));

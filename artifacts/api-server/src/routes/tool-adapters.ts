@@ -1,19 +1,36 @@
 import { Router, type IRouter } from "express";
 import { GetToolAdaptersResponse } from "@workspace/api-zod";
 
+import { getAdapterReadiness } from "../tool-adapters/adapter-registry";
 import {
-  adapterDefinitions,
-  listAdapterReadiness,
-} from "../tool-adapters/adapter-registry";
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 
-const router: IRouter = Router();
+interface ToolAdaptersRouterOptions {
+  pathExists?: (path: string) => boolean;
+  cwd?: string;
+}
 
-router.get("/tool-adapters", (_req, res) => {
-  const data = GetToolAdaptersResponse.parse({
-    adapters: adapterDefinitions,
-    readiness: listAdapterReadiness(process.env),
+export function createToolAdaptersRouter(
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
+  env: Record<string, string | undefined> = process.env,
+  options: ToolAdaptersRouterOptions = {},
+): IRouter {
+  const router: IRouter = Router();
+
+  router.get("/tool-adapters", (_req, res) => {
+    const adapters = registry.listAdapterDefinitions();
+    const data = GetToolAdaptersResponse.parse({
+      adapters,
+      readiness: adapters.map((definition) =>
+        getAdapterReadiness(definition, env, options),
+      ),
+    });
+    res.json(data);
   });
-  res.json(data);
-});
 
-export default router;
+  return router;
+}
+
+export default createToolAdaptersRouter();

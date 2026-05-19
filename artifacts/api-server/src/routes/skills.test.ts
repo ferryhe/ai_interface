@@ -4,16 +4,18 @@ import test from "node:test";
 import express from "express";
 import type { Server } from "node:http";
 
-import { createSkillManifestRegistry } from "../skill-runtime/skill-manifest";
+import type { SkillManifest } from "../skill-runtime/skill-manifest";
+import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import { createSkillsRouter } from "./skills";
 
 async function withSkillsApp<T>(
   callback: (baseUrl: string) => Promise<T>,
+  manifests?: SkillManifest[],
 ): Promise<T> {
   const app = express();
   app.use(
     createSkillsRouter(
-      createSkillManifestRegistry(),
+      manifests ? createSkillRuntimeRegistry(manifests) : createSkillRuntimeRegistry(),
       {},
       () => false,
     ),
@@ -33,6 +35,44 @@ async function withSkillsApp<T>(
       (server as Server).close((error) => (error ? reject(error) : resolve()));
     });
   }
+}
+
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+    },
+    execution: {
+      kind: "http",
+      adapterId: "custom_reporter.http.v1",
+      requiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+      optionalEnv: [],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: false,
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_report"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  };
 }
 
 test("/skills returns built-in manifests and readiness", async () => {
@@ -73,4 +113,48 @@ test("/skills returns built-in manifests and readiness", async () => {
       ["climate_monitor", "not_configured"],
     ],
   );
+});
+
+test("/skills can be served from an injected custom registry", async () => {
+  const response = await withSkillsApp(
+    (baseUrl) => fetch(`${baseUrl}/skills`),
+    [customReporterManifest()],
+  );
+  const json = (await response.json()) as {
+    skills: Array<{ skillId: string; artifactKinds: string[] }>;
+    readiness: Array<{
+      skillId: string;
+      adapter: { adapterId: string; missingRequiredEnv: string[] };
+    }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    json.skills.map((skill) => skill.skillId),
+    ["custom_reporter"],
+  );
+  assert.deepEqual(json.skills[0]?.artifactKinds, ["custom_report"]);
+  assert.deepEqual(json.readiness, [
+    {
+      skillId: "custom_reporter",
+      project: {
+        status: "not_configured",
+        configuredBy: "defaultSiblingPath",
+        defaultSiblingPath: "../custom_reporter",
+      },
+      adapter: {
+        status: "missing_required_env",
+        configured: false,
+        adapterId: "custom_reporter.http.v1",
+        missingRequiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+        configuredOptionalEnv: [],
+      },
+      ui: {
+        mode: "auto",
+        hasHtml: false,
+        openOnTrigger: false,
+        preferredRenderer: "markdown",
+      },
+    },
+  ]);
 });

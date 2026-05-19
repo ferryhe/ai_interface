@@ -4,12 +4,22 @@ Updated: 2026-05-19
 
 ## Active Work
 
-- Branch: `codex/skill-registry-generalization-plan`
-- Scope: Document the multi-PR implementation plan for making skill registration manifest/file-backed, extensible, and safe for generic skill addition.
-- Sibling repos: off-limits for this planning slice; no sibling repo reads or edits.
+- Branch: `codex/skill-runtime-registry-context`
+- Scope: PR1 of the Skill Registry Generalization program: introduce a single injectable runtime registry context while preserving the current five built-in TypeScript manifests and behavior.
+- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
+- Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
+- PR1 implementation completed through the managed multi-agent loop: development agent implemented the registry context base, spec review requested and verified fixes, code-quality review requested and verified fixes, and controller validation passed.
+- Added `SkillRuntimeRegistry` as the single derived registry context for skill manifests, module definitions, adapter definitions, and business skill definitions.
+- Preserved compatibility exports for modules, adapters, and business skills through the default runtime registry.
+- Added registry injection through skills/modules/tool-adapters routes, Agent config/runtime, module-run creation, adapter execution, resume execution, and DB catalog definition resolution.
+- Added tests for default built-in order, custom manifest derivation, injected route behavior, custom module-run creation, custom execute-ready/resume adapter resolution, split `skillId`/`moduleId` planner normalization, OpenAI planner payload skill IDs, and DB catalog writer seam.
+- Opened PR #36 for `codex/skill-runtime-registry-context`: https://github.com/ferryhe/ai_interface/pull/36
+- Scheduled follow-up automation `pr-36-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #36 follow-up found no configured GitHub checks and one Copilot style comment; the confirmed-safe import cleanup was applied.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -104,6 +114,14 @@ Updated: 2026-05-19
 
 ## Verification
 
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run test` passed with 110 tests.
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Registry Context PR1 validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Registry Context PR1 validation: `git diff --check` passed with CRLF warnings only.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run test` passed with 110 tests.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Registry Context PR1 follow-up validation after Copilot import cleanup: `git diff --check` passed with CRLF warnings only.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
@@ -478,4 +496,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Wait for `pr-35-follow-up`, then check GitHub checks and remote review/Copilot comments for PR #35.
+- Wait for `pr-36-follow-up`, then evaluate PR #36 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR2 from latest `main`.

@@ -2,13 +2,15 @@ import { Router, type IRouter } from "express";
 import { GetSkillsResponse } from "@workspace/api-zod";
 
 import {
-  createSkillManifestRegistry,
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
+import {
   listSkillReadiness,
-  type SkillManifestRegistry,
 } from "../skill-runtime/skill-manifest";
 
 export function createSkillsRouter(
-  registry: SkillManifestRegistry = createSkillManifestRegistry(),
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
   env: Record<string, string | undefined> = process.env,
   pathExists?: (path: string) => boolean,
 ): IRouter {

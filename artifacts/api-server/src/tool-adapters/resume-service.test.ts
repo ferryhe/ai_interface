@@ -8,7 +8,47 @@ import {
   submitModuleRunFeedback,
 } from "../modules/ingest-service";
 import type { ModuleId } from "../modules/registry";
+import type { SkillManifest } from "../skill-runtime/skill-manifest";
+import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import { resumeModuleRunExecution } from "./resume-service";
+
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter_module",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+    },
+    execution: {
+      kind: "http",
+      adapterId: "custom_reporter.http.v1",
+      requiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+      optionalEnv: [],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: true,
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_report"],
+    interactionKinds: ["question"],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+  };
+}
 
 async function createResumableRun(
   repository: InMemoryModuleRunRepository,
@@ -196,6 +236,43 @@ test("records a redacted skip without consuming feedback when required env is mi
   });
   assert.equal(resumed.interaction.status, "resumed");
   assert.equal(resumed.run.status, "succeeded");
+});
+
+test("resumes custom module runs through an injected registry adapter", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const registry = createSkillRuntimeRegistry([customReporterManifest()]);
+  const { run } = await createModuleRun(
+    repository,
+    {
+      moduleId: "custom_reporter_module",
+      externalRunId: "custom-resume-success-001",
+      inputJson: { requestedScope: "custom" },
+    },
+    { registry },
+  );
+  await requestModuleRunInteraction(repository, run.id, {
+    kind: "question",
+    title: "Confirm custom resume",
+    message: "The custom reporter needs input.",
+    resumeHandle: "custom_reporter:custom-resume-success-001:resume",
+  });
+  const feedback = await submitModuleRunFeedback(repository, run.id, {
+    responseText: "Continue.",
+  });
+
+  const result = await resumeModuleRunExecution(repository, feedback.run.id, {
+    env: { CUSTOM_REPORTER_API_BASE_URL: "https://report.example.internal" },
+    registry,
+  });
+
+  assert.equal(result.interaction.status, "resumed");
+  assert.equal(result.run.status, "succeeded");
+  assert.equal(
+    result.run.metadata?.["adapterId"],
+    "custom_reporter.http.v1",
+  );
+  assert.equal(result.event.payload?.["adapterId"], "custom_reporter.http.v1");
+  assert.equal(JSON.stringify(result).includes("report.example.internal"), false);
 });
 
 test("rejects a run without a resumable interaction", async () => {

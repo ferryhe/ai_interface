@@ -2,6 +2,10 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import type { ModuleId } from "../modules/registry";
+import {
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 
 export type ToolAdapterKind = "http" | "cli";
 export type ToolAdapterReadinessStatus = "ready" | "missing_required_env";
@@ -33,113 +37,14 @@ export interface ToolAdapterReadiness extends ToolAdapterDefinition {
   configuredOptionalEnv: string[];
 }
 
-export const adapterDefinitions: ToolAdapterDefinition[] = [
-  {
-    adapterId: "web_listening.cli.v1",
-    moduleId: "web_listening",
-    adapterKind: "cli",
-    displayName: "Web Listening CLI Adapter",
-    description: "Metadata contract for the Web Listening CLI module adapter.",
-    sourceRepo: "https://github.com/ferryhe/web_listening",
-    requiredEnv: ["WEB_LISTENING_CLI_PATH"],
-    optionalEnv: ["WEB_LISTENING_WORKDIR", "WEB_LISTENING_API_BASE_URL"],
-    timeoutMs: 120000,
-    maxOutputBytes: 1048576,
-    allowedCommands: [
-      "discover",
-      "classify",
-      "plan-scope",
-      "bootstrap-scope",
-      "run-scope",
-      "export-manifest",
-    ],
-    supportsResume: true,
-    readinessHint: "Set WEB_LISTENING_CLI_PATH to enable CLI handoffs.",
-  },
-  {
-    adapterId: "doc_to_md.http.v1",
-    moduleId: "doc_to_md",
-    adapterKind: "http",
-    displayName: "Doc to Markdown HTTP Adapter",
-    description:
-      "Metadata contract for the Doc to Markdown HTTP module adapter.",
-    sourceRepo: "https://github.com/ferryhe/doc_to_md",
-    requiredEnv: ["DOC_TO_MD_API_BASE_URL"],
-    optionalEnv: ["DOC_TO_MD_API_TOKEN"],
-    timeoutMs: 120000,
-    maxOutputBytes: 1048576,
-    allowedCommands: [],
-    supportsResume: true,
-    readinessHint: "Set DOC_TO_MD_API_BASE_URL to enable HTTP handoffs.",
-  },
-  {
-    adapterId: "md_to_rag.cli.v1",
-    moduleId: "md_to_rag",
-    adapterKind: "cli",
-    displayName: "Markdown to RAG CLI Adapter",
-    description:
-      "Metadata contract for the Markdown to RAG CLI module adapter.",
-    sourceRepo: "https://github.com/ferryhe/c-ross-2",
-    requiredEnv: ["CROSS2_CLI_PATH"],
-    optionalEnv: ["CROSS2_WORKDIR", "CROSS2_API_BASE_URL"],
-    timeoutMs: 180000,
-    maxOutputBytes: 1048576,
-    allowedCommands: [
-      "build-ready-data",
-      "validate-ready-data",
-      "search sections",
-      "evidence",
-    ],
-    supportsResume: false,
-    readinessHint: "Set CROSS2_CLI_PATH to enable CLI handoffs.",
-  },
-  {
-    adapterId: "rag_to_agent.http.v1",
-    moduleId: "rag_to_agent",
-    adapterKind: "http",
-    displayName: "RAG to Agent HTTP Adapter",
-    description: "Metadata contract for the RAG to Agent HTTP module adapter.",
-    sourceRepo: "https://github.com/ferryhe/c-ross-2",
-    requiredEnv: ["RAG_TO_AGENT_API_BASE_URL"],
-    optionalEnv: ["RAG_TO_AGENT_API_TOKEN"],
-    timeoutMs: 120000,
-    maxOutputBytes: 1048576,
-    allowedCommands: [],
-    supportsResume: true,
-    readinessHint: "Set RAG_TO_AGENT_API_BASE_URL to enable HTTP handoffs.",
-  },
-  {
-    adapterId: "climate_monitor.cli.v1",
-    moduleId: "climate_monitor",
-    adapterKind: "cli",
-    displayName: "Climate Monitor CLI Adapter",
-    description: "Fixed CLI contract for the climate monitor wiki runner.",
-    sourceRepo: "https://github.com/ferryhe/climate_monitor_wiki",
-    requiredEnv: ["CLIMATE_MONITOR_PROJECT_PATH"],
-    optionalEnv: ["CLIMATE_MONITOR_ALLOW_LIVE_RUNS"],
-    timeoutMs: 120000,
-    maxOutputBytes: 1048576,
-    allowedCommands: ["scripts/run_climate_monitor.py"],
-    supportsResume: false,
-    readinessHint:
-      "Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.",
-    projectFallback: {
-      defaultSiblingPath: "../climate_monitor_wiki",
-      requiredPath: "scripts/run_climate_monitor.py",
-    },
-  },
-];
+export const adapterDefinitions: ToolAdapterDefinition[] =
+  defaultSkillRuntimeRegistry.listAdapterDefinitions();
 
 export function getAdapterDefinition(
   moduleId: ModuleId,
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): ToolAdapterDefinition {
-  const definition = adapterDefinitions.find(
-    (adapter) => adapter.moduleId === moduleId,
-  );
-  if (!definition) {
-    throw new Error(`Adapter is not registered: ${String(moduleId)}`);
-  }
-  return definition;
+  return registry.getAdapterDefinition(moduleId);
 }
 
 function hasEnvValue(
@@ -181,8 +86,9 @@ function hasReadyProjectFallback(
 export function listAdapterReadiness(
   env: Record<string, string | undefined> = process.env,
   options: AdapterReadinessOptions = {},
+  registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): ToolAdapterReadiness[] {
-  return adapterDefinitions.map((definition) =>
+  return registry.listAdapterDefinitions().map((definition) =>
     getAdapterReadiness(definition, env, options),
   );
 }

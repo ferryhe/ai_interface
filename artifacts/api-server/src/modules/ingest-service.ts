@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { isKnownModuleId, type ModuleId } from "./registry";
+import {
+  defaultSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 
 export type ModuleRunStatus =
   | "pending"
@@ -369,9 +373,17 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
 export async function createModuleRun(
   repository: ModuleRunRepository,
   input: CreateModuleRunInput,
+  options: {
+    registry?: SkillRuntimeRegistry;
+  } = {},
 ): Promise<{ created: boolean; run: ModuleRunRecord }> {
+  const registry = options.registry ?? defaultSkillRuntimeRegistry;
   const registeredSkillIds = new Set(input.registeredSkillIds ?? []);
-  if (!isKnownModuleId(input.moduleId) && !registeredSkillIds.has(input.moduleId)) {
+  if (
+    !registry.isKnownModuleId(input.moduleId) &&
+    !isKnownModuleId(input.moduleId) &&
+    !registeredSkillIds.has(input.moduleId)
+  ) {
     throw new Error(`Unknown moduleId: ${input.moduleId}`);
   }
 

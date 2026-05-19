@@ -13,6 +13,7 @@ import {
   type ToolAdapterDefinition,
   type ToolAdapterReadiness,
 } from "./adapter-registry";
+import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 
 export type ToolExecutionStatus = "succeeded" | "failed";
 type ToolExecutionLifecycleStatus = ToolExecutionStatus | "skipped";
@@ -40,6 +41,7 @@ export interface ToolAdapterExecutor {
 
 export interface ExecuteModuleRunWithAdapterOptions {
   env?: Record<string, string | undefined>;
+  registry?: SkillRuntimeRegistry;
 }
 
 export interface ExecuteModuleRunWithAdapterResponse {
@@ -142,7 +144,9 @@ export async function executeModuleRunWithAdapter(
     throw new Error(`Module run not found: ${runId}`);
   }
 
-  const adapter = copyAdapterDefinition(getAdapterDefinition(existing.moduleId));
+  const adapter = copyAdapterDefinition(
+    getAdapterDefinition(existing.moduleId, options.registry),
+  );
   const readiness = getAdapterReadiness(adapter, options.env ?? process.env);
 
   if (readiness.status === "missing_required_env") {
