@@ -4,12 +4,14 @@ Updated: 2026-05-19
 
 ## Active Work
 
-- Branch: `codex/skill-registry-generalization-plan`
-- Scope: Document the multi-PR implementation plan for making skill registration manifest/file-backed, extensible, and safe for generic skill addition.
-- Sibling repos: off-limits for this planning slice; no sibling repo reads or edits.
+- Branch: `codex/skill-runtime-registry-context`
+- Scope: PR1 of the Skill Registry Generalization program: introduce a single injectable runtime registry context while preserving the current five built-in TypeScript manifests and behavior.
+- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
+- Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -478,4 +480,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Wait for `pr-35-follow-up`, then check GitHub checks and remote review/Copilot comments for PR #35.
+- Dispatch the PR1 development agent for the registry context base, then run spec and code-quality review agents before controller validation.
