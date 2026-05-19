@@ -1,15 +1,21 @@
 # ai_interface Project Status
 
-Updated: 2026-05-14
+Updated: 2026-05-19
 
 ## Active Work
 
-- Branch: `codex/climate-monitor-ops-interface`
-- Scope: Add `climate_monitor` as the fifth business skill, with ai_interface status/run APIs, generated client contracts, and a dedicated Backstage Climate Monitor Ops panel.
-- Sibling repos: reads the explicitly requested `../climate_monitor_wiki` project via `CLIMATE_MONITOR_PROJECT_PATH`; PR edits remain confined to `ai_interface`. Dry-runs write temporary outputs under ai_interface `.tmp/`.
+- Branch: `codex/skill-registry-generalization-plan`
+- Scope: Document the multi-PR implementation plan for making skill registration manifest/file-backed, extensible, and safe for generic skill addition.
+- Sibling repos: off-limits for this planning slice; no sibling repo reads or edits.
 
 ## Current State
 
+- Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
+- The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
+- The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
+- Opened PR #35 for `codex/skill-registry-generalization-plan`: https://github.com/ferryhe/ai_interface/pull/35
+- Scheduled follow-up automation `pr-35-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
+- Unrelated untracked file `vite-smoke.out.log` was noticed and left untouched.
 - PR4 ready for review: `climate_monitor` is registered in module, adapter, skill manifest, default agent config, Agent runtime skill registry, OpenAPI, generated Zod/React clients, and the Agent Module OS mockup.
 - Added `GET /api/climate-monitor/status` for redacted climate monitor project status, latest report metadata, source/scope coverage, and git clean/dirty state.
 - Added `POST /api/climate-monitor/runs` for fixed `python scripts/run_climate_monitor.py --json` execution. Dry-run is the default, uses `ai_interface_workspace`, writes under `.tmp/ai-interface-climate-monitor`, requires the `X-AI-Interface-Command-Intent: climate-monitor-run` guard plus loopback-only host/origin checks, and blocks live runs unless `CLIMATE_MONITOR_ALLOW_LIVE_RUNS=1`.
@@ -472,4 +478,4 @@ Updated: 2026-05-14
 
 ## Next Action
 
-- Open PR4 for `codex/climate-monitor-ops-interface`, then check GitHub/Copilot feedback and merge if clean.
+- Wait for `pr-35-follow-up`, then check GitHub checks and remote review/Copilot comments for PR #35.
