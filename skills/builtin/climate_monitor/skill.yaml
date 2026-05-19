@@ -1,0 +1,63 @@
+skillId: climate_monitor
+moduleId: climate_monitor
+name: Climate Monitor
+description: Run the climate monitor wiki workflow and summarize report, source, and scope coverage.
+category: source
+project:
+  source: builtin
+  defaultSiblingPath: ../climate_monitor_wiki
+  envPath: CLIMATE_MONITOR_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/climate_monitor_wiki
+  packageName: climate_monitor_wiki
+execution:
+  kind: cli
+  adapterId: climate_monitor.cli.v1
+  requiredEnv:
+    - CLIMATE_MONITOR_PROJECT_PATH
+  optionalEnv:
+    - CLIMATE_MONITOR_ALLOW_LIVE_RUNS
+  allowedCommands:
+    - scripts/run_climate_monitor.py
+  readinessHint: Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.
+inputSchema:
+  type: object
+  properties:
+    dryRun:
+      type: boolean
+    date:
+      type: string
+    manifestFixture:
+      type: string
+    researchFixture:
+      type: string
+outputSchema:
+  type: object
+  properties:
+    report_date:
+      type: string
+    report_path:
+      type:
+        - string
+        - "null"
+    item_count:
+      type: integer
+    items:
+      type: array
+    dedup_notes:
+      type: array
+    warnings:
+      type: array
+    synced:
+      type: boolean
+interactionKinds:
+  - approval
+  - blocked
+artifactKinds:
+  - climate_monitor_report
+  - climate_monitor_run_json
+  - climate_monitor_scope_status
+ui:
+  mode: renderer
+permissions:
+  approvalRequired: true
+  canUseNetwork: true
