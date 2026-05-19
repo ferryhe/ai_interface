@@ -51,6 +51,32 @@ function customReporterManifest(): SkillManifest {
   };
 }
 
+function communityReporterManifest(): SkillManifest {
+  return {
+    ...customReporterManifest(),
+    skillId: "community_reporter",
+    moduleId: "community_reporter",
+    name: "Community Reporter",
+    project: {
+      source: "community",
+      defaultSiblingPath: "skills/community/community_reporter",
+    },
+  };
+}
+
+function localCustomReporterManifest(): SkillManifest {
+  return {
+    ...customReporterManifest(),
+    skillId: "local_custom_reporter",
+    moduleId: "local_custom_reporter",
+    name: "Local Custom Reporter",
+    project: {
+      source: "custom",
+      defaultSiblingPath: "skills/custom/local_custom_reporter",
+    },
+  };
+}
+
 test("creates the default agent config with business and general skills", async () => {
   const repository = new InMemoryAgentConfigRepository();
 
@@ -68,6 +94,7 @@ test("creates the default agent config with business and general skills", async 
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "example_reporter",
     ],
   );
   const climateMonitor = config.businessSkillSettings.find(
@@ -75,6 +102,24 @@ test("creates the default agent config with business and general skills", async 
   );
   assert.equal(climateMonitor?.approvalRequired, true);
   assert.equal(climateMonitor?.canUseNetwork, true);
+  const builtInSettings = config.businessSkillSettings.filter((skill) =>
+    [
+      "web_listening",
+      "doc_to_md",
+      "md_to_rag",
+      "rag_to_agent",
+      "climate_monitor",
+    ].includes(skill.moduleId),
+  );
+  assert.deepEqual(
+    builtInSettings.map((skill) => skill.enabled),
+    [true, true, true, true, true],
+  );
+  const exampleReporter = config.businessSkillSettings.find(
+    (skill) => skill.moduleId === "example_reporter",
+  );
+  assert.equal(exampleReporter?.enabled, false);
+  assert.equal(exampleReporter?.approvalRequired, true);
   assert.deepEqual(
     config.generalSkillSettings.map((skill) => skill.skillId),
     ["web_search", "browser", "github", "notion", "lark", "file_tools"],
@@ -111,6 +156,25 @@ test("creates default business skill settings from an injected registry", () => 
       canWriteDatabase: true,
     },
   ]);
+});
+
+test("disables community and custom skills by default", () => {
+  const settings = createDefaultBusinessSkillSettings(
+    createSkillRuntimeRegistry([
+      customReporterManifest(),
+      communityReporterManifest(),
+      localCustomReporterManifest(),
+    ]),
+  );
+
+  assert.deepEqual(
+    settings.map((setting) => [setting.moduleId, setting.enabled]),
+    [
+      ["custom_reporter", true],
+      ["community_reporter", false],
+      ["local_custom_reporter", false],
+    ],
+  );
 });
 
 test("updates model, business skills, general skills, memory, and safety settings", async () => {

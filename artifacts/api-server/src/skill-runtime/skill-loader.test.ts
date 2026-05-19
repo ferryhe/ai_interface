@@ -6,21 +6,32 @@ import test from "node:test";
 
 import { loadSkillManifests } from "./skill-loader";
 
+const defaultSkillIds = [
+  "web_listening",
+  "doc_to_md",
+  "md_to_rag",
+  "rag_to_agent",
+  "climate_monitor",
+  "example_reporter",
+];
+
 interface MinimalManifestOptions {
   skillId?: string;
   moduleId?: string;
   executionKind?: string;
+  projectSource?: string;
+  name?: string;
 }
 
 const minimalManifest = (
   options: MinimalManifestOptions = {},
 ) => `skillId: ${options.skillId ?? "fixture_skill"}
 moduleId: ${options.moduleId ?? "fixture_module"}
-name: Fixture Skill
+name: ${options.name ?? "Fixture Skill"}
 description: Fixture manifest for loader tests.
 category: source
 project:
-  source: builtin
+  source: ${options.projectSource ?? "builtin"}
   defaultSiblingPath: ../fixture
 execution:
   kind: ${options.executionKind ?? "cli"}
@@ -47,20 +58,161 @@ async function writeManifest(
   return manifestPath;
 }
 
-test("loads the five built-in YAML manifests in deterministic runtime order", async () => {
+test("loads default YAML manifests in deterministic runtime order", async () => {
   const manifests = await loadSkillManifests();
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.skillId),
+    defaultSkillIds,
+  );
+  assert.equal(manifests.length, 6);
+});
+
+test("loads explicit roots in builtin, community, then custom source order", async () => {
+  const root = await createRoot();
+  const builtinRoot = join(root, "skills", "builtin");
+  const communityRoot = join(root, "skills", "community");
+  const customRoot = join(root, "skills", "custom");
+  await writeManifest(
+    customRoot,
+    "local_reporter",
+    minimalManifest({
+      skillId: "local_reporter",
+      moduleId: "local_reporter",
+      projectSource: "custom",
+    }),
+  );
+  await writeManifest(
+    communityRoot,
+    "community_reporter",
+    minimalManifest({
+      skillId: "community_reporter",
+      moduleId: "community_reporter",
+      projectSource: "community",
+    }),
+  );
+  await writeManifest(
+    builtinRoot,
+    "builtin_fixture",
+    minimalManifest({
+      skillId: "builtin_fixture",
+      moduleId: "builtin_fixture",
+      projectSource: "builtin",
+    }),
+  );
+
+  const manifests = await loadSkillManifests({ cwd: root });
+
+  assert.deepEqual(
+    manifests.map((manifest) => [
+      manifest.skillId,
+      manifest.project.source,
+    ]),
     [
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-      "climate_monitor",
+      ["builtin_fixture", "builtin"],
+      ["community_reporter", "community"],
+      ["local_reporter", "custom"],
     ],
   );
-  assert.equal(manifests.length, 5);
+});
+
+test("custom manifests override community manifests for local testing", async () => {
+  const root = await createRoot();
+  const communityRoot = join(root, "skills", "community");
+  const customRoot = join(root, "skills", "custom");
+  await writeManifest(
+    communityRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "community",
+      name: "Community Reporter",
+    }),
+  );
+  await writeManifest(
+    customRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "custom",
+      name: "Custom Reporter",
+    }),
+  );
+
+  const manifests = await loadSkillManifests({ cwd: root });
+
+  assert.equal(manifests.length, 1);
+  assert.equal(manifests[0]?.name, "Custom Reporter");
+  assert.equal(manifests[0]?.project.source, "custom");
+});
+
+test("blocks community manifests from overriding builtin manifests", async () => {
+  const root = await createRoot();
+  const builtinRoot = join(root, "skills", "builtin");
+  const communityRoot = join(root, "skills", "community");
+  const builtinPath = await writeManifest(
+    builtinRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "builtin",
+    }),
+  );
+  const communityPath = await writeManifest(
+    communityRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "community",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ cwd: root }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("community cannot override builtin skillId reporter") &&
+      error.message.includes(builtinPath) &&
+      error.message.includes(communityPath),
+  );
+});
+
+test("blocks custom manifests from overriding builtin manifests without opt-in", async () => {
+  const root = await createRoot();
+  const builtinRoot = join(root, "skills", "builtin");
+  const customRoot = join(root, "skills", "custom");
+  const builtinPath = await writeManifest(
+    builtinRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "builtin",
+    }),
+  );
+  const customPath = await writeManifest(
+    customRoot,
+    "reporter",
+    minimalManifest({
+      skillId: "reporter",
+      moduleId: "reporter",
+      projectSource: "custom",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ cwd: root, env: {} }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("custom cannot override builtin skillId reporter") &&
+      error.message.includes("AI_INTERFACE_ALLOW_BUILTIN_SKILL_OVERRIDE=1") &&
+      error.message.includes(builtinPath) &&
+      error.message.includes(customPath),
+  );
 });
 
 test("default roots load built-in YAML manifests from an explicit repository root cwd", async () => {
@@ -70,13 +222,7 @@ test("default roots load built-in YAML manifests from an explicit repository roo
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.skillId),
-    [
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-      "climate_monitor",
-    ],
+    defaultSkillIds,
   );
 });
 
@@ -85,13 +231,7 @@ test("default roots load built-in YAML manifests from an explicit api-server cwd
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.skillId),
-    [
-      "web_listening",
-      "doc_to_md",
-      "md_to_rag",
-      "rag_to_agent",
-      "climate_monitor",
-    ],
+    defaultSkillIds,
   );
 });
 

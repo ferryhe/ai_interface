@@ -252,6 +252,8 @@ export type SkillProjectSource =
 
 export const SkillProjectSource = {
   builtin: "builtin",
+  community: "community",
+  custom: "custom",
   external: "external",
 } as const;
 

@@ -1026,6 +1026,8 @@ components:
       type: string
       enum:
         - builtin
+        - community
+        - custom
         - external
     SkillProjectReadinessStatus:
       type: string

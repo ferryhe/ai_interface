@@ -2,7 +2,8 @@
 
 `ai_interface` is the top-level Agent OS console for composing AI skills and tools into inspectable workflows. The foreground is the user-facing agent experience; Backstage is the development and operations surface where each skill's manifest, runtime I/O, events, artifacts, readiness, and optional HTML UI can be inspected.
 
-The current v1 wires a generic skill runtime around the built-in project skills loaded from `skills/builtin/*/skill.yaml`:
+The current v1 wires a generic skill runtime around YAML manifests loaded from
+`skills/builtin`, `skills/community`, and `skills/custom`:
 
 | Skill | Project mapping | Role |
 |---|---|---|
@@ -69,7 +70,7 @@ interface SkillManifest {
   description: string;
   category: "source" | "transform" | "index" | "agent";
   project: {
-    source: "builtin" | "external";
+    source: "builtin" | "community" | "custom" | "external";
     defaultSiblingPath: string;
     envPath?: string;
     repoUrl?: string;
@@ -100,9 +101,47 @@ interface SkillManifest {
 }
 ```
 
-Built-in manifests live in `skills/builtin/<skillId>/skill.yaml`. The API server loads and validates those YAML files at startup, applies documented defaults for omitted UI, execution, permissions, interaction, and artifact fields, and keeps runtime ordering deterministic for existing API behavior.
+Built-in manifests live in `skills/builtin/<skillId>/skill.yaml`. Reviewed,
+repository-managed community manifests live in
+`skills/community/<skillId>/skill.yaml`. Local developer experiments live in
+`skills/custom/<skillId>/skill.yaml`; that directory is ignored except for its
+`.gitkeep`.
+
+The API server loads roots in this order by default:
+
+1. `skills/builtin`
+2. `skills/community`
+3. `skills/custom`
+
+Override policy is intentionally narrow:
+
+- community skills cannot override built-in skills;
+- custom skills can override community skills for local testing;
+- custom skills cannot override built-in skills unless
+  `AI_INTERFACE_ALLOW_BUILTIN_SKILL_OVERRIDE=1` is set.
+
+The loader validates YAML, applies documented defaults for omitted UI,
+execution, permissions, interaction, and artifact fields, and keeps runtime
+ordering deterministic for existing API behavior.
 
 `GET /api/skills` reports readiness without exposing secret values or configured local paths. It returns env var names and default sibling path metadata only.
+
+To validate manifests without starting the API server:
+
+```bash
+corepack pnpm run skill:validate
+```
+
+The command prints a redacted JSON summary with skill IDs, source metadata, env
+var names, and readiness states. It does not print env values or configured
+absolute local paths.
+
+Community contributor workflow:
+
+1. Create `skills/community/<skillId>/skill.yaml`.
+2. Run `corepack pnpm run skill:validate`.
+3. Run `corepack pnpm --filter @workspace/api-server run test`.
+4. Open a PR.
 
 ## Repository Structure
 

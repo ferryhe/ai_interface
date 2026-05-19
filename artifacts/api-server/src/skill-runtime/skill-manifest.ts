@@ -24,7 +24,11 @@ export type SkillArtifactRenderer =
 
 export type SkillUiMode = "html" | "renderer" | "auto";
 
-export type SkillProjectSource = "builtin" | "external";
+export type SkillProjectSource =
+  | "builtin"
+  | "community"
+  | "custom"
+  | "external";
 
 export type SkillProjectReadinessStatus = "ready" | "not_configured";
 
