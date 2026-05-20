@@ -273,6 +273,35 @@ test("redacts JSON-quoted headers and escaped env values from MCP errors", async
   assert.equal(serialized.includes(escapedToken), false);
 });
 
+test("cancels a non-OK MCP HTTP response body before failing", async () => {
+  const originalFetch = globalThis.fetch;
+  let bodyCanceled = false;
+  globalThis.fetch = (async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("MCP failed"));
+        },
+        cancel() {
+          bodyCanceled = true;
+        },
+      }),
+      { status: 500 },
+    )) as typeof fetch;
+
+  try {
+    const result = await new McpToolAdapterExecutor({
+      TEST_MCP_SERVER_URL: "http://127.0.0.1:7331/mcp",
+    }).execute(request(mcpAdapter()));
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.eventType, "tool.execution.mcp_failed");
+    assert.equal(bodyCanceled, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("times out unresolved MCP tool calls", async () => {
   let signalAborted = false;
   const caller: McpToolCaller = async (callRequest) => {

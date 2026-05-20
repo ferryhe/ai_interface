@@ -279,6 +279,14 @@ async function readResponseText(
   return Buffer.concat(chunks, capturedBytes).toString("utf8");
 }
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Best-effort cleanup before surfacing the protocol error.
+  }
+}
+
 function jsonRpcErrorMessage(error: unknown): string {
   if (isRecord(error) && typeof error["message"] === "string") {
     return error["message"];
@@ -344,6 +352,7 @@ const defaultMcpToolCaller: McpToolCaller = async ({
     throw new Error("MCP server redirects are not followed by the executor.");
   }
   if (!response.ok) {
+    await cancelResponseBody(response);
     throw new Error(`MCP server returned status ${response.status}.`);
   }
 

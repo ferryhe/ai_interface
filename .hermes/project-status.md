@@ -19,6 +19,7 @@ Updated: 2026-05-20
 - PR6 review gates passed: spec review found no blockers; code-quality/security review found one MCP redaction gap, and re-review approved after the escaped-secret/header regression fix.
 - Opened PR #43 for `codex/mcp-executor`: https://github.com/ferryhe/ai_interface/pull/43
 - Scheduled follow-up automation `pr-43-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #43 follow-up dev pass addressed the three Copilot MCP comments locally: MCP manifests now require `mcpServerEnv` and `mcpToolName`, MCP `mcpServerEnv` is folded into `requiredEnv` during load and adapter readiness, and non-OK MCP HTTP responses cancel the body before surfacing the failure.
 - Unrelated untracked `vite-smoke.out.log` remains untouched.
 
 ## Verification
@@ -30,7 +31,9 @@ Updated: 2026-05-20
 - `corepack pnpm run typecheck:libs` passed.
 - `git diff --check` passed with CRLF warnings only.
 - Controller validation passed after re-running `corepack pnpm --filter @workspace/api-spec run codegen`, `corepack pnpm --filter @workspace/api-server run test`, `corepack pnpm --filter @workspace/api-server run typecheck`, `corepack pnpm --filter @workspace/api-server run build`, `corepack pnpm run typecheck:libs`, and `git diff --check`.
+- Follow-up focused validation passed: `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/tool-adapters/adapter-registry.test.ts src/tool-adapters/mcp-executor.test.ts` passed with 200 passing, 1 skipped on Windows symlink privilege (`EPERM`), and 0 failures.
+- Follow-up type validation passed: `corepack pnpm --filter @workspace/api-server run typecheck`.
 
 ## Next Action
 
-- Wait for `pr-43-follow-up` to evaluate remote checks/reviews/Copilot comments, apply only confirmed-safe fixes if needed, merge PR #43 if clean, delete `codex/mcp-executor`, update `main`, then start PR7 from latest `main`.
+- Review and commit the PR #43 follow-up fixes, push them to `codex/mcp-executor`, then re-check remote checks/reviews before merge.

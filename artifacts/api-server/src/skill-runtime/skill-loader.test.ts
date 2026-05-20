@@ -368,6 +368,66 @@ test("loads MCP execution metadata from a manifest", async () => {
   assert.equal(manifest?.execution.mcpToolName, "test.tool");
 });
 
+test("requires MCP manifests to declare mcpServerEnv", async () => {
+  const root = await createRoot();
+  const manifestPath = await writeManifest(
+    root,
+    "mcp_fixture",
+    minimalManifest({
+      executionKind: "mcp",
+      extraExecution: "  mcpToolName: test.tool",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ roots: [root] }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("Expected execution.mcpServerEnv") &&
+      error.message.includes(manifestPath),
+  );
+});
+
+test("requires MCP manifests to declare mcpToolName", async () => {
+  const root = await createRoot();
+  const manifestPath = await writeManifest(
+    root,
+    "mcp_fixture",
+    minimalManifest({
+      executionKind: "mcp",
+      extraExecution: "  mcpServerEnv: TEST_MCP_SERVER_URL",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ roots: [root] }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("Expected execution.mcpToolName") &&
+      error.message.includes(manifestPath),
+  );
+});
+
+test("adds mcpServerEnv to MCP manifest required env", async () => {
+  const root = await createRoot();
+  await writeManifest(
+    root,
+    "mcp_fixture",
+    minimalManifest({
+      executionKind: "mcp",
+      extraExecution:
+        "  requiredEnv:\n    - OTHER_REQUIRED_ENV\n  mcpServerEnv: TEST_MCP_SERVER_URL\n  mcpToolName: test.tool",
+    }),
+  );
+
+  const [manifest] = await loadSkillManifests({ roots: [root] });
+
+  assert.deepEqual(manifest?.execution.requiredEnv, [
+    "OTHER_REQUIRED_ENV",
+    "TEST_MCP_SERVER_URL",
+  ]);
+});
+
 test("keeps explicit arbitrary root source declarations when no known root source can be inferred", async () => {
   const root = await createRoot();
   await writeManifest(

@@ -117,11 +117,12 @@ function optionalString(
   record: Record<string, unknown>,
   key: string,
   path: string,
+  label = key,
 ): string | undefined {
   const value = record[key];
   if (value === undefined) return undefined;
   if (typeof value !== "string" || value.trim() === "") {
-    throw manifestError(path, `Expected ${key} to be a non-empty string`);
+    throw manifestError(path, `Expected ${label} to be a non-empty string`);
   }
   return value;
 }
@@ -222,6 +223,40 @@ function jsonObject(
   return value as JsonObject;
 }
 
+function requireMcpExecutionString(
+  value: string | undefined,
+  label: string,
+  path: string,
+): string {
+  if (!value) {
+    throw manifestError(
+      path,
+      `Expected ${label} to be a non-empty string for MCP execution`,
+    );
+  }
+  return value;
+}
+
+function normalizeRequiredEnvForExecution(
+  kind: SkillExecutionKind,
+  requiredEnv: string[],
+  mcpServerEnv: string | undefined,
+  mcpToolName: string | undefined,
+  path: string,
+): string[] {
+  if (kind !== "mcp") return requiredEnv;
+
+  const serverEnv = requireMcpExecutionString(
+    mcpServerEnv,
+    "execution.mcpServerEnv",
+    path,
+  );
+  requireMcpExecutionString(mcpToolName, "execution.mcpToolName", path);
+
+  if (requiredEnv.includes(serverEnv)) return requiredEnv;
+  return [...requiredEnv, serverEnv];
+}
+
 function normalizeManifest(raw: unknown, path: string): SkillManifest {
   if (!isRecord(raw)) {
     throw manifestError(path, "Expected manifest to be an object");
@@ -231,6 +266,32 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
   const execution = requiredRecord(raw, "execution", path);
   const ui = optionalRecord(raw, "ui", path);
   const permissions = optionalRecord(raw, "permissions", path);
+  const executionKind = allowedValue(
+    requiredString(execution, "kind", path),
+    executionKinds,
+    "execution.kind",
+    path,
+  ) as SkillExecutionKind;
+  const requiredEnv = stringArray(execution, "requiredEnv", path);
+  const mcpServerEnv = optionalString(
+    execution,
+    "mcpServerEnv",
+    path,
+    "execution.mcpServerEnv",
+  );
+  const mcpToolName = optionalString(
+    execution,
+    "mcpToolName",
+    path,
+    "execution.mcpToolName",
+  );
+  const normalizedRequiredEnv = normalizeRequiredEnvForExecution(
+    executionKind,
+    requiredEnv,
+    mcpServerEnv,
+    mcpToolName,
+    path,
+  );
 
   return {
     skillId: requiredString(raw, "skillId", path),
@@ -257,14 +318,9 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
       packageName: optionalString(project, "packageName", path),
     },
     execution: {
-      kind: allowedValue(
-        requiredString(execution, "kind", path),
-        executionKinds,
-        "execution.kind",
-        path,
-      ) as SkillExecutionKind,
+      kind: executionKind,
       adapterId: requiredString(execution, "adapterId", path),
-      requiredEnv: stringArray(execution, "requiredEnv", path),
+      requiredEnv: normalizedRequiredEnv,
       optionalEnv: stringArray(execution, "optionalEnv", path),
       timeoutMs: optionalNumber(
         execution,
@@ -290,8 +346,8 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
       allowedCommands: stringArray(execution, "allowedCommands", path),
       supportsResume: optionalBoolean(execution, "supportsResume", false, path),
       readinessHint: optionalString(execution, "readinessHint", path),
-      mcpServerEnv: optionalString(execution, "mcpServerEnv", path),
-      mcpToolName: optionalString(execution, "mcpToolName", path),
+      mcpServerEnv,
+      mcpToolName,
     },
     inputSchema: jsonObject(raw, "inputSchema", path),
     outputSchema: jsonObject(raw, "outputSchema", path),
