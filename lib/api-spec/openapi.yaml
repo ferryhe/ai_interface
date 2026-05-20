@@ -2210,6 +2210,16 @@ components:
       enum:
         - plan_only
         - execute_ready
+    AgentRuntimePlanMode:
+      type: string
+      enum:
+        - linear
+        - dag
+    DagFailureStrategy:
+      type: string
+      enum:
+        - fail_fast
+        - continue_independent
     AgentMessageRole:
       type: string
       enum:
@@ -2350,6 +2360,14 @@ components:
           $ref: "#/components/schemas/JsonObject"
         requiresApproval:
           type: boolean
+        stepId:
+          type: string
+          description: Stable step identifier required when plan mode is dag.
+        dependsOn:
+          type: array
+          description: Step ids that must complete before this step can run in dag mode.
+          items:
+            type: string
       required:
         - skillId
         - moduleId
@@ -2362,6 +2380,10 @@ components:
       properties:
         summary:
           type: string
+        mode:
+          $ref: "#/components/schemas/AgentRuntimePlanMode"
+        failureStrategy:
+          $ref: "#/components/schemas/DagFailureStrategy"
         steps:
           type: array
           items:
@@ -2372,6 +2394,8 @@ components:
             type: string
       required:
         - summary
+        - mode
+        - failureStrategy
         - steps
         - warnings
     CreateAgentRunRequest:

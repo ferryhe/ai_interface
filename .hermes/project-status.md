@@ -4,36 +4,43 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/mcp-executor`
-- Scope: PR6 of the Skill Registry Generalization program: add an optional, real-mode MCP tool executor for manifest-declared MCP skills.
+- Branch: `codex/dag-pipeline-execution`
+- Scope: PR7 of the Skill Registry Generalization program: add optional DAG plan mode while preserving the existing linear execution default.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
-- `codex/mcp-executor` was fast-forwarded from `bceb961` to `origin/main` at `0eb13dc`, which includes PR #41 ai_actuary CLI executor support and PR #42 actuarial pipeline runner/API visibility.
-- PR6 MCP executor changes were reapplied on top of the updated main branch. The only manual merge conflict was `.hermes/project-status.md`; manifest, adapter, OpenAPI, and generated client changes auto-merged and were regenerated from the combined source.
-- Combined runtime intent: main's `ai_actuary` CLI/working-directory/pipeline additions are preserved, while PR6 keeps MCP metadata (`mcpServerEnv`, `mcpToolName`), MCP adapter kind support, and the real-mode-only MCP executor path.
-- Added a narrow Windows compatibility fix for main's manifest-owned CLI allowlist parsing so executable paths containing spaces still match their allowed command prefixes.
-- Added a narrow Windows test compatibility guard for the actuarial pipeline symlink test: it now skips only when the host denies symlink creation before the service assertion can run.
-- Addressed the confirmed P2 MCP redaction review finding: env-derived MCP secrets are scrubbed in raw, slash-normalized, slash-escaped, and JSON-escaped forms, and JSON-quoted header/token-like values are redacted from MCP result content and caught error messages.
-- PR6 review gates passed: spec review found no blockers; code-quality/security review found one MCP redaction gap, and re-review approved after the escaped-secret/header regression fix.
-- Opened PR #43 for `codex/mcp-executor`: https://github.com/ferryhe/ai_interface/pull/43
-- Scheduled follow-up automation `pr-43-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
-- PR #43 follow-up dev pass addressed the three Copilot MCP comments locally: MCP manifests now require `mcpServerEnv` and `mcpToolName`, MCP `mcpServerEnv` is folded into `requiredEnv` during load and adapter readiness, and non-OK MCP HTTP responses cancel the body before surfacing the failure.
+- PR #43 (`codex/mcp-executor`) was merged into `main` at `f7f1713` on 2026-05-20, and the work branch was deleted locally and remotely.
+- The `pr-43-follow-up` heartbeat automation was deleted after the merge.
+- PR7 has started from latest `main` on branch `codex/dag-pipeline-execution`.
+- PR7 implementation is complete locally: `linear`/`dag` plan mode support, optional `stepId`/`dependsOn` metadata, DAG validation, dependency-aware execution batches, approval blocking, and failure strategy handling have been implemented.
+- Backward compatibility requirement: missing `mode` defaults to `linear`; existing linear plans preserve current module-run order and DAG metadata is only attached in DAG mode.
+- PR7 review gate passed with no blocking findings. The reviewer requested hardening tests for missing `stepId`, duplicate `stepId`, and `continue_independent`; those tests were added.
 - Unrelated untracked `vite-smoke.out.log` remains untouched.
 
 ## Verification
 
-- `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
-- `corepack pnpm --filter @workspace/api-server run test` passed with 194 passing, 1 skipped on Windows symlink privilege (`EPERM`), and 0 failures after adding MCP escaped-secret/header regression coverage.
-- `corepack pnpm --filter @workspace/api-server run typecheck` passed.
-- `corepack pnpm --filter @workspace/api-server run build` passed.
-- `corepack pnpm run typecheck:libs` passed.
-- `git diff --check` passed with CRLF warnings only.
-- Controller validation passed after re-running `corepack pnpm --filter @workspace/api-spec run codegen`, `corepack pnpm --filter @workspace/api-server run test`, `corepack pnpm --filter @workspace/api-server run typecheck`, `corepack pnpm --filter @workspace/api-server run build`, `corepack pnpm run typecheck:libs`, and `git diff --check`.
-- Follow-up focused validation passed: `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/tool-adapters/adapter-registry.test.ts src/tool-adapters/mcp-executor.test.ts` passed with 200 passing, 1 skipped on Windows symlink privilege (`EPERM`), and 0 failures.
-- Follow-up type validation passed: `corepack pnpm --filter @workspace/api-server run typecheck`.
+- PR #43 follow-up validation before merge:
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 200 passing, 1 skipped on Windows symlink privilege (`EPERM`), and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `git diff --check` passed with CRLF warnings only.
+- PR7 focused TDD validation:
+  - RED run failed as expected before implementation: missing DAG executor plus failing service assertions for default `linear`, unknown dependency rejection, and approval blocking.
+  - `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/dag-executor.test.ts src/agent-runtime/agent-runtime-service.test.ts` passed after implementation with 209 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Follow-up RED caught an empty invalid DAG planner fallback regression; the fix resets fallback plans to deterministic `linear` mode.
+  - `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` passed after the fallback fix with 210 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Review hardening added DAG validation tests for missing `stepId` and duplicate `stepId`, plus `continue_independent` behavior coverage where an independent branch continues after a separate failed dependency branch.
+  - `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/dag-executor.test.ts` passed after review hardening with 213 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and regenerated generated clients/types.
+- PR7 full verification passed:
+  - Latest api-server test run (`corepack pnpm --filter @workspace/api-server run test`) passed with 213 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF warnings only.
+  - UI was not touched; mockup-sandbox typecheck was not run.
 
 ## Next Action
 
-- Review and commit the PR #43 follow-up fixes, push them to `codex/mcp-executor`, then re-check remote checks/reviews before merge.
+- Run final controller validation, commit PR7, push `codex/dag-pipeline-execution`, and open the PR.

@@ -868,6 +868,22 @@ export const AgentRunExecutionMode = {
   execute_ready: "execute_ready",
 } as const;
 
+export type AgentRuntimePlanMode =
+  (typeof AgentRuntimePlanMode)[keyof typeof AgentRuntimePlanMode];
+
+export const AgentRuntimePlanMode = {
+  linear: "linear",
+  dag: "dag",
+} as const;
+
+export type DagFailureStrategy =
+  (typeof DagFailureStrategy)[keyof typeof DagFailureStrategy];
+
+export const DagFailureStrategy = {
+  fail_fast: "fail_fast",
+  continue_independent: "continue_independent",
+} as const;
+
 export type AgentMessageRole =
   (typeof AgentMessageRole)[keyof typeof AgentMessageRole];
 
@@ -931,10 +947,16 @@ export interface AgentRuntimePlanStep {
   action: string;
   input: JsonObject;
   requiresApproval: boolean;
+  /** Stable step identifier required when plan mode is dag. */
+  stepId?: string;
+  /** Step ids that must complete before this step can run in dag mode. */
+  dependsOn?: string[];
 }
 
 export interface AgentRuntimePlan {
   summary: string;
+  mode: AgentRuntimePlanMode;
+  failureStrategy: DagFailureStrategy;
   steps: AgentRuntimePlanStep[];
   warnings: string[];
 }

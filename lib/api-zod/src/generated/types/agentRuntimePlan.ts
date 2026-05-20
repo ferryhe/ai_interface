@@ -5,10 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentRuntimePlanMode } from "./agentRuntimePlanMode";
 import type { AgentRuntimePlanStep } from "./agentRuntimePlanStep";
+import type { DagFailureStrategy } from "./dagFailureStrategy";
 
 export interface AgentRuntimePlan {
   summary: string;
+  mode: AgentRuntimePlanMode;
+  failureStrategy: DagFailureStrategy;
   steps: AgentRuntimePlanStep[];
   warnings: string[];
 }

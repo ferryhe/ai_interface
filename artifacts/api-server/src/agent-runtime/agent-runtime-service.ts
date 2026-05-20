@@ -35,8 +35,16 @@ import {
   createPlannerForProvider,
   selectPlannerProvider,
 } from "./planner-providers";
+import {
+  executeDagModuleRuns,
+  validateDagPlan,
+  type AgentRuntimePlanMode,
+  type DagBlockedReason,
+  type DagFailureStrategy,
+} from "./dag-executor";
 
 export { OpenAIResponsesPlanner } from "./planner-providers";
+export type { AgentRuntimePlanMode, DagFailureStrategy } from "./dag-executor";
 
 export type AgentRuntimeStatus =
   | "planned"
@@ -118,6 +126,8 @@ export interface AgentRuntimePlanStep {
   action: string;
   input: JsonObject;
   requiresApproval: boolean;
+  stepId?: string;
+  dependsOn?: string[];
 }
 
 export interface AgentRuntimePlannerStep {
@@ -127,16 +137,22 @@ export interface AgentRuntimePlannerStep {
   action: string;
   input: JsonObject;
   requiresApproval: boolean;
+  stepId?: string;
+  dependsOn?: string[];
 }
 
 export interface AgentRuntimePlan {
   summary: string;
+  mode: AgentRuntimePlanMode;
+  failureStrategy: DagFailureStrategy;
   steps: AgentRuntimePlanStep[];
   warnings: string[];
 }
 
 export interface AgentRuntimePlannerPlan {
   summary: string;
+  mode?: AgentRuntimePlanMode;
+  failureStrategy?: DagFailureStrategy;
   steps: AgentRuntimePlannerStep[];
   warnings: string[];
 }
@@ -189,6 +205,25 @@ function normalizeJsonObject(value: unknown): JsonObject {
   return value as JsonObject;
 }
 
+function normalizePlanMode(
+  value: AgentRuntimePlannerPlan["mode"],
+): AgentRuntimePlanMode {
+  return value === "dag" ? "dag" : "linear";
+}
+
+function normalizeFailureStrategy(
+  value: AgentRuntimePlannerPlan["failureStrategy"],
+): DagFailureStrategy {
+  return value === "continue_independent" ? value : "fail_fast";
+}
+
+function normalizeStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim());
+}
+
 function executionMetadata(
   metadata: JsonObject | null,
   status: "approval_required",
@@ -196,6 +231,21 @@ function executionMetadata(
   return {
     ...(metadata ?? {}),
     adapterExecutionStatus: status,
+  };
+}
+
+function dagBlockedMetadata(
+  metadata: JsonObject | null,
+  input: {
+    reason: DagBlockedReason;
+    blockedByStepIds: string[];
+  },
+): JsonObject {
+  return {
+    ...(metadata ?? {}),
+    dagExecutionStatus: "blocked",
+    dagBlockedReason: input.reason,
+    dagBlockedByStepIds: [...input.blockedByStepIds],
   };
 }
 
@@ -252,6 +302,8 @@ function normalizePlan(
   );
   const warnings = [...rawPlan.warnings];
   const steps: AgentRuntimePlanStep[] = [];
+  const mode = normalizePlanMode(rawPlan.mode);
+  const failureStrategy = normalizeFailureStrategy(rawPlan.failureStrategy);
 
   for (const rawStep of rawPlan.steps) {
     const rawSkillId = rawStep.skillId?.trim();
@@ -270,6 +322,8 @@ function normalizePlan(
       warnings.push(`Planner returned disabled skill: ${lookupKey}`);
       continue;
     }
+    const stepId = rawStep.stepId?.trim();
+    const dependsOn = normalizeStringArray(rawStep.dependsOn);
     steps.push({
       skillId: definition.skillId,
       moduleId: definition.moduleId,
@@ -277,11 +331,15 @@ function normalizePlan(
       action: rawStep.action || definition.description,
       input: normalizeJsonObject(rawStep.input),
       requiresApproval: rawStep.requiresApproval,
+      ...(stepId ? { stepId } : {}),
+      ...(dependsOn ? { dependsOn } : {}),
     });
   }
 
   return {
     summary: rawPlan.summary || "Agent prepared a module execution plan.",
+    mode,
+    failureStrategy,
     steps,
     warnings,
   };
@@ -414,6 +472,73 @@ export class InMemoryAgentRuntimeRepository
   }
 }
 
+function dagPlanStepMetadata(
+  plan: AgentRuntimePlan,
+  step: AgentRuntimePlanStep,
+): JsonObject {
+  if (plan.mode !== "dag") return {};
+  return {
+    dagPlanMode: plan.mode,
+    dagFailureStrategy: plan.failureStrategy,
+    dagStepId: step.stepId,
+    dagDependsOn: step.dependsOn ?? [],
+  };
+}
+
+async function markApprovalRequiredModuleRun(
+  repository: AgentRuntimeRepository,
+  run: ModuleRunRecord,
+  step: AgentRuntimePlanStep,
+  definition: BusinessSkillDefinition,
+): Promise<ModuleRunRecord> {
+  const updatedRun = await repository.updateModuleRun(run.id, {
+    status: "pending",
+    metadata: executionMetadata(run.metadata, "approval_required"),
+  });
+  await recordModuleRunEvent(repository, updatedRun.id, {
+    eventType: "tool.execution.approval_required",
+    title: "Adapter execution requires approval",
+    message: `Approval is required before executing ${step.moduleId}.`,
+    severity: "info",
+    payload: {
+      adapterId: definition.adapter.adapterId,
+      moduleId: step.moduleId,
+      externalRunId: run.externalRunId,
+      ...(step.stepId ? { stepId: step.stepId } : {}),
+    },
+  });
+  return updatedRun;
+}
+
+async function markDagBlockedModuleRun(
+  repository: AgentRuntimeRepository,
+  run: ModuleRunRecord,
+  step: AgentRuntimePlanStep,
+  input: {
+    reason: DagBlockedReason;
+    blockedByStepIds: string[];
+  },
+): Promise<ModuleRunRecord> {
+  const updatedRun = await repository.updateModuleRun(run.id, {
+    status: "pending",
+    metadata: dagBlockedMetadata(run.metadata, input),
+  });
+  await recordModuleRunEvent(repository, updatedRun.id, {
+    eventType: "agent.plan.step.blocked",
+    title: "DAG step blocked by dependency",
+    message: `Step ${step.stepId ?? step.moduleId} is blocked by dependencies: ${input.blockedByStepIds.join(", ")}.`,
+    severity: "info",
+    payload: {
+      moduleId: step.moduleId,
+      externalRunId: run.externalRunId,
+      stepId: step.stepId,
+      reason: input.reason,
+      blockedByStepIds: [...input.blockedByStepIds],
+    },
+  });
+  return updatedRun;
+}
+
 export async function createAgentRun(
   repository: AgentRuntimeRepository,
   configRepository: AgentConfigRepository,
@@ -526,6 +651,8 @@ export async function createAgentRun(
       enabledSkills,
       "Planner returned no valid enabled module steps; used registry order fallback.",
     );
+    plan.mode = fallback.mode;
+    plan.failureStrategy = fallback.failureStrategy;
     plan.steps.push(...fallback.steps);
     plan.warnings.push(...fallback.warnings);
   }
@@ -541,12 +668,24 @@ export async function createAgentRun(
     })),
   };
 
+  if (effectivePlan.mode === "dag") {
+    validateDagPlan(effectivePlan.steps);
+  }
+
+  const definitionForStep = (
+    step: AgentRuntimePlanStep,
+  ): BusinessSkillDefinition => {
+    const stepSkillId = step.skillId ?? step.moduleId;
+    return (
+      enabledSkillById.get(stepSkillId) ??
+      skillRegistry.getBusinessSkillDefinition(step.moduleId)
+    );
+  };
+
   const moduleRuns: ModuleRunRecord[] = [];
   for (const [index, step] of effectivePlan.steps.entries()) {
     const stepSkillId = step.skillId ?? step.moduleId;
-    const definition =
-      enabledSkillById.get(stepSkillId) ??
-      skillRegistry.getBusinessSkillDefinition(step.moduleId);
+    const definition = definitionForStep(step);
     const { run } = await createModuleRun(repository, {
       moduleId: step.moduleId,
       externalRunId: `${pipelineRun.id}:${index + 1}:${stepSkillId}`,
@@ -576,6 +715,7 @@ export async function createAgentRun(
         project: definition.manifest?.project,
         skillUi: definition.manifest?.ui,
         artifactKinds: definition.manifest?.artifactKinds,
+        ...dagPlanStepMetadata(effectivePlan, step),
       },
     }, { registry: skillRegistry });
     await recordModuleRunEvent(repository, run.id, {
@@ -587,6 +727,14 @@ export async function createAgentRun(
         moduleId: step.moduleId,
         skillId: stepSkillId,
         requiresApproval: step.requiresApproval,
+        ...(effectivePlan.mode === "dag"
+          ? {
+              planMode: effectivePlan.mode,
+              failureStrategy: effectivePlan.failureStrategy,
+              stepId: step.stepId,
+              dependsOn: step.dependsOn ?? [],
+            }
+          : {}),
       },
     });
     moduleRuns.push(run);
@@ -600,41 +748,67 @@ export async function createAgentRun(
         : "planned";
 
   let skippedApprovalModuleRunCount = 0;
+  let blockedModuleRunCount = 0;
   let responseModuleRuns = moduleRuns;
   if (executionMode === "execute_ready") {
-    for (const [index, run] of moduleRuns.entries()) {
-      const step = effectivePlan.steps[index];
-      if (!step) continue;
-
-      const stepSkillId = step.skillId ?? step.moduleId;
-      const definition =
-        enabledSkillById.get(stepSkillId) ??
-        skillRegistry.getBusinessSkillDefinition(step.moduleId);
-      if (step.requiresApproval) {
-        skippedApprovalModuleRunCount += 1;
-        await repository.updateModuleRun(run.id, {
-          status: "pending",
-          metadata: executionMetadata(run.metadata, "approval_required"),
-        });
-        await recordModuleRunEvent(repository, run.id, {
-          eventType: "tool.execution.approval_required",
-          title: "Adapter execution requires approval",
-          message: `Approval is required before executing ${step.moduleId}.`,
-          severity: "info",
-          payload: {
-            adapterId: definition.adapter.adapterId,
-            moduleId: step.moduleId,
-            externalRunId: run.externalRunId,
-          },
-        });
-        continue;
-      }
-
-      const executor = createToolAdapterExecutor(definition.adapter, env);
-      await executeModuleRunWithAdapter(repository, run.id, executor, {
-        env,
-        registry: skillRegistry,
+    if (effectivePlan.mode === "dag") {
+      const dagResult = await executeDagModuleRuns({
+        steps: effectivePlan.steps,
+        moduleRuns,
+        failureStrategy: effectivePlan.failureStrategy,
+        executeStep: async ({ step, run }) => {
+          const definition = definitionForStep(step);
+          const executor = createToolAdapterExecutor(definition.adapter, env);
+          const result = await executeModuleRunWithAdapter(
+            repository,
+            run.id,
+            executor,
+            {
+              env,
+              registry: skillRegistry,
+            },
+          );
+          return result.run;
+        },
+        markApprovalRequired: async ({ step, run }) =>
+          markApprovalRequiredModuleRun(
+            repository,
+            run,
+            step,
+            definitionForStep(step),
+          ),
+        markBlocked: async ({ step, run, reason, blockedByStepIds }) =>
+          markDagBlockedModuleRun(repository, run, step, {
+            reason,
+            blockedByStepIds,
+          }),
       });
+      skippedApprovalModuleRunCount =
+        dagResult.skippedApprovalModuleRunCount;
+      blockedModuleRunCount = dagResult.blockedModuleRunCount;
+    } else {
+      for (const [index, run] of moduleRuns.entries()) {
+        const step = effectivePlan.steps[index];
+        if (!step) continue;
+
+        const definition = definitionForStep(step);
+        if (step.requiresApproval) {
+          skippedApprovalModuleRunCount += 1;
+          await markApprovalRequiredModuleRun(
+            repository,
+            run,
+            step,
+            definition,
+          );
+          continue;
+        }
+
+        const executor = createToolAdapterExecutor(definition.adapter, env);
+        await executeModuleRunWithAdapter(repository, run.id, executor, {
+          env,
+          registry: skillRegistry,
+        });
+      }
     }
 
     responseModuleRuns = await repository.listModuleRunsByPipelineRunId(
@@ -663,8 +837,15 @@ export async function createAgentRun(
       connectionStatus: connection.status,
       plannedStepCount: moduleRuns.length,
       executionMode,
+      planMode: effectivePlan.mode,
       executedModuleRunCount,
       skippedApprovalModuleRunCount,
+      ...(effectivePlan.mode === "dag"
+        ? {
+            dagFailureStrategy: effectivePlan.failureStrategy,
+            blockedModuleRunCount,
+          }
+        : {}),
     },
   });
 
@@ -675,6 +856,7 @@ export async function createAgentRun(
     metadata: {
       pipelineRunId: pipelineRun.id,
       runtimeStatus: status,
+      planMode: effectivePlan.mode,
       plannedModuleRunIds: responseModuleRuns.map((run) => run.id),
     },
   });

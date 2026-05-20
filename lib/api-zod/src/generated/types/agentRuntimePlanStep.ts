@@ -16,4 +16,8 @@ export interface AgentRuntimePlanStep {
   action: string;
   input: JsonObject;
   requiresApproval: boolean;
+  /** Stable step identifier required when plan mode is dag. */
+  stepId?: string;
+  /** Step ids that must complete before this step can run in dag mode. */
+  dependsOn?: string[];
 }

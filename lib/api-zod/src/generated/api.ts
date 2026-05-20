@@ -924,6 +924,8 @@ export const CreateAgentRunResponse = zod.object({
   ),
   plan: zod.object({
     summary: zod.string(),
+    mode: zod.enum(["linear", "dag"]),
+    failureStrategy: zod.enum(["fail_fast", "continue_independent"]),
     steps: zod.array(
       zod.object({
         skillId: zod.string().min(1),
@@ -932,6 +934,16 @@ export const CreateAgentRunResponse = zod.object({
         action: zod.string(),
         input: zod.record(zod.string(), zod.unknown()),
         requiresApproval: zod.boolean(),
+        stepId: zod
+          .string()
+          .optional()
+          .describe("Stable step identifier required when plan mode is dag."),
+        dependsOn: zod
+          .array(zod.string())
+          .optional()
+          .describe(
+            "Step ids that must complete before this step can run in dag mode.",
+          ),
       }),
     ),
     warnings: zod.array(zod.string()),

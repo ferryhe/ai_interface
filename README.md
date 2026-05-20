@@ -65,6 +65,27 @@ psql "$DATABASE_URL" -f lib/db/migrations/20260520_add_agent_provider_values.sql
 The migration is idempotent and only adds `anthropic`, `ollama`, and
 `deterministic` to the existing `agent_provider` enum.
 
+## Plan Execution Modes
+
+Agent plans default to `mode: "linear"`. Linear mode preserves the existing
+behavior: module runs are created in planner order, `execute_ready` walks them
+in that same order, and dependency metadata is not required.
+
+Planners may opt into `mode: "dag"` when steps can be safely orchestrated by
+dependency. DAG steps must provide stable `stepId` values, and every
+`dependsOn` value must reference another step in the same plan. The runtime
+validates missing step IDs, duplicate step IDs, unknown dependencies, and
+cycles before creating module runs.
+
+In DAG `execute_ready`, dependency-ready non-approval steps run in parallel
+batches. Approval-required upstream steps remain pending with
+`adapterExecutionStatus: "approval_required"` and block downstream dependents
+with `dagExecutionStatus: "blocked"` metadata plus an
+`agent.plan.step.blocked` event. Failed upstream steps use
+`failureStrategy: "fail_fast"` by default; planners can request
+`"continue_independent"` to let branches that do not depend on the failed step
+keep running.
+
 ## Foreground vs Backstage
 
 Foreground is for the normal Agent conversation and workflow progress:
