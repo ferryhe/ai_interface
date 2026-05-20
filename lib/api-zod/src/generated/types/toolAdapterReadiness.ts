@@ -26,6 +26,8 @@ export interface ToolAdapterReadiness {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
   configured: boolean;
   status: ToolAdapterReadinessStatus;
   missingRequiredEnv: string[];

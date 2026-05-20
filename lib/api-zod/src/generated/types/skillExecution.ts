@@ -20,4 +20,6 @@ export interface SkillExecution {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
 }

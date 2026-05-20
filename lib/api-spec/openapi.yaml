@@ -1052,6 +1052,7 @@ components:
       enum:
         - http
         - cli
+        - mcp
     ToolAdapterReadinessStatus:
       type: string
       enum:
@@ -1100,6 +1101,10 @@ components:
         supportsResume:
           type: boolean
         readinessHint:
+          type: string
+        mcpServerEnv:
+          type: string
+        mcpToolName:
           type: string
       required:
         - adapterId
@@ -1158,6 +1163,10 @@ components:
         supportsResume:
           type: boolean
         readinessHint:
+          type: string
+        mcpServerEnv:
+          type: string
+        mcpToolName:
           type: string
         configured:
           type: boolean
@@ -1496,6 +1505,10 @@ components:
         supportsResume:
           type: boolean
         readinessHint:
+          type: string
+        mcpServerEnv:
+          type: string
+        mcpToolName:
           type: string
       required:
         - kind

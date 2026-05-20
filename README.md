@@ -105,7 +105,13 @@ interface SkillManifest {
     adapterId: string;
     requiredEnv: string[];
     optionalEnv: string[];
+    timeoutMs: number;
+    maxOutputBytes: number;
+    allowedCommands: string[];
     supportsResume: boolean;
+    readinessHint?: string;
+    mcpServerEnv?: string;
+    mcpToolName?: string;
   };
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
@@ -159,6 +165,13 @@ corepack pnpm run skill:validate
 The command prints a redacted JSON summary with skill IDs, source metadata, env
 var names, and readiness states. It does not print env values or configured
 absolute local paths.
+
+Real tool execution is disabled unless
+`AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set. CLI, HTTP, and MCP adapters all
+run through bounded executor paths with timeout and output-size limits. MCP
+skills must declare `execution.mcpServerEnv` and `execution.mcpToolName`; the
+server URL is read from the named env var at execution time and is not exposed
+through readiness, events, or results.
 
 Community contributor workflow:
 
@@ -258,7 +271,7 @@ Browser smoke should verify:
 
 ## Security
 
-Skill and planner readiness are redacted by design. The API reports missing/configured env var names but not values, and it does not expose configured local path or local provider URL values. Real adapter execution remains opt-in through the safe executor path; default local planning still uses the deterministic provider when no configured model provider is ready.
+Skill and planner readiness are redacted by design. The API reports missing/configured env var names but not values, and it does not expose configured local path, local provider URL, MCP server URL, auth token, or raw header values. Real adapter execution remains opt-in through the safe executor path; default local planning still uses the deterministic provider when no configured model provider is ready.
 
 ## License
 

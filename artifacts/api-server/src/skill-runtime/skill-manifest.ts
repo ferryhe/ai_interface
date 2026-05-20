@@ -61,6 +61,8 @@ export interface SkillExecution {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
 }
 
 export interface SkillPermissionDefaults {
@@ -180,7 +182,9 @@ export function manifestAdapterDefinition(
     adapterId: manifest.execution.adapterId,
     moduleId: manifest.moduleId,
     adapterKind:
-      manifest.execution.kind === "http" || manifest.execution.kind === "cli"
+      manifest.execution.kind === "http" ||
+      manifest.execution.kind === "cli" ||
+      manifest.execution.kind === "mcp"
         ? manifest.execution.kind
         : "cli",
     displayName:
@@ -197,6 +201,8 @@ export function manifestAdapterDefinition(
     workingDirectory: manifest.execution.workingDirectory,
     allowedCommands: [...manifest.execution.allowedCommands],
     supportsResume: manifest.execution.supportsResume,
+    mcpServerEnv: manifest.execution.mcpServerEnv,
+    mcpToolName: manifest.execution.mcpToolName,
     readinessHint:
       manifest.execution.readinessHint ??
       `Configure ${manifest.execution.adapterId} to enable skill handoffs.`,

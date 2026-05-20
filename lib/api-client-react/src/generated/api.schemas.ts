@@ -168,6 +168,7 @@ export type ToolAdapterKind =
 export const ToolAdapterKind = {
   http: "http",
   cli: "cli",
+  mcp: "mcp",
 } as const;
 
 export type ToolAdapterReadinessStatus =
@@ -202,6 +203,8 @@ export interface ToolAdapterDefinition {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
 }
 
 export type ToolAdapterReadinessWorkingDirectory =
@@ -228,6 +231,8 @@ export interface ToolAdapterReadiness {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
   configured: boolean;
   status: ToolAdapterReadinessStatus;
   missingRequiredEnv: string[];
@@ -445,6 +450,8 @@ export interface SkillExecution {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
 }
 
 export type ToolInteractionKind =

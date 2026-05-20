@@ -7,7 +7,7 @@ import {
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
 
-export type ToolAdapterKind = "http" | "cli";
+export type ToolAdapterKind = "http" | "cli" | "mcp";
 export type ToolAdapterReadinessStatus = "ready" | "missing_required_env";
 export type ToolAdapterWorkingDirectory = "workspace" | "project";
 
@@ -27,6 +27,8 @@ export interface ToolAdapterDefinition {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
   projectFallback?: {
     defaultSiblingPath: string;
     requiredPath: string;

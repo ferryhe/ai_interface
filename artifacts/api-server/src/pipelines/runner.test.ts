@@ -13,6 +13,14 @@ import {
 } from "./runner";
 import type { ActuarialPipelineManifest } from "./manifest";
 
+function isSymlinkPrivilegeError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "EPERM"
+  );
+}
+
 function artifact(kind: string, path: string, contentJson: Record<string, unknown>): PipelineArtifactPayload {
   return {
     artifactKind: kind,
@@ -286,13 +294,21 @@ test("actuarial pipeline rejects outside artifact roots without creating them", 
   assert.equal(service.getRun("run-outside"), null);
 });
 
-test("actuarial pipeline rejects symlinked artifact roots before creating outside directories", async () => {
+test("actuarial pipeline rejects symlinked artifact roots before creating outside directories", async (t) => {
   const { service, inputPath, root } = await serviceWithFake("pass");
   const outsideRoot = await mkdtemp(join(tmpdir(), "actuarial-pipeline-symlink-outside-"));
   const linkedRoot = join(root, "linked-outside-root");
   const outsideChild = join(outsideRoot, "created-by-start");
   await mkdir(outsideRoot, { recursive: true });
-  await symlink(outsideRoot, linkedRoot, "dir");
+  try {
+    await symlink(outsideRoot, linkedRoot, "dir");
+  } catch (error) {
+    if (isSymlinkPrivilegeError(error)) {
+      t.skip("Windows symlink privileges are unavailable in this environment.");
+      return;
+    }
+    throw error;
+  }
 
   await assert.rejects(
     service.startRun({ inputPath, runId: "run-symlink-outside", artifactRoot: join(linkedRoot, "created-by-start") }),

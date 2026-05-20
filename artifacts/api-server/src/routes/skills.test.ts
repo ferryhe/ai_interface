@@ -75,6 +75,46 @@ function customReporterManifest(): SkillManifest {
   };
 }
 
+function customMcpManifest(): SkillManifest {
+  return {
+    skillId: "custom_mcp",
+    moduleId: "custom_mcp",
+    name: "Custom MCP",
+    description: "Call a custom MCP tool.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_mcp",
+    },
+    execution: {
+      kind: "mcp",
+      adapterId: "custom_mcp.mcp.v1",
+      requiredEnv: ["CUSTOM_MCP_SERVER_URL"],
+      optionalEnv: ["CUSTOM_MCP_AUTH_TOKEN"],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: false,
+      mcpServerEnv: "CUSTOM_MCP_SERVER_URL",
+      mcpToolName: "custom.tool",
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_result"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "json",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  };
+}
+
 test("/skills returns default manifests and readiness", async () => {
   const response = await withSkillsApp((baseUrl) => fetch(`${baseUrl}/skills`));
   const json = (await response.json()) as {
@@ -161,4 +201,25 @@ test("/skills can be served from an injected custom registry", async () => {
       },
     },
   ]);
+});
+
+test("/skills preserves custom MCP execution metadata", async () => {
+  const response = await withSkillsApp(
+    (baseUrl) => fetch(`${baseUrl}/skills`),
+    [customMcpManifest()],
+  );
+  const json = (await response.json()) as {
+    skills: Array<{
+      execution: {
+        kind: string;
+        mcpServerEnv?: string;
+        mcpToolName?: string;
+      };
+    }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.skills[0]?.execution.kind, "mcp");
+  assert.equal(json.skills[0]?.execution.mcpServerEnv, "CUSTOM_MCP_SERVER_URL");
+  assert.equal(json.skills[0]?.execution.mcpToolName, "custom.tool");
 });

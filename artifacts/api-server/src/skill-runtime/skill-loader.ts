@@ -290,6 +290,8 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
       allowedCommands: stringArray(execution, "allowedCommands", path),
       supportsResume: optionalBoolean(execution, "supportsResume", false, path),
       readinessHint: optionalString(execution, "readinessHint", path),
+      mcpServerEnv: optionalString(execution, "mcpServerEnv", path),
+      mcpToolName: optionalString(execution, "mcpToolName", path),
     },
     inputSchema: jsonObject(raw, "inputSchema", path),
     outputSchema: jsonObject(raw, "outputSchema", path),

@@ -12,4 +12,5 @@ export type ToolAdapterKind =
 export const ToolAdapterKind = {
   http: "http",
   cli: "cli",
+  mcp: "mcp",
 } as const;
