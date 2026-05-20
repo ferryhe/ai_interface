@@ -1036,6 +1036,125 @@ export const GetAgentRunResponse = zod.object({
 });
 
 /**
+ * Starts the built-in ai_actuary actuarial reserving review pipeline over registered file-artifact CLI tools. The response exposes Backstage-safe step status, inputs, logs, artifacts, and errors without reimplementing actuarial calculations in TypeScript. This endpoint triggers local CLI execution and therefore requires the command-intent header plus the server-side localhost/same-origin request guard.
+ * @summary Start an actuarial pipeline run
+ */
+export const StartPipelineRunHeader = zod.object({
+  "X-AI-Interface-Command-Intent": zod
+    .enum(["actuarial-pipeline-run"])
+    .describe(
+      "Explicit opt-in header required to start a local actuarial pipeline run.",
+    ),
+});
+
+export const StartPipelineRunBody = zod.object({
+  pipelineId: zod.string().min(1).optional(),
+  inputPath: zod.string().min(1),
+  artifactRoot: zod.string().min(1).optional(),
+  runId: zod.string().min(1).optional(),
+});
+
+/**
+ * Requires a localhost/same-origin request because run records can include local artifact paths and artifact payload previews.
+ * @summary List actuarial pipeline runs
+ */
+export const ListActuarialPipelineRunsResponse = zod.object({
+  runs: zod.array(
+    zod.object({
+      runId: zod.string(),
+      pipelineId: zod.string(),
+      status: zod.enum(["queued", "running", "completed", "failed"]),
+      governanceStatus: zod.string().nullable(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+      startedAt: zod.string().nullable(),
+      completedAt: zod.string().nullable(),
+      durationMs: zod.number().nullable(),
+      inputPath: zod.string(),
+      artifactRoot: zod.string(),
+      stepCount: zod.number(),
+      completedStepCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * Requires a localhost/same-origin request because run details can include local artifact paths and artifact payload previews.
+ * @summary Get an actuarial pipeline run
+ */
+
+export const GetPipelineRunParams = zod.object({
+  runId: zod.coerce.string().min(1),
+});
+
+export const GetPipelineRunResponse = zod.object({
+  runId: zod.string(),
+  pipelineId: zod.string(),
+  version: zod.string(),
+  manifestPath: zod.string(),
+  inputPath: zod.string(),
+  artifactRoot: zod.string(),
+  status: zod.enum(["queued", "running", "completed", "failed"]),
+  governanceStatus: zod.string().nullable(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+  startedAt: zod.string().nullable(),
+  completedAt: zod.string().nullable(),
+  durationMs: zod.number().nullable(),
+  steps: zod.array(
+    zod.object({
+      stepId: zod.string(),
+      toolId: zod.string(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+      ]),
+      when: zod.string().optional(),
+      skipReason: zod.string().nullable(),
+      startedAt: zod.string().nullable(),
+      completedAt: zod.string().nullable(),
+      durationMs: zod.number().nullable(),
+      input: zod.record(zod.string(), zod.string()),
+      output: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+      artifacts: zod.array(
+        zod.object({
+          artifactKind: zod.string(),
+          path: zod.string(),
+          exists: zod.boolean(),
+          contentJson: zod.union([
+            zod.record(zod.string(), zod.unknown()),
+            zod.null(),
+          ]),
+          contentText: zod.string().nullable(),
+        }),
+      ),
+      stdout: zod.string().nullable(),
+      stderr: zod.string().nullable(),
+      stdoutLogPath: zod.string().nullable(),
+      stderrLogPath: zod.string().nullable(),
+      exitCode: zod.number().nullable(),
+      error: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    }),
+  ),
+  artifacts: zod.array(
+    zod.object({
+      artifactKind: zod.string(),
+      path: zod.string(),
+      exists: zod.boolean(),
+      contentJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      contentText: zod.string().nullable(),
+    }),
+  ),
+  error: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+});
+
+/**
  * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
  * @summary Get Agent configuration
  */

@@ -22,6 +22,8 @@ tags:
     description: External tool adapter metadata and readiness
   - name: skills
     description: Generic skill manifests, UI capabilities, and readiness
+  - name: pipelines
+    description: Guarded local pipeline run operations and status visibility
   - name: climate-monitor
     description: Climate monitor repository status and guarded run operations
 paths:
@@ -514,6 +516,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /pipelines/runs:
+    post:
+      operationId: startPipelineRun
+      tags: [pipelines]
+      summary: Start an actuarial pipeline run
+      description: >-
+        Starts the built-in ai_actuary actuarial reserving review pipeline over
+        registered file-artifact CLI tools. The response exposes Backstage-safe
+        step status, inputs, logs, artifacts, and errors without reimplementing
+        actuarial calculations in TypeScript. This endpoint triggers local CLI
+        execution and therefore requires the command-intent header plus the
+        server-side localhost/same-origin request guard.
+      parameters:
+        - in: header
+          name: X-AI-Interface-Command-Intent
+          required: true
+          schema:
+            type: string
+            enum: [actuarial-pipeline-run]
+          description: Explicit opt-in header required to start a local actuarial pipeline run.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartPipelineRunRequest"
+      responses:
+        "201":
+          description: Pipeline run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActuarialPipelineRun"
+        "400":
+          description: Invalid pipeline run request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Command intent, localhost, or same-origin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listActuarialPipelineRuns
+      tags: [pipelines]
+      summary: List actuarial pipeline runs
+      description: Requires a localhost/same-origin request because run records can include local artifact paths and artifact payload previews.
+      responses:
+        "200":
+          description: Pipeline run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActuarialPipelineRunsList"
+        "403":
+          description: Localhost or same-origin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /pipelines/runs/{runId}:
+    get:
+      operationId: getPipelineRun
+      tags: [pipelines]
+      summary: Get an actuarial pipeline run
+      description: Requires a localhost/same-origin request because run details can include local artifact paths and artifact payload previews.
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Pipeline run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActuarialPipelineRun"
+        "400":
+          description: Invalid run id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Localhost or same-origin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Pipeline run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /agent-config:
     get:
       operationId: getAgentConfig
@@ -664,6 +767,268 @@ components:
     JsonObject:
       type: object
       additionalProperties: true
+    ActuarialPipelineRunStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - completed
+        - failed
+    PipelineStepStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - skipped
+    StartPipelineRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        pipelineId:
+          type: string
+          minLength: 1
+        inputPath:
+          type: string
+          minLength: 1
+        artifactRoot:
+          type: string
+          minLength: 1
+        runId:
+          type: string
+          minLength: 1
+      required:
+        - inputPath
+    PipelineArtifact:
+      type: object
+      properties:
+        artifactKind:
+          type: string
+        path:
+          type: string
+        exists:
+          type: boolean
+        contentJson:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        contentText:
+          type:
+            - string
+            - "null"
+      required:
+        - artifactKind
+        - path
+        - exists
+        - contentJson
+        - contentText
+    PipelineStep:
+      type: object
+      properties:
+        stepId:
+          type: string
+        toolId:
+          type: string
+        status:
+          $ref: "#/components/schemas/PipelineStepStatus"
+        when:
+          type: string
+        skipReason:
+          type:
+            - string
+            - "null"
+        startedAt:
+          type:
+            - string
+            - "null"
+        completedAt:
+          type:
+            - string
+            - "null"
+        durationMs:
+          type:
+            - number
+            - "null"
+        input:
+          type: object
+          additionalProperties:
+            type: string
+        output:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineArtifact"
+        stdout:
+          type:
+            - string
+            - "null"
+        stderr:
+          type:
+            - string
+            - "null"
+        stdoutLogPath:
+          type:
+            - string
+            - "null"
+        stderrLogPath:
+          type:
+            - string
+            - "null"
+        exitCode:
+          type:
+            - integer
+            - "null"
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+      required:
+        - stepId
+        - toolId
+        - status
+        - skipReason
+        - startedAt
+        - completedAt
+        - durationMs
+        - input
+        - output
+        - artifacts
+        - stdout
+        - stderr
+        - stdoutLogPath
+        - stderrLogPath
+        - exitCode
+        - error
+    ActuarialPipelineRun:
+      type: object
+      properties:
+        runId:
+          type: string
+        pipelineId:
+          type: string
+        version:
+          type: string
+        manifestPath:
+          type: string
+        inputPath:
+          type: string
+        artifactRoot:
+          type: string
+        status:
+          $ref: "#/components/schemas/ActuarialPipelineRunStatus"
+        governanceStatus:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        startedAt:
+          type:
+            - string
+            - "null"
+        completedAt:
+          type:
+            - string
+            - "null"
+        durationMs:
+          type:
+            - number
+            - "null"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineStep"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineArtifact"
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/JsonObject"
+            - type: "null"
+      required:
+        - runId
+        - pipelineId
+        - version
+        - manifestPath
+        - inputPath
+        - artifactRoot
+        - status
+        - governanceStatus
+        - createdAt
+        - updatedAt
+        - startedAt
+        - completedAt
+        - durationMs
+        - steps
+        - artifacts
+        - error
+    ActuarialPipelineRunListItem:
+      type: object
+      properties:
+        runId:
+          type: string
+        pipelineId:
+          type: string
+        status:
+          $ref: "#/components/schemas/ActuarialPipelineRunStatus"
+        governanceStatus:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        startedAt:
+          type:
+            - string
+            - "null"
+        completedAt:
+          type:
+            - string
+            - "null"
+        durationMs:
+          type:
+            - number
+            - "null"
+        inputPath:
+          type: string
+        artifactRoot:
+          type: string
+        stepCount:
+          type: integer
+        completedStepCount:
+          type: integer
+      required:
+        - runId
+        - pipelineId
+        - status
+        - governanceStatus
+        - createdAt
+        - updatedAt
+        - startedAt
+        - completedAt
+        - durationMs
+        - inputPath
+        - artifactRoot
+        - stepCount
+        - completedStepCount
+    ActuarialPipelineRunsList:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActuarialPipelineRunListItem"
+      required:
+        - runs
     ModuleId:
       type: string
       minLength: 1

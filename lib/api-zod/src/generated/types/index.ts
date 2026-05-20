@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./actuarialPipelineRun";
+export * from "./actuarialPipelineRunListItem";
+export * from "./actuarialPipelineRunsList";
+export * from "./actuarialPipelineRunStatus";
 export * from "./agentConfig";
 export * from "./agentConfigResponse";
 export * from "./agentConnectionStatus";
@@ -64,7 +68,11 @@ export * from "./moduleRun";
 export * from "./moduleRunDetail";
 export * from "./moduleRunIngestResponse";
 export * from "./moduleRunStatus";
+export * from "./pipelineArtifact";
 export * from "./pipelineRun";
+export * from "./pipelineStep";
+export * from "./pipelineStepInput";
+export * from "./pipelineStepStatus";
 export * from "./plannerProviderDefinition";
 export * from "./plannerProviderReadiness";
 export * from "./portalAccessMode";
@@ -91,6 +99,7 @@ export * from "./skillReadinessProject";
 export * from "./skillReadinessUi";
 export * from "./skillUi";
 export * from "./skillUiMode";
+export * from "./startPipelineRunRequest";
 export * from "./submitToolFeedbackRequest";
 export * from "./toolAdapterDefinition";
 export * from "./toolAdapterDefinitionWorkingDirectory";

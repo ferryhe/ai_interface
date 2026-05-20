@@ -17,6 +17,125 @@ export interface JsonObject {
   [key: string]: unknown;
 }
 
+export type ActuarialPipelineRunStatus =
+  (typeof ActuarialPipelineRunStatus)[keyof typeof ActuarialPipelineRunStatus];
+
+export const ActuarialPipelineRunStatus = {
+  queued: "queued",
+  running: "running",
+  completed: "completed",
+  failed: "failed",
+} as const;
+
+export type PipelineStepStatus =
+  (typeof PipelineStepStatus)[keyof typeof PipelineStepStatus];
+
+export const PipelineStepStatus = {
+  pending: "pending",
+  running: "running",
+  completed: "completed",
+  failed: "failed",
+  skipped: "skipped",
+} as const;
+
+export interface StartPipelineRunRequest {
+  /** @minLength 1 */
+  pipelineId?: string;
+  /** @minLength 1 */
+  inputPath: string;
+  /** @minLength 1 */
+  artifactRoot?: string;
+  /** @minLength 1 */
+  runId?: string;
+}
+
+export interface PipelineArtifact {
+  artifactKind: string;
+  path: string;
+  exists: boolean;
+  contentJson: JsonObject | null;
+  /** @nullable */
+  contentText: string | null;
+}
+
+export type PipelineStepInput = { [key: string]: string };
+
+export interface PipelineStep {
+  stepId: string;
+  toolId: string;
+  status: PipelineStepStatus;
+  when?: string;
+  /** @nullable */
+  skipReason: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  durationMs: number | null;
+  input: PipelineStepInput;
+  output: JsonObject | null;
+  artifacts: PipelineArtifact[];
+  /** @nullable */
+  stdout: string | null;
+  /** @nullable */
+  stderr: string | null;
+  /** @nullable */
+  stdoutLogPath: string | null;
+  /** @nullable */
+  stderrLogPath: string | null;
+  /** @nullable */
+  exitCode: number | null;
+  error: JsonObject | null;
+}
+
+export interface ActuarialPipelineRun {
+  runId: string;
+  pipelineId: string;
+  version: string;
+  manifestPath: string;
+  inputPath: string;
+  artifactRoot: string;
+  status: ActuarialPipelineRunStatus;
+  /** @nullable */
+  governanceStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  durationMs: number | null;
+  steps: PipelineStep[];
+  artifacts: PipelineArtifact[];
+  error: JsonObject | null;
+}
+
+export interface ActuarialPipelineRunListItem {
+  runId: string;
+  pipelineId: string;
+  status: ActuarialPipelineRunStatus;
+  /** @nullable */
+  governanceStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  durationMs: number | null;
+  inputPath: string;
+  artifactRoot: string;
+  stepCount: number;
+  completedStepCount: number;
+}
+
+export interface ActuarialPipelineRunsList {
+  runs: ActuarialPipelineRunListItem[];
+}
+
 /**
  * @minLength 1
  */
