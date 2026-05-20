@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createServer, type Server } from "node:http";
 import test from "node:test";
 
 import {
@@ -84,6 +85,42 @@ async function createResumableRun(
   });
 
   return { requested, feedback };
+}
+
+async function withResumeHttpServer(): Promise<{
+  url: string;
+  close: () => Promise<void>;
+}> {
+  const server = createServer((req, res) => {
+    let data = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      data += chunk;
+    });
+    req.on("end", () => {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          resumedBy: "real-http-test",
+          input: data ? JSON.parse(data) : null,
+        }),
+      );
+    });
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        (server as Server).close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      }),
+  };
 }
 
 test("resumes a resumable interaction through the safe fake executor", async () => {
@@ -273,6 +310,59 @@ test("resumes custom module runs through an injected registry adapter", async ()
   );
   assert.equal(result.event.payload?.["adapterId"], "custom_reporter.http.v1");
   assert.equal(JSON.stringify(result).includes("report.example.internal"), false);
+});
+
+test("resume execution uses the real executor only when explicitly enabled", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const registry = createSkillRuntimeRegistry([customReporterManifest()]);
+  const server = await withResumeHttpServer();
+  const { run } = await createModuleRun(
+    repository,
+    {
+      moduleId: "custom_reporter_module",
+      externalRunId: "custom-resume-real-001",
+      inputJson: { requestedScope: "custom-real" },
+    },
+    { registry },
+  );
+  await requestModuleRunInteraction(repository, run.id, {
+    kind: "question",
+    title: "Confirm custom resume",
+    message: "The custom reporter needs input.",
+    resumeHandle: "custom_reporter:custom-resume-real-001:resume",
+  });
+  const feedback = await submitModuleRunFeedback(repository, run.id, {
+    responseText: "Continue.",
+  });
+
+  try {
+    const result = await resumeModuleRunExecution(repository, feedback.run.id, {
+      env: {
+        AI_INTERFACE_TOOL_EXECUTION_MODE: "real",
+        CUSTOM_REPORTER_API_BASE_URL: server.url,
+      },
+      registry,
+    });
+
+    assert.equal(result.interaction.status, "resumed");
+    assert.equal(result.run.status, "succeeded");
+    assert.deepEqual(result.run.outputJson, {
+      resumedBy: "real-http-test",
+      input: { requestedScope: "custom-real" },
+    });
+    const events = await repository.listRunEvents(feedback.run.id);
+    assert.equal(
+      events.some((event) => event.eventType === "tool.execution.http_completed"),
+      true,
+    );
+    assert.equal(
+      events.some((event) => event.eventType === "tool.execution.fake_completed"),
+      false,
+    );
+    assert.equal(JSON.stringify(result).includes(server.url), false);
+  } finally {
+    await server.close();
+  }
 });
 
 test("rejects a run without a resumable interaction", async () => {

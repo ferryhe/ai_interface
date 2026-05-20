@@ -6,10 +6,8 @@ import {
   type ToolInteractionResponse,
 } from "../modules/ingest-service";
 import { getAdapterDefinition, getAdapterReadiness } from "./adapter-registry";
-import {
-  FakeToolAdapterExecutor,
-  executeModuleRunWithAdapter,
-} from "./executor";
+import { executeModuleRunWithAdapter } from "./executor";
+import { createToolAdapterExecutor } from "./executor-router";
 import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 
 export interface ResumeModuleRunExecutionOptions {
@@ -84,7 +82,7 @@ export async function resumeModuleRunExecution(
     const execution = await executeModuleRunWithAdapter(
       repository,
       existing.id,
-      new FakeToolAdapterExecutor(),
+      createToolAdapterExecutor(adapter, env),
       { env, registry: options.registry },
     );
     return {
@@ -122,7 +120,7 @@ export async function resumeModuleRunExecution(
   const execution = await executeModuleRunWithAdapter(
     repository,
     consumedRun.id,
-    new FakeToolAdapterExecutor(),
+    createToolAdapterExecutor(adapter, env),
     { env, registry: options.registry },
   );
 

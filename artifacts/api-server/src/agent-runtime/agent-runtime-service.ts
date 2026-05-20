@@ -22,10 +22,8 @@ import {
   listEnabledBusinessSkillDefinitions,
   type BusinessSkillDefinition,
 } from "./skill-registry";
-import {
-  executeModuleRunWithAdapter,
-  FakeToolAdapterExecutor,
-} from "../tool-adapters/executor";
+import { executeModuleRunWithAdapter } from "../tool-adapters/executor";
+import { createToolAdapterExecutor } from "../tool-adapters/executor-router";
 import { builtinSkillManifests, type SkillManifest } from "../skill-runtime/skill-manifest";
 import {
   createSkillRuntimeRegistry,
@@ -730,17 +728,16 @@ export async function createAgentRun(
   let skippedApprovalModuleRunCount = 0;
   let responseModuleRuns = moduleRuns;
   if (executionMode === "execute_ready") {
-    const executor = new FakeToolAdapterExecutor();
     for (const [index, run] of moduleRuns.entries()) {
       const step = effectivePlan.steps[index];
       if (!step) continue;
 
+      const stepSkillId = step.skillId ?? step.moduleId;
+      const definition =
+        enabledSkillById.get(stepSkillId) ??
+        skillRegistry.getBusinessSkillDefinition(step.moduleId);
       if (step.requiresApproval) {
         skippedApprovalModuleRunCount += 1;
-        const stepSkillId = step.skillId ?? step.moduleId;
-        const definition =
-          enabledSkillById.get(stepSkillId) ??
-          skillRegistry.getBusinessSkillDefinition(step.moduleId);
         await repository.updateModuleRun(run.id, {
           status: "pending",
           metadata: executionMetadata(run.metadata, "approval_required"),
@@ -759,6 +756,7 @@ export async function createAgentRun(
         continue;
       }
 
+      const executor = createToolAdapterExecutor(definition.adapter, env);
       await executeModuleRunWithAdapter(repository, run.id, executor, {
         env,
         registry: skillRegistry,
