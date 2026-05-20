@@ -17,6 +17,8 @@ Updated: 2026-05-20
 - Added a narrow Windows test compatibility guard for the actuarial pipeline symlink test: it now skips only when the host denies symlink creation before the service assertion can run.
 - Addressed the confirmed P2 MCP redaction review finding: env-derived MCP secrets are scrubbed in raw, slash-normalized, slash-escaped, and JSON-escaped forms, and JSON-quoted header/token-like values are redacted from MCP result content and caught error messages.
 - PR6 review gates passed: spec review found no blockers; code-quality/security review found one MCP redaction gap, and re-review approved after the escaped-secret/header regression fix.
+- Opened PR #43 for `codex/mcp-executor`: https://github.com/ferryhe/ai_interface/pull/43
+- Scheduled follow-up automation `pr-43-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - Unrelated untracked `vite-smoke.out.log` remains untouched.
 
 ## Verification
@@ -31,4 +33,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Publish PR6 (`codex/mcp-executor`) after staging only scoped files and leaving unrelated `vite-smoke.out.log` plus temporary backup stash untouched.
+- Wait for `pr-43-follow-up` to evaluate remote checks/reviews/Copilot comments, apply only confirmed-safe fixes if needed, merge PR #43 if clean, delete `codex/mcp-executor`, update `main`, then start PR7 from latest `main`.
