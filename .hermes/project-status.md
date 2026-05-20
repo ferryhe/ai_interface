@@ -4,8 +4,8 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `main`
-- Scope: Portal chat bubble sizing fix is complete; broader React frontend structure findings remain follow-up refactor candidates.
+- Branch: `ci/add-github-actions`
+- Scope: 为仓库补充最小 GitHub Actions CI（Node 22 + pnpm + typecheck/build/skill:validate），并在验证后开 PR。
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -34,6 +34,8 @@ Updated: 2026-05-20
 - Portal `Request` and `Agent progress` bubbles now use content-aware sizing instead of fixed 760px width, and the message list scrolls within its available row.
 - Copilot reviewed PR #46 and generated no comments. No GitHub checks were configured for the branch.
 - The `codex/fix-agent-chat-layout` work branch was deleted locally and remotely after merge.
+- CI branch `ci/add-github-actions` adds `.github/workflows/ci.yml` for pull requests and pushes to `main`, using Node 22, pnpm install, `pnpm run typecheck`, `pnpm run build`, and `pnpm run skill:validate`.
+- `artifacts/mockup-sandbox` build requires `PORT` and `BASE_PATH`; the new CI workflow injects minimal defaults for the build step so the existing workspace build can run in GitHub Actions.
 
 ## Verification
 
@@ -61,7 +63,14 @@ Updated: 2026-05-20
   - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
   - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
   - `git diff --check` passed with CRLF warnings only.
+- CI workflow verification:
+  - `corepack enable` passed.
+  - `pnpm install --frozen-lockfile` passed.
+  - `pnpm run typecheck` passed.
+  - `PORT=3000 BASE_PATH=/ pnpm run build` passed.
+  - `pnpm run skill:validate` passed with `ok: true` and 7 skills loaded.
+  - `git diff --check` passed.
 
 ## Next Action
 
-- No active PR. Consider follow-up React frontend refactors: split giant mockup components, move embedded CSS out of TSX, reduce inline style usage in `AIInterface.tsx`, centralize API clients, and add a Vite `/api` proxy for same-origin local development.
+- Run the Codex review gate, then commit/push the CI workflow branch and open a PR if review feedback is resolved.
