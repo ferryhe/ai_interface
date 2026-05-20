@@ -133,26 +133,19 @@ async function loadRuntimeModules() {
       "artifacts/api-server/src/skill-runtime/skill-manifest.ts",
     ),
   ).href;
-  const loaderUrl = pathToFileURL(
-    resolve(
-      workspaceRoot,
-      "artifacts/api-server/src/skill-runtime/skill-loader.ts",
-    ),
-  ).href;
   const manifestModule = await import(manifestUrl);
-  const loaderModule = await import(loaderUrl);
-  return { ...manifestModule, ...loaderModule };
+  return manifestModule;
 }
 
 async function main(): Promise<void> {
   try {
     const {
+      builtinSkillManifests,
       createSkillManifestRegistry,
       listSkillReadiness,
-      loadSkillManifests,
     } = await loadRuntimeModules();
-    const manifests = await loadSkillManifests();
-    const registry = createSkillManifestRegistry(manifests);
+    const manifests = builtinSkillManifests;
+    const registry = createSkillManifestRegistry();
     const summary: SkillValidationSummary = {
       ok: true,
       rootOrder: defaultRoots,

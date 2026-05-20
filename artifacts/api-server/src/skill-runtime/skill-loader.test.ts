@@ -215,6 +215,82 @@ test("blocks custom manifests from overriding builtin manifests without opt-in",
   );
 });
 
+test("rejects community-root manifests that declare a builtin source", async () => {
+  const root = await createRoot();
+  const communityRoot = join(root, "skills", "community");
+  const manifestPath = await writeManifest(
+    communityRoot,
+    "misdeclared",
+    minimalManifest({
+      skillId: "misdeclared",
+      moduleId: "misdeclared",
+      projectSource: "builtin",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ cwd: root }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("project.source mismatch") &&
+      error.message.includes("expected community") &&
+      error.message.includes("found builtin") &&
+      error.message.includes(manifestPath),
+  );
+});
+
+test("rejects custom-root manifests that declare community or builtin sources", async () => {
+  for (const declaredSource of ["community", "builtin"]) {
+    const root = await createRoot();
+    const customRoot = join(root, "skills", "custom");
+    const manifestPath = await writeManifest(
+      customRoot,
+      `misdeclared_${declaredSource}`,
+      minimalManifest({
+        skillId: `misdeclared_${declaredSource}`,
+        moduleId: `misdeclared_${declaredSource}`,
+        projectSource: declaredSource,
+      }),
+    );
+
+    await assert.rejects(
+      loadSkillManifests({ cwd: root }),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes("project.source mismatch") &&
+        error.message.includes("expected custom") &&
+        error.message.includes(`found ${declaredSource}`) &&
+        error.message.includes(manifestPath),
+    );
+  }
+});
+
+test("rejects builtin-root manifests that declare community or custom sources", async () => {
+  for (const declaredSource of ["community", "custom"]) {
+    const root = await createRoot();
+    const builtinRoot = join(root, "skills", "builtin");
+    const manifestPath = await writeManifest(
+      builtinRoot,
+      `misdeclared_${declaredSource}`,
+      minimalManifest({
+        skillId: `misdeclared_${declaredSource}`,
+        moduleId: `misdeclared_${declaredSource}`,
+        projectSource: declaredSource,
+      }),
+    );
+
+    await assert.rejects(
+      loadSkillManifests({ cwd: root }),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes("project.source mismatch") &&
+        error.message.includes("expected builtin") &&
+        error.message.includes(`found ${declaredSource}`) &&
+        error.message.includes(manifestPath),
+    );
+  }
+});
+
 test("default roots load built-in YAML manifests from an explicit repository root cwd", async () => {
   const manifests = await loadSkillManifests({
     cwd: resolve(process.cwd(), "../.."),
@@ -268,6 +344,21 @@ test("applies documented defaults to a minimal manifest", async () => {
   assert.equal(manifest?.permissions.canWriteDatabase, true);
   assert.deepEqual(manifest?.interactionKinds, []);
   assert.deepEqual(manifest?.artifactKinds, []);
+});
+
+test("keeps explicit arbitrary root source declarations when no known root source can be inferred", async () => {
+  const root = await createRoot();
+  await writeManifest(
+    root,
+    "fixture",
+    minimalManifest({
+      projectSource: "custom",
+    }),
+  );
+
+  const [manifest] = await loadSkillManifests({ roots: [root] });
+
+  assert.equal(manifest?.project.source, "custom");
 });
 
 test("rejects duplicate skill IDs with the duplicate id and manifest paths", async () => {

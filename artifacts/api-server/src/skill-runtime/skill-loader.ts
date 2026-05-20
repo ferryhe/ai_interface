@@ -58,6 +58,13 @@ interface LoadedManifest {
   discoveryIndex: number;
 }
 
+interface ManifestPath {
+  path: string;
+  rootIndex: number;
+  discoveryIndex: number;
+  expectedSource?: SkillProjectSource;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -342,19 +349,16 @@ async function findManifestPaths(
   cwd: string,
   pathExists: (path: string) => boolean,
 ): Promise<{
-  manifestPaths: Array<{ path: string; rootIndex: number; discoveryIndex: number }>;
+  manifestPaths: ManifestPath[];
   resolvedRoots: string[];
 }> {
-  const manifestPaths: Array<{
-    path: string;
-    rootIndex: number;
-    discoveryIndex: number;
-  }> = [];
+  const manifestPaths: ManifestPath[] = [];
   const resolvedRoots: string[] = [];
   let discoveryIndex = 0;
 
   for (const [rootIndex, root] of roots.entries()) {
     const rootPath = resolveFromCwd(cwd, root);
+    const expectedSource = expectedSourceForRoot(rootPath);
     resolvedRoots.push(rootPath);
     if (!pathExists(rootPath)) continue;
 
@@ -369,6 +373,7 @@ async function findManifestPaths(
           path: manifestPath,
           rootIndex,
           discoveryIndex,
+          expectedSource,
         });
         discoveryIndex += 1;
       }
@@ -379,6 +384,32 @@ async function findManifestPaths(
     manifestPaths,
     resolvedRoots,
   };
+}
+
+function expectedSourceForRoot(rootPath: string): SkillProjectSource | undefined {
+  const segments = resolve(rootPath)
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  const parent = segments[segments.length - 2];
+  const leaf = segments[segments.length - 1];
+  if (parent !== "skills") return undefined;
+  if (leaf === "builtin" || leaf === "community" || leaf === "custom") {
+    return leaf;
+  }
+  return undefined;
+}
+
+function assertManifestSourceMatchesRoot(
+  manifest: SkillManifest,
+  path: string,
+  expectedSource?: SkillProjectSource,
+): void {
+  if (!expectedSource || manifest.project.source === expectedSource) return;
+  throw manifestError(
+    path,
+    `project.source mismatch: expected ${expectedSource} from root, found ${manifest.project.source}`,
+  );
 }
 
 function overrideError(
@@ -510,8 +541,14 @@ export async function loadSkillManifests(
   for (const manifestPath of manifestPaths) {
     try {
       const content = await readFile(manifestPath.path);
+      const manifest = normalizeManifest(parse(content), manifestPath.path);
+      assertManifestSourceMatchesRoot(
+        manifest,
+        manifestPath.path,
+        manifestPath.expectedSource,
+      );
       manifests.push({
-        manifest: normalizeManifest(parse(content), manifestPath.path),
+        manifest,
         path: manifestPath.path,
         rootIndex: manifestPath.rootIndex,
         discoveryIndex: manifestPath.discoveryIndex,
