@@ -77,7 +77,12 @@ function secretValues(
     .map((name) => env[name]?.trim())
     .filter((value): value is string => Boolean(value));
   return [...envSecrets, ...extraValues]
-    .flatMap((value) => [value, value.split("\\").join("/")])
+    .flatMap((value) => {
+      const slashNormalized = value.split("\\").join("/");
+      const jsonEscaped = JSON.stringify(value).slice(1, -1);
+      const jsonEscapedSlashNormalized = JSON.stringify(slashNormalized).slice(1, -1);
+      return [value, slashNormalized, jsonEscaped, jsonEscapedSlashNormalized];
+    })
     .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index);
 }
 

@@ -1,7 +1,6 @@
 skillId: ai_actuary
 moduleId: ai_actuary
 name: AI Actuary Reserving
-summary: Run ai_actuary reserving tools through the file-artifact CLI contract.
 description: Invoke the ai_actuary Python reserving pipeline using local JSON/YAML artifacts without reimplementing actuarial calculations in TypeScript.
 category: agent
 project:

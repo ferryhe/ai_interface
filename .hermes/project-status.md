@@ -6,10 +6,11 @@ Updated: 2026-05-20
 
 - Branch: `feat/skill-manifest-cli-executor`
 - Scope: ai_actuary tool-decomposition rollout PR4: built-in `ai_actuary` SkillManifest plus minimal CLI executor/working-directory support in `ai_interface`.
-- Current PR: #41 https://github.com/ferryhe/ai_interface/pull/41 opened from commit `dc46354`; waiting one 15-minute cycle for remote checks/Copilot/comments.
-- Validation passed this tick: `corepack pnpm --filter @workspace/api-spec run codegen`, `corepack pnpm --filter @workspace/api-server run typecheck`, `corepack pnpm --filter @workspace/api-server run test` (168 passed).
-- Codex CLI review gate attempted and blocked because the ChatGPT account does not support `gpt-5.2-codex`; independent delegate review substituted, with final spec/contract review reporting no blocking findings. One delegated security review accidentally inspected `ai_actuary` rather than this `ai_interface` diff, so those findings were not applied to PR #41.
-- Sibling repos: only rollout state in `/home/ec2-user/work/ai_actuary/.hermes/ai_actuary_tool_decomposition_rollout_state.json` was updated; implementation edits remain confined to `ai_interface`.
+- Current PR: #41 https://github.com/ferryhe/ai_interface/pull/41 remains open after the first remote review cycle.
+- This tick accepted and fixed all three in-scope Copilot inline comments: robust JSON-escaped CLI secret redaction, portable `dirname(scriptPath)` test setup, and removal of the unsupported YAML `summary` field.
+- Validation passed this tick: `corepack pnpm --filter @workspace/api-server run test -- cli-executor.test.ts` (command ran the api-server test suite: 169 passed), `corepack pnpm --filter @workspace/api-server run typecheck`, and `git diff --check`.
+- Substitute review gate: independent delegate reviewer inspected the follow-up diff, ran focused checks, and reported no blocking issues.
+- Sibling repos: only rollout state in `/home/ec2-user/work/ai_actuary/.hermes/ai_actuary_tool_decomposition_rollout_state.json` was updated; implementation edits remain confined to `ai_interface`. Stop here to wait for the next 15-minute remote review/check cycle.
 
 ## Current State
 
