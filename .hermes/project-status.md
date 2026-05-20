@@ -31,6 +31,8 @@ Updated: 2026-05-20
 - Historical local branches `codex/skill-os-interface-runtime` and `codex/address-ai-interface-review-comments` were cleaned up after confirming their work was merged. Local and remote branch lists now only show `main` / `origin/main`.
 - Runtime smoke on 2026-05-20: the Vite frontend is already listening on `8080` and `8081`; the API build succeeds and the API responds to `/api/healthz` and `/api/skills` when launched with `PORT` and `DATABASE_URL`, but DB-backed routes such as `/api/agent-config` return 500 without a reachable Postgres database. The current Vite dev server does not proxy `/api`, so `8080/api/*` returns the frontend HTML fallback rather than API JSON.
 - Portal chat layout follow-up is in progress on `codex/fix-agent-chat-layout`: `Request` and `Agent progress` bubbles now use content-aware sizing instead of fixed 760px width, and the message list scrolls within its available row.
+- Opened PR #46 for the Portal chat layout fix: https://github.com/ferryhe/ai_interface/pull/46
+- Scheduled follow-up automation `pr-46-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
 ## Verification
 
@@ -61,4 +63,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Commit the Portal chat layout fix, open a PR, and track broader React structure improvements as follow-up refactors.
+- Wait for `pr-46-follow-up` to evaluate remote checks/reviews/Copilot comments, apply safe frontend fixes if needed, merge PR #46 if clean, delete `codex/fix-agent-chat-layout`, and update `main`.
