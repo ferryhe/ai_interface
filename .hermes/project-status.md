@@ -4,8 +4,8 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/docs-project-overview`
-- Scope: Documentation cleanup, current project guide, and static HTML project introduction.
+- Branch: `main`
+- Scope: Skill Registry Generalization program and follow-up documentation cleanup are complete.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -21,12 +21,13 @@ Updated: 2026-05-20
 - PR #44 follow-up addressed 2 Copilot comments before merge: DAG planner types now use the `dag-executor` source of truth, and DAG ready-step execution has bounded concurrency with optional `AI_INTERFACE_DAG_MAX_CONCURRENCY`.
 - Work branches for the completed PRs were deleted after merge.
 - Follow-up automations for merged PRs were deleted or are being removed as they complete.
-- Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, retired Replit workspace files, and `docs/project-overview.html`.
+- PR #45 completed documentation cleanup and merged into `main` at `08d9ab0` on 2026-05-20.
+- Documentation cleanup is complete: README current-state updates, docs index, community skill guidance, retired Replit workspace files, and `docs/project-overview.html`.
 - `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
 - `.replit`, `.replitignore`, and `replit.md` were removed because development is no longer Replit-based.
-- Opened PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
+- Merged PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
 - PR #45 follow-up found 1 actionable Copilot comment on the README skills table separator and fixed it.
-- Scheduled follow-up automation `pr-45-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
+- The `codex/docs-project-overview` work branch was deleted locally and remotely after merge.
 
 ## Verification
 
@@ -45,4 +46,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Wait for `pr-45-follow-up` to evaluate remote checks/reviews/Copilot comments, apply safe documentation fixes if needed, merge PR #45 if clean, delete `codex/docs-project-overview`, and update `main`.
+- No active PR in the Skill Registry Generalization or documentation cleanup program. Keep `main` as the clean baseline for the next scoped request.
