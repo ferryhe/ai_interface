@@ -1,5 +1,11 @@
 import type { AgentConfigRecord } from "../agent-config/agent-config-service";
 import type { BusinessSkillDefinition } from "./skill-registry";
+import type {
+  AgentRuntimePlanMode,
+  DagFailureStrategy,
+} from "./dag-executor";
+
+export type { AgentRuntimePlanMode, DagFailureStrategy } from "./dag-executor";
 
 export type AgentProvider = "openai" | "anthropic" | "ollama" | "deterministic";
 export type AgentConnectionStatus = "configured" | "missing_key";
@@ -38,10 +44,14 @@ export interface AgentRuntimePlannerStep {
   action: string;
   input: Record<string, unknown>;
   requiresApproval: boolean;
+  stepId?: string;
+  dependsOn?: string[];
 }
 
 export interface AgentRuntimePlannerPlan {
   summary: string;
+  mode?: AgentRuntimePlanMode;
+  failureStrategy?: DagFailureStrategy;
   steps: AgentRuntimePlannerStep[];
   warnings: string[];
 }
@@ -214,6 +224,8 @@ export function createDeterministicPlannerPlan(
   return {
     summary:
       "Prepared a deterministic business-skill plan. Configure a ready model provider to let the model choose and refine steps.",
+    mode: "linear",
+    failureStrategy: "fail_fast",
     steps,
     warnings: reason ? [reason] : [],
   };
@@ -283,6 +295,13 @@ function parsePlannerText(
 
   return {
     summary: parsed.summary,
+    ...(parsed.mode === "linear" || parsed.mode === "dag"
+      ? { mode: parsed.mode }
+      : {}),
+    ...(parsed.failureStrategy === "fail_fast" ||
+    parsed.failureStrategy === "continue_independent"
+      ? { failureStrategy: parsed.failureStrategy }
+      : {}),
     steps: Array.isArray(parsed.steps) ? parsed.steps : [],
     warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
   };
@@ -333,7 +352,8 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
             role: "system",
             content:
               `${request.config.systemPrompt}\n\n` +
-              "Return only JSON with {summary, steps, warnings}. " +
+              "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
+              "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
               "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
           },
           {
@@ -355,6 +375,11 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
               additionalProperties: false,
               properties: {
                 summary: { type: "string" },
+                mode: { type: "string", enum: ["linear", "dag"] },
+                failureStrategy: {
+                  type: "string",
+                  enum: ["fail_fast", "continue_independent"],
+                },
                 warnings: { type: "array", items: { type: "string" } },
                 steps: {
                   type: "array",
@@ -368,6 +393,11 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
                       action: { type: "string" },
                       input: { type: "object", additionalProperties: true },
                       requiresApproval: { type: "boolean" },
+                      stepId: { type: "string" },
+                      dependsOn: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
                     },
                     required: [
                       "moduleId",
@@ -427,7 +457,8 @@ export class AnthropicMessagesPlanner implements AgentPlanner {
         max_tokens: 4096,
         system:
           `${request.config.systemPrompt}\n\n` +
-          "Return only JSON with {summary, steps, warnings}. " +
+          "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
+          "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
           "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
         messages: [
           {
@@ -485,7 +516,8 @@ export class OllamaChatPlanner implements AgentPlanner {
             role: "system",
             content:
               `${request.config.systemPrompt}\n\n` +
-              "Return only JSON with {summary, steps, warnings}. " +
+              "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
+              "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
               "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
           },
           {

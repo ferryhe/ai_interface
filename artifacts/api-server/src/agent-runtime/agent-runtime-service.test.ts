@@ -12,6 +12,7 @@ import {
   getAgentRunDetail,
   InMemoryAgentRuntimeRepository,
   OpenAIResponsesPlanner,
+  parseDagMaxConcurrency,
   type AgentPlanner,
 } from "./agent-runtime-service";
 
@@ -617,6 +618,50 @@ test("drops unknown planner skill ids with a warning", async () => {
   );
 });
 
+test("fallback for empty dag planner output resets to linear deterministic mode", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Try a bad DAG skill.",
+        mode: "dag",
+        warnings: [],
+        steps: [
+          {
+            skillId: "unknown_skill",
+            moduleId: "unknown_skill",
+            title: "Unknown",
+            action: "This should be ignored.",
+            input: {},
+            requiresApproval: false,
+            stepId: "unknown",
+          },
+        ],
+      } as any;
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Try a bad DAG skill.",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    {
+      env: { OPENAI_API_KEY: "sk-test-secret" },
+      planner,
+    },
+  );
+
+  assert.equal(result.plan.mode, "linear");
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.moduleId),
+    ["doc_to_md"],
+  );
+});
+
 test("defaults to plan-only mode and leaves configured module runs pending", async () => {
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
   const configRepository = new InMemoryAgentConfigRepository();
@@ -948,6 +993,189 @@ test("execute_ready executes ready steps while leaving approval steps pending", 
   );
   assert.equal(JSON.stringify(result).includes("doc.example.internal"), false);
   assert.equal(JSON.stringify(result).includes("agent.example.internal"), false);
+});
+
+test("defaults missing plan mode to linear and preserves module-run order", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Index first, then convert in planner order.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "md_to_rag",
+            title: "Index Markdown",
+            action: "Index Markdown in the planner-provided order.",
+            input: { markdownArtifactIds: ["artifact-md-1"] },
+            requiresApproval: false,
+            stepId: "index",
+            dependsOn: ["convert"],
+          },
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: false,
+            stepId: "convert",
+          },
+        ],
+      } as any;
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Planner omitted plan mode.",
+      enabledSkillIds: ["md_to_rag", "doc_to_md"],
+    },
+    { env: { OPENAI_API_KEY: "sk-test-secret" }, planner },
+  );
+
+  assert.equal((result.plan as { mode?: string }).mode, "linear");
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.moduleId),
+    ["md_to_rag", "doc_to_md"],
+  );
+  assert.equal(result.moduleRuns[0]?.metadata?.["dagStepId"], undefined);
+  assert.equal(result.moduleRuns[1]?.metadata?.["dagStepId"], undefined);
+});
+
+test("parses DAG max concurrency environment values", () => {
+  assert.equal(parseDagMaxConcurrency(undefined), undefined);
+  assert.equal(parseDagMaxConcurrency(""), undefined);
+  assert.equal(parseDagMaxConcurrency(" 2 "), 2);
+  assert.equal(parseDagMaxConcurrency("0"), undefined);
+  assert.equal(parseDagMaxConcurrency("-1"), undefined);
+  assert.equal(parseDagMaxConcurrency("2.5"), undefined);
+  assert.equal(parseDagMaxConcurrency("not-a-number"), undefined);
+});
+
+test("dag mode rejects unknown dependencies before creating module runs", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Invalid DAG.",
+        mode: "dag",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "md_to_rag",
+            title: "Index Markdown",
+            action: "Index Markdown after conversion.",
+            input: { markdownArtifactIds: ["artifact-md-1"] },
+            requiresApproval: false,
+            stepId: "index",
+            dependsOn: ["convert"],
+          },
+        ],
+      } as any;
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      createAgentRun(
+        runtimeRepository,
+        configRepository,
+        {
+          message: "Run invalid DAG.",
+          enabledSkillIds: ["md_to_rag"],
+        },
+        { env: { OPENAI_API_KEY: "sk-test-secret" }, planner },
+      ),
+    /DAG step index depends on unknown step convert/,
+  );
+
+  assert.equal(runtimeRepository.moduleRuns.length, 0);
+});
+
+test("dag execute_ready keeps approval upstream pending and blocks downstream", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Convert then index with approval.",
+        mode: "dag",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Approve document conversion",
+            action: "Wait for approval before conversion.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: true,
+            stepId: "convert",
+          },
+          {
+            moduleId: "md_to_rag",
+            title: "Index Markdown",
+            action: "Index only after conversion succeeds.",
+            input: { markdownArtifactIds: ["artifact-md-1"] },
+            requiresApproval: false,
+            stepId: "index",
+            dependsOn: ["convert"],
+          },
+        ],
+      } as any;
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert then index.",
+      executionMode: "execute_ready",
+      enabledSkillIds: ["doc_to_md", "md_to_rag"],
+    },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+        MD_TO_RAG_API_BASE_URL: "https://rag.example.internal",
+      },
+      planner,
+    },
+  );
+
+  assert.equal(result.status, "needs_approval");
+  assert.equal(result.pipelineRun.status, "pending");
+  assert.deepEqual(
+    result.moduleRuns.map((run) => [run.moduleId, run.status]),
+    [
+      ["doc_to_md", "pending"],
+      ["md_to_rag", "pending"],
+    ],
+  );
+  assert.equal(
+    result.moduleRuns[0]?.metadata?.["adapterExecutionStatus"],
+    "approval_required",
+  );
+  assert.equal(
+    result.moduleRuns[1]?.metadata?.["dagExecutionStatus"],
+    "blocked",
+  );
+  assert.equal(
+    result.moduleRuns[1]?.metadata?.["dagBlockedReason"],
+    "approval_required",
+  );
+  assert.deepEqual(result.moduleRuns[1]?.metadata?.["dagBlockedByStepIds"], [
+    "convert",
+  ]);
+  assert.equal(
+    runtimeRepository.runEvents.some(
+      (event) => event.eventType === "agent.plan.step.blocked",
+    ),
+    true,
+  );
 });
 
 test("applies configured approval overrides consistently", async () => {
