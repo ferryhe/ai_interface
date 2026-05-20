@@ -4,9 +4,12 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/planner-provider-registry`
-- Scope: PR5 of the Skill Registry Generalization program: introduce a planner provider registry with OpenAI, deterministic, Anthropic, and Ollama provider selection/readiness.
-- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
+- Branch: `feat/skill-manifest-cli-executor`
+- Scope: ai_actuary tool-decomposition rollout PR4: built-in `ai_actuary` SkillManifest plus minimal CLI executor/working-directory support in `ai_interface`.
+- Current PR: #41 https://github.com/ferryhe/ai_interface/pull/41 opened from commit `dc46354`; waiting one 15-minute cycle for remote checks/Copilot/comments.
+- Validation passed this tick: `corepack pnpm --filter @workspace/api-spec run codegen`, `corepack pnpm --filter @workspace/api-server run typecheck`, `corepack pnpm --filter @workspace/api-server run test` (168 passed).
+- Codex CLI review gate attempted and blocked because the ChatGPT account does not support `gpt-5.2-codex`; independent delegate review substituted, with final spec/contract review reporting no blocking findings. One delegated security review accidentally inspected `ai_actuary` rather than this `ai_interface` diff, so those findings were not applied to PR #41.
+- Sibling repos: only rollout state in `/home/ec2-user/work/ai_actuary/.hermes/ai_actuary_tool_decomposition_rollout_state.json` was updated; implementation edits remain confined to `ai_interface`.
 
 ## Current State
 
