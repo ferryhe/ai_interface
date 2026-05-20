@@ -59,6 +59,7 @@ Updated: 2026-05-20
 - PR #39 follow-up TDD red run confirmed the two new regression tests failed before the fix: oversized CLI stdout chunks were retained past `maxOutputBytes`, and redirect response bodies were not cancelled before rejection.
 - PR #39 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - PR #39 controller follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
+- PR #39 follow-up fixes were pushed. Remote re-check found no configured GitHub checks, PR #39 mergeable, the CLI output-buffer thread outdated, and the HTTP redirect-body thread still attached to a current line but confirmed fixed by `cancelResponseBody(response)` plus regression coverage.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -555,4 +556,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Commit and push the PR #39 follow-up fixes, then re-check remote comments and merge if clean.
+- Merge PR #39, delete the work branch locally/remotely, update `main`, and start PR5 from latest `main`.
