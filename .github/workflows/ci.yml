@@ -27,9 +27,9 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f pnpm-lock.yaml ]; then
-            corepack pnpm install --frozen-lockfile
+            npm_config_user_agent=pnpm/11.1.3 corepack pnpm install --frozen-lockfile
           else
-            corepack pnpm install
+            npm_config_user_agent=pnpm/11.1.3 corepack pnpm install
           fi
 
       - name: Build
