@@ -2,16 +2,18 @@
 
 `ai_interface` is the top-level Agent OS console for composing AI skills and tools into inspectable workflows. The foreground is the user-facing agent experience; Backstage is the development and operations surface where each skill's manifest, runtime I/O, events, artifacts, readiness, and optional HTML UI can be inspected.
 
-The current v1 wires a generic skill runtime around YAML manifests loaded from
+The current runtime wires a generic skill runtime around YAML manifests loaded from
 `skills/builtin`, `skills/community`, and `skills/custom`:
 
-| Skill | Project mapping | Role |
+| Skill | Source | Project mapping | Role |
 |---|---|---|
-| `web_listening` | `../web_listening` | Monitor pages, capture snapshots, extract text, and detect changes. |
-| `doc_to_md` | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
-| `md_to_rag` | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |
-| `rag_to_agent` | `../c-ross-2` | Generate agent prompts, tool bindings, configs, and validation output. |
-| `climate_monitor` | `../climate_monitor_wiki` | Run the climate monitor workflow and summarize report/source/scope coverage. |
+| `web_listening` | builtin | `../web_listening` | Monitor pages, capture snapshots, extract text, and detect changes. |
+| `doc_to_md` | builtin | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
+| `md_to_rag` | builtin | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |
+| `rag_to_agent` | builtin | `../c-ross-2` | Generate agent prompts, tool bindings, configs, and validation output. |
+| `climate_monitor` | builtin | `../climate_monitor_wiki` | Run the climate monitor workflow and summarize report/source/scope coverage. |
+| `ai_actuary` | builtin | `../ai_actuary` | Invoke the ai_actuary reserving pipeline through the safe CLI executor. |
+| `example_reporter` | community | `skills/community/example_reporter` | Validation-only community manifest example. |
 
 This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
@@ -26,12 +28,18 @@ flowchart LR
   R --> S2["doc_to_md"]
   R --> S3["md_to_rag"]
   R --> S4["rag_to_agent"]
+  R --> S5["climate_monitor"]
+  R --> S6["ai_actuary"]
+  R --> S7["community/custom skills"]
   R --> DB["module_* tables and artifacts"]
   DB --> B["Backstage inspection"]
   S1 --> B
   S2 --> B
   S3 --> B
   S4 --> B
+  S5 --> B
+  S6 --> B
+  S7 --> B
 ```
 
 The runtime preserves the existing module-run database/API compatibility while promoting the vocabulary to skills:
@@ -78,7 +86,9 @@ validates missing step IDs, duplicate step IDs, unknown dependencies, and
 cycles before creating module runs.
 
 In DAG `execute_ready`, dependency-ready non-approval steps run in parallel
-batches. Approval-required upstream steps remain pending with
+batches. The default concurrency cap is 8 ready steps; set
+`AI_INTERFACE_DAG_MAX_CONCURRENCY` to a positive integer to lower or raise that
+limit for local operations. Approval-required upstream steps remain pending with
 `adapterExecutionStatus: "approval_required"` and block downstream dependents
 with `dagExecutionStatus: "blocked"` metadata plus an
 `agent.plan.step.blocked` event. Failed upstream steps use
@@ -218,6 +228,9 @@ Community contributor workflow:
 └── scripts/
 ```
 
+For a browser-friendly project introduction and usage guide, open
+`docs/project-overview.html` directly in a browser.
+
 ## Built-in Projects
 
 Default project path detection is intentionally shallow:
@@ -227,8 +240,13 @@ Default project path detection is intentionally shallow:
 - `md_to_rag` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`;
 - `rag_to_agent` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`.
 - `climate_monitor` checks `CLIMATE_MONITOR_PROJECT_PATH` or `../climate_monitor_wiki`.
+- `ai_actuary` checks `AI_ACTUARY_PROJECT_PATH` or `../ai_actuary`.
+- `example_reporter` is a community validation fixture under `skills/community/example_reporter` and is disabled unless `EXAMPLE_REPORTER_ENABLED` is set.
 
-Readiness is a local existence check only. This PR does not execute real sibling project commands.
+Readiness is a local existence check only. Real sibling project commands only
+run through the opt-in safe executor path when
+`AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set and the manifest allowlist
+matches the requested command.
 
 ## Development
 
@@ -285,7 +303,7 @@ Browser smoke should verify:
 
 - Foreground renders and can submit/show a flow;
 - Backstage is switchable from the top bar;
-- the skill catalog shows all four project skills;
+- the skill catalog shows the default built-in and community skills;
 - selected skill detail shows manifest, readiness, I/O, events, artifacts, and raw JSON;
 - skills with `htmlEntrypoint` show a sandboxed Skill UI tab;
 - trigger/approval runs select the corresponding Backstage Skill UI tab.

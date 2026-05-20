@@ -14,7 +14,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Build**: esbuild bundle
 
 ## Key Commands
 
@@ -23,5 +23,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
+- `pnpm run skill:validate` — validate YAML skill manifests
+- `pnpm --dir artifacts/mockup-sandbox run dev` — run the Agent OS UI locally
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+The root `README.md` and `docs/project-overview.html` are the current project
+introduction and usage guides.

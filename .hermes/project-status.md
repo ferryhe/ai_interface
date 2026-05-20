@@ -4,9 +4,9 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `main`
-- Scope: Skill Registry Generalization program complete.
-- Sibling repos: off-limits; all work stayed confined to `ai_interface`.
+- Branch: `codex/docs-project-overview`
+- Scope: Documentation cleanup, current project guide, and static HTML project introduction.
+- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
@@ -21,7 +21,8 @@ Updated: 2026-05-20
 - PR #44 follow-up addressed 2 Copilot comments before merge: DAG planner types now use the `dag-executor` source of truth, and DAG ready-step execution has bounded concurrency with optional `AI_INTERFACE_DAG_MAX_CONCURRENCY`.
 - Work branches for the completed PRs were deleted after merge.
 - Follow-up automations for merged PRs were deleted or are being removed as they complete.
-- Unrelated untracked `vite-smoke.out.log` remains untouched.
+- Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, Replit notes, and `docs/project-overview.html`.
+- `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
 
 ## Verification
 
@@ -32,8 +33,11 @@ Updated: 2026-05-20
   - `corepack pnpm run typecheck:libs` passed.
   - `git diff --check` passed with CRLF warnings only.
 - GitHub PR #44 had no configured checks. Copilot's 2 original review threads were outdated after the follow-up fix commit, and no new comments were present before merge.
+- Documentation cleanup verification:
+  - `corepack pnpm run skill:validate` passed with 7 loaded skills.
+  - `git diff --check` passed with CRLF warnings only.
+  - README/community/Replit docs were scanned for stale "four skills" and "This PR does not" wording in current docs.
 
 ## Next Action
 
-- No remaining PRs in the Skill Registry Generalization plan.
-- Keep `main` as the clean baseline for future work.
+- Commit, push, and open the documentation cleanup PR.

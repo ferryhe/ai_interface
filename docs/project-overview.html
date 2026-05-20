@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ai_interface 项目介绍与使用指南</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172026;
+        --muted: #5f6b72;
+        --line: #d7dde2;
+        --surface: #f6f8fa;
+        --band: #eef3f7;
+        --accent: #0f766e;
+        --accent-2: #365f91;
+        --warning: #7c5800;
+        --code: #101820;
+        --code-ink: #e8edf2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+        background: #ffffff;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        background: var(--band);
+      }
+
+      .wrap {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .hero {
+        min-height: 420px;
+        display: grid;
+        align-items: center;
+        padding: 56px 0 48px;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 840px;
+        font-size: clamp(40px, 7vw, 72px);
+        line-height: 1.02;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 820px;
+        margin: 22px 0 0;
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      nav a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        padding: 7px 12px;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        background: #ffffff;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      main {
+        padding: 34px 0 64px;
+      }
+
+      section {
+        padding: 30px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        font-size: 28px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin: 24px 0 10px;
+        font-size: 18px;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 14px;
+        padding-left: 22px;
+      }
+
+      li + li {
+        margin-top: 5px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+      }
+
+      .tile {
+        border: 1px solid var(--line);
+        padding: 16px;
+        background: #ffffff;
+      }
+
+      .tile strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: var(--surface);
+        padding: 14px 16px;
+        margin: 16px 0;
+      }
+
+      .warning {
+        border-left-color: var(--warning);
+      }
+
+      code {
+        padding: 2px 5px;
+        background: #eef1f4;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        margin: 12px 0 18px;
+        padding: 16px;
+        overflow-x: auto;
+        color: var(--code-ink);
+        background: var(--code);
+      }
+
+      pre code {
+        padding: 0;
+        color: inherit;
+        background: transparent;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0 18px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--surface);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin: 18px 0;
+      }
+
+      .step {
+        border: 1px solid var(--line);
+        padding: 14px;
+        background: #ffffff;
+      }
+
+      .step span {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--accent-2);
+        font-weight: 700;
+      }
+
+      footer {
+        padding: 28px 0 40px;
+        color: var(--muted);
+        background: var(--surface);
+      }
+
+      @media (max-width: 640px) {
+        .wrap {
+          width: min(100% - 24px, 1120px);
+        }
+
+        .hero {
+          min-height: 360px;
+          padding: 42px 0;
+        }
+
+        .lead {
+          font-size: 17px;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap hero">
+        <div>
+          <p class="eyebrow">Agent OS Console</p>
+          <h1>ai_interface 项目介绍与使用指南</h1>
+          <p class="lead">
+            一个面向技能编排的前台/后台控制台：用 YAML Skill Manifest
+            注册能力，用 OpenAPI 保持契约一致，用安全执行器连接 CLI、HTTP
+            与 MCP 工具。
+          </p>
+          <nav aria-label="页面导航">
+            <a href="#what">项目是什么</a>
+            <a href="#architecture">架构</a>
+            <a href="#skills">技能</a>
+            <a href="#run">怎么运行</a>
+            <a href="#extend">怎么扩展</a>
+            <a href="#verify">怎么验证</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section id="what">
+        <h2>项目是什么</h2>
+        <p>
+          <code>ai_interface</code> 是顶层 Agent OS console。Foreground
+          承载用户对话和工作流进度，Backstage 承载技能目录、manifest、I/O、
+          事件、artifact、readiness 和可选 HTML UI 的运维审查。
+        </p>
+        <div class="grid">
+          <div class="tile">
+            <strong>加技能不改核心代码</strong>
+            <span class="muted">
+              默认从 <code>skills/builtin</code>、<code>skills/community</code>
+              和 <code>skills/custom</code> 加载 YAML manifest。
+            </span>
+          </div>
+          <div class="tile">
+            <strong>执行默认安全</strong>
+            <span class="muted">
+              CLI、HTTP、MCP 执行都需要显式启用 real mode，并受 allowlist、
+              timeout、输出上限和脱敏保护约束。
+            </span>
+          </div>
+          <div class="tile">
+            <strong>契约自动同步</strong>
+            <span class="muted">
+              <code>lib/api-spec/openapi.yaml</code> 是 API 真相源，生成 React
+              client 和 Zod schema。
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>架构</h2>
+        <div class="flow" aria-label="架构流程">
+          <div class="step"><span>1</span>用户请求进入 Foreground agent</div>
+          <div class="step"><span>2</span>Planner 依据 enabled skills 生成计划</div>
+          <div class="step"><span>3</span>Skill runtime 创建 module runs</div>
+          <div class="step"><span>4</span>执行器按 manifest 安全调用工具</div>
+          <div class="step"><span>5</span>Backstage 展示 readiness、事件和产物</div>
+        </div>
+        <p>
+          运行时保留旧的 <code>moduleId</code> 和 module-run 数据模型，同时在
+          Agent plan 和 skill metadata 中提升 <code>skillId</code>。这让旧 API
+          兼容，新技能也能通过 manifest 进入计划和 UI。
+        </p>
+        <div class="callout">
+          <strong>DAG 模式：</strong>
+          默认计划是 <code>linear</code>。Planner 可以选择
+          <code>dag</code>，用 <code>stepId</code> 和
+          <code>dependsOn</code> 声明依赖。运行时会在创建 module runs 前校验
+          缺失/重复 stepId、未知依赖和循环依赖。
+        </div>
+      </section>
+
+      <section id="skills">
+        <h2>默认技能</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Skill</th>
+              <th>来源</th>
+              <th>用途</th>
+              <th>默认路径或配置</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>web_listening</code></td>
+              <td>builtin</td>
+              <td>网页监控、快照、文本抽取、变化检测</td>
+              <td><code>WEB_LISTENING_PROJECT_PATH</code> 或 <code>../web_listening</code></td>
+            </tr>
+            <tr>
+              <td><code>doc_to_md</code></td>
+              <td>builtin</td>
+              <td>文档转 Markdown、资产、warning 和 trace</td>
+              <td><code>DOC_TO_MD_PROJECT_PATH</code> 或 <code>../doc_to_md</code></td>
+            </tr>
+            <tr>
+              <td><code>md_to_rag</code></td>
+              <td>builtin</td>
+              <td>Markdown chunking 和 RAG records 准备</td>
+              <td><code>CROSS2_PROJECT_PATH</code> 或 <code>../c-ross-2</code></td>
+            </tr>
+            <tr>
+              <td><code>rag_to_agent</code></td>
+              <td>builtin</td>
+              <td>生成 agent prompt、tool binding 和配置</td>
+              <td><code>CROSS2_PROJECT_PATH</code> 或 <code>../c-ross-2</code></td>
+            </tr>
+            <tr>
+              <td><code>climate_monitor</code></td>
+              <td>builtin</td>
+              <td>运行 climate monitor workflow 并汇总覆盖情况</td>
+              <td><code>CLIMATE_MONITOR_PROJECT_PATH</code> 或 <code>../climate_monitor_wiki</code></td>
+            </tr>
+            <tr>
+              <td><code>ai_actuary</code></td>
+              <td>builtin</td>
+              <td>通过安全 CLI executor 调用精算 reserving pipeline</td>
+              <td><code>AI_ACTUARY_PROJECT_PATH</code> 或 <code>../ai_actuary</code></td>
+            </tr>
+            <tr>
+              <td><code>example_reporter</code></td>
+              <td>community</td>
+              <td>社区 manifest 校验示例</td>
+              <td><code>EXAMPLE_REPORTER_ENABLED</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="run">
+        <h2>怎么运行</h2>
+        <h3>1. 安装依赖</h3>
+        <pre><code>corepack pnpm install</code></pre>
+
+        <h3>2. 启动 API server</h3>
+        <pre><code>corepack pnpm --filter @workspace/api-server run dev</code></pre>
+
+        <h3>3. 启动 Agent OS UI</h3>
+        <pre><code>$env:PORT='8080'
+$env:BASE_PATH='/'
+$env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'
+corepack pnpm --dir artifacts/mockup-sandbox run dev</code></pre>
+
+        <h3>4. 打开界面</h3>
+        <p>
+          浏览器访问 <code>http://localhost:8080</code>。Foreground 用于提交
+          Agent 请求，Backstage 用于查看技能目录、运行详情和产物。
+        </p>
+
+        <div class="callout warning">
+          <strong>真实执行开关：</strong>
+          默认不会真实调用外部 CLI、HTTP 或 MCP。需要执行时设置
+          <code>AI_INTERFACE_TOOL_EXECUTION_MODE=real</code>，并配置对应技能的
+          env。DAG ready-step 并发默认上限为 8，可用
+          <code>AI_INTERFACE_DAG_MAX_CONCURRENCY</code> 调整。
+        </div>
+      </section>
+
+      <section id="extend">
+        <h2>怎么扩展技能</h2>
+        <ol>
+          <li>
+            在 <code>skills/community/&lt;skillId&gt;/skill.yaml</code> 创建
+            reviewed community skill，或在 <code>skills/custom/&lt;skillId&gt;/skill.yaml</code>
+            创建本地实验 skill。
+          </li>
+          <li>
+            描述 <code>project</code>、<code>execution</code>、input/output
+            schema、artifact kinds、UI 和权限。
+          </li>
+          <li>
+            运行 <code>corepack pnpm run skill:validate</code>。
+          </li>
+          <li>
+            如改了 OpenAPI，运行 <code>corepack pnpm --filter @workspace/api-spec run codegen</code>。
+          </li>
+          <li>
+            用 API test 和 typecheck 验证后提交 PR。
+          </li>
+        </ol>
+        <p>
+          普通技能应优先保持 manifest-only。只有需要新的核心 executor、API
+          契约或 UI 能力时才修改 TypeScript。
+        </p>
+      </section>
+
+      <section id="verify">
+        <h2>怎么验证</h2>
+        <pre><code>corepack pnpm run skill:validate
+corepack pnpm --filter @workspace/api-server run test
+corepack pnpm --filter @workspace/api-server run typecheck
+corepack pnpm --filter @workspace/api-server run build
+corepack pnpm --filter @workspace/api-spec run codegen
+corepack pnpm run typecheck:libs
+corepack pnpm --dir artifacts/mockup-sandbox run typecheck
+git diff --check</code></pre>
+        <p>
+          本项目的 readiness 和执行结果会脱敏：API 只返回 env var 名称、缺失项、
+          readiness 状态和安全 metadata，不返回密钥、MCP server URL、本地 provider
+          URL、auth token 或原始 header。
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          文件位置：<code>docs/project-overview.html</code>。这是一个纯静态 HTML，
+          可直接用浏览器打开。
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
