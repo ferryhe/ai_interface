@@ -4,8 +4,8 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/real-cli-http-executors`
-- Scope: PR4 of the Skill Registry Generalization program: add opt-in real CLI and HTTP executors while keeping fake execution as the default safe mode.
+- Branch: `codex/planner-provider-registry`
+- Scope: PR5 of the Skill Registry Generalization program: introduce a planner provider registry with OpenAI, deterministic, Anthropic, and Ollama provider selection/readiness.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -60,6 +60,9 @@ Updated: 2026-05-20
 - PR #39 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - PR #39 controller follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - PR #39 follow-up fixes were pushed. Remote re-check found no configured GitHub checks, PR #39 mergeable, the CLI output-buffer thread outdated, and the HTTP redirect-body thread still attached to a current line but confirmed fixed by `cancelResponseBody(response)` plus regression coverage.
+- PR #39 was merged into `main` on 2026-05-20 at merge commit `6adef74f7aed946417ddcab6ad9a4a29958794f2`; the local and remote work branches were confirmed absent after cleanup.
+- Deleted completed heartbeat automation `pr-39-follow-up`.
+- Started PR5 from latest `main` on branch `codex/planner-provider-registry`.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -556,4 +559,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Merge PR #39, delete the work branch locally/remotely, update `main`, and start PR5 from latest `main`.
+- Dispatch the PR5 development agent for Planner Provider Registry, then run spec and code-quality review agents before controller validation and PR publication.
