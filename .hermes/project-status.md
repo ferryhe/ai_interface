@@ -4,8 +4,8 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `main`
-- Scope: Skill Registry Generalization program and follow-up documentation cleanup are complete.
+- Branch: `codex/fix-agent-chat-layout`
+- Scope: Fix Portal chat bubble sizing and review React frontend structure.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -30,6 +30,9 @@ Updated: 2026-05-20
 - The `codex/docs-project-overview` work branch was deleted locally and remotely after merge.
 - Historical local branches `codex/skill-os-interface-runtime` and `codex/address-ai-interface-review-comments` were cleaned up after confirming their work was merged. Local and remote branch lists now only show `main` / `origin/main`.
 - Runtime smoke on 2026-05-20: the Vite frontend is already listening on `8080` and `8081`; the API build succeeds and the API responds to `/api/healthz` and `/api/skills` when launched with `PORT` and `DATABASE_URL`, but DB-backed routes such as `/api/agent-config` return 500 without a reachable Postgres database. The current Vite dev server does not proxy `/api`, so `8080/api/*` returns the frontend HTML fallback rather than API JSON.
+- Portal chat layout follow-up is in progress on `codex/fix-agent-chat-layout`: `Request` and `Agent progress` bubbles now use content-aware sizing instead of fixed 760px width, and the message list scrolls within its available row.
+- Opened PR #46 for the Portal chat layout fix: https://github.com/ferryhe/ai_interface/pull/46
+- Scheduled follow-up automation `pr-46-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
 ## Verification
 
@@ -51,7 +54,13 @@ Updated: 2026-05-20
   - Temporary API launch returned 7 skills from `/api/skills`: `web_listening`, `doc_to_md`, `md_to_rag`, `rag_to_agent`, `climate_monitor`, `ai_actuary`, and `example_reporter`.
   - Temporary API launch returned 500 from `/api/agent-config` because the placeholder Postgres connection is not backed by a running database.
   - Existing Vite dev servers returned `Mockup Canvas` HTML on `8080` and `8081`; same-origin `/api/healthz` on those ports returned HTML fallback.
+- Portal chat layout verification:
+  - Browser measured message bubbles shrinking from 760px to 483px on desktop after the CSS fix.
+  - Browser mobile check at 390px width showed chat bubbles fitting inside the viewport without horizontal overflow.
+  - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 
-- No active PR or leftover work branch in the Skill Registry Generalization or documentation cleanup program. For full local runtime, start/provision Postgres and add or run an API proxy/reverse proxy if the Vite UI should call the API on the same origin.
+- Wait for `pr-46-follow-up` to evaluate remote checks/reviews/Copilot comments, apply safe frontend fixes if needed, merge PR #46 if clean, delete `codex/fix-agent-chat-layout`, and update `main`.

@@ -3682,7 +3682,7 @@ const styles = `
   }
 
   .portal-chat-view {
-    grid-template-rows: 1fr auto auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
     min-height: 0;
   }
 
@@ -3696,14 +3696,23 @@ const styles = `
     gap: 10px;
   }
 
+  .portal-message-list {
+    min-height: 0;
+    overflow: auto;
+    align-content: start;
+  }
+
   .portal-message {
-    width: min(760px, 100%);
+    inline-size: fit-content;
+    max-inline-size: min(48ch, 100%);
     border: 1px solid #263445;
     border-radius: 8px;
     background: #101721;
     display: grid;
     gap: 7px;
     padding: 13px;
+    align-self: start;
+    justify-self: start;
   }
 
   .portal-message.user {
@@ -3720,6 +3729,10 @@ const styles = `
     font-weight: 850;
     text-transform: uppercase;
     letter-spacing: 0;
+  }
+
+  .portal-message p {
+    overflow-wrap: anywhere;
   }
 
   .portal-chat-actions,
