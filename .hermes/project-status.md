@@ -28,6 +28,7 @@ Updated: 2026-05-20
 - Merged PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
 - PR #45 follow-up found 1 actionable Copilot comment on the README skills table separator and fixed it.
 - The `codex/docs-project-overview` work branch was deleted locally and remotely after merge.
+- Historical local branches `codex/skill-os-interface-runtime` and `codex/address-ai-interface-review-comments` were cleaned up after confirming their work was merged. Local and remote branch lists now only show `main` / `origin/main`.
 
 ## Verification
 
@@ -46,4 +47,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- No active PR in the Skill Registry Generalization or documentation cleanup program. Keep `main` as the clean baseline for the next scoped request.
+- No active PR or leftover work branch in the Skill Registry Generalization or documentation cleanup program. Keep `main` as the clean baseline for the next scoped request.
