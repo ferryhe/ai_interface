@@ -12,6 +12,7 @@ const defaultSkillIds = [
   "md_to_rag",
   "rag_to_agent",
   "climate_monitor",
+  "ai_actuary",
   "example_reporter",
 ];
 
@@ -65,7 +66,7 @@ test("loads default YAML manifests in deterministic runtime order", async () => 
     manifests.map((manifest) => manifest.skillId),
     defaultSkillIds,
   );
-  assert.equal(manifests.length, 6);
+  assert.equal(manifests.length, 7);
 });
 
 test("loads explicit roots in builtin, community, then custom source order", async () => {

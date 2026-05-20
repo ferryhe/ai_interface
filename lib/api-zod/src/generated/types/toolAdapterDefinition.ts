@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ModuleId } from "./moduleId";
+import type { ToolAdapterDefinitionWorkingDirectory } from "./toolAdapterDefinitionWorkingDirectory";
 import type { ToolAdapterKind } from "./toolAdapterKind";
 
 export interface ToolAdapterDefinition {
@@ -19,6 +20,8 @@ export interface ToolAdapterDefinition {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: ToolAdapterDefinitionWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;

@@ -58,6 +58,7 @@ test("default runtime registry exposes default skills in order", () => {
     "md_to_rag",
     "rag_to_agent",
     "climate_monitor",
+    "ai_actuary",
     "example_reporter",
   ]);
 });

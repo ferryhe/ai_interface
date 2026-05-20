@@ -9,6 +9,7 @@ import {
 
 export type ToolAdapterKind = "http" | "cli";
 export type ToolAdapterReadinessStatus = "ready" | "missing_required_env";
+export type ToolAdapterWorkingDirectory = "workspace" | "project";
 
 export interface ToolAdapterDefinition {
   adapterId: string;
@@ -21,6 +22,8 @@ export interface ToolAdapterDefinition {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: ToolAdapterWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;

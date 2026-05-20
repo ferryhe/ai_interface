@@ -112,6 +112,7 @@ function copyAdapterDefinition(
     ...definition,
     requiredEnv: [...definition.requiredEnv],
     optionalEnv: [...definition.optionalEnv],
+    command: definition.command ? [...definition.command] : undefined,
     allowedCommands: [...definition.allowedCommands],
   };
 }

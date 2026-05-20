@@ -1,0 +1,121 @@
+skillId: ai_actuary
+moduleId: ai_actuary
+name: AI Actuary Reserving
+description: Invoke the ai_actuary Python reserving pipeline using local JSON/YAML artifacts without reimplementing actuarial calculations in TypeScript.
+category: agent
+project:
+  source: builtin
+  defaultSiblingPath: ../ai_actuary
+  envPath: AI_ACTUARY_PROJECT_PATH
+  repoUrl: https://github.com/ferryhe/ai_actuary
+  packageName: ai_actuary
+execution:
+  kind: cli
+  adapterId: ai_actuary.cli.v1
+  requiredEnv:
+    - AI_ACTUARY_PROJECT_PATH
+  optionalEnv:
+    - AI_ACTUARY_PYTHON
+  command:
+    - python
+    - scripts/run_tool_pipeline.py
+    - --json
+  workingDirectory: project
+  allowedCommands:
+    - python scripts/run_tool_pipeline.py
+  timeoutMs: 300000
+  maxOutputBytes: 1048576
+  readinessHint: Set AI_ACTUARY_PROJECT_PATH to the ai_actuary repo root, or keep ../ai_actuary as a sibling checkout with scripts/run_tool_pipeline.py.
+inputSchema:
+  type: object
+  additionalProperties: false
+  anyOf:
+    - required:
+        - args
+    - required:
+        - pipeline
+        - input
+  properties:
+    args:
+      type: array
+      description: CLI suffix arguments for scripts/run_tool_pipeline.py, for example --pipeline, --input, --artifact-root, and --run-id.
+      items:
+        type: string
+    pipeline:
+      type: string
+      description: Project-relative pipeline YAML path such as tests/fixtures/tool_pipelines/actuarial_reserving_review.yaml.
+    input:
+      type: string
+      description: Project-relative case input artifact path.
+    artifactRoot:
+      type: string
+      description: Optional local artifact output directory.
+    runId:
+      type: string
+      description: Optional stable run id to pass through to ai_actuary.
+outputSchema:
+  type: object
+  additionalProperties: true
+  properties:
+    ok:
+      type: boolean
+    status:
+      type: string
+      enum:
+        - ok
+        - error
+    pipeline_id:
+      type: string
+    version:
+      type: string
+    run_id:
+      type: string
+    artifact_root:
+      type: string
+    command_log_root:
+      type: string
+    run_manifest_path:
+      type: string
+    registry_path:
+      type: string
+    review_store_dir:
+      type: string
+    run_status:
+      type: string
+    failed_step_id:
+      type:
+        - string
+        - "null"
+    error:
+      type:
+        - object
+        - "null"
+    steps:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+  required:
+    - ok
+    - status
+interactionKinds:
+  - approval
+  - blocked
+artifactKinds:
+  - case_input
+  - deterministic_result
+  - narrative_draft
+  - constitution_check
+  - review_packet
+  - review_packet_markdown
+  - operator_handoff
+  - reserve_summary_json
+  - reserve_summary_markdown
+  - run_manifest
+ui:
+  mode: renderer
+  preferredRenderer: json
+permissions:
+  approvalRequired: true
+  canUseNetwork: false
+  canWriteDatabase: false

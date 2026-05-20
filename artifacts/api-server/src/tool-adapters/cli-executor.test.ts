@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
@@ -118,6 +118,180 @@ test("succeeds for an allowed command with JSON stdout", async () => {
   assert.equal(result.eventType, "tool.execution.cli_completed");
 });
 
+test("uses manifest-owned commands from the project working directory", async () => {
+  const result = await withCliScript(
+    "const path = require('node:path');\nconsole.log(JSON.stringify({ argv: process.argv.slice(2), cwdBase: path.basename(process.cwd()) }));\n",
+    async (scriptPath) => {
+      const projectDir = dirname(scriptPath);
+      return new CliToolAdapterExecutor({
+        AI_ACTUARY_PROJECT_PATH: projectDir,
+      }).execute(
+        request(
+          cliAdapter({
+            requiredEnv: ["AI_ACTUARY_PROJECT_PATH"],
+            command: [nodeExecutable, scriptPath, "--json"],
+            workingDirectory: "project",
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+          }),
+          {
+            command: ["malicious", "--ignored"],
+            args: ["--pipeline", "fixture.yaml"],
+          },
+        ),
+      );
+    },
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.deepEqual(result.outputJson?.["argv"], [
+    "--json",
+    "--pipeline",
+    "fixture.yaml",
+  ]);
+  assert.match(String(result.outputJson?.["cwdBase"]), /ai-interface-cli-test-/);
+});
+
+test("maps structured ai_actuary input fields into manifest-owned CLI args", async () => {
+  const result = await withCliScript(
+    "console.log(JSON.stringify({ argv: process.argv.slice(2) }));\n",
+    async (scriptPath) =>
+      new CliToolAdapterExecutor({
+        AI_ACTUARY_PROJECT_PATH: dirname(scriptPath),
+      }).execute(
+        request(
+          cliAdapter({
+            requiredEnv: ["AI_ACTUARY_PROJECT_PATH"],
+            command: [nodeExecutable, scriptPath, "--json"],
+            workingDirectory: "project",
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+          }),
+          {
+            pipeline: "tests/fixtures/tool_pipelines/actuarial_reserving_review.yaml",
+            input: "tmp/case.json",
+            artifactRoot: "tmp/artifacts/run-1",
+            runId: "run-1",
+          },
+        ),
+      ),
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.deepEqual(result.outputJson?.["argv"], [
+    "--json",
+    "--pipeline",
+    "tests/fixtures/tool_pipelines/actuarial_reserving_review.yaml",
+    "--input",
+    "tmp/case.json",
+    "--artifact-root",
+    "tmp/artifacts/run-1",
+    "--run-id",
+    "run-1",
+  ]);
+});
+
+test("uses optional python env override for manifest-owned commands", async () => {
+  const result = await withCliScript(
+    "console.log(JSON.stringify({ ok: true }));\n",
+    async (scriptPath) =>
+      new CliToolAdapterExecutor({
+        AI_ACTUARY_PYTHON: nodeExecutable,
+      }).execute(
+        request(
+          cliAdapter({
+            requiredEnv: [],
+            optionalEnv: ["AI_ACTUARY_PYTHON"],
+            command: ["python", scriptPath],
+            allowedCommands: [`python ${scriptPath}`],
+          }),
+          {},
+          { AI_ACTUARY_PYTHON: nodeExecutable },
+        ),
+      ),
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.deepEqual(result.outputJson, { ok: true });
+});
+
+test("preserves JSON stdout payloads from nonzero manifest-owned commands", async () => {
+  const result = await withCliScript(
+    "console.log(JSON.stringify({ ok: false, status: 'error', error: { message: 'bad input' } }));\nprocess.exit(2);\n",
+    async (scriptPath) =>
+      new CliToolAdapterExecutor({}).execute(
+        request(
+          cliAdapter({
+            requiredEnv: [],
+            command: [nodeExecutable, scriptPath],
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+          }),
+          {},
+          {},
+        ),
+      ),
+  );
+
+  assert.equal(result.status, "failed");
+  assert.deepEqual(result.outputJson, {
+    ok: false,
+    status: "error",
+    error: { message: "bad input" },
+  });
+});
+
+test("rejects manifest-owned commands when the executable is not allowlisted", async () => {
+  const result = await withCliScript(
+    "console.log(JSON.stringify({ ok: true }));\n",
+    async (scriptPath) =>
+      new CliToolAdapterExecutor({}).execute(
+        request(
+          cliAdapter({
+            requiredEnv: [],
+            command: [nodeExecutable, scriptPath],
+            allowedCommands: [`not-node ${scriptPath}`],
+          }),
+          {},
+          {},
+        ),
+      ),
+  );
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.eventType, "tool.execution.cli_rejected");
+});
+
+test("uses the discovered project fallback directory as manifest command cwd", async () => {
+  const result = await withCliScript(
+    "const path = require('node:path');\nconsole.log(JSON.stringify({ cwd: process.cwd(), cwdBase: path.basename(process.cwd()) }));\n",
+    async (scriptPath) => {
+      const projectDir = dirname(scriptPath);
+      return new CliToolAdapterExecutor({}).execute(
+        request(
+          cliAdapter({
+            requiredEnv: ["AI_ACTUARY_PROJECT_PATH"],
+            command: [nodeExecutable, scriptPath],
+            workingDirectory: "project",
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+            projectFallback: {
+              defaultSiblingPath: projectDir,
+              requiredPath: "script.cjs",
+            },
+          }),
+          {},
+          {},
+        ),
+      );
+    },
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.equal(result.outputJson?.["cwd"], "[redacted]");
+  assert.match(String(result.outputJson?.["cwdBase"]), /ai-interface-cli-test-/);
+  assert.equal(
+    result.eventPayload?.["stdout"],
+    `{\"cwd\":\"[redacted]\",\"cwdBase\":\"${result.outputJson?.["cwdBase"]}\"}\n`,
+  );
+});
+
 test("timeout maps to failed and records a warning event", async () => {
   const result = await withCliScript(
     "setTimeout(() => {}, 1000);\n",
@@ -215,6 +389,31 @@ test("rejects executable-only allowlist when args are present", async () => {
   assert.equal(result.status, "failed");
   assert.equal(result.eventType, "tool.execution.cli_rejected");
   assert.match(result.summary ?? "", /not allowed/);
+});
+
+test("redacts JSON-escaped secret variants from CLI stdout", async () => {
+  const secretPath = "C:\\secret\\ai_actuary";
+  const result = await withCliScript(
+    "console.log(JSON.stringify({ secret: process.env.TEST_SECRET }));\n",
+    async (scriptPath) =>
+      new CliToolAdapterExecutor({
+        TEST_CLI_PATH: nodeExecutable,
+        TEST_SECRET: secretPath,
+      }).execute(
+        request(
+          cliAdapter({
+            optionalEnv: ["TEST_SECRET"],
+            allowedCommands: [scriptPath],
+          }),
+          { args: [scriptPath] },
+          { TEST_CLI_PATH: nodeExecutable, TEST_SECRET: secretPath },
+        ),
+      ),
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.deepEqual(result.outputJson, { secret: "[redacted]" });
+  assert.equal(result.eventPayload?.["stdout"], '{"secret":"[redacted]"}\n');
 });
 
 test("timeout resolves even when the child ignores SIGTERM", async () => {

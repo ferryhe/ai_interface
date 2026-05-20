@@ -9,6 +9,7 @@ import type {
   SkillArtifactRenderer,
   SkillCategory,
   SkillExecutionKind,
+  SkillExecutionWorkingDirectory,
   SkillManifest,
   SkillProjectSource,
   SkillUiMode,
@@ -33,6 +34,7 @@ const BUILTIN_SKILL_ORDER = new Map(
     "md_to_rag",
     "rag_to_agent",
     "climate_monitor",
+    "ai_actuary",
   ].map((skillId, index) => [skillId, index]),
 );
 
@@ -42,6 +44,7 @@ const rootSourceOrder = new Map<SkillProjectSource, number>(
   projectSources.map((source, index) => [source, index]),
 );
 const executionKinds = ["http", "cli", "internal", "mcp"] as const;
+const workingDirectories = ["workspace", "project"] as const;
 const interactionKinds = [
   "question",
   "approval",
@@ -275,6 +278,15 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
         DEFAULT_MAX_OUTPUT_BYTES,
         path,
       ),
+      command: stringArray(execution, "command", path),
+      workingDirectory: optionalAllowedValue(
+        execution,
+        "workingDirectory",
+        workingDirectories,
+        "workspace",
+        "execution.workingDirectory",
+        path,
+      ) as SkillExecutionWorkingDirectory,
       allowedCommands: stringArray(execution, "allowedCommands", path),
       supportsResume: optionalBoolean(execution, "supportsResume", false, path),
       readinessHint: optionalString(execution, "readinessHint", path),

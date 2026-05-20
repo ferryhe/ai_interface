@@ -94,6 +94,7 @@ test("creates the default agent config with business and general skills", async 
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "ai_actuary",
       "example_reporter",
     ],
   );
@@ -109,11 +110,12 @@ test("creates the default agent config with business and general skills", async 
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "ai_actuary",
     ].includes(skill.moduleId),
   );
   assert.deepEqual(
     builtInSettings.map((skill) => skill.enabled),
-    [true, true, true, true, true],
+    [true, true, true, true, true, true],
   );
   const exampleReporter = config.businessSkillSettings.find(
     (skill) => skill.moduleId === "example_reporter",

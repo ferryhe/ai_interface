@@ -8,6 +8,7 @@
 import type { ModuleId } from "./moduleId";
 import type { ToolAdapterKind } from "./toolAdapterKind";
 import type { ToolAdapterReadinessStatus } from "./toolAdapterReadinessStatus";
+import type { ToolAdapterReadinessWorkingDirectory } from "./toolAdapterReadinessWorkingDirectory";
 
 export interface ToolAdapterReadiness {
   adapterId: string;
@@ -20,6 +21,8 @@ export interface ToolAdapterReadiness {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: ToolAdapterReadinessWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;

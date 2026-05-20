@@ -4,9 +4,13 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/planner-provider-registry`
-- Scope: PR5 of the Skill Registry Generalization program: introduce a planner provider registry with OpenAI, deterministic, Anthropic, and Ollama provider selection/readiness.
-- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
+- Branch: `feat/skill-manifest-cli-executor`
+- Scope: ai_actuary tool-decomposition rollout PR4: built-in `ai_actuary` SkillManifest plus minimal CLI executor/working-directory support in `ai_interface`.
+- Current PR: #41 https://github.com/ferryhe/ai_interface/pull/41 remains open after the first remote review cycle.
+- This tick accepted and fixed all three in-scope Copilot inline comments: robust JSON-escaped CLI secret redaction, portable `dirname(scriptPath)` test setup, and removal of the unsupported YAML `summary` field.
+- Validation passed this tick: `corepack pnpm --filter @workspace/api-server run test -- cli-executor.test.ts` (command ran the api-server test suite: 169 passed), `corepack pnpm --filter @workspace/api-server run typecheck`, and `git diff --check`.
+- Substitute review gate: independent delegate reviewer inspected the follow-up diff, ran focused checks, and reported no blocking issues.
+- Sibling repos: only rollout state in `/home/ec2-user/work/ai_actuary/.hermes/ai_actuary_tool_decomposition_rollout_state.json` was updated; implementation edits remain confined to `ai_interface`. Stop here to wait for the next 15-minute remote review/check cycle.
 
 ## Current State
 
