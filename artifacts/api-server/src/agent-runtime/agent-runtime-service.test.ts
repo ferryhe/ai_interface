@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createServer, type Server } from "node:http";
 import test from "node:test";
 
 import {
@@ -116,6 +117,42 @@ function customReporterSplitManifest() {
       canUseNetwork: false,
       canWriteDatabase: true,
     },
+  };
+}
+
+async function withAgentHttpServer(): Promise<{
+  url: string;
+  close: () => Promise<void>;
+}> {
+  const server = createServer((req, res) => {
+    let data = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      data += chunk;
+    });
+    req.on("end", () => {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          executedBy: "real-http-test",
+          input: data ? JSON.parse(data) : null,
+        }),
+      );
+    });
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        (server as Server).close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      }),
   };
 }
 
@@ -661,6 +698,56 @@ test("execute_ready runs configured non-approval module runs with the fake adapt
     true,
   );
   assert.equal(JSON.stringify(result).includes("doc.example.internal"), false);
+});
+
+test("execute_ready uses real executor only when explicitly enabled", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const server = await withAgentHttpServer();
+
+  try {
+    const result = await createAgentRun(
+      runtimeRepository,
+      configRepository,
+      {
+        message: "Create a custom onboarding report.",
+        enabledSkillIds: ["custom_reporter"],
+        executionMode: "execute_ready",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "sk-test-secret",
+          AI_INTERFACE_TOOL_EXECUTION_MODE: "real",
+          CUSTOM_REPORTER_API_BASE_URL: server.url,
+        },
+        planner: customReporterModuleOnlyPlanner(),
+        skillManifests: [customReporterSplitManifest()],
+      },
+    );
+
+    assert.equal(result.status, "planned");
+    assert.equal(result.pipelineRun.status, "succeeded");
+    assert.equal(result.moduleRuns[0]?.status, "succeeded");
+    assert.deepEqual(result.moduleRuns[0]?.outputJson, {
+      executedBy: "real-http-test",
+      input: { topic: "onboarding" },
+    });
+    assert.equal(
+      runtimeRepository.runEvents.some(
+        (event) => event.eventType === "tool.execution.http_completed",
+      ),
+      true,
+    );
+    assert.equal(
+      runtimeRepository.runEvents.some(
+        (event) => event.eventType === "tool.execution.fake_completed",
+      ),
+      false,
+    );
+    assert.equal(JSON.stringify(result).includes(server.url), false);
+  } finally {
+    await server.close();
+  }
 });
 
 test("execute_ready skips approval-required runs without calling the executor", async () => {

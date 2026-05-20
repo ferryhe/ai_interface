@@ -16,6 +16,7 @@ import {
 import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 
 export type ToolExecutionStatus = "succeeded" | "failed";
+export type ToolExecutionEngineMode = "fake" | "real";
 type ToolExecutionLifecycleStatus = ToolExecutionStatus | "skipped";
 
 export interface ToolExecutionRequest {
