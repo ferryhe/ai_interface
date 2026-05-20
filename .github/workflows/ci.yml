@@ -5,6 +5,8 @@ name: CI
   push:
     branches:
       - main
+      - 'ci/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
