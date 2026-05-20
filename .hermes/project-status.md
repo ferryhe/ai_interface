@@ -1,13 +1,15 @@
 # ai_interface Project Status
 
-Updated: 2026-05-20T11:36:02Z
+Updated: 2026-05-20T11:37:14Z
 
 ## Active Work
 
 - Branch: `feat/actuarial-pipeline-runner`
 - Scope: PR5 of the ai_actuary tool-decomposition rollout: actuarial pipeline runner/API visibility in `ai_interface` using the existing ai_actuary CLI/file-artifact contract; no TypeScript actuarial calculation reimplementation.
 - PR4 `feat/skill-manifest-cli-executor` is merged as #41 (`6205aea`).
-- PR5 implementation is ready to commit/open: added built-in actuarial pipeline manifest, local runner service, pipeline routes, OpenAPI/generated clients, and command/read guards.
+- PR5 is open as #42: https://github.com/ferryhe/ai_interface/pull/42
+- Head commit at PR creation: `401c1e4`.
+- Remote state at creation: `mergeStateStatus=CLEAN`, `mergeable=MERGEABLE`, no checks reported yet.
 - Review gate: Codex CLI was attempted and blocked because the ChatGPT account does not support `gpt-5.2-codex`; substituted independent delegate reviewers. Accepted fixes aligned the manifest with ai_actuary's tool-runner contract, documented/auto-injected `X-AI-Interface-Command-Intent: actuarial-pipeline-run`, and guarded read routes with localhost/same-origin checks. Final delegate re-review reported no blockers.
 
 ## Verification
@@ -21,9 +23,9 @@ Updated: 2026-05-20T11:36:02Z
 
 ## Dirty / Untracked State Noticed
 
-- Current PR5 files are still uncommitted before controller commit/push/PR creation.
-- Sibling `ai_actuary` keeps the intentionally untracked rollout plan doc `docs/plans/2026-05-20-ai-actuary-tool-decomposition-pr-plan.md`.
+- `ai_interface` worktree is clean after pushing PR5.
+- Sibling `ai_actuary` keeps the intentionally untracked rollout plan doc `docs/plans/2026-05-20-ai-actuary-tool-decomposition-pr-plan.md` and local tracker/status updates.
 
 ## Next Safe Action
 
-- Commit and push `feat/actuarial-pipeline-runner`, open PR5, update rollout state with the PR number/URL, then stop this tick and wait for the next scheduled remote review/check cycle.
+- Stop this tick. On the next scheduled run, inspect PR #42 checks, reviews, issue comments, and inline comments; fix only confirmed in-scope issues, otherwise squash-merge if clean and proceed to PR6.
