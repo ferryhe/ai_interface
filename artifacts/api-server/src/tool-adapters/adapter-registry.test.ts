@@ -125,6 +125,61 @@ test("reports readiness for a single adapter with copied arrays", () => {
   assert.notEqual(readiness.allowedCommands, definition.allowedCommands);
 });
 
+test("treats mcpServerEnv as required even when a definition omits it from requiredEnv", () => {
+  const readiness = getAdapterReadiness(
+    {
+      adapterId: "test.mcp.v1",
+      moduleId: "rag_to_agent",
+      adapterKind: "mcp",
+      displayName: "Test MCP",
+      description: "Test MCP adapter.",
+      sourceRepo: "https://example.com/test-mcp",
+      requiredEnv: [],
+      optionalEnv: [],
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+      allowedCommands: [],
+      supportsResume: false,
+      readinessHint: "Set TEST_MCP_SERVER_URL.",
+      mcpServerEnv: "TEST_MCP_SERVER_URL",
+      mcpToolName: "test.tool",
+    },
+    {},
+  );
+
+  assert.equal(readiness.status, "missing_required_env");
+  assert.equal(readiness.configured, false);
+  assert.deepEqual(readiness.requiredEnv, ["TEST_MCP_SERVER_URL"]);
+  assert.deepEqual(readiness.missingRequiredEnv, ["TEST_MCP_SERVER_URL"]);
+});
+
+test("does not duplicate mcpServerEnv when an MCP definition already requires it", () => {
+  const readiness = getAdapterReadiness(
+    {
+      adapterId: "test.mcp.v1",
+      moduleId: "rag_to_agent",
+      adapterKind: "mcp",
+      displayName: "Test MCP",
+      description: "Test MCP adapter.",
+      sourceRepo: "https://example.com/test-mcp",
+      requiredEnv: ["TEST_MCP_SERVER_URL"],
+      optionalEnv: [],
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+      allowedCommands: [],
+      supportsResume: false,
+      readinessHint: "Set TEST_MCP_SERVER_URL.",
+      mcpServerEnv: "TEST_MCP_SERVER_URL",
+      mcpToolName: "test.tool",
+    },
+    { TEST_MCP_SERVER_URL: "http://127.0.0.1:7331/mcp" },
+  );
+
+  assert.equal(readiness.status, "ready");
+  assert.deepEqual(readiness.requiredEnv, ["TEST_MCP_SERVER_URL"]);
+  assert.deepEqual(readiness.missingRequiredEnv, []);
+});
+
 test("uses the climate monitor sibling fallback for adapter readiness", () => {
   const definition = getAdapterDefinition("climate_monitor");
   const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");

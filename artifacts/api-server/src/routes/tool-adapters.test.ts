@@ -73,6 +73,46 @@ function customReporterManifest(): SkillManifest {
   };
 }
 
+function customMcpManifest(): SkillManifest {
+  return {
+    skillId: "custom_mcp",
+    moduleId: "custom_mcp",
+    name: "Custom MCP",
+    description: "Call a custom MCP tool.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_mcp",
+    },
+    execution: {
+      kind: "mcp",
+      adapterId: "custom_mcp.mcp.v1",
+      requiredEnv: ["CUSTOM_MCP_SERVER_URL"],
+      optionalEnv: ["CUSTOM_MCP_AUTH_TOKEN"],
+      timeoutMs: 45000,
+      maxOutputBytes: 131072,
+      allowedCommands: [],
+      supportsResume: false,
+      mcpServerEnv: "CUSTOM_MCP_SERVER_URL",
+      mcpToolName: "custom.tool",
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["custom_result"],
+    interactionKinds: [],
+    ui: {
+      mode: "auto",
+      preferredRenderer: "json",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+  };
+}
+
 test("/tool-adapters can be served from an injected custom registry", async () => {
   const response = await withToolAdaptersApp(
     (baseUrl) => fetch(`${baseUrl}/tool-adapters`),
@@ -120,5 +160,36 @@ test("/tool-adapters can be served from an injected custom registry", async () =
       missingRequiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
       configuredOptionalEnv: [],
     },
+  ]);
+});
+
+test("/tool-adapters preserves custom MCP adapter metadata", async () => {
+  const response = await withToolAdaptersApp(
+    (baseUrl) => fetch(`${baseUrl}/tool-adapters`),
+    [customMcpManifest()],
+  );
+  const json = (await response.json()) as {
+    adapters: Array<{
+      adapterKind: string;
+      mcpServerEnv?: string;
+      mcpToolName?: string;
+    }>;
+    readiness: Array<{
+      adapterKind: string;
+      mcpServerEnv?: string;
+      mcpToolName?: string;
+      missingRequiredEnv: string[];
+    }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.adapters[0]?.adapterKind, "mcp");
+  assert.equal(json.adapters[0]?.mcpServerEnv, "CUSTOM_MCP_SERVER_URL");
+  assert.equal(json.adapters[0]?.mcpToolName, "custom.tool");
+  assert.equal(json.readiness[0]?.adapterKind, "mcp");
+  assert.equal(json.readiness[0]?.mcpServerEnv, "CUSTOM_MCP_SERVER_URL");
+  assert.equal(json.readiness[0]?.mcpToolName, "custom.tool");
+  assert.deepEqual(json.readiness[0]?.missingRequiredEnv, [
+    "CUSTOM_MCP_SERVER_URL",
   ]);
 });

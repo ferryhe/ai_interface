@@ -7,7 +7,7 @@ import {
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
 
-export type ToolAdapterKind = "http" | "cli";
+export type ToolAdapterKind = "http" | "cli" | "mcp";
 export type ToolAdapterReadinessStatus = "ready" | "missing_required_env";
 export type ToolAdapterWorkingDirectory = "workspace" | "project";
 
@@ -27,6 +27,8 @@ export interface ToolAdapterDefinition {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
   projectFallback?: {
     defaultSiblingPath: string;
     requiredPath: string;
@@ -86,6 +88,18 @@ function hasReadyProjectFallback(
   );
 }
 
+function requiredEnvForReadiness(definition: ToolAdapterDefinition): string[] {
+  const requiredEnv = [...definition.requiredEnv];
+  if (
+    definition.adapterKind === "mcp" &&
+    definition.mcpServerEnv &&
+    !requiredEnv.includes(definition.mcpServerEnv)
+  ) {
+    requiredEnv.push(definition.mcpServerEnv);
+  }
+  return requiredEnv;
+}
+
 export function listAdapterReadiness(
   env: Record<string, string | undefined> = process.env,
   options: AdapterReadinessOptions = {},
@@ -101,11 +115,13 @@ export function getAdapterReadiness(
   env: Record<string, string | undefined> = process.env,
   options: AdapterReadinessOptions = {},
 ): ToolAdapterReadiness {
-  let missingRequiredEnv = definition.requiredEnv.filter(
+  const requiredEnv = requiredEnvForReadiness(definition);
+  let missingRequiredEnv = requiredEnv.filter(
     (name) => !hasEnvValue(env, name),
   );
   if (
     missingRequiredEnv.length > 0 &&
+    !missingRequiredEnv.includes(definition.mcpServerEnv ?? "") &&
     hasReadyProjectFallback(definition, options)
   ) {
     missingRequiredEnv = [];
@@ -117,7 +133,7 @@ export function getAdapterReadiness(
 
   return {
     ...definition,
-    requiredEnv: [...definition.requiredEnv],
+    requiredEnv,
     optionalEnv: [...definition.optionalEnv],
     allowedCommands: [...definition.allowedCommands],
     projectFallback: definition.projectFallback

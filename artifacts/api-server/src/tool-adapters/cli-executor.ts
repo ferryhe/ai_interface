@@ -217,6 +217,25 @@ function hasAllowedCommandPrefix(args: string[], allowedCommand: string): boolea
   return allowedParts.every((part, index) => args[index] === part);
 }
 
+function allowedArgsForExecutable(
+  allowedCommand: string,
+  executableValues: string[],
+): string[] | null {
+  const allowedLower = allowedCommand.toLowerCase();
+  const executableMatches = [...executableValues].sort(
+    (left, right) => right.length - left.length,
+  );
+
+  for (const executable of executableMatches) {
+    if (allowedLower === executable) return [];
+    if (allowedLower.startsWith(`${executable} `)) {
+      return allowedCommand.slice(executable.length).trim().split(/\s+/).filter(Boolean);
+    }
+  }
+
+  return null;
+}
+
 function isAllowedCommand(
   adapter: ToolAdapterDefinition,
   executable: string,
@@ -228,6 +247,11 @@ function isAllowedCommand(
     if (!allowed) return false;
     if (args.length === 0 && executableValues.includes(allowed.toLowerCase())) {
       return true;
+    }
+    const allowedExecutableArgs = allowedArgsForExecutable(allowed, executableValues);
+    if (allowedExecutableArgs) {
+      if (allowedExecutableArgs.length === 0) return args.length === 0;
+      return allowedExecutableArgs.every((part, index) => args[index] === part);
     }
     const allowedParts = allowed.split(/\s+/).filter(Boolean);
     if (allowedParts.length > 1) {

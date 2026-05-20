@@ -25,4 +25,6 @@ export interface ToolAdapterDefinition {
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
 }

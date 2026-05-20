@@ -5,6 +5,7 @@ import type { ToolAdapterDefinition } from "./adapter-registry";
 import { CliToolAdapterExecutor } from "./cli-executor";
 import { FakeToolAdapterExecutor } from "./executor";
 import { HttpToolAdapterExecutor } from "./http-executor";
+import { McpToolAdapterExecutor } from "./mcp-executor";
 import { createToolAdapterExecutor } from "./executor-router";
 
 function adapter(kind: ToolAdapterDefinition["adapterKind"]): ToolAdapterDefinition {
@@ -45,4 +46,18 @@ test("real mode routes HTTP adapters to the HTTP executor", () => {
   });
 
   assert.equal(executor instanceof HttpToolAdapterExecutor, true);
+});
+
+test("fake mode keeps MCP adapters on the fake executor", () => {
+  const executor = createToolAdapterExecutor(adapter("mcp"), {});
+
+  assert.equal(executor instanceof FakeToolAdapterExecutor, true);
+});
+
+test("real mode routes MCP adapters to the MCP executor", () => {
+  const executor = createToolAdapterExecutor(adapter("mcp"), {
+    AI_INTERFACE_TOOL_EXECUTION_MODE: "real",
+  });
+
+  assert.equal(executor instanceof McpToolAdapterExecutor, true);
 });

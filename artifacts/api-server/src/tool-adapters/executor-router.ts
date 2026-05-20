@@ -6,6 +6,7 @@ import {
 } from "./executor";
 import { CliToolAdapterExecutor } from "./cli-executor";
 import { HttpToolAdapterExecutor } from "./http-executor";
+import { McpToolAdapterExecutor } from "./mcp-executor";
 
 function executionMode(
   env: Record<string, string | undefined>,
@@ -27,6 +28,10 @@ export function createToolAdapterExecutor(
 
   if (adapter.adapterKind === "http") {
     return new HttpToolAdapterExecutor(env);
+  }
+
+  if (adapter.adapterKind === "mcp") {
+    return new McpToolAdapterExecutor(env);
   }
 
   return new FakeToolAdapterExecutor();
