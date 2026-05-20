@@ -17,6 +17,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActuarialPipelineRun,
+  ActuarialPipelineRunsList,
   AgentConfigResponse,
   AgentConnectionTestResponse,
   AgentRunDetail,
@@ -39,6 +41,7 @@ import type {
   PortalAccessVerificationResponse,
   RunEvent,
   SkillListResponse,
+  StartPipelineRunRequest,
   SubmitToolFeedbackRequest,
   ToolAdapterListResponse,
   ToolInteractionResponse,
@@ -1488,6 +1491,261 @@ export function useGetAgentRun<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetAgentRunQueryOptions(pipelineRunId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Starts the built-in ai_actuary actuarial reserving review pipeline over registered file-artifact CLI tools. The response exposes Backstage-safe step status, inputs, logs, artifacts, and errors without reimplementing actuarial calculations in TypeScript. This endpoint triggers local CLI execution and therefore requires the command-intent header plus the server-side localhost/same-origin request guard.
+ * @summary Start an actuarial pipeline run
+ */
+export const getStartPipelineRunUrl = () => {
+  return `/api/pipelines/runs`;
+};
+
+export const startPipelineRun = async (
+  startPipelineRunRequest: StartPipelineRunRequest,
+  options?: RequestInit,
+): Promise<ActuarialPipelineRun> => {
+  return customFetch<ActuarialPipelineRun>(getStartPipelineRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(startPipelineRunRequest),
+  });
+};
+
+export const getStartPipelineRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startPipelineRun>>,
+    TError,
+    { data: BodyType<StartPipelineRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startPipelineRun>>,
+  TError,
+  { data: BodyType<StartPipelineRunRequest> },
+  TContext
+> => {
+  const mutationKey = ["startPipelineRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startPipelineRun>>,
+    { data: BodyType<StartPipelineRunRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return startPipelineRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartPipelineRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startPipelineRun>>
+>;
+export type StartPipelineRunMutationBody = BodyType<StartPipelineRunRequest>;
+export type StartPipelineRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Start an actuarial pipeline run
+ */
+export const useStartPipelineRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startPipelineRun>>,
+    TError,
+    { data: BodyType<StartPipelineRunRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startPipelineRun>>,
+  TError,
+  { data: BodyType<StartPipelineRunRequest> },
+  TContext
+> => {
+  return useMutation(getStartPipelineRunMutationOptions(options));
+};
+
+/**
+ * Requires a localhost/same-origin request because run records can include local artifact paths and artifact payload previews.
+ * @summary List actuarial pipeline runs
+ */
+export const getListActuarialPipelineRunsUrl = () => {
+  return `/api/pipelines/runs`;
+};
+
+export const listActuarialPipelineRuns = async (
+  options?: RequestInit,
+): Promise<ActuarialPipelineRunsList> => {
+  return customFetch<ActuarialPipelineRunsList>(
+    getListActuarialPipelineRunsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListActuarialPipelineRunsQueryKey = () => {
+  return [`/api/pipelines/runs`] as const;
+};
+
+export const getListActuarialPipelineRunsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listActuarialPipelineRuns>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listActuarialPipelineRuns>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListActuarialPipelineRunsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listActuarialPipelineRuns>>
+  > = ({ signal }) => listActuarialPipelineRuns({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listActuarialPipelineRuns>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListActuarialPipelineRunsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listActuarialPipelineRuns>>
+>;
+export type ListActuarialPipelineRunsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List actuarial pipeline runs
+ */
+
+export function useListActuarialPipelineRuns<
+  TData = Awaited<ReturnType<typeof listActuarialPipelineRuns>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listActuarialPipelineRuns>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListActuarialPipelineRunsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Requires a localhost/same-origin request because run details can include local artifact paths and artifact payload previews.
+ * @summary Get an actuarial pipeline run
+ */
+export const getGetPipelineRunUrl = (runId: string) => {
+  return `/api/pipelines/runs/${runId}`;
+};
+
+export const getPipelineRun = async (
+  runId: string,
+  options?: RequestInit,
+): Promise<ActuarialPipelineRun> => {
+  return customFetch<ActuarialPipelineRun>(getGetPipelineRunUrl(runId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPipelineRunQueryKey = (runId: string) => {
+  return [`/api/pipelines/runs/${runId}`] as const;
+};
+
+export const getGetPipelineRunQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPipelineRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  runId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPipelineRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPipelineRunQueryKey(runId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPipelineRun>>> = ({
+    signal,
+  }) => getPipelineRun(runId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!runId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPipelineRun>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPipelineRunQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPipelineRun>>
+>;
+export type GetPipelineRunQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get an actuarial pipeline run
+ */
+
+export function useGetPipelineRun<
+  TData = Awaited<ReturnType<typeof getPipelineRun>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  runId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPipelineRun>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPipelineRunQueryOptions(runId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
