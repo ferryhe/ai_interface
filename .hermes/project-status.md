@@ -1,11 +1,11 @@
 # ai_interface Project Status
 
-Updated: 2026-05-19
+Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/custom-community-skill-dx`
-- Scope: PR3 of the Skill Registry Generalization program: add community/custom skill discovery, override policy, local validation CLI, and contributor documentation without network install behavior.
+- Branch: `codex/real-cli-http-executors`
+- Scope: PR4 of the Skill Registry Generalization program: add opt-in real CLI and HTTP executors while keeping fake execution as the default safe mode.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -38,6 +38,9 @@ Updated: 2026-05-19
 - Opened PR #38 for `codex/custom-community-skill-dx`: https://github.com/ferryhe/ai_interface/pull/38
 - Scheduled follow-up automation `pr-38-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
 - PR #38 follow-up found no configured GitHub checks and two Copilot comments. Both were confirmed safe and fixed: loader now rejects `project.source` mismatches for known `skills/builtin`, `skills/community`, and `skills/custom` roots, and `skill:validate` reuses the already loaded manifest list instead of parsing YAML twice.
+- PR #38 was merged into `main` on 2026-05-20 at merge commit `ce0e4a3e2c1a3301888a1d02cae047931b58da4d`; the local and remote work branches were confirmed absent after cleanup.
+- Deleted completed heartbeat automation `pr-38-follow-up`.
+- Started PR4 from latest `main` on branch `codex/real-cli-http-executors`.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -534,4 +537,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Wait for `pr-38-follow-up`, then evaluate PR #38 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR4 from latest `main`.
+- Dispatch the PR4 development agent for opt-in real CLI/HTTP executors, then run spec and code-quality review agents before controller validation and PR publication.
