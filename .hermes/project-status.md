@@ -4,9 +4,9 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `main`
-- Scope: Skill Registry Generalization program complete.
-- Sibling repos: off-limits; all work stayed confined to `ai_interface`.
+- Branch: `codex/docs-project-overview`
+- Scope: Documentation cleanup, current project guide, and static HTML project introduction.
+- Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
@@ -21,7 +21,12 @@ Updated: 2026-05-20
 - PR #44 follow-up addressed 2 Copilot comments before merge: DAG planner types now use the `dag-executor` source of truth, and DAG ready-step execution has bounded concurrency with optional `AI_INTERFACE_DAG_MAX_CONCURRENCY`.
 - Work branches for the completed PRs were deleted after merge.
 - Follow-up automations for merged PRs were deleted or are being removed as they complete.
-- Unrelated untracked `vite-smoke.out.log` remains untouched.
+- Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, retired Replit workspace files, and `docs/project-overview.html`.
+- `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
+- `.replit`, `.replitignore`, and `replit.md` were removed because development is no longer Replit-based.
+- Opened PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
+- PR #45 follow-up found 1 actionable Copilot comment on the README skills table separator and fixed it.
+- Scheduled follow-up automation `pr-45-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
 ## Verification
 
@@ -32,8 +37,12 @@ Updated: 2026-05-20
   - `corepack pnpm run typecheck:libs` passed.
   - `git diff --check` passed with CRLF warnings only.
 - GitHub PR #44 had no configured checks. Copilot's 2 original review threads were outdated after the follow-up fix commit, and no new comments were present before merge.
+- Documentation cleanup verification:
+  - `corepack pnpm run skill:validate` passed with 7 loaded skills.
+  - `git diff --check` passed with CRLF warnings only.
+  - Current README, community docs, project guide, and status notes were scanned for stale "four skills" and "This PR does not" wording.
+  - PR #45 follow-up validation after the README table fix passed: `corepack pnpm run skill:validate` and `git diff --check`.
 
 ## Next Action
 
-- No remaining PRs in the Skill Registry Generalization plan.
-- Keep `main` as the clean baseline for future work.
+- Wait for `pr-45-follow-up` to evaluate remote checks/reviews/Copilot comments, apply safe documentation fixes if needed, merge PR #45 if clean, delete `codex/docs-project-overview`, and update `main`.
