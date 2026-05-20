@@ -157,9 +157,10 @@ export function createDefaultBusinessSkillSettings(
     const definition = registry.getBusinessSkillDefinition(
       moduleDefinition.moduleId,
     );
+    const source = definition.manifest?.project.source;
     return {
       moduleId: definition.moduleId,
-      enabled: true,
+      enabled: source === "community" || source === "custom" ? false : true,
       approvalRequired: definition.permissionDefaults.approvalRequired,
       canUseNetwork: definition.permissionDefaults.canUseNetwork,
       canWriteDatabase: definition.permissionDefaults.canWriteDatabase,

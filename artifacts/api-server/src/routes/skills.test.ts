@@ -75,7 +75,7 @@ function customReporterManifest(): SkillManifest {
   };
 }
 
-test("/skills returns built-in manifests and readiness", async () => {
+test("/skills returns default manifests and readiness", async () => {
   const response = await withSkillsApp((baseUrl) => fetch(`${baseUrl}/skills`));
   const json = (await response.json()) as {
     skills: Array<{
@@ -98,6 +98,7 @@ test("/skills returns built-in manifests and readiness", async () => {
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "example_reporter",
     ],
   );
   assert.equal(json.skills[0]?.project.defaultSiblingPath, "../web_listening");
@@ -111,6 +112,7 @@ test("/skills returns built-in manifests and readiness", async () => {
       ["md_to_rag", "not_configured"],
       ["rag_to_agent", "not_configured"],
       ["climate_monitor", "not_configured"],
+      ["example_reporter", "not_configured"],
     ],
   );
 });

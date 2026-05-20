@@ -8,7 +8,7 @@ import {
   listSkillReadiness,
 } from "./skill-manifest";
 
-test("built-in skill manifests map the five project skills", () => {
+test("default skill manifests map built-in and community project skills", () => {
   assert.deepEqual(
     builtinSkillManifests.map((skill) => [
       skill.skillId,
@@ -20,6 +20,7 @@ test("built-in skill manifests map the five project skills", () => {
       ["md_to_rag", "../c-ross-2"],
       ["rag_to_agent", "../c-ross-2"],
       ["climate_monitor", "../climate_monitor_wiki"],
+      ["example_reporter", "skills/community/example_reporter"],
     ],
   );
 

@@ -93,7 +93,7 @@ export const GetSkillsResponse = zod.object({
       description: zod.string(),
       category: zod.enum(["source", "transform", "index", "agent"]),
       project: zod.object({
-        source: zod.enum(["builtin", "external"]),
+        source: zod.enum(["builtin", "community", "custom", "external"]),
         defaultSiblingPath: zod.string(),
         envPath: zod.string().optional(),
         repoUrl: zod.string().optional(),

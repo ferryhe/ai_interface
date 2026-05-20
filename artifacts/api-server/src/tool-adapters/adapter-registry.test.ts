@@ -18,6 +18,7 @@ test("registers one adapter for each business module", () => {
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "example_reporter",
     ],
   );
   assert.equal(getAdapterDefinition("doc_to_md").adapterKind, "http");
@@ -62,6 +63,14 @@ test("reports missing required env without exposing env values", () => {
   assert.equal(climateMonitor?.status, "missing_required_env");
   assert.deepEqual(climateMonitor?.missingRequiredEnv, [
     "CLIMATE_MONITOR_PROJECT_PATH",
+  ]);
+
+  const exampleReporter = readiness.find(
+    (item) => item.moduleId === "example_reporter",
+  );
+  assert.equal(exampleReporter?.status, "missing_required_env");
+  assert.deepEqual(exampleReporter?.missingRequiredEnv, [
+    "EXAMPLE_REPORTER_ENABLED",
   ]);
 });
 

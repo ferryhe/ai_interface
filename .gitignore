@@ -32,6 +32,8 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+/skills/custom/*
+!/skills/custom/.gitkeep
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log

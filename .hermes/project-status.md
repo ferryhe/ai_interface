@@ -4,8 +4,8 @@ Updated: 2026-05-19
 
 ## Active Work
 
-- Branch: `codex/yaml-skill-loader`
-- Scope: PR2 of the Skill Registry Generalization program: add a YAML skill loader and migrate the five built-in skill manifests into `skills/builtin/*/skill.yaml` while preserving runtime behavior.
+- Branch: `codex/custom-community-skill-dx`
+- Scope: PR3 of the Skill Registry Generalization program: add community/custom skill discovery, override policy, local validation CLI, and contributor documentation without network install behavior.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -28,6 +28,16 @@ Updated: 2026-05-19
 - Added README documentation for built-in YAML manifests and the `climate_monitor` built-in mapping.
 - Opened PR #37 for `codex/yaml-skill-loader`: https://github.com/ferryhe/ai_interface/pull/37
 - Scheduled follow-up automation `pr-37-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #37 follow-up found no configured GitHub checks and no inline or issue comments; Copilot provided a summary-only COMMENTED review with no requested changes.
+- PR #37 was merged into `main` on 2026-05-19 at merge commit `324d131c39b431298a38a6f399be5e72b7c776ea`; the local and remote work branches were confirmed absent after cleanup.
+- Started PR3 from latest `main` on branch `codex/custom-community-skill-dx`.
+- PR3 implementation completed through the managed multi-agent loop: development agent added community/custom discovery and validation, spec review requested success-payload path redaction, code-quality review requested disabling validation-only community skills by default, and both re-reviews approved after fixes.
+- Extended skill project sources to `builtin`, `community`, `custom`, and `external`; default loader roots now discover `skills/builtin`, `skills/community`, and `skills/custom` with the documented override policy.
+- Added `corepack pnpm run skill:validate` for redacted manifest validation summaries, plus `skills/community/example_reporter/skill.yaml`, community contributor docs, `skills/custom/.gitkeep`, and `.gitignore` rules for local custom skills.
+- Default Agent config now keeps community/custom skills discoverable but disabled by default; the validation-only `example_reporter` requires `EXAMPLE_REPORTER_ENABLED` and approval before it can run.
+- Opened PR #38 for `codex/custom-community-skill-dx`: https://github.com/ferryhe/ai_interface/pull/38
+- Scheduled follow-up automation `pr-38-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #38 follow-up found no configured GitHub checks and two Copilot comments. Both were confirmed safe and fixed: loader now rejects `project.source` mismatches for known `skills/builtin`, `skills/community`, and `skills/custom` roots, and `skill:validate` reuses the already loaded manifest list instead of parsing YAML twice.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -136,6 +146,20 @@ Updated: 2026-05-19
 - YAML Skill Loader PR2 validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
 - YAML Skill Loader PR2 validation: `corepack pnpm run typecheck:libs` passed.
 - YAML Skill Loader PR2 validation: `git diff --check` passed with CRLF warnings only.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm run skill:validate` passed.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm --filter @workspace/api-server run test` passed with 123 tests.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+- Custom/Community Skill DX PR3 validation: `corepack pnpm run typecheck:libs` passed.
+- Custom/Community Skill DX PR3 validation: `git diff --check` passed with CRLF warnings only.
+- Custom/Community Skill DX PR3 follow-up validation: `corepack pnpm run skill:validate` passed.
+- Custom/Community Skill DX PR3 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 127 tests.
+- Custom/Community Skill DX PR3 follow-up validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Custom/Community Skill DX PR3 follow-up validation: `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+- Custom/Community Skill DX PR3 follow-up validation: `corepack pnpm --filter @workspace/api-server run build` passed.
+- Custom/Community Skill DX PR3 follow-up validation: `git diff --check` passed with CRLF warnings only.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run test` passed with 88 tests.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 - Climate Monitor Ops validation: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
@@ -510,4 +534,4 @@ Updated: 2026-05-19
 
 ## Next Action
 
-- Wait for `pr-37-follow-up`, then evaluate PR #37 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR3 from latest `main`.
+- Wait for `pr-38-follow-up`, then evaluate PR #38 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR4 from latest `main`.

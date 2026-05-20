@@ -49,7 +49,7 @@ function customReporterManifest(): SkillManifest {
   };
 }
 
-test("default runtime registry exposes the built-in skills in order", () => {
+test("default runtime registry exposes default skills in order", () => {
   const registry = createSkillRuntimeRegistry();
 
   assert.deepEqual(registry.listSkillIds(), [
@@ -58,6 +58,7 @@ test("default runtime registry exposes the built-in skills in order", () => {
     "md_to_rag",
     "rag_to_agent",
     "climate_monitor",
+    "example_reporter",
   ]);
 });
 

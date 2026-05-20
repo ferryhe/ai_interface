@@ -19,9 +19,10 @@ export interface LoadSkillManifestsOptions {
   cwd?: string;
   readFile?: (path: string) => Promise<string>;
   exists?: (path: string) => boolean;
+  env?: Record<string, string | undefined>;
 }
 
-const DEFAULT_ROOTS = ["skills/builtin"];
+const DEFAULT_ROOTS = ["skills/builtin", "skills/community", "skills/custom"];
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_MAX_OUTPUT_BYTES = 1048576;
 
@@ -36,7 +37,10 @@ const BUILTIN_SKILL_ORDER = new Map(
 );
 
 const skillCategories = ["source", "transform", "index", "agent"] as const;
-const projectSources = ["builtin", "external"] as const;
+const projectSources = ["builtin", "community", "custom", "external"] as const;
+const rootSourceOrder = new Map<SkillProjectSource, number>(
+  projectSources.map((source, index) => [source, index]),
+);
 const executionKinds = ["http", "cli", "internal", "mcp"] as const;
 const interactionKinds = [
   "question",
@@ -50,6 +54,15 @@ const renderers = ["markdown", "table", "json", "text", "image", "file"] as cons
 interface LoadedManifest {
   manifest: SkillManifest;
   path: string;
+  rootIndex: number;
+  discoveryIndex: number;
+}
+
+interface ManifestPath {
+  path: string;
+  rootIndex: number;
+  discoveryIndex: number;
+  expectedSource?: SkillProjectSource;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -335,42 +348,140 @@ async function findManifestPaths(
   roots: string[],
   cwd: string,
   pathExists: (path: string) => boolean,
-): Promise<{ manifestPaths: string[]; resolvedRoots: string[] }> {
-  const manifestPaths: string[] = [];
+): Promise<{
+  manifestPaths: ManifestPath[];
+  resolvedRoots: string[];
+}> {
+  const manifestPaths: ManifestPath[] = [];
   const resolvedRoots: string[] = [];
+  let discoveryIndex = 0;
 
-  for (const root of roots) {
+  for (const [rootIndex, root] of roots.entries()) {
     const rootPath = resolveFromCwd(cwd, root);
+    const expectedSource = expectedSourceForRoot(rootPath);
     resolvedRoots.push(rootPath);
     if (!pathExists(rootPath)) continue;
 
-    const entries = await readdir(rootPath, { withFileTypes: true });
+    const entries = (await readdir(rootPath, { withFileTypes: true })).sort(
+      (left, right) => left.name.localeCompare(right.name),
+    );
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const manifestPath = join(rootPath, entry.name, "skill.yaml");
-      if (pathExists(manifestPath)) manifestPaths.push(manifestPath);
+      if (pathExists(manifestPath)) {
+        manifestPaths.push({
+          path: manifestPath,
+          rootIndex,
+          discoveryIndex,
+          expectedSource,
+        });
+        discoveryIndex += 1;
+      }
     }
   }
 
   return {
-    manifestPaths: manifestPaths.sort((left, right) => left.localeCompare(right)),
+    manifestPaths,
     resolvedRoots,
   };
 }
 
-function assertUniqueManifests(manifests: LoadedManifest[]): void {
+function expectedSourceForRoot(rootPath: string): SkillProjectSource | undefined {
+  const segments = resolve(rootPath)
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+  const parent = segments[segments.length - 2];
+  const leaf = segments[segments.length - 1];
+  if (parent !== "skills") return undefined;
+  if (leaf === "builtin" || leaf === "community" || leaf === "custom") {
+    return leaf;
+  }
+  return undefined;
+}
+
+function assertManifestSourceMatchesRoot(
+  manifest: SkillManifest,
+  path: string,
+  expectedSource?: SkillProjectSource,
+): void {
+  if (!expectedSource || manifest.project.source === expectedSource) return;
+  throw manifestError(
+    path,
+    `project.source mismatch: expected ${expectedSource} from root, found ${manifest.project.source}`,
+  );
+}
+
+function overrideError(
+  loaded: LoadedManifest,
+  existing: LoadedManifest,
+  message: string,
+): Error {
+  return new Error(`${message} in manifests: ${existing.path}, ${loaded.path}`);
+}
+
+function selectManifests(
+  manifests: LoadedManifest[],
+  env: Record<string, string | undefined>,
+): LoadedManifest[] {
   const bySkillId = new Map<string, LoadedManifest>();
+  const selected: LoadedManifest[] = [];
+  const allowBuiltinOverride =
+    env.AI_INTERFACE_ALLOW_BUILTIN_SKILL_OVERRIDE === "1";
+
+  for (const loaded of manifests) {
+    const existing = bySkillId.get(loaded.manifest.skillId);
+    if (!existing) {
+      bySkillId.set(loaded.manifest.skillId, loaded);
+      selected.push(loaded);
+      continue;
+    }
+
+    const existingSource = existing.manifest.project.source;
+    const loadedSource = loaded.manifest.project.source;
+    const skillId = loaded.manifest.skillId;
+
+    if (existingSource === "builtin" && loadedSource === "community") {
+      throw overrideError(
+        loaded,
+        existing,
+        `community cannot override builtin skillId ${skillId}`,
+      );
+    }
+
+    if (existingSource === "builtin" && loadedSource === "custom") {
+      if (!allowBuiltinOverride) {
+        throw overrideError(
+          loaded,
+          existing,
+          `custom cannot override builtin skillId ${skillId}; set AI_INTERFACE_ALLOW_BUILTIN_SKILL_OVERRIDE=1 to allow local override`,
+        );
+      }
+      bySkillId.set(skillId, loaded);
+      selected[selected.indexOf(existing)] = loaded;
+      continue;
+    }
+
+    if (existingSource === "community" && loadedSource === "custom") {
+      bySkillId.set(skillId, loaded);
+      selected[selected.indexOf(existing)] = loaded;
+      continue;
+    }
+
+    throw overrideError(
+      loaded,
+      existing,
+      `Duplicate skillId ${skillId}`,
+    );
+  }
+
+  return selected;
+}
+
+function assertUniqueModuleIds(manifests: LoadedManifest[]): void {
   const byModuleId = new Map<string, LoadedManifest>();
 
   for (const loaded of manifests) {
-    const skillMatch = bySkillId.get(loaded.manifest.skillId);
-    if (skillMatch) {
-      throw new Error(
-        `Duplicate skillId ${loaded.manifest.skillId} in manifests: ${skillMatch.path}, ${loaded.path}`,
-      );
-    }
-    bySkillId.set(loaded.manifest.skillId, loaded);
-
     const moduleMatch = byModuleId.get(loaded.manifest.moduleId);
     if (moduleMatch) {
       throw new Error(
@@ -383,12 +494,20 @@ function assertUniqueManifests(manifests: LoadedManifest[]): void {
 
 function sortManifests(manifests: LoadedManifest[]): LoadedManifest[] {
   return [...manifests].sort((left, right) => {
+    if (left.rootIndex !== right.rootIndex) return left.rootIndex - right.rootIndex;
+    const leftSourceOrder =
+      rootSourceOrder.get(left.manifest.project.source) ?? Number.MAX_SAFE_INTEGER;
+    const rightSourceOrder =
+      rootSourceOrder.get(right.manifest.project.source) ?? Number.MAX_SAFE_INTEGER;
+    if (leftSourceOrder !== rightSourceOrder) {
+      return leftSourceOrder - rightSourceOrder;
+    }
     const leftOrder =
       BUILTIN_SKILL_ORDER.get(left.manifest.skillId) ?? Number.MAX_SAFE_INTEGER;
     const rightOrder =
       BUILTIN_SKILL_ORDER.get(right.manifest.skillId) ?? Number.MAX_SAFE_INTEGER;
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-    return left.path.localeCompare(right.path);
+    return left.discoveryIndex - right.discoveryIndex;
   });
 }
 
@@ -397,6 +516,7 @@ export async function loadSkillManifests(
 ): Promise<SkillManifest[]> {
   const pathExists = options.exists ?? existsSync;
   const roots = options.roots ?? DEFAULT_ROOTS;
+  const env = options.env ?? process.env;
   const requestedCwd = resolve(options.cwd ?? process.cwd());
   const cwd = options.roots
     ? requestedCwd
@@ -420,20 +540,32 @@ export async function loadSkillManifests(
 
   for (const manifestPath of manifestPaths) {
     try {
-      const content = await readFile(manifestPath);
+      const content = await readFile(manifestPath.path);
+      const manifest = normalizeManifest(parse(content), manifestPath.path);
+      assertManifestSourceMatchesRoot(
+        manifest,
+        manifestPath.path,
+        manifestPath.expectedSource,
+      );
       manifests.push({
-        manifest: normalizeManifest(parse(content), manifestPath),
-        path: manifestPath,
+        manifest,
+        path: manifestPath.path,
+        rootIndex: manifestPath.rootIndex,
+        discoveryIndex: manifestPath.discoveryIndex,
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes(manifestPath)) {
+      if (error instanceof Error && error.message.includes(manifestPath.path)) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw manifestError(manifestPath, `Failed to load manifest: ${message}`);
+      throw manifestError(
+        manifestPath.path,
+        `Failed to load manifest: ${message}`,
+      );
     }
   }
 
-  assertUniqueManifests(manifests);
-  return sortManifests(manifests).map((loaded) => loaded.manifest);
+  const selectedManifests = selectManifests(manifests, env);
+  assertUniqueModuleIds(selectedManifests);
+  return sortManifests(selectedManifests).map((loaded) => loaded.manifest);
 }

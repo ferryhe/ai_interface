@@ -1,0 +1,41 @@
+skillId: example_reporter
+moduleId: example_reporter
+name: Example Reporter
+title: Example Reporter
+description: Example community skill manifest for contributor validation.
+category: agent
+project:
+  source: community
+  defaultSiblingPath: skills/community/example_reporter
+  repoUrl: https://github.com/ferryhe/ai_interface
+execution:
+  kind: internal
+  adapterId: example_reporter.internal.v1
+  requiredEnv:
+    - EXAMPLE_REPORTER_ENABLED
+  optionalEnv: []
+  timeoutMs: 30000
+  maxOutputBytes: 65536
+  allowedCommands: []
+  supportsResume: false
+  readinessHint: This validation-only example is disabled unless EXAMPLE_REPORTER_ENABLED is set.
+inputSchema:
+  type: object
+  additionalProperties: true
+outputSchema:
+  type: object
+  properties:
+    report:
+      type: string
+interactionKinds:
+  - question
+artifactKinds:
+  - report_markdown
+ui:
+  mode: auto
+  openOnTrigger: false
+  preferredRenderer: markdown
+permissions:
+  approvalRequired: true
+  canUseNetwork: false
+  canWriteDatabase: true
