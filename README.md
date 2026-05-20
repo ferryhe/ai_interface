@@ -6,7 +6,7 @@ The current runtime wires a generic skill runtime around YAML manifests loaded f
 `skills/builtin`, `skills/community`, and `skills/custom`:
 
 | Skill | Source | Project mapping | Role |
-|---|---|---|
+|---|---|---|---|
 | `web_listening` | builtin | `../web_listening` | Monitor pages, capture snapshots, extract text, and detect changes. |
 | `doc_to_md` | builtin | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
 | `md_to_rag` | builtin | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |

@@ -25,6 +25,7 @@ Updated: 2026-05-20
 - `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
 - `.replit`, `.replitignore`, and `replit.md` were removed because development is no longer Replit-based.
 - Opened PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
+- PR #45 follow-up found 1 actionable Copilot comment on the README skills table separator and fixed it.
 - Scheduled follow-up automation `pr-45-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
 ## Verification
@@ -40,6 +41,7 @@ Updated: 2026-05-20
   - `corepack pnpm run skill:validate` passed with 7 loaded skills.
   - `git diff --check` passed with CRLF warnings only.
   - Current README, community docs, project guide, and status notes were scanned for stale "four skills" and "This PR does not" wording.
+  - PR #45 follow-up validation after the README table fix passed: `corepack pnpm run skill:validate` and `git diff --check`.
 
 ## Next Action
 
