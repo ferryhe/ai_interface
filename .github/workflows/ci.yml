@@ -30,6 +30,10 @@ jobs:
         run: corepack enable
 
       - name: Install dependencies
+        env:
+          # The root preinstall guard checks this variable. GitHub's shell
+          # environment may not populate it even when pnpm is the executable.
+          npm_config_user_agent: pnpm/11.1.3
         run: |
           if [ -f pnpm-lock.yaml ]; then
             pnpm install --frozen-lockfile
