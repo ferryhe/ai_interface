@@ -217,6 +217,14 @@ function normalizeFailureStrategy(
   return value === "continue_independent" ? value : "fail_fast";
 }
 
+export function parseDagMaxConcurrency(value: string | undefined): number | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 1) return undefined;
+  return parsed;
+}
+
 function normalizeStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   return value
@@ -756,6 +764,9 @@ export async function createAgentRun(
         steps: effectivePlan.steps,
         moduleRuns,
         failureStrategy: effectivePlan.failureStrategy,
+        maxConcurrency: parseDagMaxConcurrency(
+          env["AI_INTERFACE_DAG_MAX_CONCURRENCY"],
+        ),
         executeStep: async ({ step, run }) => {
           const definition = definitionForStep(step);
           const executor = createToolAdapterExecutor(definition.adapter, env);

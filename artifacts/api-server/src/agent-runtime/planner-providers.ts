@@ -1,10 +1,14 @@
 import type { AgentConfigRecord } from "../agent-config/agent-config-service";
 import type { BusinessSkillDefinition } from "./skill-registry";
+import type {
+  AgentRuntimePlanMode,
+  DagFailureStrategy,
+} from "./dag-executor";
+
+export type { AgentRuntimePlanMode, DagFailureStrategy } from "./dag-executor";
 
 export type AgentProvider = "openai" | "anthropic" | "ollama" | "deterministic";
 export type AgentConnectionStatus = "configured" | "missing_key";
-export type AgentRuntimePlanMode = "linear" | "dag";
-export type DagFailureStrategy = "fail_fast" | "continue_independent";
 
 export interface PlannerProviderDefinition {
   provider: AgentProvider;

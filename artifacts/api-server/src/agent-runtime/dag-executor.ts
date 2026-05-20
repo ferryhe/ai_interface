@@ -8,6 +8,8 @@ export type AgentRuntimePlanMode = "linear" | "dag";
 
 export type DagFailureStrategy = "fail_fast" | "continue_independent";
 
+export const DEFAULT_DAG_MAX_CONCURRENCY = 8;
+
 export type DagBlockedReason =
   | "approval_required"
   | "upstream_failed"
@@ -50,6 +52,7 @@ export interface ExecuteDagModuleRunsInput<
   steps: TStep[];
   moduleRuns: TRun[];
   failureStrategy?: DagFailureStrategy;
+  maxConcurrency?: number;
   executeStep(
     context: DagExecutionContext<TStep, TRun>,
   ): Promise<TRun>;
@@ -175,6 +178,14 @@ function blockedReasonForStates(states: DagStepState[]): DagBlockedReason {
   return "upstream_blocked";
 }
 
+function normalizeMaxConcurrency(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_DAG_MAX_CONCURRENCY;
+  }
+  const normalized = Math.floor(value);
+  return normalized >= 1 ? normalized : DEFAULT_DAG_MAX_CONCURRENCY;
+}
+
 function blockingDependencies(
   node: ValidatedDagStep,
   states: Map<string, DagStepState>,
@@ -223,6 +234,7 @@ export async function executeDagModuleRuns<
   input: ExecuteDagModuleRunsInput<TStep, TRun>,
 ): Promise<ExecuteDagModuleRunsResult<TRun>> {
   const failureStrategy = input.failureStrategy ?? "fail_fast";
+  const maxConcurrency = normalizeMaxConcurrency(input.maxConcurrency);
   const nodes = validateDagPlan(input.steps);
   if (nodes.length !== input.moduleRuns.length) {
     throw new Error(
@@ -318,15 +330,24 @@ export async function executeDagModuleRuns<
     }
 
     const executable = ready.filter((item) => !item.step.requiresApproval);
-    const executedRuns = await Promise.all(
-      executable.map(async (context) => ({
-        context,
-        run: await input.executeStep({
-          ...context,
-          run: latestRuns[context.index]!,
-        }),
-      })),
-    );
+    const executedRuns: Array<{
+      context: DagExecutionContext<TStep, TRun>;
+      run: TRun;
+    }> = [];
+    for (let index = 0; index < executable.length; index += maxConcurrency) {
+      const batch = executable.slice(index, index + maxConcurrency);
+      executedRuns.push(
+        ...(await Promise.all(
+          batch.map(async (context) => ({
+            context,
+            run: await input.executeStep({
+              ...context,
+              run: latestRuns[context.index]!,
+            }),
+          })),
+        )),
+      );
+    }
 
     for (const { context, run } of executedRuns) {
       latestRuns[context.index] = run;

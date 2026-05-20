@@ -12,6 +12,7 @@ import {
   getAgentRunDetail,
   InMemoryAgentRuntimeRepository,
   OpenAIResponsesPlanner,
+  parseDagMaxConcurrency,
   type AgentPlanner,
 } from "./agent-runtime-service";
 
@@ -1042,6 +1043,16 @@ test("defaults missing plan mode to linear and preserves module-run order", asyn
   );
   assert.equal(result.moduleRuns[0]?.metadata?.["dagStepId"], undefined);
   assert.equal(result.moduleRuns[1]?.metadata?.["dagStepId"], undefined);
+});
+
+test("parses DAG max concurrency environment values", () => {
+  assert.equal(parseDagMaxConcurrency(undefined), undefined);
+  assert.equal(parseDagMaxConcurrency(""), undefined);
+  assert.equal(parseDagMaxConcurrency(" 2 "), 2);
+  assert.equal(parseDagMaxConcurrency("0"), undefined);
+  assert.equal(parseDagMaxConcurrency("-1"), undefined);
+  assert.equal(parseDagMaxConcurrency("2.5"), undefined);
+  assert.equal(parseDagMaxConcurrency("not-a-number"), undefined);
 });
 
 test("dag mode rejects unknown dependencies before creating module runs", async () => {

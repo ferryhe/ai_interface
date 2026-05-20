@@ -18,6 +18,7 @@ Updated: 2026-05-20
 - PR7 review gate passed with no blocking findings. The reviewer requested hardening tests for missing `stepId`, duplicate `stepId`, and `continue_independent`; those tests were added.
 - Opened PR #44 for `codex/dag-pipeline-execution`: https://github.com/ferryhe/ai_interface/pull/44
 - Scheduled follow-up automation `pr-44-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #44 follow-up development addressed 2 Copilot comments locally: planner DAG type unions now come from `dag-executor` via type-only import/re-export, and DAG ready-step execution now supports bounded concurrency with `AI_INTERFACE_DAG_MAX_CONCURRENCY` parsing in the runtime service.
 - Unrelated untracked `vite-smoke.out.log` remains untouched.
 
 ## Verification
@@ -42,7 +43,14 @@ Updated: 2026-05-20
   - `corepack pnpm run typecheck:libs` passed.
   - `git diff --check` passed with CRLF warnings only.
   - UI was not touched; mockup-sandbox typecheck was not run.
+- PR #44 follow-up verification:
+  - `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/dag-executor.test.ts src/agent-runtime/agent-runtime-service.test.ts` passed with 215 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 215 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 
-- Wait for `pr-44-follow-up` to evaluate remote checks/reviews/Copilot comments, apply only confirmed-safe fixes if needed, merge PR #44 if clean, delete `codex/dag-pipeline-execution`, update `main`, and mark the Skill Registry Generalization program complete.
+- Controller should review the local PR #44 follow-up diff, commit and push it to `codex/dag-pipeline-execution`, re-check remote feedback, then merge PR #44 if clean, delete `codex/dag-pipeline-execution`, update `main`, and mark the Skill Registry Generalization program complete.

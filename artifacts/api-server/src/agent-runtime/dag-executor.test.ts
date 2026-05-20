@@ -174,6 +174,58 @@ test("executeDagModuleRuns executes independent ready steps in the same batch", 
   assert.equal(runs.get("run-index")?.status, "succeeded");
 });
 
+test("executeDagModuleRuns caps ready-step concurrency", async () => {
+  const steps: TestDagStep[] = Array.from({ length: 5 }, (_, index) => ({
+    stepId: `step-${index + 1}`,
+    moduleId: "doc_to_md",
+    requiresApproval: false,
+  }));
+  const initialRuns = steps.map((step) =>
+    moduleRun(`run-${step.stepId}`, step.moduleId),
+  );
+  const runs = new Map(initialRuns.map((run) => [run.id, run]));
+  let active = 0;
+  let maxActive = 0;
+  const executed: string[] = [];
+
+  await executeDagModuleRuns({
+    steps,
+    moduleRuns: initialRuns,
+    maxConcurrency: 2,
+    executeStep: async ({ run, stepId }) => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await delay(15);
+      executed.push(stepId);
+      active -= 1;
+      return updateRun(runs, run, "succeeded");
+    },
+    markApprovalRequired: async ({ run }) =>
+      updateRun(runs, run, "pending", {
+        adapterExecutionStatus: "approval_required",
+      }),
+    markBlocked: async ({ run, reason, blockedByStepIds }) =>
+      updateRun(runs, run, "pending", {
+        dagExecutionStatus: "blocked",
+        dagBlockedReason: reason,
+        dagBlockedByStepIds: blockedByStepIds,
+      }),
+  });
+
+  assert.equal(maxActive, 2);
+  assert.deepEqual(executed.sort(), [
+    "step-1",
+    "step-2",
+    "step-3",
+    "step-4",
+    "step-5",
+  ]);
+  assert.equal(
+    Array.from(runs.values()).every((run) => run.status === "succeeded"),
+    true,
+  );
+});
+
 test("executeDagModuleRuns waits for upstream completion before downstream execution", async () => {
   const steps: TestDagStep[] = [
     { stepId: "convert", moduleId: "doc_to_md", requiresApproval: false },
