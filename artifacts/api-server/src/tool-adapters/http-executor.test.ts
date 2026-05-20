@@ -292,6 +292,35 @@ test("rejects metadata redirects without following or leaking auth", async () =>
   assert.equal(serialized.includes("169.254.169.254"), false);
 });
 
+test("cancels redirect response body before rejecting", async () => {
+  let cancelCalled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("redirect body"));
+    },
+    cancel() {
+      cancelCalled = true;
+    },
+  });
+  const fetchFn: typeof fetch = async () =>
+    new Response(stream, {
+      status: 302,
+      headers: { location: "https://attacker.example.test/collect" },
+    });
+
+  const result = await new HttpToolAdapterExecutor(
+    { TEST_HTTP_BASE_URL: "https://safe.example.test/api" },
+    fetchFn,
+  ).execute({
+    ...request(httpAdapter()),
+    run: run({ path: "jobs" }),
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.eventType, "tool.execution.http_rejected");
+  assert.equal(cancelCalled, true);
+});
+
 test("truncates streamed HTTP response and cancels the reader at max bytes", async () => {
   let cancelCalled = false;
   const encoder = new TextEncoder();

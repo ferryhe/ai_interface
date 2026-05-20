@@ -55,6 +55,10 @@ Updated: 2026-05-20
 - PR4 controller validation passed after the second review revision: `corepack pnpm --filter @workspace/api-server run test` passed with 148 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - Opened PR #39 for `codex/real-cli-http-executors`: https://github.com/ferryhe/ai_interface/pull/39
 - Scheduled follow-up automation `pr-39-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #39 follow-up found two valid Copilot comments. The CLI executor now tracks total and captured stdout/stderr byte counts separately and stores only capped chunk copies, including single oversized chunks. The HTTP executor now cancels redirect response bodies before returning redirect rejection.
+- PR #39 follow-up TDD red run confirmed the two new regression tests failed before the fix: oversized CLI stdout chunks were retained past `maxOutputBytes`, and redirect response bodies were not cancelled before rejection.
+- PR #39 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
+- PR #39 controller follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -551,4 +555,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Wait for `pr-39-follow-up`, then evaluate PR #39 checks/reviews, fix confirmed-safe feedback if needed, merge if clean, delete the work branch, and start PR5 from latest `main`.
+- Commit and push the PR #39 follow-up fixes, then re-check remote comments and merge if clean.

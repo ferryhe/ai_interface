@@ -157,6 +157,52 @@ test("output truncation respects maxOutputBytes", async () => {
   assert.equal(result.eventPayload?.["stdoutTruncated"], true);
 });
 
+test("captures only maxOutputBytes from a single oversized stdout chunk", async () => {
+  const maxOutputBytes = 16;
+  const stdout = new PassThrough();
+  const fakeChild = {
+    stdout,
+    stderr: new PassThrough(),
+    on: (event: string, handler: (code: number | null) => void) => {
+      if (event === "close") {
+        setImmediate(() => {
+          stdout.write(Buffer.alloc(1024, "x"));
+          handler(0);
+        });
+      }
+      return fakeChild;
+    },
+    kill: () => true,
+  } as unknown as ChildProcessWithoutNullStreams;
+  const originalConcat = Buffer.concat;
+  let retainedOversizedChunk = false;
+  Buffer.concat = ((chunks: readonly Uint8Array[], totalLength?: number) => {
+    for (const chunk of chunks) {
+      retainedOversizedChunk ||= chunk.byteLength > maxOutputBytes;
+    }
+    return originalConcat(chunks, totalLength);
+  }) as typeof Buffer.concat;
+
+  try {
+    const result = await new CliToolAdapterExecutor(
+      { TEST_CLI_PATH: nodeExecutable },
+      () => fakeChild,
+    ).execute(
+      request(
+        cliAdapter({ allowedCommands: [nodeExecutable], maxOutputBytes }),
+        { args: [] },
+      ),
+    );
+
+    assert.equal(result.status, "succeeded");
+    assert.equal(result.outputJson?.["stdout"], "xxxxxxxxxxxxxxxx");
+    assert.equal(result.eventPayload?.["stdoutTruncated"], true);
+    assert.equal(retainedOversizedChunk, false);
+  } finally {
+    Buffer.concat = originalConcat;
+  }
+});
+
 test("rejects executable-only allowlist when args are present", async () => {
   const result = await new CliToolAdapterExecutor({
     TEST_CLI_PATH: nodeExecutable,

@@ -120,13 +120,28 @@ function isAllowedCommand(
 function captureOutput(
   chunks: Buffer[],
   totalBytes: number,
+  capturedBytes: number,
   maxOutputBytes: number,
 ): CapturedOutput {
-  const output = Buffer.concat(chunks, Math.min(totalBytes, maxOutputBytes));
+  const output = Buffer.concat(chunks, capturedBytes);
   return {
     text: output.toString("utf8"),
     truncated: totalBytes > maxOutputBytes,
   };
+}
+
+function appendCapturedOutput(
+  chunks: Buffer[],
+  capturedBytes: number,
+  chunk: Buffer,
+  maxOutputBytes: number,
+): number {
+  const remaining = maxOutputBytes - capturedBytes;
+  if (remaining <= 0) return capturedBytes;
+
+  const capturedLength = Math.min(chunk.length, remaining);
+  chunks.push(Buffer.from(chunk.subarray(0, capturedLength)));
+  return capturedBytes + capturedLength;
 }
 
 function parseJsonObject(text: string): JsonObject | null {
@@ -216,6 +231,8 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
       const stderrChunks: Buffer[] = [];
       let stdoutBytes = 0;
       let stderrBytes = 0;
+      let stdoutCapturedBytes = 0;
+      let stderrCapturedBytes = 0;
       let timedOut = false;
       let timeout: NodeJS.Timeout | null = null;
       let forceKillTimeout: NodeJS.Timeout | null = null;
@@ -233,11 +250,13 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
         const stdout = captureOutput(
           stdoutChunks,
           stdoutBytes,
+          stdoutCapturedBytes,
           adapter.maxOutputBytes,
         );
         const stderr = captureOutput(
           stderrChunks,
           stderrBytes,
+          stderrCapturedBytes,
           adapter.maxOutputBytes,
         );
         const redactedStdout = redactText(stdout.text, secrets);
@@ -280,15 +299,21 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
 
       child.stdout.on("data", (chunk: Buffer) => {
         stdoutBytes += chunk.length;
-        if (Buffer.concat(stdoutChunks).length < adapter.maxOutputBytes) {
-          stdoutChunks.push(chunk);
-        }
+        stdoutCapturedBytes = appendCapturedOutput(
+          stdoutChunks,
+          stdoutCapturedBytes,
+          chunk,
+          adapter.maxOutputBytes,
+        );
       });
       child.stderr.on("data", (chunk: Buffer) => {
         stderrBytes += chunk.length;
-        if (Buffer.concat(stderrChunks).length < adapter.maxOutputBytes) {
-          stderrChunks.push(chunk);
-        }
+        stderrCapturedBytes = appendCapturedOutput(
+          stderrChunks,
+          stderrCapturedBytes,
+          chunk,
+          adapter.maxOutputBytes,
+        );
       });
       child.on("error", (error) => {
         finish(
@@ -312,11 +337,13 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
         const stdout = captureOutput(
           stdoutChunks,
           stdoutBytes,
+          stdoutCapturedBytes,
           adapter.maxOutputBytes,
         );
         const stderr = captureOutput(
           stderrChunks,
           stderrBytes,
+          stderrCapturedBytes,
           adapter.maxOutputBytes,
         );
         const redactedStdout = redactText(stdout.text, secrets);

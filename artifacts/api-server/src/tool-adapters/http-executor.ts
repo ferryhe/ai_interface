@@ -164,6 +164,14 @@ async function readResponseText(
   };
 }
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Redirect rejection should not expose or depend on response body cleanup errors.
+  }
+}
+
 function authorizationToken(
   adapter: ToolAdapterDefinition,
   env: Record<string, string | undefined>,
@@ -309,6 +317,7 @@ export class HttpToolAdapterExecutor implements ToolAdapterExecutor {
         signal: controller.signal,
       });
       if (response.status >= 300 && response.status < 400) {
+        await cancelResponseBody(response);
         clearTimeout(timeout);
         return httpRejectedResult({
           adapter,
