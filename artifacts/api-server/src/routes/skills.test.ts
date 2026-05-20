@@ -98,6 +98,7 @@ test("/skills returns default manifests and readiness", async () => {
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "ai_actuary",
       "example_reporter",
     ],
   );
@@ -112,6 +113,7 @@ test("/skills returns default manifests and readiness", async () => {
       ["md_to_rag", "not_configured"],
       ["rag_to_agent", "not_configured"],
       ["climate_monitor", "not_configured"],
+      ["ai_actuary", "not_configured"],
       ["example_reporter", "not_configured"],
     ],
   );

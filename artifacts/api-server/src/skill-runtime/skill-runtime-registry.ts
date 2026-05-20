@@ -31,6 +31,9 @@ function cloneSkillManifest(manifest: SkillManifest): SkillManifest {
       ...manifest.execution,
       requiredEnv: [...manifest.execution.requiredEnv],
       optionalEnv: [...manifest.execution.optionalEnv],
+      command: manifest.execution.command
+        ? [...manifest.execution.command]
+        : undefined,
       allowedCommands: [...manifest.execution.allowedCommands],
     },
     inputSchema: { ...manifest.inputSchema },
@@ -55,9 +58,14 @@ function moduleDefinitionFromManifest(
 }
 
 const builtinBusinessSkillOrder = new Map(
-  ["web_listening", "climate_monitor", "doc_to_md", "md_to_rag", "rag_to_agent"].map(
-    (skillId, index) => [skillId, index],
-  ),
+  [
+    "web_listening",
+    "climate_monitor",
+    "ai_actuary",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+  ].map((skillId, index) => [skillId, index]),
 );
 
 function businessSkillOrderIndex(definition: BusinessSkillDefinition): number {

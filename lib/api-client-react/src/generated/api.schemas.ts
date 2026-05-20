@@ -59,6 +59,14 @@ export const ToolAdapterReadinessStatus = {
   missing_required_env: "missing_required_env",
 } as const;
 
+export type ToolAdapterDefinitionWorkingDirectory =
+  (typeof ToolAdapterDefinitionWorkingDirectory)[keyof typeof ToolAdapterDefinitionWorkingDirectory];
+
+export const ToolAdapterDefinitionWorkingDirectory = {
+  workspace: "workspace",
+  project: "project",
+} as const;
+
 export interface ToolAdapterDefinition {
   adapterId: string;
   moduleId: ModuleId;
@@ -70,10 +78,20 @@ export interface ToolAdapterDefinition {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: ToolAdapterDefinitionWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
 }
+
+export type ToolAdapterReadinessWorkingDirectory =
+  (typeof ToolAdapterReadinessWorkingDirectory)[keyof typeof ToolAdapterReadinessWorkingDirectory];
+
+export const ToolAdapterReadinessWorkingDirectory = {
+  workspace: "workspace",
+  project: "project",
+} as const;
 
 export interface ToolAdapterReadiness {
   adapterId: string;
@@ -86,6 +104,8 @@ export interface ToolAdapterReadiness {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: ToolAdapterReadinessWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint: string;
@@ -286,6 +306,14 @@ export interface SkillUi {
   preferredRenderer: SkillArtifactRenderer;
 }
 
+export type SkillExecutionWorkingDirectory =
+  (typeof SkillExecutionWorkingDirectory)[keyof typeof SkillExecutionWorkingDirectory];
+
+export const SkillExecutionWorkingDirectory = {
+  workspace: "workspace",
+  project: "project",
+} as const;
+
 export interface SkillExecution {
   kind: SkillExecutionKind;
   adapterId: string;
@@ -293,6 +321,8 @@ export interface SkillExecution {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: SkillExecutionWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;

@@ -719,6 +719,15 @@ components:
           type: integer
         maxOutputBytes:
           type: integer
+        command:
+          type: array
+          items:
+            type: string
+        workingDirectory:
+          type: string
+          enum:
+            - workspace
+            - project
         allowedCommands:
           type: array
           items:
@@ -768,6 +777,15 @@ components:
           type: integer
         maxOutputBytes:
           type: integer
+        command:
+          type: array
+          items:
+            type: string
+        workingDirectory:
+          type: string
+          enum:
+            - workspace
+            - project
         allowedCommands:
           type: array
           items:
@@ -1097,6 +1115,15 @@ components:
           type: integer
         maxOutputBytes:
           type: integer
+        command:
+          type: array
+          items:
+            type: string
+        workingDirectory:
+          type: string
+          enum:
+            - workspace
+            - project
         allowedCommands:
           type: array
           items:

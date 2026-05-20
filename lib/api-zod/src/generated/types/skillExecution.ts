@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SkillExecutionKind } from "./skillExecutionKind";
+import type { SkillExecutionWorkingDirectory } from "./skillExecutionWorkingDirectory";
 
 export interface SkillExecution {
   kind: SkillExecutionKind;
@@ -14,6 +15,8 @@ export interface SkillExecution {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: SkillExecutionWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;

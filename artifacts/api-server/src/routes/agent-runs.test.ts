@@ -134,7 +134,7 @@ test("agent run route accepts Portal-origin writes with a published matching tok
   assert.equal(response.json["status"], "missing_key");
   assert.equal(runtimeRepository.threads.length, 1);
   assert.equal(runtimeRepository.pipelineRuns.length, 1);
-  assert.equal(runtimeRepository.moduleRuns.length, 5);
+  assert.equal(runtimeRepository.moduleRuns.length, 6);
   assert.equal(response.text.includes("portal-secret-token"), false);
 });
 

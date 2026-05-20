@@ -14,6 +14,8 @@ export type SkillToolAdapterKind = "http" | "cli";
 
 export type SkillExecutionKind = SkillToolAdapterKind | "internal" | "mcp";
 
+export type SkillExecutionWorkingDirectory = "workspace" | "project";
+
 export type SkillArtifactRenderer =
   | "markdown"
   | "table"
@@ -54,6 +56,8 @@ export interface SkillExecution {
   optionalEnv: string[];
   timeoutMs: number;
   maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: SkillExecutionWorkingDirectory;
   allowedCommands: string[];
   supportsResume: boolean;
   readinessHint?: string;
@@ -165,6 +169,11 @@ export function manifestAdapterDefinition(
       displayName: "Climate Monitor CLI Adapter",
       description: "Fixed CLI contract for the climate monitor wiki runner.",
     },
+    ai_actuary: {
+      displayName: "AI Actuary CLI Adapter",
+      description:
+        "File-artifact CLI contract for the ai_actuary reserving pipeline.",
+    },
   };
   const adapterText = builtinAdapterText[manifest.skillId];
   return {
@@ -182,6 +191,10 @@ export function manifestAdapterDefinition(
     optionalEnv: [...manifest.execution.optionalEnv],
     timeoutMs: manifest.execution.timeoutMs,
     maxOutputBytes: manifest.execution.maxOutputBytes,
+    command: manifest.execution.command
+      ? [...manifest.execution.command]
+      : undefined,
+    workingDirectory: manifest.execution.workingDirectory,
     allowedCommands: [...manifest.execution.allowedCommands],
     supportsResume: manifest.execution.supportsResume,
     readinessHint:
@@ -193,6 +206,11 @@ export function manifestAdapterDefinition(
             defaultSiblingPath: manifest.project.defaultSiblingPath,
             requiredPath: "scripts/run_climate_monitor.py",
           }
+        : manifest.moduleId === "ai_actuary"
+          ? {
+              defaultSiblingPath: manifest.project.defaultSiblingPath,
+              requiredPath: "scripts/run_tool_pipeline.py",
+            }
         : undefined,
   };
 }

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { basename } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 
 import type { ToolAdapterDefinition } from "./adapter-registry";
 import type {
@@ -18,11 +19,18 @@ type SpawnFn = (
   executable: string,
   args: string[],
   options: {
+    cwd?: string;
     env: Record<string, string | undefined>;
     shell: false;
     windowsHide: true;
   },
 ) => ChildProcessWithoutNullStreams;
+
+interface CommandInvocation {
+  executable: string | null;
+  args: string[];
+  cwd?: string;
+}
 
 function envValue(
   env: Record<string, string | undefined>,
@@ -63,10 +71,14 @@ function redactJson<T>(value: T, secrets: string[]): T {
 function secretValues(
   adapter: ToolAdapterDefinition,
   env: Record<string, string | undefined>,
+  extraValues: string[] = [],
 ): string[] {
-  return [...adapter.requiredEnv, ...adapter.optionalEnv]
+  const envSecrets = [...adapter.requiredEnv, ...adapter.optionalEnv]
     .map((name) => env[name]?.trim())
     .filter((value): value is string => Boolean(value));
+  return [...envSecrets, ...extraValues]
+    .flatMap((value) => [value, value.split("\\").join("/")])
+    .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index);
 }
 
 function stringArray(value: unknown): string[] | null {
@@ -89,8 +101,107 @@ function commandArgs(inputJson: JsonObject | null): string[] {
   return [];
 }
 
+function inputArgs(inputJson: JsonObject | null): string[] {
+  const args = stringArray(inputJson?.["args"]);
+  if (args) return args;
+
+  const mappedArgs: string[] = [];
+  const pipeline = inputJson?.["pipeline"];
+  if (typeof pipeline === "string" && pipeline.trim()) {
+    mappedArgs.push("--pipeline", pipeline);
+  }
+  const input = inputJson?.["input"];
+  if (typeof input === "string" && input.trim()) {
+    mappedArgs.push("--input", input);
+  }
+  const artifactRoot = inputJson?.["artifactRoot"];
+  if (typeof artifactRoot === "string" && artifactRoot.trim()) {
+    mappedArgs.push("--artifact-root", artifactRoot);
+  }
+  const runId = inputJson?.["runId"];
+  if (typeof runId === "string" && runId.trim()) {
+    mappedArgs.push("--run-id", runId);
+  }
+  return mappedArgs;
+}
+
+function defaultProjectCandidates(defaultSiblingPath: string): string[] {
+  return [
+    resolve(process.cwd(), defaultSiblingPath),
+    resolve(process.cwd(), "..", defaultSiblingPath),
+    resolve(process.cwd(), "..", "..", defaultSiblingPath),
+  ].filter((path, index, paths) => paths.indexOf(path) === index);
+}
+
+function configuredProjectPath(
+  adapter: ToolAdapterDefinition,
+  env: Record<string, string | undefined>,
+): string | null {
+  for (const name of adapter.requiredEnv) {
+    const value = env[name]?.trim();
+    if (value) return value;
+  }
+
+  const fallback = adapter.projectFallback;
+  if (!fallback) return null;
+  const candidates = defaultProjectCandidates(fallback.defaultSiblingPath);
+  return (
+    candidates.find((candidate) =>
+      existsSync(join(candidate, fallback.requiredPath)),
+    ) ??
+    candidates[0] ??
+    null
+  );
+}
+
+function configuredCommandExecutable(
+  adapter: ToolAdapterDefinition,
+  env: Record<string, string | undefined>,
+  defaultExecutable: string,
+): string {
+  const executableEnv = adapter.optionalEnv.find((name) => name.endsWith("_PYTHON"));
+  const configuredExecutable = executableEnv ? env[executableEnv]?.trim() : undefined;
+  return configuredExecutable || defaultExecutable;
+}
+
+function commandInvocation(
+  adapter: ToolAdapterDefinition,
+  env: Record<string, string | undefined>,
+  inputJson: JsonObject | null,
+): CommandInvocation {
+  if (adapter.command && adapter.command.length > 0) {
+    const cwd =
+      adapter.workingDirectory === "project"
+        ? (configuredProjectPath(adapter, env) ?? undefined)
+        : undefined;
+    const [defaultExecutable, ...baseArgs] = adapter.command;
+    return {
+      executable: configuredCommandExecutable(adapter, env, defaultExecutable),
+      args: [...baseArgs, ...inputArgs(inputJson)],
+      cwd,
+    };
+  }
+
+  return {
+    executable: envValue(env, adapter.requiredEnv),
+    args: commandArgs(inputJson),
+  };
+}
+
 function normalizedExecutableValues(executable: string): string[] {
   return [executable, basename(executable)].map((value) => value.toLowerCase());
+}
+
+function allowedExecutableValues(
+  adapter: ToolAdapterDefinition,
+  executable: string,
+): string[] {
+  const values = normalizedExecutableValues(executable);
+  const manifestExecutable = adapter.command?.[0];
+  if (manifestExecutable) {
+    values.push(...normalizedExecutableValues(manifestExecutable));
+  }
+  return values.filter((value, index, allValues) => allValues.indexOf(value) === index);
 }
 
 function hasAllowedCommandPrefix(args: string[], allowedCommand: string): boolean {
@@ -106,12 +217,20 @@ function isAllowedCommand(
   executable: string,
   args: string[],
 ): boolean {
-  const executableValues = normalizedExecutableValues(executable);
+  const executableValues = allowedExecutableValues(adapter, executable);
   return adapter.allowedCommands.some((command) => {
     const allowed = command.trim();
     if (!allowed) return false;
     if (args.length === 0 && executableValues.includes(allowed.toLowerCase())) {
       return true;
+    }
+    const allowedParts = allowed.split(/\s+/).filter(Boolean);
+    if (allowedParts.length > 1) {
+      const [allowedExecutable, ...allowedArgs] = allowedParts;
+      if (!executableValues.includes(allowedExecutable.toLowerCase())) {
+        return false;
+      }
+      return allowedArgs.every((part, index) => args[index] === part);
     }
     return hasAllowedCommandPrefix(args, allowed);
   });
@@ -190,8 +309,13 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
     run,
     adapter,
   }: ToolExecutionRequest): Promise<ToolExecutionResult> {
-    const executable = envValue(this.env, adapter.requiredEnv);
-    const secrets = secretValues(adapter, this.env);
+    const invocation = commandInvocation(adapter, this.env, run.inputJson);
+    const executable = invocation.executable;
+    const secrets = secretValues(
+      adapter,
+      this.env,
+      invocation.cwd ? [invocation.cwd] : [],
+    );
     if (!executable) {
       return result({
         status: "failed",
@@ -208,7 +332,7 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
       });
     }
 
-    const args = commandArgs(run.inputJson);
+    const args = invocation.args;
     if (!isAllowedCommand(adapter, executable, args)) {
       return result({
         status: "failed",
@@ -283,6 +407,7 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
       };
 
       const child = this.spawnFn(executable, args, {
+        cwd: invocation.cwd,
         env: this.env,
         shell: false,
         windowsHide: true,
@@ -373,14 +498,16 @@ export class CliToolAdapterExecutor implements ToolAdapterExecutor {
               eventType: "tool.execution.cli_failed",
               eventSeverity: "error",
               eventMessage: redactedStderr || `CLI exited with code ${code}.`,
-              outputJson: redactJson(
-                {
-                  exitCode: code,
-                  stdout: redactedStdout,
-                  stderr: redactedStderr,
-                },
-                secrets,
-              ),
+              outputJson:
+                parsedStdout ??
+                redactJson(
+                  {
+                    exitCode: code,
+                    stdout: redactedStdout,
+                    stderr: redactedStderr,
+                  },
+                  secrets,
+                ),
               eventPayload: basePayload,
             }),
           );

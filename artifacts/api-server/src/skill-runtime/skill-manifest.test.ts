@@ -20,6 +20,7 @@ test("default skill manifests map built-in and community project skills", () => 
       ["md_to_rag", "../c-ross-2"],
       ["rag_to_agent", "../c-ross-2"],
       ["climate_monitor", "../climate_monitor_wiki"],
+      ["ai_actuary", "../ai_actuary"],
       ["example_reporter", "skills/community/example_reporter"],
     ],
   );
@@ -43,6 +44,28 @@ test("default skill manifests map built-in and community project skills", () => 
   ]);
   assert.equal(climateMonitor?.permissions.approvalRequired, true);
   assert.equal(climateMonitor?.permissions.canUseNetwork, true);
+
+  const aiActuary = builtinSkillManifests.find(
+    (skill) => skill.skillId === "ai_actuary",
+  );
+  assert.equal(aiActuary?.project.envPath, "AI_ACTUARY_PROJECT_PATH");
+  assert.equal(aiActuary?.execution.adapterId, "ai_actuary.cli.v1");
+  assert.deepEqual(aiActuary?.execution.command, [
+    "python",
+    "scripts/run_tool_pipeline.py",
+    "--json",
+  ]);
+  assert.equal(aiActuary?.execution.workingDirectory, "project");
+  assert.deepEqual(aiActuary?.inputSchema["anyOf"], [
+    { required: ["args"] },
+    { required: ["pipeline", "input"] },
+  ]);
+  assert.deepEqual(aiActuary?.outputSchema["required"], ["ok", "status"]);
+  assert.deepEqual(aiActuary?.artifactKinds.slice(0, 3), [
+    "case_input",
+    "deterministic_result",
+    "narrative_draft",
+  ]);
 });
 
 test("skill manifest registry accepts registered custom skills", () => {

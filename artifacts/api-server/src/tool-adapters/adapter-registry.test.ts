@@ -18,6 +18,7 @@ test("registers one adapter for each business module", () => {
       "md_to_rag",
       "rag_to_agent",
       "climate_monitor",
+      "ai_actuary",
       "example_reporter",
     ],
   );
@@ -31,6 +32,18 @@ test("registers one adapter for each business module", () => {
   assert.deepEqual(climateMonitor.allowedCommands, [
     "scripts/run_climate_monitor.py",
   ]);
+  const aiActuary = getAdapterDefinition("ai_actuary");
+  assert.equal(aiActuary.adapterId, "ai_actuary.cli.v1");
+  assert.deepEqual(aiActuary.requiredEnv, ["AI_ACTUARY_PROJECT_PATH"]);
+  assert.deepEqual(aiActuary.command, [
+    "python",
+    "scripts/run_tool_pipeline.py",
+    "--json",
+  ]);
+  assert.deepEqual(aiActuary.allowedCommands, [
+    "python scripts/run_tool_pipeline.py",
+  ]);
+  assert.equal(aiActuary.workingDirectory, "project");
 });
 
 test("reports missing required env without exposing env values", () => {
@@ -64,6 +77,10 @@ test("reports missing required env without exposing env values", () => {
   assert.deepEqual(climateMonitor?.missingRequiredEnv, [
     "CLIMATE_MONITOR_PROJECT_PATH",
   ]);
+
+  const aiActuary = readiness.find((item) => item.moduleId === "ai_actuary");
+  assert.equal(aiActuary?.status, "missing_required_env");
+  assert.deepEqual(aiActuary?.missingRequiredEnv, ["AI_ACTUARY_PROJECT_PATH"]);
 
   const exampleReporter = readiness.find(
     (item) => item.moduleId === "example_reporter",
@@ -116,6 +133,29 @@ test("uses the climate monitor sibling fallback for adapter readiness", () => {
     "climate_monitor_wiki",
     "scripts",
     "run_climate_monitor.py",
+  );
+  const readiness = getAdapterReadiness(
+    definition,
+    {},
+    {
+      cwd,
+      pathExists: (path) => path === readyScript,
+    },
+  );
+
+  assert.equal(readiness.status, "ready");
+  assert.equal(readiness.configured, true);
+  assert.deepEqual(readiness.missingRequiredEnv, []);
+});
+
+test("uses the ai_actuary sibling fallback for adapter readiness", () => {
+  const definition = getAdapterDefinition("ai_actuary");
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const readyScript = resolve(
+    "workspace",
+    "ai_actuary",
+    "scripts",
+    "run_tool_pipeline.py",
   );
   const readiness = getAdapterReadiness(
     definition,
