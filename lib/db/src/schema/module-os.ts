@@ -56,7 +56,12 @@ export const runEventSeverityEnum = pgEnum("run_event_severity", [
   "error",
 ]);
 
-export const agentProviderEnum = pgEnum("agent_provider", ["openai"]);
+export const agentProviderEnum = pgEnum("agent_provider", [
+  "openai",
+  "anthropic",
+  "ollama",
+  "deterministic",
+]);
 
 export const agentEndpointEnum = pgEnum("agent_endpoint", [
   "responses",

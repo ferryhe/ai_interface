@@ -25,7 +25,7 @@ function errorResponse(message: string): { error: string } {
 function configResponse(config: AgentConfigRecord) {
   return {
     config: toPublicAgentConfig(config),
-    connection: getConnectionStatus(process.env),
+    connection: getConnectionStatus(process.env, config.provider),
   };
 }
 
@@ -57,12 +57,18 @@ router.put("/agent-config", async (req, res) => {
   }
 });
 
-router.post("/agent-config/test-connection", (_req, res) => {
-  const data = TestAgentConfigConnectionResponse.parse({
-    ...getConnectionStatus(process.env),
-    checkedAt: new Date(),
-  });
-  res.json(data);
+router.post("/agent-config/test-connection", async (_req, res) => {
+  try {
+    const config = await getAgentConfig(repository);
+    const data = TestAgentConfigConnectionResponse.parse({
+      ...getConnectionStatus(process.env, config.provider),
+      checkedAt: new Date(),
+    });
+    res.json(data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json(errorResponse(message));
+  }
 });
 
 export default router;

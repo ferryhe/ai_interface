@@ -10,6 +10,22 @@ Updated: 2026-05-20
 
 ## Current State
 
+- PR5 development is in progress on `codex/planner-provider-registry`. Added a planner provider registry with OpenAI, Anthropic, Ollama, and deterministic provider definitions; OpenAI remains the default configured provider and deterministic is now an explicit fallback.
+- Planner readiness now reports configured/active provider, provider metadata, missing env var names, and warnings without returning key values or local provider base URLs.
+- Moved OpenAI Responses planner request construction into provider registry code, added deterministic planner support, and added Anthropic/Ollama HTTP planner shells with mocked-fetch request/response tests.
+- Agent runtime provider output still flows through `normalizePlan`; missing configured provider env falls back to deterministic with warnings while preserving the existing `missing_key` status.
+- OpenAPI was updated for expanded provider/connection payloads and generated Zod/React clients were regenerated. Configure UI provider choices now include OpenAI, Anthropic, Ollama, and Deterministic.
+- PR5 required validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 155 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed after widening the DB provider enum; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --filter @workspace/api-spec run codegen` passed and regenerated clients; `corepack pnpm run typecheck:libs` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 review revision fixed provider fallback model mismatch by passing an active-provider config to concrete planners: configured Anthropic with missing env now falls back to OpenAI using `gpt-5.5`, and configured OpenAI with missing env now falls back to Anthropic using `claude-3-5-sonnet-latest`.
+- Added checked-in DB enum migration `lib/db/migrations/20260520_add_agent_provider_values.sql` with idempotent `ALTER TYPE agent_provider ADD VALUE IF NOT EXISTS ...` statements and README apply instructions before saving non-OpenAI providers.
+- Configure UI now stores the richer connection payload and shows active planner plus fallback warnings so operators can see when configured provider and active provider differ.
+- OpenAPI `/agent-config` and `/agent-config/test-connection` descriptions now use provider readiness/env wording instead of OpenAI-only key wording.
+- PR5 review revision validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 157 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`; `corepack pnpm run typecheck:libs` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 P1 re-review revision fixed server-side provider-only config normalization: `updateAgentConfig()` now uses provider registry metadata to reset omitted `modelId` to the new provider default and omitted `reasoningEffort` to `medium` for OpenAI or `none` for non-reasoning providers when `provider` changes.
+- Added focused regressions for provider-only config updates: default OpenAI config updated to Anthropic now persists `claude-3-5-sonnet-latest`/`none`, provider-only Ollama update persists `llama3.1`/`none`, provider-only OpenAI update restores `gpt-5.5`/`medium`, and an Anthropic runtime request after provider-only update sends the Anthropic default model rather than stale `gpt-5.5`.
+- PR5 P1 re-review validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 159 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 final review gates passed: spec re-review approved with no findings; code-quality/security re-review approved after the provider-only config normalization fix.
+- PR5 controller validation passed: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `corepack pnpm --filter @workspace/api-server run test` passed with 159 tests; `git diff --check` passed with CRLF warnings only.
 - PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
 - Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
 - PR1 implementation completed through the managed multi-agent loop: development agent implemented the registry context base, spec review requested and verified fixes, code-quality review requested and verified fixes, and controller validation passed.
@@ -559,4 +575,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Dispatch the PR5 development agent for Planner Provider Registry, then run spec and code-quality review agents before controller validation and PR publication.
+- Publish PR5 (`codex/planner-provider-registry`) after staging only scoped files and leaving unrelated `vite-smoke.out.log` untouched.

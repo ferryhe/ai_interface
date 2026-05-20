@@ -483,6 +483,9 @@ export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
 
 export const AgentProvider = {
   openai: "openai",
+  anthropic: "anthropic",
+  ollama: "ollama",
+  deterministic: "deterministic",
 } as const;
 
 export type AgentEndpoint = (typeof AgentEndpoint)[keyof typeof AgentEndpoint];
@@ -510,6 +513,19 @@ export const AgentConnectionStatus = {
   configured: "configured",
   missing_key: "missing_key",
 } as const;
+
+export interface PlannerProviderDefinition {
+  provider: AgentProvider;
+  displayName: string;
+  requiredEnv: string[];
+  defaultModelId: string;
+  supportsReasoningEffort: boolean;
+}
+
+export type PlannerProviderReadiness = PlannerProviderDefinition & {
+  configured: boolean;
+  missingEnv: string[];
+};
 
 export type MemoryPromotionMode =
   (typeof MemoryPromotionMode)[keyof typeof MemoryPromotionMode];
@@ -645,6 +661,10 @@ export interface AgentConfig {
 
 export interface AgentConnectionStatusPayload {
   status: AgentConnectionStatus;
+  configuredProvider: AgentProvider;
+  activeProvider: AgentProvider;
+  providers: PlannerProviderReadiness[];
+  warnings: string[];
 }
 
 export interface AgentConfigResponse {
@@ -667,6 +687,10 @@ export interface UpdateAgentConfigRequest {
 
 export interface AgentConnectionTestResponse {
   status: AgentConnectionStatus;
+  configuredProvider: AgentProvider;
+  activeProvider: AgentProvider;
+  providers: PlannerProviderReadiness[];
+  warnings: string[];
   checkedAt: string;
 }
 
@@ -700,6 +724,10 @@ export const AgentMessageRole = {
 
 export interface AgentRuntimeConnection {
   status: AgentConnectionStatus;
+  configuredProvider: AgentProvider;
+  activeProvider: AgentProvider;
+  providers: PlannerProviderReadiness[];
+  warnings: string[];
 }
 
 export type AgentThreadStatus =
