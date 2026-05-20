@@ -3750,7 +3750,9 @@ function ConfigureView({
                       modelId: defaultModelForProvider(option.provider),
                       reasoningEffort:
                         option.provider === "openai"
-                          ? config.reasoningEffort
+                          ? config.reasoningEffort === "none"
+                            ? "medium"
+                            : config.reasoningEffort
                           : "none",
                     })
                   }

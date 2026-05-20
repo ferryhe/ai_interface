@@ -114,6 +114,29 @@ test("provider readiness redacts key values and local base URLs", () => {
   );
 });
 
+test("explicit deterministic provider does not report fallback warning", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, {
+    provider: "deterministic",
+  });
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    { message: "Convert these documents." },
+    { env: {} },
+  );
+
+  assert.equal(result.connection.status, "configured");
+  assert.equal(result.connection.configuredProvider, "deterministic");
+  assert.equal(result.connection.activeProvider, "deterministic");
+  assert.equal(
+    result.plan.warnings.includes("Using deterministic fallback."),
+    false,
+  );
+});
+
 test("Anthropic mocked HTTP planner returns valid normalized steps", async () => {
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -153,6 +176,27 @@ test("Anthropic mocked HTTP planner returns valid normalized steps", async () =>
   assert.deepEqual(
     result.plan.steps.map((step) => [step.skillId, step.moduleId]),
     [["doc_to_md", "doc_to_md"]],
+  );
+});
+
+test("Anthropic planner reports empty provider responses clearly", async () => {
+  const fetchFn = (async () =>
+    new Response(JSON.stringify({ content: [] }), {
+      status: 200,
+    })) as typeof fetch;
+  const planner = new AnthropicMessagesPlanner(
+    { ANTHROPIC_API_KEY: "anthropic-secret" },
+    fetchFn,
+  );
+
+  await assert.rejects(
+    () =>
+      planner.createPlan({
+        message: "Convert these documents.",
+        config: configuredConfig("anthropic"),
+        enabledSkills: [],
+      }),
+    /Anthropic planner returned an empty response/,
   );
 });
 

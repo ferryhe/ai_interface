@@ -28,6 +28,8 @@ Updated: 2026-05-20
 - PR5 controller validation passed: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `corepack pnpm --filter @workspace/api-server run test` passed with 159 tests; `git diff --check` passed with CRLF warnings only.
 - Opened PR #40 for `codex/planner-provider-registry`: https://github.com/ferryhe/ai_interface/pull/40
 - Scheduled follow-up automation `pr-40-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #40 follow-up found no configured GitHub checks and four Copilot inline comments. Confirmed-safe fixes were applied: explicitly configured deterministic planning no longer reports a fallback warning, deterministic readiness display name is neutral, provider planner empty/invalid JSON responses now raise clear provider-specific errors without response payloads, and the Configure UI restores `medium` reasoning when switching back to OpenAI from a non-reasoning provider.
+- PR #40 follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 161 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
 - PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
 - Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
 - PR1 implementation completed through the managed multi-agent loop: development agent implemented the registry context base, spec review requested and verified fixes, code-quality review requested and verified fixes, and controller validation passed.
@@ -577,4 +579,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Wait for `pr-40-follow-up` to evaluate remote checks/reviews/Copilot comments, apply only confirmed-safe fixes if needed, merge PR #40 if clean, delete `codex/planner-provider-registry`, update `main`, then start PR6 from latest `main`.
+- Push PR #40 follow-up fixes, re-check PR state, merge if clean, delete `codex/planner-provider-registry`, update `main`, then start PR6 from latest `main`.

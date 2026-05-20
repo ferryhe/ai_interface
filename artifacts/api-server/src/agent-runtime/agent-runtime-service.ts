@@ -501,7 +501,9 @@ export async function createAgentRun(
       plannerSelection.definition.provider,
       env,
       options.fetchFn,
-      plannerSelection.warnings.join(" ") || "Using deterministic fallback.",
+      plannerSelection.connection.status === "missing_key"
+        ? plannerSelection.warnings.join(" ")
+        : "",
     );
 
   const rawPlan = await planner.createPlan({

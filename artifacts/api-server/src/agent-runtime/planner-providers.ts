@@ -74,7 +74,7 @@ export const plannerProviderDefinitions: PlannerProviderDefinition[] = [
   },
   {
     provider: "deterministic",
-    displayName: "Deterministic fallback",
+    displayName: "Deterministic",
     requiredEnv: [],
     defaultModelId: "deterministic-v1",
     supportsReasoningEffort: false,
@@ -215,7 +215,7 @@ export function createDeterministicPlannerPlan(
     summary:
       "Prepared a deterministic business-skill plan. Configure a ready model provider to let the model choose and refine steps.",
     steps,
-    warnings: [reason],
+    warnings: reason ? [reason] : [],
   };
 }
 
@@ -264,8 +264,23 @@ function extractOllamaResponseText(payload: unknown): string {
   return "";
 }
 
-function parsePlannerText(text: string): AgentRuntimePlannerPlan {
-  const parsed = JSON.parse(text) as AgentRuntimePlannerPlan;
+function parsePlannerText(
+  text: string,
+  providerDisplayName: string,
+): AgentRuntimePlannerPlan {
+  if (!text.trim()) {
+    throw new Error(`${providerDisplayName} planner returned an empty response.`);
+  }
+
+  let parsed: AgentRuntimePlannerPlan;
+  try {
+    parsed = JSON.parse(text) as AgentRuntimePlannerPlan;
+  } catch {
+    throw new Error(
+      `${providerDisplayName} planner returned an invalid JSON response.`,
+    );
+  }
+
   return {
     summary: parsed.summary,
     steps: Array.isArray(parsed.steps) ? parsed.steps : [],
@@ -377,7 +392,10 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
       );
     }
 
-    return parsePlannerText(extractOpenAIResponseText(await response.json()));
+    return parsePlannerText(
+      extractOpenAIResponseText(await response.json()),
+      "OpenAI",
+    );
   }
 }
 
@@ -431,7 +449,10 @@ export class AnthropicMessagesPlanner implements AgentPlanner {
       );
     }
 
-    return parsePlannerText(extractAnthropicResponseText(await response.json()));
+    return parsePlannerText(
+      extractAnthropicResponseText(await response.json()),
+      "Anthropic",
+    );
   }
 }
 
@@ -486,7 +507,10 @@ export class OllamaChatPlanner implements AgentPlanner {
       );
     }
 
-    return parsePlannerText(extractOllamaResponseText(await response.json()));
+    return parsePlannerText(
+      extractOllamaResponseText(await response.json()),
+      "Ollama",
+    );
   }
 }
 
