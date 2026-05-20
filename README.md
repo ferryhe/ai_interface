@@ -105,7 +105,7 @@ Foreground is for the normal Agent conversation and workflow progress:
 - inspect high-level progress, results, data, and sources;
 - keep user approval and feedback in the user-facing flow.
 
-Backstage is the Replit-style operations surface:
+Backstage is the operations surface:
 
 - browse the skill catalog;
 - inspect each manifest, external project mapping, adapter readiness, UI capability, input/output schemas, and raw JSON;

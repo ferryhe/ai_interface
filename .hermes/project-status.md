@@ -21,8 +21,9 @@ Updated: 2026-05-20
 - PR #44 follow-up addressed 2 Copilot comments before merge: DAG planner types now use the `dag-executor` source of truth, and DAG ready-step execution has bounded concurrency with optional `AI_INTERFACE_DAG_MAX_CONCURRENCY`.
 - Work branches for the completed PRs were deleted after merge.
 - Follow-up automations for merged PRs were deleted or are being removed as they complete.
-- Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, Replit notes, and `docs/project-overview.html`.
+- Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, retired Replit workspace files, and `docs/project-overview.html`.
 - `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
+- `.replit`, `.replitignore`, and `replit.md` were removed because development is no longer Replit-based.
 - Opened PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
 - Scheduled follow-up automation `pr-45-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
@@ -38,7 +39,7 @@ Updated: 2026-05-20
 - Documentation cleanup verification:
   - `corepack pnpm run skill:validate` passed with 7 loaded skills.
   - `git diff --check` passed with CRLF warnings only.
-  - README/community/Replit docs were scanned for stale "four skills" and "This PR does not" wording in current docs.
+  - Current README, community docs, project guide, and status notes were scanned for stale "four skills" and "This PR does not" wording.
 
 ## Next Action
 
