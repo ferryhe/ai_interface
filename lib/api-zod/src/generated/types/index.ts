@@ -65,6 +65,8 @@ export * from "./moduleRunDetail";
 export * from "./moduleRunIngestResponse";
 export * from "./moduleRunStatus";
 export * from "./pipelineRun";
+export * from "./plannerProviderDefinition";
+export * from "./plannerProviderReadiness";
 export * from "./portalAccessMode";
 export * from "./portalAccessStatus";
 export * from "./portalAccessVerificationResponse";

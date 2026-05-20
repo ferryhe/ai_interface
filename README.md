@@ -41,6 +41,30 @@ The runtime preserves the existing module-run database/API compatibility while p
 - `/api/skills` returns skill manifests plus redacted readiness.
 - Planner output is normalized against enabled skill manifests, unknown skills are ignored with warnings, and registered custom skill manifests can participate in a run.
 
+## Planner Providers
+
+Agent planning goes through a provider registry. OpenAI remains the default
+configured planner and uses `OPENAI_API_KEY` with the Responses API. Anthropic
+uses `ANTHROPIC_API_KEY`, Ollama uses `OLLAMA_API_BASE_URL`, and the
+deterministic planner is an explicit no-env fallback.
+
+Provider readiness is reported as metadata only: provider names, required env
+var names, missing env var names, default model IDs, and whether reasoning
+effort is supported. The API does not return API key values or local Ollama
+base URLs. If the selected provider is not ready, the runtime chooses the first
+ready provider in fallback order (`openai`, `anthropic`, `ollama`) and otherwise
+uses the deterministic planner with a warning.
+
+Before saving non-OpenAI providers in an existing Postgres database, apply the
+checked-in enum migration:
+
+```bash
+psql "$DATABASE_URL" -f lib/db/migrations/20260520_add_agent_provider_values.sql
+```
+
+The migration is idempotent and only adds `anthropic`, `ollama`, and
+`deterministic` to the existing `agent_provider` enum.
+
 ## Foreground vs Backstage
 
 Foreground is for the normal Agent conversation and workflow progress:
@@ -234,7 +258,7 @@ Browser smoke should verify:
 
 ## Security
 
-Skill readiness is redacted by design. The API reports missing/configured env var names but not values, and it does not expose configured local path values. Real adapter execution remains behind the safe runtime path and, in this v1, no sibling project command is executed.
+Skill and planner readiness are redacted by design. The API reports missing/configured env var names but not values, and it does not expose configured local path or local provider URL values. Real adapter execution remains opt-in through the safe executor path; default local planning still uses the deterministic provider when no configured model provider is ready.
 
 ## License
 

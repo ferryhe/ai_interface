@@ -1497,7 +1497,7 @@ export function useGetAgentRun<
 }
 
 /**
- * Returns the persisted Agent control plane configuration and OpenAI API key status.
+ * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
  * @summary Get Agent configuration
  */
 export const getGetAgentConfigUrl = () => {
@@ -1659,7 +1659,7 @@ export const useUpdateAgentConfig = <
 };
 
 /**
- * Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+ * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
  * @summary Test Agent provider connection
  */
 export const getTestAgentConfigConnectionUrl = () => {

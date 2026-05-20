@@ -171,7 +171,9 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
   );
 
   assert.equal(result.status, "missing_key");
-  assert.deepEqual(result.connection, { status: "missing_key" });
+  assert.equal(result.connection.status, "missing_key");
+  assert.equal(result.connection.configuredProvider, "openai");
+  assert.equal(result.connection.activeProvider, "deterministic");
   assert.equal(
     result.thread.title,
     "Watch the onboarding docs, convert them, index them, and draft an agent.",
@@ -317,7 +319,9 @@ test("uses an injected planner when OpenAI is configured", async () => {
   );
 
   assert.equal(result.status, "planned");
-  assert.deepEqual(result.connection, { status: "configured" });
+  assert.equal(result.connection.status, "configured");
+  assert.equal(result.connection.configuredProvider, "openai");
+  assert.equal(result.connection.activeProvider, "openai");
   assert.equal(
     result.plan.summary,
     "Use document conversion first, then index the markdown.",

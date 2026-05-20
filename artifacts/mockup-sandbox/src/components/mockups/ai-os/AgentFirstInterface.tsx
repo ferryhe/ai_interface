@@ -44,7 +44,7 @@ type RuntimeRunStatus =
   | "skipped"
   | "queued";
 type RuntimeActionState = "idle" | "submitting" | "succeeded" | "failed";
-type AgentProvider = "openai";
+type AgentProvider = "openai" | "anthropic" | "ollama" | "deterministic";
 type AgentEndpoint = "responses" | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 type MemoryPromotionMode = "manual" | "agent_suggested";
@@ -137,7 +137,7 @@ interface AgentRunApiPlanStep {
 
 interface AgentRunApiResponse {
   status: "planned" | "missing_key" | "needs_approval" | "failed";
-  connection: { status: AgentConnectionStatus };
+  connection: AgentConnectionPayload;
   agentMessage: { content: string };
   pipelineRun: {
     id: string;
@@ -294,14 +294,29 @@ interface AgentConfigApi extends AgentConfigDraft {
 
 interface AgentConfigApiResponse {
   config: AgentConfigApi;
-  connection: {
-    status: Exclude<AgentConnectionStatus, "offline">;
-    checkedAt?: string;
-  };
+  connection: AgentConnectionPayload;
 }
 
-interface AgentConnectionApiResponse {
+interface PlannerProviderReadiness {
+  provider: AgentProvider;
+  displayName: string;
+  requiredEnv: string[];
+  defaultModelId: string;
+  supportsReasoningEffort: boolean;
+  configured: boolean;
+  missingEnv: string[];
+}
+
+interface AgentConnectionPayload {
   status: Exclude<AgentConnectionStatus, "offline">;
+  configuredProvider: AgentProvider;
+  activeProvider: AgentProvider;
+  providers: PlannerProviderReadiness[];
+  warnings: string[];
+  checkedAt?: string;
+}
+
+interface AgentConnectionApiResponse extends AgentConnectionPayload {
   checkedAt: string;
 }
 
@@ -819,7 +834,7 @@ const generalSkillGuides: Record<GeneralSkillId, CapabilityGuide> = {
 
 const configureGuides = {
   provider:
-    "Controls which AI runtime the console talks to. V1 checks environment-based API key status and never stores plaintext keys in the browser.",
+    "Controls which planner runtime the console talks to. Readiness is based on environment names only; plaintext keys and local base URLs stay server-side.",
   model:
     "Controls the model, reasoning effort, and system prompt that shape planning quality, tool choice, and response style.",
   memory:
@@ -829,6 +844,49 @@ const configureGuides = {
   runtime:
     "Summarizes the current runtime contract: provider, active skills, memory mode, and safety posture.",
 };
+
+const plannerProviderOptions: Array<{
+  provider: AgentProvider;
+  label: string;
+  defaultModelId: string;
+}> = [
+  { provider: "openai", label: "OpenAI", defaultModelId: "gpt-5.5" },
+  {
+    provider: "anthropic",
+    label: "Anthropic",
+    defaultModelId: "claude-3-5-sonnet-latest",
+  },
+  { provider: "ollama", label: "Ollama", defaultModelId: "llama3.1" },
+  {
+    provider: "deterministic",
+    label: "Deterministic",
+    defaultModelId: "deterministic-v1",
+  },
+];
+
+const plannerModelOptions = [
+  "gpt-5.5",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.2",
+  "claude-3-5-sonnet-latest",
+  "llama3.1",
+  "deterministic-v1",
+];
+
+function defaultModelForProvider(provider: AgentProvider): string {
+  return (
+    plannerProviderOptions.find((option) => option.provider === provider)
+      ?.defaultModelId ?? "gpt-5.5"
+  );
+}
+
+function plannerProviderLabel(provider: AgentProvider): string {
+  return (
+    plannerProviderOptions.find((option) => option.provider === provider)?.label ??
+    provider
+  );
+}
 
 const businessSwitchGuides = [
   {
@@ -1770,8 +1828,8 @@ function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
 }
 
 function connectionLabel(status: AgentConnectionStatus): string {
-  if (status === "configured") return "API key detected";
-  if (status === "missing_key") return "OPENAI_API_KEY missing";
+  if (status === "configured") return "Provider ready";
+  if (status === "missing_key") return "Provider env missing";
   return "API offline";
 }
 
@@ -1809,6 +1867,8 @@ export function AgentFirstInterface() {
   );
   const [connectionStatus, setConnectionStatus] =
     useState<AgentConnectionStatus>("offline");
+  const [connectionPayload, setConnectionPayload] =
+    useState<AgentConnectionPayload | null>(null);
   const [configStatus, setConfigStatus] = useState("Local draft");
   const [isConfigBusy, setIsConfigBusy] = useState(false);
   const [agentRunState, setAgentRunState] =
@@ -1884,12 +1944,14 @@ export function AgentFirstInterface() {
         setPublishSettings(toPublishSettingsApi(data.config.publishSettings));
         setPublishTokenDraft("");
         setConnectionStatus(data.connection.status);
+        setConnectionPayload(data.connection);
         setConfigStatus("Loaded from API");
         setPublishSaveState("saved");
         setPublishStatusText("Loaded publish settings from API");
       } catch {
         if (cancelled) return;
         setConnectionStatus("offline");
+        setConnectionPayload(null);
         setConfigStatus("API offline - local draft");
         setPublishSaveState("offline");
         setPublishStatusText("API offline - local publish settings");
@@ -1965,9 +2027,11 @@ export function AgentFirstInterface() {
       const data = (await response.json()) as AgentConfigApiResponse;
       setAgentConfig(toConfigDraft(data.config));
       setConnectionStatus(data.connection.status);
+      setConnectionPayload(data.connection);
       setConfigStatus("Saved to API");
     } catch {
       setConnectionStatus("offline");
+      setConnectionPayload(null);
       setConfigStatus("API offline - local draft only");
     } finally {
       setIsConfigBusy(false);
@@ -2020,6 +2084,7 @@ export function AgentFirstInterface() {
       setPublishSettings(nextSettings);
       setAgentConfig(toConfigDraft(data.config));
       setConnectionStatus(data.connection.status);
+      setConnectionPayload(data.connection);
       setPublishTokenDraft("");
       setPublishSaveState("saved");
       setPublishStatusText("Saved publish settings to API");
@@ -2037,6 +2102,7 @@ export function AgentFirstInterface() {
             : current.publishedAt,
       }));
       setConnectionStatus("offline");
+      setConnectionPayload(null);
       setPublishSaveState("offline");
       setPublishStatusText("API offline - local publish settings only");
     }
@@ -2054,9 +2120,11 @@ export function AgentFirstInterface() {
 
       const data = (await response.json()) as AgentConnectionApiResponse;
       setConnectionStatus(data.status);
+      setConnectionPayload(data);
       setConfigStatus(connectionLabel(data.status));
     } catch {
       setConnectionStatus("offline");
+      setConnectionPayload(null);
       setConfigStatus("API offline - cannot test key");
     } finally {
       setIsConfigBusy(false);
@@ -2103,6 +2171,7 @@ export function AgentFirstInterface() {
         runtimeRuns,
       });
       setConnectionStatus(data.connection.status);
+      setConnectionPayload(data.connection);
       setAgentRunState("saved");
       setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
       setRuntimeActionStatusText("Runtime actions are connected to API run data");
@@ -2116,6 +2185,7 @@ export function AgentFirstInterface() {
       setAgentRunStatusText("API offline - showing local mock");
       setRuntimeActionStatusText("Runtime actions are local until API run data is available");
       setConnectionStatus("offline");
+      setConnectionPayload(null);
     }
   }
 
@@ -2296,6 +2366,7 @@ export function AgentFirstInterface() {
             <ConfigureView
               config={agentConfig}
               connectionStatus={connectionStatus}
+              connection={connectionPayload}
               statusText={configStatus}
               isBusy={isConfigBusy}
               onUpdateConfig={updateConfig}
@@ -3563,6 +3634,7 @@ function DataView({
 function ConfigureView({
   config,
   connectionStatus,
+  connection,
   statusText,
   isBusy,
   onUpdateConfig,
@@ -3575,6 +3647,7 @@ function ConfigureView({
 }: {
   config: AgentConfigDraft;
   connectionStatus: AgentConnectionStatus;
+  connection: AgentConnectionPayload | null;
   statusText: string;
   isBusy: boolean;
   onUpdateConfig: (patch: Partial<AgentConfigDraft>) => void;
@@ -3603,6 +3676,13 @@ function ConfigureView({
       : config.memorySettings.longTermEnabled
         ? "long only"
         : "short only";
+  const activeProvider = connection?.activeProvider ?? config.provider;
+  const configuredProvider = connection?.configuredProvider ?? config.provider;
+  const providerWarnings = connection?.warnings ?? [];
+  const activeProviderText =
+    connection && activeProvider !== configuredProvider
+      ? `${plannerProviderLabel(activeProvider)} fallback`
+      : plannerProviderLabel(activeProvider);
 
   return (
     <section className="configure-layout">
@@ -3650,8 +3730,48 @@ function ConfigureView({
             <span className="config-field-label" id="agent-provider-label">
               Provider
             </span>
-            <div className="locked-value" aria-labelledby="agent-provider-label">OpenAI</div>
+            <div
+              className="segmented-control"
+              role="group"
+              aria-labelledby="agent-provider-label"
+            >
+              {plannerProviderOptions.map((option) => (
+                <button
+                  key={option.provider}
+                  type="button"
+                  className={
+                    config.provider === option.provider
+                      ? "segmented-button active"
+                      : "segmented-button"
+                  }
+                  onClick={() =>
+                    onUpdateConfig({
+                      provider: option.provider,
+                      modelId: defaultModelForProvider(option.provider),
+                      reasoningEffort:
+                        option.provider === "openai"
+                          ? config.reasoningEffort === "none"
+                            ? "medium"
+                            : config.reasoningEffort
+                          : "none",
+                    })
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
+          {connection && (
+            <div className="provider-readiness">
+              <span>
+                Active planner: <strong>{activeProviderText}</strong>
+              </span>
+              {providerWarnings.slice(0, 2).map((warning) => (
+                <em key={warning}>{warning}</em>
+              ))}
+            </div>
+          )}
           <div className="config-field">
             <span className="config-field-label" id="agent-endpoint-label">
               Endpoint
@@ -3699,10 +3819,11 @@ function ConfigureView({
               value={config.modelId}
               onChange={(event) => onUpdateConfig({ modelId: event.target.value })}
             >
-              <option value="gpt-5.5">gpt-5.5</option>
-              <option value="gpt-5.4">gpt-5.4</option>
-              <option value="gpt-5.4-mini">gpt-5.4-mini</option>
-              <option value="gpt-5.2">gpt-5.2</option>
+              {plannerModelOptions.map((modelId) => (
+                <option key={modelId} value={modelId}>
+                  {modelId}
+                </option>
+              ))}
             </select>
           </div>
           <div className="config-field">
@@ -3714,11 +3835,12 @@ function ConfigureView({
               role="group"
               aria-labelledby="agent-reasoning-label"
             >
-              {(["low", "medium", "high", "xhigh"] as AgentReasoningEffort[]).map((effort) => (
+              {(["none", "low", "medium", "high", "xhigh"] as AgentReasoningEffort[]).map((effort) => (
                 <button
                   key={effort}
                   type="button"
                   className={config.reasoningEffort === effort ? "segmented-button active" : "segmented-button"}
+                  disabled={config.provider !== "openai" && effort !== "none"}
                   onClick={() => onUpdateConfig({ reasoningEffort: effort })}
                 >
                   {effort}
@@ -4010,8 +4132,12 @@ function ConfigureView({
           <p className="config-explainer">{configureGuides.runtime}</p>
           <div className="runtime-lines">
             <span>
-              <strong>Provider</strong>
-              <em>{config.provider} / {config.modelId}</em>
+              <strong>Configured</strong>
+              <em>{plannerProviderLabel(config.provider)} / {config.modelId}</em>
+            </span>
+            <span>
+              <strong>Active</strong>
+              <em>{activeProviderText}</em>
             </span>
             <span>
               <strong>Skills</strong>
@@ -5998,6 +6124,27 @@ const styles = `
     color: #f2c94c;
     border-color: #f2c94c55;
     background: #211d0d;
+  }
+
+  .provider-readiness {
+    display: grid;
+    gap: 6px;
+    border: 1px solid #344456;
+    border-radius: 8px;
+    background: #101722;
+    padding: 10px;
+    color: #9aa7b8;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .provider-readiness strong {
+    color: #e6edf5;
+  }
+
+  .provider-readiness em {
+    color: #f2c94c;
+    font-style: normal;
   }
 
   .capability-map {

@@ -30,6 +30,13 @@ import {
   defaultSkillRuntimeRegistry,
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
+import {
+  createDeterministicPlannerPlan,
+  createPlannerForProvider,
+  selectPlannerProvider,
+} from "./planner-providers";
+
+export { OpenAIResponsesPlanner } from "./planner-providers";
 
 export type AgentRuntimeStatus =
   | "planned"
@@ -285,162 +292,28 @@ function deterministicPlan(
   enabledSkills: BusinessSkillDefinition[],
   reason: string,
 ): AgentRuntimePlan {
-  const steps = enabledSkills.map((skill) => ({
-    skillId: skill.skillId,
-    moduleId: skill.moduleId,
-    title: skill.displayName,
-    action: `Prepare ${skill.displayName} handoff for: ${trimTitle(message)}`,
-    input: {
-      userRequest: message,
-      adapterMode: skill.adapterMode,
-      canonicalEntrypoints: skill.canonicalEntrypoints,
-      outputContracts: skill.outputContracts,
-      sourceRepo: skill.adapter.sourceRepo,
-    },
-    requiresApproval: skill.permissionDefaults.approvalRequired,
-  }));
+  return normalizePlan(
+    createDeterministicPlannerPlan(message, enabledSkills, reason),
+    enabledSkills,
+    enabledSkills,
+  );
+}
+
+function plannerConfigForActiveProvider(
+  config: AgentConfigRecord,
+  selection: ReturnType<typeof selectPlannerProvider>,
+): AgentConfigRecord {
+  const activeProvider = selection.definition.provider;
+  if (activeProvider === config.provider) return config;
 
   return {
-    summary:
-      "Prepared a deterministic business-skill plan. Connect OPENAI_API_KEY to let the model choose and refine steps.",
-    steps,
-    warnings: [reason],
+    ...config,
+    provider: activeProvider,
+    modelId: selection.definition.defaultModelId,
+    reasoningEffort: selection.definition.supportsReasoningEffort
+      ? config.reasoningEffort
+      : "none",
   };
-}
-
-function extractResponseText(payload: unknown): string {
-  const asRecord = normalizeJsonObject(payload);
-  if (typeof asRecord["output_text"] === "string") {
-    return asRecord["output_text"];
-  }
-
-  const output = asRecord["output"];
-  if (!Array.isArray(output)) return "";
-
-  const fragments: string[] = [];
-  for (const item of output) {
-    const content = normalizeJsonObject(item)["content"];
-    if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      const partRecord = normalizeJsonObject(part);
-      if (typeof partRecord["text"] === "string") {
-        fragments.push(partRecord["text"]);
-      }
-    }
-  }
-  return fragments.join("\n");
-}
-
-export class OpenAIResponsesPlanner implements AgentPlanner {
-  constructor(
-    private readonly env: Record<string, string | undefined>,
-    private readonly fetchFn: typeof fetch = fetch,
-  ) {}
-
-  async createPlan(request: PlannerRequest): Promise<AgentRuntimePlan> {
-    const apiKey = this.env["OPENAI_API_KEY"]?.trim();
-    if (!apiKey) {
-      return deterministicPlan(
-        request.message,
-        request.enabledSkills,
-        "OPENAI_API_KEY is missing.",
-      );
-    }
-
-    const moduleDescriptions = request.enabledSkills.map((skill) => ({
-      skillId: skill.skillId,
-      moduleId: skill.moduleId,
-      description: skill.description,
-      canonicalEntrypoints: skill.canonicalEntrypoints,
-      outputContracts: skill.outputContracts,
-      permissionDefaults: skill.permissionDefaults,
-    }));
-
-    const response = await this.fetchFn("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: request.config.modelId,
-        reasoning:
-          request.config.reasoningEffort === "none"
-            ? undefined
-            : { effort: request.config.reasoningEffort },
-        input: [
-          {
-            role: "system",
-            content:
-              `${request.config.systemPrompt}\n\n` +
-              "Return only JSON with {summary, steps, warnings}. " +
-              "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              userRequest: request.message,
-              enabledBusinessSkills: moduleDescriptions,
-              safetySettings: request.config.safetySettings,
-              memorySettings: request.config.memorySettings,
-            }),
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "agent_runtime_plan",
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                summary: { type: "string" },
-                warnings: { type: "array", items: { type: "string" } },
-                steps: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      moduleId: { type: "string" },
-                      skillId: { type: "string" },
-                      title: { type: "string" },
-                      action: { type: "string" },
-                      input: { type: "object", additionalProperties: true },
-                      requiresApproval: { type: "boolean" },
-                    },
-                    required: [
-                      "moduleId",
-                      "title",
-                      "action",
-                      "input",
-                      "requiresApproval",
-                    ],
-                  },
-                },
-              },
-              required: ["summary", "steps", "warnings"],
-            },
-          },
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `OpenAI planner request failed with status ${response.status}`,
-      );
-    }
-
-    const payload = await response.json();
-    const text = extractResponseText(payload);
-    const parsed = JSON.parse(text) as AgentRuntimePlan;
-    return normalizePlan(
-      parsed,
-      request.enabledSkills,
-      request.enabledSkills,
-    );
-  }
 }
 
 export class InMemoryAgentRuntimeRepository
@@ -547,6 +420,7 @@ export async function createAgentRun(
   input: CreateAgentRunInput,
   options: {
     env?: Record<string, string | undefined>;
+    fetchFn?: typeof fetch;
     planner?: AgentPlanner;
     skillManifests?: SkillManifest[];
     registry?: SkillRuntimeRegistry;
@@ -563,7 +437,8 @@ export async function createAgentRun(
         ])
       : defaultSkillRuntimeRegistry);
   const config = await getAgentConfig(configRepository, skillRegistry);
-  const connection = getConnectionStatus(env);
+  const plannerSelection = selectPlannerProvider(config, env);
+  const connection = getConnectionStatus(env, config.provider);
   const requestedSkillIds =
     input.enabledSkillIds ??
     (skillRegistry === defaultSkillRuntimeRegistry
@@ -622,24 +497,23 @@ export async function createAgentRun(
 
   const planner =
     options.planner ??
-    (connection.status === "configured"
-      ? new OpenAIResponsesPlanner(env)
-      : {
-          createPlan: (request: PlannerRequest) =>
-            Promise.resolve(
-              deterministicPlan(
-                request.message,
-                request.enabledSkills,
-                "OPENAI_API_KEY is missing.",
-              ),
-            ),
-        });
+    createPlannerForProvider(
+      plannerSelection.definition.provider,
+      env,
+      options.fetchFn,
+      plannerSelection.connection.status === "missing_key"
+        ? plannerSelection.warnings.join(" ")
+        : "",
+    );
 
   const rawPlan = await planner.createPlan({
     message: input.message,
-    config,
+    config: plannerConfigForActiveProvider(config, plannerSelection),
     enabledSkills,
   });
+  if (plannerSelection.definition.provider !== "deterministic") {
+    rawPlan.warnings.unshift(...plannerSelection.warnings);
+  }
   const plan = normalizePlan(
     rawPlan,
     enabledSkills,

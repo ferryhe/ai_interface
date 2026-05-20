@@ -4,12 +4,32 @@ Updated: 2026-05-20
 
 ## Active Work
 
-- Branch: `codex/real-cli-http-executors`
-- Scope: PR4 of the Skill Registry Generalization program: add opt-in real CLI and HTTP executors while keeping fake execution as the default safe mode.
+- Branch: `codex/planner-provider-registry`
+- Scope: PR5 of the Skill Registry Generalization program: introduce a planner provider registry with OpenAI, deterministic, Anthropic, and Ollama provider selection/readiness.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR5 development is in progress on `codex/planner-provider-registry`. Added a planner provider registry with OpenAI, Anthropic, Ollama, and deterministic provider definitions; OpenAI remains the default configured provider and deterministic is now an explicit fallback.
+- Planner readiness now reports configured/active provider, provider metadata, missing env var names, and warnings without returning key values or local provider base URLs.
+- Moved OpenAI Responses planner request construction into provider registry code, added deterministic planner support, and added Anthropic/Ollama HTTP planner shells with mocked-fetch request/response tests.
+- Agent runtime provider output still flows through `normalizePlan`; missing configured provider env falls back to deterministic with warnings while preserving the existing `missing_key` status.
+- OpenAPI was updated for expanded provider/connection payloads and generated Zod/React clients were regenerated. Configure UI provider choices now include OpenAI, Anthropic, Ollama, and Deterministic.
+- PR5 required validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 155 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed after widening the DB provider enum; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --filter @workspace/api-spec run codegen` passed and regenerated clients; `corepack pnpm run typecheck:libs` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 review revision fixed provider fallback model mismatch by passing an active-provider config to concrete planners: configured Anthropic with missing env now falls back to OpenAI using `gpt-5.5`, and configured OpenAI with missing env now falls back to Anthropic using `claude-3-5-sonnet-latest`.
+- Added checked-in DB enum migration `lib/db/migrations/20260520_add_agent_provider_values.sql` with idempotent `ALTER TYPE agent_provider ADD VALUE IF NOT EXISTS ...` statements and README apply instructions before saving non-OpenAI providers.
+- Configure UI now stores the richer connection payload and shows active planner plus fallback warnings so operators can see when configured provider and active provider differ.
+- OpenAPI `/agent-config` and `/agent-config/test-connection` descriptions now use provider readiness/env wording instead of OpenAI-only key wording.
+- PR5 review revision validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 157 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`; `corepack pnpm run typecheck:libs` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 P1 re-review revision fixed server-side provider-only config normalization: `updateAgentConfig()` now uses provider registry metadata to reset omitted `modelId` to the new provider default and omitted `reasoningEffort` to `medium` for OpenAI or `none` for non-reasoning providers when `provider` changes.
+- Added focused regressions for provider-only config updates: default OpenAI config updated to Anthropic now persists `claude-3-5-sonnet-latest`/`none`, provider-only Ollama update persists `llama3.1`/`none`, provider-only OpenAI update restores `gpt-5.5`/`medium`, and an Anthropic runtime request after provider-only update sends the Anthropic default model rather than stale `gpt-5.5`.
+- PR5 P1 re-review validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 159 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `git diff --check` passed with CRLF warnings only.
+- PR5 final review gates passed: spec re-review approved with no findings; code-quality/security re-review approved after the provider-only config normalization fix.
+- PR5 controller validation passed: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `corepack pnpm --filter @workspace/api-server run test` passed with 159 tests; `git diff --check` passed with CRLF warnings only.
+- Opened PR #40 for `codex/planner-provider-registry`: https://github.com/ferryhe/ai_interface/pull/40
+- Scheduled follow-up automation `pr-40-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation, then merge and clean up the work branch if clean.
+- PR #40 follow-up found no configured GitHub checks and four Copilot inline comments. Confirmed-safe fixes were applied: explicitly configured deterministic planning no longer reports a fallback warning, deterministic readiness display name is neutral, provider planner empty/invalid JSON responses now raise clear provider-specific errors without response payloads, and the Configure UI restores `medium` reasoning when switching back to OpenAI from a non-reasoning provider.
+- PR #40 follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 161 tests; `corepack pnpm --filter @workspace/api-server run typecheck` passed; `corepack pnpm --filter @workspace/api-server run build` passed; `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed; `git diff --check` passed with CRLF warnings only.
 - PR #35 (`codex/skill-registry-generalization-plan`) was merged on 2026-05-19. The local plan branch was deleted; the remote branch was already absent when cleanup was attempted.
 - Started PR1 from latest `main` on branch `codex/skill-runtime-registry-context`.
 - PR1 implementation completed through the managed multi-agent loop: development agent implemented the registry context base, spec review requested and verified fixes, code-quality review requested and verified fixes, and controller validation passed.
@@ -60,6 +80,9 @@ Updated: 2026-05-20
 - PR #39 follow-up validation: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - PR #39 controller follow-up validation passed: `corepack pnpm --filter @workspace/api-server run test` passed with 150 tests, `corepack pnpm --filter @workspace/api-server run typecheck` passed, `corepack pnpm --filter @workspace/api-server run build` passed, and `git diff --check` passed with CRLF warnings only.
 - PR #39 follow-up fixes were pushed. Remote re-check found no configured GitHub checks, PR #39 mergeable, the CLI output-buffer thread outdated, and the HTTP redirect-body thread still attached to a current line but confirmed fixed by `cancelResponseBody(response)` plus regression coverage.
+- PR #39 was merged into `main` on 2026-05-20 at merge commit `6adef74f7aed946417ddcab6ad9a4a29958794f2`; the local and remote work branches were confirmed absent after cleanup.
+- Deleted completed heartbeat automation `pr-39-follow-up`.
+- Started PR5 from latest `main` on branch `codex/planner-provider-registry`.
 - Added detailed project plan at `docs/superpowers/plans/2026-05-19-skill-registry-generalization.md`.
 - The plan decomposes the work into seven sequential PRs: registry context, YAML loader and built-in migration, custom/community skill DX, real CLI/HTTP executors, planner provider registry, MCP executor, and optional DAG execution.
 - The plan records work requirements, deliverables, test commands, managed-PR handoff gates, and explicit non-goals.
@@ -556,4 +579,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Merge PR #39, delete the work branch locally/remotely, update `main`, and start PR5 from latest `main`.
+- Push PR #40 follow-up fixes, re-check PR state, merge if clean, delete `codex/planner-provider-registry`, update `main`, then start PR6 from latest `main`.

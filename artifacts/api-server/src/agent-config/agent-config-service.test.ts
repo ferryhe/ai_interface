@@ -228,6 +228,34 @@ test("updates model, business skills, general skills, memory, and safety setting
   assert.equal(updated.safetySettings.maxToolSteps, 8);
 });
 
+test("provider-only updates use provider defaults for model and reasoning", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+
+  const anthropic = await updateAgentConfig(repository, {
+    provider: "anthropic",
+  });
+
+  assert.equal(anthropic.provider, "anthropic");
+  assert.equal(anthropic.modelId, "claude-3-5-sonnet-latest");
+  assert.equal(anthropic.reasoningEffort, "none");
+
+  const ollama = await updateAgentConfig(repository, {
+    provider: "ollama",
+  });
+
+  assert.equal(ollama.provider, "ollama");
+  assert.equal(ollama.modelId, "llama3.1");
+  assert.equal(ollama.reasoningEffort, "none");
+
+  const openai = await updateAgentConfig(repository, {
+    provider: "openai",
+  });
+
+  assert.equal(openai.provider, "openai");
+  assert.equal(openai.modelId, "gpt-5.5");
+  assert.equal(openai.reasoningEffort, "medium");
+});
+
 test("updates publish settings and hashes portal token without returning plaintext", async () => {
   const repository = new InMemoryAgentConfigRepository();
 
@@ -372,12 +400,28 @@ test("portal access verification authorizes a published matching token", async (
   assert.equal(JSON.stringify(result).includes("portal-secret-token"), false);
 });
 
-test("detects OpenAI API key status without exposing secrets", () => {
-  assert.deepEqual(getConnectionStatus({}), { status: "missing_key" });
-  assert.deepEqual(getConnectionStatus({ OPENAI_API_KEY: "" }), {
-    status: "missing_key",
-  });
-  assert.deepEqual(getConnectionStatus({ OPENAI_API_KEY: "sk-test-secret" }), {
-    status: "configured",
-  });
+test("reports provider readiness without exposing secrets", () => {
+  const missing = getConnectionStatus({}, "openai");
+  assert.equal(missing.status, "missing_key");
+  assert.equal(missing.configuredProvider, "openai");
+  assert.equal(missing.activeProvider, "deterministic");
+  assert.equal(
+    missing.warnings.some((warning) => warning.includes("OPENAI_API_KEY")),
+    true,
+  );
+
+  const configured = getConnectionStatus(
+    {
+      OPENAI_API_KEY: "sk-test-secret",
+      ANTHROPIC_API_KEY: "anthropic-secret",
+      OLLAMA_API_BASE_URL: "http://127.0.0.1:11434",
+    },
+    "openai",
+  );
+  const serialized = JSON.stringify(configured);
+  assert.equal(configured.status, "configured");
+  assert.equal(configured.activeProvider, "openai");
+  assert.equal(serialized.includes("sk-test-secret"), false);
+  assert.equal(serialized.includes("anthropic-secret"), false);
+  assert.equal(serialized.includes("127.0.0.1:11434"), false);
 });

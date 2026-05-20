@@ -10,4 +10,7 @@ export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
 
 export const AgentProvider = {
   openai: "openai",
+  anthropic: "anthropic",
+  ollama: "ollama",
+  deterministic: "deterministic",
 } as const;

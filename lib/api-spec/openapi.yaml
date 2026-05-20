@@ -519,7 +519,7 @@ paths:
       operationId: getAgentConfig
       tags: [agent-config]
       summary: Get Agent configuration
-      description: Returns the persisted Agent control plane configuration and OpenAI API key status.
+      description: Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
       responses:
         "200":
           description: Agent configuration
@@ -555,7 +555,7 @@ paths:
       operationId: testAgentConfigConnection
       tags: [agent-config]
       summary: Test Agent provider connection
-      description: Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+      description: Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
       responses:
         "200":
           description: Connection status
@@ -1417,6 +1417,9 @@ components:
       type: string
       enum:
         - openai
+        - anthropic
+        - ollama
+        - deterministic
     AgentEndpoint:
       type: string
       enum:
@@ -1435,6 +1438,41 @@ components:
       enum:
         - configured
         - missing_key
+    PlannerProviderDefinition:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/AgentProvider"
+        displayName:
+          type: string
+        requiredEnv:
+          type: array
+          items:
+            type: string
+        defaultModelId:
+          type: string
+        supportsReasoningEffort:
+          type: boolean
+      required:
+        - provider
+        - displayName
+        - requiredEnv
+        - defaultModelId
+        - supportsReasoningEffort
+    PlannerProviderReadiness:
+      allOf:
+        - $ref: "#/components/schemas/PlannerProviderDefinition"
+        - type: object
+          properties:
+            configured:
+              type: boolean
+            missingEnv:
+              type: array
+              items:
+                type: string
+          required:
+            - configured
+            - missingEnv
     MemoryPromotionMode:
       type: string
       enum:
@@ -1673,8 +1711,24 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/AgentConnectionStatus"
+        configuredProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        activeProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerProviderReadiness"
+        warnings:
+          type: array
+          items:
+            type: string
       required:
         - status
+        - configuredProvider
+        - activeProvider
+        - providers
+        - warnings
     AgentConfigResponse:
       type: object
       properties:
@@ -1717,11 +1771,27 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/AgentConnectionStatus"
+        configuredProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        activeProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerProviderReadiness"
+        warnings:
+          type: array
+          items:
+            type: string
         checkedAt:
           type: string
           format: date-time
       required:
         - status
+        - configuredProvider
+        - activeProvider
+        - providers
+        - warnings
         - checkedAt
     AgentRuntimeStatus:
       type: string
@@ -1747,8 +1817,24 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/AgentConnectionStatus"
+        configuredProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        activeProvider:
+          $ref: "#/components/schemas/AgentProvider"
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerProviderReadiness"
+        warnings:
+          type: array
+          items:
+            type: string
       required:
         - status
+        - configuredProvider
+        - activeProvider
+        - providers
+        - warnings
     AgentThread:
       type: object
       properties:

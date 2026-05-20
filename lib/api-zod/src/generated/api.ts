@@ -801,6 +801,40 @@ export const CreateAgentRunResponse = zod.object({
   status: zod.enum(["planned", "missing_key", "needs_approval", "failed"]),
   connection: zod.object({
     status: zod.enum(["configured", "missing_key"]),
+    configuredProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    activeProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    providers: zod.array(
+      zod
+        .object({
+          provider: zod.enum([
+            "openai",
+            "anthropic",
+            "ollama",
+            "deterministic",
+          ]),
+          displayName: zod.string(),
+          requiredEnv: zod.array(zod.string()),
+          defaultModelId: zod.string(),
+          supportsReasoningEffort: zod.boolean(),
+        })
+        .and(
+          zod.object({
+            configured: zod.boolean(),
+            missingEnv: zod.array(zod.string()),
+          }),
+        ),
+    ),
+    warnings: zod.array(zod.string()),
   }),
   thread: zod.object({
     id: zod.string().uuid(),
@@ -996,7 +1030,7 @@ export const GetAgentRunResponse = zod.object({
 });
 
 /**
- * Returns the persisted Agent control plane configuration and OpenAI API key status.
+ * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
  * @summary Get Agent configuration
  */
 
@@ -1004,7 +1038,7 @@ export const GetAgentConfigResponse = zod.object({
   config: zod.object({
     id: zod.string().uuid(),
     configKey: zod.string(),
-    provider: zod.enum(["openai"]),
+    provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
     endpoint: zod.enum(["responses", "agents_sdk"]),
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
@@ -1063,6 +1097,40 @@ export const GetAgentConfigResponse = zod.object({
   }),
   connection: zod.object({
     status: zod.enum(["configured", "missing_key"]),
+    configuredProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    activeProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    providers: zod.array(
+      zod
+        .object({
+          provider: zod.enum([
+            "openai",
+            "anthropic",
+            "ollama",
+            "deterministic",
+          ]),
+          displayName: zod.string(),
+          requiredEnv: zod.array(zod.string()),
+          defaultModelId: zod.string(),
+          supportsReasoningEffort: zod.boolean(),
+        })
+        .and(
+          zod.object({
+            configured: zod.boolean(),
+            missingEnv: zod.array(zod.string()),
+          }),
+        ),
+    ),
+    warnings: zod.array(zod.string()),
   }),
 });
 
@@ -1071,7 +1139,9 @@ export const GetAgentConfigResponse = zod.object({
  */
 
 export const UpdateAgentConfigBody = zod.object({
-  provider: zod.enum(["openai"]).optional(),
+  provider: zod
+    .enum(["openai", "anthropic", "ollama", "deterministic"])
+    .optional(),
   endpoint: zod.enum(["responses", "agents_sdk"]).optional(),
   modelId: zod.string().optional(),
   reasoningEffort: zod
@@ -1141,7 +1211,7 @@ export const UpdateAgentConfigResponse = zod.object({
   config: zod.object({
     id: zod.string().uuid(),
     configKey: zod.string(),
-    provider: zod.enum(["openai"]),
+    provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
     endpoint: zod.enum(["responses", "agents_sdk"]),
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
@@ -1200,15 +1270,73 @@ export const UpdateAgentConfigResponse = zod.object({
   }),
   connection: zod.object({
     status: zod.enum(["configured", "missing_key"]),
+    configuredProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    activeProvider: zod.enum([
+      "openai",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    providers: zod.array(
+      zod
+        .object({
+          provider: zod.enum([
+            "openai",
+            "anthropic",
+            "ollama",
+            "deterministic",
+          ]),
+          displayName: zod.string(),
+          requiredEnv: zod.array(zod.string()),
+          defaultModelId: zod.string(),
+          supportsReasoningEffort: zod.boolean(),
+        })
+        .and(
+          zod.object({
+            configured: zod.boolean(),
+            missingEnv: zod.array(zod.string()),
+          }),
+        ),
+    ),
+    warnings: zod.array(zod.string()),
   }),
 });
 
 /**
- * Reports whether OPENAI_API_KEY is configured without accepting or returning secrets.
+ * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
  * @summary Test Agent provider connection
  */
 export const TestAgentConfigConnectionResponse = zod.object({
   status: zod.enum(["configured", "missing_key"]),
+  configuredProvider: zod.enum([
+    "openai",
+    "anthropic",
+    "ollama",
+    "deterministic",
+  ]),
+  activeProvider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
+  providers: zod.array(
+    zod
+      .object({
+        provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
+        displayName: zod.string(),
+        requiredEnv: zod.array(zod.string()),
+        defaultModelId: zod.string(),
+        supportsReasoningEffort: zod.boolean(),
+      })
+      .and(
+        zod.object({
+          configured: zod.boolean(),
+          missingEnv: zod.array(zod.string()),
+        }),
+      ),
+  ),
+  warnings: zod.array(zod.string()),
   checkedAt: zod.coerce.date(),
 });
 

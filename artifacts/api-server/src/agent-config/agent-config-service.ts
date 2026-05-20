@@ -5,12 +5,19 @@ import {
   defaultSkillRuntimeRegistry,
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
+import {
+  getPlannerProviderDefinition,
+  selectPlannerProvider,
+  type AgentProvider,
+  type AgentConnectionStatus as ConnectionStatus,
+  type AgentProviderConnectionStatus,
+} from "../agent-runtime/planner-providers";
 
-export type AgentProvider = "openai";
+export type { AgentProvider } from "../agent-runtime/planner-providers";
+
 export type AgentEndpoint = "responses" | "agents_sdk";
 export type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type MemoryPromotionMode = "manual" | "agent_suggested";
-export type ConnectionStatus = "configured" | "missing_key";
 export type AgentPublishStatus = "draft" | "published" | "paused";
 export type PortalAccessMode = "token";
 export type GeneralSkillId =
@@ -373,13 +380,26 @@ export async function updateAgentConfig(
   registry: SkillRuntimeRegistry = defaultSkillRuntimeRegistry,
 ): Promise<AgentConfigRecord> {
   const current = await getAgentConfig(repository, registry);
+  const provider = input.provider ?? current.provider;
+  const providerChanged = provider !== current.provider;
+  const providerDefinition = providerChanged
+    ? getPlannerProviderDefinition(provider)
+    : null;
 
   return repository.upsertConfig({
     configKey: current.configKey,
-    provider: input.provider ?? current.provider,
+    provider,
     endpoint: input.endpoint ?? current.endpoint,
-    modelId: input.modelId ?? current.modelId,
-    reasoningEffort: input.reasoningEffort ?? current.reasoningEffort,
+    modelId:
+      input.modelId ??
+      (providerChanged ? providerDefinition!.defaultModelId : current.modelId),
+    reasoningEffort:
+      input.reasoningEffort ??
+      (providerChanged
+        ? providerDefinition!.supportsReasoningEffort
+          ? "medium"
+          : "none"
+        : current.reasoningEffort),
     systemPrompt: input.systemPrompt ?? current.systemPrompt,
     businessSkillSettings:
       input.businessSkillSettings ?? current.businessSkillSettings,
@@ -420,6 +440,7 @@ export async function verifyPortalAccess(
 
 export function getConnectionStatus(
   env: Record<string, string | undefined>,
-): { status: ConnectionStatus } {
-  return { status: env["OPENAI_API_KEY"]?.trim() ? "configured" : "missing_key" };
+  configuredProvider: AgentProvider = "openai",
+): AgentProviderConnectionStatus {
+  return selectPlannerProvider({ provider: configuredProvider }, env).connection;
 }
