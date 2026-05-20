@@ -22,6 +22,8 @@ tags:
     description: External tool adapter metadata and readiness
   - name: skills
     description: Generic skill manifests, UI capabilities, and readiness
+  - name: pipelines
+    description: Guarded local pipeline run operations and status visibility
   - name: climate-monitor
     description: Climate monitor repository status and guarded run operations
 paths:

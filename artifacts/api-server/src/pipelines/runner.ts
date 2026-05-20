@@ -4,6 +4,7 @@ import {
   copyFile,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   realpath,
   rm,
@@ -312,7 +313,17 @@ async function readArtifactPayload(
     };
   }
 
-  const source = await readFile(path, "utf8");
+  const source = await readSmallTextFile(path, MAX_ARTIFACT_TEXT_BYTES);
+  if (source === null) {
+    return {
+      artifactKind,
+      path,
+      exists: existsSync(path),
+      contentJson: null,
+      contentText: null,
+    };
+  }
+
   if (extname(path).toLowerCase() === ".json") {
     try {
       const parsed = JSON.parse(source) as unknown;
@@ -321,7 +332,7 @@ async function readArtifactPayload(
         path,
         exists: true,
         contentJson: jsonObjectOrNull(parsed),
-        contentText: source.length <= MAX_ARTIFACT_TEXT_BYTES ? source : null,
+        contentText: source,
       };
     } catch {
       // fall through to text payload
@@ -333,8 +344,36 @@ async function readArtifactPayload(
     path,
     exists: true,
     contentJson: null,
-    contentText: source.length <= MAX_ARTIFACT_TEXT_BYTES ? source : null,
+    contentText: source,
   };
+}
+
+async function readSmallTextFile(path: string, maxBytes: number): Promise<string | null> {
+  try {
+    const pathStat = await stat(path);
+    if (!pathStat.isFile() || pathStat.size > maxBytes) return null;
+    return await readFile(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+async function readTextPreview(path: string | null, maxBytes: number): Promise<string | null> {
+  if (!path) return null;
+  try {
+    const pathStat = await stat(path);
+    if (!pathStat.isFile()) return null;
+    const file = await open(path, "r");
+    try {
+      const buffer = Buffer.alloc(Math.min(pathStat.size, maxBytes));
+      const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+      return buffer.subarray(0, bytesRead).toString("utf8");
+    } finally {
+      await file.close();
+    }
+  } catch {
+    return null;
+  }
 }
 
 function createPendingStep(step: ActuarialPipelineStepManifest): PipelineStepRecord {
@@ -531,12 +570,13 @@ export class AiActuaryCliStepExecutor implements StepExecutor {
       : null;
     const stdoutLogPath = stringValue(stepPayload?.["stdout_log_path"]);
     const stderrLogPath = stringValue(stepPayload?.["stderr_log_path"]);
-    const stdout = stdoutLogPath && existsSync(stdoutLogPath)
-      ? await readFile(stdoutLogPath, "utf8")
-      : stringValue(jsonObjectOrNull(result.eventPayload)?.["stdout"]);
-    const stderr = stderrLogPath && existsSync(stderrLogPath)
-      ? await readFile(stderrLogPath, "utf8")
-      : stringValue(jsonObjectOrNull(result.eventPayload)?.["stderr"]);
+    const eventPayload = jsonObjectOrNull(result.eventPayload);
+    const stdout =
+      (await readTextPreview(stdoutLogPath, MAX_ARTIFACT_TEXT_BYTES)) ??
+      stringValue(eventPayload?.["stdout"]);
+    const stderr =
+      (await readTextPreview(stderrLogPath, MAX_ARTIFACT_TEXT_BYTES)) ??
+      stringValue(eventPayload?.["stderr"]);
     const exitCode = typeof stepPayload?.["exit_code"] === "number"
       ? (stepPayload["exit_code"] as number)
       : null;

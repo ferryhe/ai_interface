@@ -1,54 +1,47 @@
 import { Router, type IRouter } from "express";
 import type { Request } from "express";
 import { isIP } from "node:net";
+import {
+  GetPipelineRunParams,
+  GetPipelineRunResponse,
+  ListActuarialPipelineRunsResponse,
+  StartPipelineRunBody,
+} from "@workspace/api-zod";
 
 import {
   ActuarialPipelineRunnerService,
   type PipelineRunRecord,
   type StartPipelineRunInput,
+  type PipelineRunListItem,
 } from "../pipelines/runner";
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 function parseStartBody(value: unknown): StartPipelineRunInput {
-  if (!isRecord(value)) {
-    throw new Error("Expected request body to be an object.");
+  const body = StartPipelineRunBody.safeParse(value);
+  if (!body.success) {
+    throw new Error(body.error.message);
   }
-  if (typeof value.inputPath !== "string" || value.inputPath.trim() === "") {
-    throw new Error("Expected inputPath to be a non-empty string.");
-  }
-  if (
-    value.pipelineId !== undefined &&
-    (typeof value.pipelineId !== "string" || value.pipelineId.trim() === "")
-  ) {
-    throw new Error("Expected pipelineId to be a non-empty string.");
-  }
-  if (
-    value.artifactRoot !== undefined &&
-    (typeof value.artifactRoot !== "string" || value.artifactRoot.trim() === "")
-  ) {
-    throw new Error("Expected artifactRoot to be a non-empty string.");
-  }
-  if (
-    value.runId !== undefined &&
-    (typeof value.runId !== "string" || value.runId.trim() === "")
-  ) {
-    throw new Error("Expected runId to be a non-empty string.");
-  }
+
+  const trimmed = {
+    pipelineId: body.data.pipelineId?.trim(),
+    inputPath: body.data.inputPath.trim(),
+    artifactRoot: body.data.artifactRoot?.trim(),
+    runId: body.data.runId?.trim(),
+  };
+
+  if (trimmed.inputPath === "") throw new Error("Expected inputPath to be a non-empty string.");
+  if (trimmed.pipelineId === "") throw new Error("Expected pipelineId to be a non-empty string.");
+  if (trimmed.artifactRoot === "") throw new Error("Expected artifactRoot to be a non-empty string.");
+  if (trimmed.runId === "") throw new Error("Expected runId to be a non-empty string.");
 
   return {
-    pipelineId:
-      typeof value.pipelineId === "string" ? value.pipelineId : undefined,
-    inputPath: value.inputPath,
-    artifactRoot:
-      typeof value.artifactRoot === "string" ? value.artifactRoot : undefined,
-    runId: typeof value.runId === "string" ? value.runId : undefined,
+    pipelineId: trimmed.pipelineId,
+    inputPath: trimmed.inputPath,
+    artifactRoot: trimmed.artifactRoot,
+    runId: trimmed.runId,
   };
 }
 
@@ -135,7 +128,28 @@ export const __privatePipelinesRouteGuards = {
 };
 
 function pipelineResponse(run: PipelineRunRecord): PipelineRunRecord {
-  return run;
+  return GetPipelineRunResponse.parse(run) as PipelineRunRecord;
+}
+
+function pipelineListItemResponse(
+  run: PipelineRunListItem | PipelineRunRecord,
+): PipelineRunListItem {
+  if ("stepCount" in run && "completedStepCount" in run) return run;
+  return {
+    runId: run.runId,
+    pipelineId: run.pipelineId,
+    status: run.status,
+    governanceStatus: run.governanceStatus,
+    createdAt: run.createdAt,
+    updatedAt: run.updatedAt,
+    startedAt: run.startedAt,
+    completedAt: run.completedAt,
+    durationMs: run.durationMs,
+    inputPath: run.inputPath,
+    artifactRoot: run.artifactRoot,
+    stepCount: run.steps.length,
+    completedStepCount: run.steps.filter((step) => step.status === "completed").length,
+  };
 }
 
 export function createPipelinesRouter(
@@ -167,7 +181,9 @@ export function createPipelinesRouter(
       return;
     }
 
-    res.json({ runs: service.listRuns() });
+    res.json(ListActuarialPipelineRunsResponse.parse({
+      runs: service.listRuns().map(pipelineListItemResponse),
+    }));
   });
 
   router.get("/pipelines/runs/:runId", (req, res) => {
@@ -177,15 +193,15 @@ export function createPipelinesRouter(
       return;
     }
 
-    const runId = req.params.runId;
-    if (!runId) {
-      res.status(400).json(errorResponse("Expected runId route param."));
+    const params = GetPipelineRunParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json(errorResponse(params.error.message));
       return;
     }
 
-    const run = service.getRun(runId);
+    const run = service.getRun(params.data.runId);
     if (!run) {
-      res.status(404).json(errorResponse(`Pipeline run not found: ${runId}`));
+      res.status(404).json(errorResponse(`Pipeline run not found: ${params.data.runId}`));
       return;
     }
 
