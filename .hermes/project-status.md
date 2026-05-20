@@ -23,6 +23,8 @@ Updated: 2026-05-20
 - Follow-up automations for merged PRs were deleted or are being removed as they complete.
 - Documentation cleanup is in progress: README current-state updates, docs index, community skill guidance, Replit notes, and `docs/project-overview.html`.
 - `vite-smoke.out.log` was identified as generated Vite HMR/smoke output and added to `.gitignore`; deletion is blocked while a local process holds the file open.
+- Opened PR #45 for `codex/docs-project-overview`: https://github.com/ferryhe/ai_interface/pull/45
+- Scheduled follow-up automation `pr-45-follow-up` to check GitHub checks and remote review/Copilot comments about 15 minutes after PR creation.
 
 ## Verification
 
@@ -40,4 +42,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Commit, push, and open the documentation cleanup PR.
+- Wait for `pr-45-follow-up` to evaluate remote checks/reviews/Copilot comments, apply safe documentation fixes if needed, merge PR #45 if clean, delete `codex/docs-project-overview`, and update `main`.
