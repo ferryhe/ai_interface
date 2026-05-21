@@ -156,6 +156,29 @@ test("agent run route keeps non-Portal runtime writes available without a portal
   assert.equal(runtimeRepository.threads.length, 1);
 });
 
+test("agent run route rejects an unknown agent id", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  const response = await requestAgentRun({
+    runtimeRepository,
+    configRepository,
+    body: {
+      message: "Run an unregistered agent.",
+      agentId: "missing_agent",
+    },
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(
+    response.text.includes("Agent is not registered: missing_agent"),
+    true,
+  );
+  assert.equal(runtimeRepository.threads.length, 0);
+  assert.equal(runtimeRepository.pipelineRuns.length, 0);
+  assert.equal(runtimeRepository.moduleRuns.length, 0);
+});
+
 test("agent run route rejects Portal-origin reads without a verified token", async () => {
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
   const configRepository = new InMemoryAgentConfigRepository();

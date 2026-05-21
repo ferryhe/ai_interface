@@ -4,9 +4,12 @@ import test from "node:test";
 
 import {
   createDefaultBusinessSkillSettings,
+  getAgentConfig,
   InMemoryAgentConfigRepository,
   updateAgentConfig,
 } from "../agent-config/agent-config-service";
+import type { AgentManifest } from "../agent-registry/agent-manifest";
+import { createAgentRuntimeRegistry } from "../agent-registry/agent-runtime-registry";
 import {
   createAgentRun,
   getAgentRunDetail,
@@ -118,6 +121,40 @@ function customReporterSplitManifest() {
       canUseNetwork: false,
       canWriteDatabase: true,
     },
+  };
+}
+
+function testAgentManifest(
+  overrides: Partial<AgentManifest> = {},
+): AgentManifest {
+  return {
+    agentId: "knowledge_builder",
+    name: "Knowledge Builder",
+    description:
+      "Turn approved web and document sources into a RAG-backed agent configuration.",
+    source: "builtin",
+    instructions: "Build an inspectable knowledge pipeline.",
+    skills: [
+      { skillId: "web_listening", required: false },
+      { skillId: "doc_to_md", required: false },
+      { skillId: "md_to_rag", required: true },
+      { skillId: "rag_to_agent", required: true },
+    ],
+    planner: {
+      mode: "dag",
+      failureStrategy: "fail_fast",
+    },
+    permissions: {
+      approvalRequired: true,
+      canUseNetwork: true,
+      canWriteDatabase: true,
+    },
+    memory: {
+      promotionMode: "run_summary",
+    },
+    handoffs: [],
+    tests: [],
+    ...overrides,
   };
 }
 
@@ -1043,6 +1080,227 @@ test("defaults missing plan mode to linear and preserves module-run order", asyn
   );
   assert.equal(result.moduleRuns[0]?.metadata?.["dagStepId"], undefined);
   assert.equal(result.moduleRuns[1]?.metadata?.["dagStepId"], undefined);
+});
+
+test("agent id selects exactly the skills declared by that agent", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([testAgentManifest()]);
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Build a knowledge agent.",
+      agentId: "knowledge_builder",
+    },
+    { env: {}, agentRegistry },
+  );
+
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.metadata?.["skillId"]),
+    ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+  );
+});
+
+test("enabled skill ids override agent skill bindings for one run", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([testAgentManifest()]);
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Only convert source documents.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    { env: {}, agentRegistry },
+  );
+
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.metadata?.["skillId"]),
+    ["doc_to_md"],
+  );
+});
+
+test("agent skill bindings with missing skill references warn and do not create module runs", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([
+    testAgentManifest({
+      skills: [
+        { skillId: "doc_to_md", required: false },
+        { skillId: "missing_agent_skill", required: true },
+      ],
+    }),
+  ]);
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Build with one missing skill reference.",
+      agentId: "knowledge_builder",
+    },
+    { env: {}, agentRegistry },
+  );
+
+  assert.deepEqual(
+    result.moduleRuns.map((run) => run.metadata?.["skillId"]),
+    ["doc_to_md"],
+  );
+  assert.equal(
+    result.plan.warnings.some((warning) =>
+      warning.includes("Agent references unregistered skill: missing_agent_skill"),
+    ),
+    true,
+  );
+});
+
+test("agent planner defaults provide dag mode when injected planner omits mode", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([testAgentManifest()]);
+  const planner: AgentPlanner = {
+    async createPlan() {
+      return {
+        summary: "Convert then index from planner defaults.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: false,
+            stepId: "convert",
+          },
+          {
+            moduleId: "md_to_rag",
+            title: "Index Markdown",
+            action: "Index Markdown after conversion.",
+            input: { markdownArtifactIds: ["artifact-md-1"] },
+            requiresApproval: false,
+            stepId: "index",
+            dependsOn: ["convert"],
+          },
+        ],
+      };
+    },
+  };
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Planner omitted mode.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["doc_to_md", "md_to_rag"],
+    },
+    { env: { OPENAI_API_KEY: "sk-test-secret" }, planner, agentRegistry },
+  );
+
+  assert.equal(result.plan.mode, "dag");
+  assert.equal(result.plan.failureStrategy, "fail_fast");
+  assert.equal(result.moduleRuns[0]?.metadata?.["dagStepId"], "convert");
+  assert.deepEqual(result.moduleRuns[1]?.metadata?.["dagDependsOn"], [
+    "convert",
+  ]);
+});
+
+test("agent metadata is recorded on pipeline and module runs", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([testAgentManifest()]);
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Build a knowledge agent.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["md_to_rag"],
+    },
+    { env: {}, agentRegistry },
+  );
+
+  assert.equal(result.pipelineRun.metadata?.["agentId"], "knowledge_builder");
+  assert.equal(result.pipelineRun.metadata?.["agentName"], "Knowledge Builder");
+  assert.deepEqual(result.pipelineRun.metadata?.["agentSkillIds"], [
+    "web_listening",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+  ]);
+  assert.equal(result.moduleRuns[0]?.metadata?.["agentId"], "knowledge_builder");
+  assert.equal(result.moduleRuns[0]?.metadata?.["skillId"], "md_to_rag");
+});
+
+test("agent provider overrides apply to planner config without persisting", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, {
+    provider: "openai",
+    modelId: "saved-openai-model",
+    reasoningEffort: "medium",
+  });
+  const agentRegistry = createAgentRuntimeRegistry([
+    testAgentManifest({
+      provider: {
+        provider: "deterministic",
+        modelId: "agent-deterministic-model",
+        reasoningEffort: "low",
+      },
+      planner: {
+        mode: "linear",
+        failureStrategy: "fail_fast",
+      },
+    }),
+  ]);
+  let capturedConfig:
+    | Awaited<ReturnType<typeof getAgentConfig>>
+    | undefined;
+  const planner: AgentPlanner = {
+    async createPlan(request) {
+      capturedConfig = request.config;
+      return {
+        summary: "Convert source docs.",
+        warnings: [],
+        steps: [
+          {
+            moduleId: "doc_to_md",
+            title: "Convert source docs",
+            action: "Convert uploaded source documents into Markdown.",
+            input: { sourceArtifactIds: ["artifact-source-1"] },
+            requiresApproval: false,
+          },
+        ],
+      };
+    },
+  };
+
+  await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Use the agent provider for this run only.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    { env: {}, planner, agentRegistry },
+  );
+
+  assert.ok(capturedConfig);
+  assert.equal(capturedConfig.provider, "deterministic");
+  assert.equal(capturedConfig.modelId, "agent-deterministic-model");
+  assert.equal(capturedConfig.reasoningEffort, "low");
+
+  const savedConfig = await getAgentConfig(configRepository);
+  assert.equal(savedConfig.provider, "openai");
+  assert.equal(savedConfig.modelId, "saved-openai-model");
+  assert.equal(savedConfig.reasoningEffort, "medium");
 });
 
 test("parses DAG max concurrency environment values", () => {

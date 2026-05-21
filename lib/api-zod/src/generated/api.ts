@@ -880,8 +880,13 @@ export const CreateAgentRunHeader = zod.object({
     ),
 });
 
+export const createAgentRunBodyAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
 export const CreateAgentRunBody = zod.object({
   message: zod.string().min(1),
+  agentId: zod.string().regex(createAgentRunBodyAgentIdRegExp).optional(),
   threadId: zod.string().uuid().optional(),
   title: zod.string().optional(),
   metadata: zod.record(zod.string(), zod.unknown()).optional(),

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentId } from "./agentId";
 import type { AgentRunExecutionMode } from "./agentRunExecutionMode";
 import type { JsonObject } from "./jsonObject";
 import type { SkillId } from "./skillId";
@@ -12,6 +13,7 @@ import type { SkillId } from "./skillId";
 export interface CreateAgentRunRequest {
   /** @minLength 1 */
   message: string;
+  agentId?: AgentId;
   threadId?: string;
   title?: string;
   metadata?: JsonObject;

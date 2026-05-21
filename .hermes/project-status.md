@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/agent-registry-foundation`
-- Scope: PR 1 implementation for Agent Registry Flexible Workbench: file-backed agent manifests, read-only runtime registry, `/api/agents`, validator script, generated API schemas/clients, and docs/status updates.
+- Branch: `codex/agent-aware-runtime-selection`
+- Scope: PR 2 implementation for Agent Registry Flexible Workbench: agent-aware `POST /api/agent-runs` skill selection, planner defaults, run metadata, generated API schemas/clients, and docs/status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -41,6 +41,12 @@ Updated: 2026-05-21
 - Added YAML-backed `AgentManifest` loading, override policy, `AgentRuntimeRegistry`, `/api/agents` readiness, and `corepack pnpm run agent:validate`.
 - PR 1 code-quality review follow-up added focused `agent-loader` tests for source/root mismatch rejection and explicit built-in override opt-in.
 - PR #49 remote feedback follow-up fixed `scripts/src/validate-agents.ts` so it discovers the repository root by walking parent directories before resolving runtime imports or loader cwd.
+- PR 2 Agent-Aware Runtime Selection is implemented locally on `codex/agent-aware-runtime-selection`.
+- `POST /api/agent-runs` now accepts optional `agentId`; unknown agents fail with `Agent is not registered: <agentId>`.
+- Agent runs now select request `enabledSkillIds` first, then active agent skill bindings, then saved config skill settings when no agent is supplied.
+- Agent planner defaults provide fallback plan mode/failure strategy, agent provider preferences are applied for the run without persisting to config, and agent metadata is stored on new thread records, messages, pipeline records, and module records.
+- PR 2 spec-compliance review follow-up added runtime coverage proving agent provider/model/reasoning overrides are passed to the planner for a single run and do not persist to saved config.
+- PR 2 code-quality review follow-up narrowed README/status metadata wording to new thread records and cleaned generated status-only line-ending noise.
 
 ## Verification
 
@@ -94,7 +100,18 @@ Updated: 2026-05-21
   - PR #49 remote feedback follow-up validation passed from `scripts/`: `corepack pnpm run agent:validate`.
   - PR #49 remote feedback follow-up validation passed: `corepack pnpm --filter @workspace/scripts run typecheck`.
   - PR #49 remote feedback follow-up validation passed: `git diff --check` with CRLF warnings only.
+- Agent-Aware Runtime Selection verification:
+  - TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts src/routes/agent-runs.test.ts` failed with 5 expected failures covering ignored `agentId`, missing metadata, missing agent planner defaults, and route 201 for unknown agents.
+  - Focused green rerun of the same command passed through the package script with 233 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 233 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF warnings only.
+  - Spec-compliance follow-up red/fix cycle: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` initially failed because the new fixture inherited DAG defaults without planner `stepId`; after narrowing the fixture to linear mode, the command passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Code-quality follow-up cleanup: `git status --short --branch`, `git diff --name-only`, and `git diff --numstat` confirmed generated status-only files had no content diff before restoring them; `git diff --check` is the required final check for this docs/status cleanup.
 
 ## Next Action
 
-- Finish PR 1 verification commands, then report changed paths and results without committing or opening a PR per the current worker instructions.
+- Report PR 2 code-quality follow-up wording cleanup, generated-file cleanup, and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.

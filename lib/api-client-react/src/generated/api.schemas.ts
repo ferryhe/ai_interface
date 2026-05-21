@@ -1060,6 +1060,7 @@ export interface AgentRuntimePlan {
 export interface CreateAgentRunRequest {
   /** @minLength 1 */
   message: string;
+  agentId?: AgentId;
   threadId?: string;
   title?: string;
   metadata?: JsonObject;
