@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import agentManifestsRouter from "./agent-manifests";
 import agentsRouter from "./agents";
 import agentConfigRouter from "./agent-config";
 import agentRunsRouter from "./agent-runs";
@@ -13,6 +14,7 @@ import toolAdaptersRouter from "./tool-adapters";
 
 const router: IRouter = Router();
 
+router.use(agentManifestsRouter);
 router.use(agentsRouter);
 router.use(agentConfigRouter);
 router.use(agentRunsRouter);
