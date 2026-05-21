@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/safe-agent-creation-import`
-- Scope: PR 4 implementation for Agent Registry Flexible Workbench: safe custom agent manifest creation, VS Code `.agent.md` import, optional custom-only manifest write API, local scripts, and docs/status updates.
+- Branch: `codex/workbench-ui`
+- Scope: PR 5 implementation for Agent Registry Flexible Workbench: Agent/Skill/Run/Artifact workbench UI in the mockup sandbox, plus README/status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -63,6 +63,13 @@ Updated: 2026-05-21
 - PR 4 code-quality review follow-up fixed blocking manifest write issues: invalid manifests are validated in a temporary custom root before final write, mismatched embedded `manifest.agentId` values are rejected, non-overwrite writes use exclusive create semantics, symlinked/junction custom paths are rejected before final write, and enabled API writes now require localhost/same-origin requests before file creation.
 - PR 4 re-review follow-up added a final `agent.yaml` lstat guard so `overwrite: true` rejects pre-existing manifest file symlinks instead of following them.
 - PR #52 remote feedback follow-up made the manifest writer discover the workspace root by walking upward to `agents/builtin` when no explicit `cwd` is supplied, so API servers launched from `artifacts/api-server` still write custom manifests under the repository-level `agents/custom`.
+- PR 5 Agent/Skill/Run/Artifact Workbench UI is in progress on `codex/workbench-ui`.
+- Backstage now has primary Agents, Skills, Runs, and Artifacts tabs inside `AgentFirstInterface`.
+- Agents renders Knowledge Builder plus catalog metadata, agent detail, generated custom-agent YAML, custom manifest write fallback status, and a test-run action that posts `agentId` to `/api/agent-runs`.
+- Runs and Artifacts render stable demo/API-backed inspector states without requiring backend/API spec changes; the existing skill manifest detail remains under the Skills tab.
+- PR 5 spec-review follow-up fixed artifact grouping to fetch artifacts per known pipeline run and preserve that pipeline context, and made the Skills tab load `/api/skills` with a seven-skill static fallback.
+- PR 5 code-quality follow-up cleared stale API runtime state on workbench Test Run local fallback and refactored the agent catalog row so selection and Test Run are sibling controls.
+- PR #53 remote feedback found 1 actionable Copilot comment: `missing_skills` agent readiness was using the default blue workbench status color. The follow-up maps `missing_skills` to the red status color with other failed/blocked states.
 
 ## Verification
 
@@ -190,7 +197,25 @@ Updated: 2026-05-21
   - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - PR #52 remote feedback `corepack pnpm --filter @workspace/scripts run typecheck` passed.
   - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run build` passed.
+- PR 5 workbench UI verification so far:
+  - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed after fixing local API-normalization helper calls.
+  - Final `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - Final `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - Final `git diff --check` passed with CRLF conversion warnings only.
+  - Spec-review follow-up `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - Spec-review follow-up `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - Spec-review follow-up `git diff --check` passed with CRLF conversion warnings only.
+  - Code-quality follow-up `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - Code-quality follow-up `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - Code-quality follow-up `git diff --check` passed with CRLF conversion warnings only.
+  - Controller final `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - Controller final `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - Controller final `git diff --check` passed with CRLF conversion warnings only.
+  - Controller Browser smoke passed against `http://127.0.0.1:8080/preview/ai-os/AgentFirstInterface`: Agents, Skills, Runs, and Artifacts tabs rendered; wizard YAML preview updated; 390px mobile viewport had no horizontal overflow; browser console reported 0 errors.
+  - PR #53 remote feedback follow-up `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - PR #53 remote feedback follow-up `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - PR #53 remote feedback follow-up `git diff --check` passed with CRLF conversion warnings only.
 
 ## Next Action
 
-- Publish PR 4, wait for the remote feedback gate, evaluate GitHub checks and Copilot comments, then merge and clean up the branch if clear.
+- Commit and push the PR #53 remote feedback follow-up, then merge and clean up `codex/workbench-ui`.

@@ -21,16 +21,39 @@ import {
   UploadCloud,
   WandSparkles,
 } from "lucide-react";
+import { AgentCatalog } from "./_components/AgentCatalog";
+import { AgentDetail } from "./_components/AgentDetail";
+import { AgentManifestWizard } from "./_components/AgentManifestWizard";
+import { ArtifactInspector } from "./_components/ArtifactInspector";
+import { RunInspector } from "./_components/RunInspector";
+import {
+  demoAgentManifests,
+  demoAgentReadiness,
+  demoArtifactGroups,
+  demoRunInspections,
+  workbenchSkillOptions,
+} from "./_shared/data";
+import type {
+  AgentManifestPreview,
+  AgentReadiness,
+  WorkbenchArtifact,
+  WorkbenchArtifactPipelineGroup,
+  WorkbenchRunInspection,
+  WorkbenchRunStatus,
+} from "./_shared/types";
 
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type WorkspaceMode = "foreground" | "backstage";
+type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts";
 type BackstageTab = "io" | "artifacts" | "events" | "ui" | "raw";
 type ModuleId =
   | "web_listening"
   | "doc_to_md"
   | "md_to_rag"
   | "rag_to_agent"
-  | "climate_monitor";
+  | "climate_monitor"
+  | "ai_actuary"
+  | "example_reporter";
 type RunStatus = "running" | "waiting" | "succeeded" | "queued";
 type RuntimeExecutionMode = "plan_only" | "execute_ready";
 type RuntimeRunStatus =
@@ -214,7 +237,7 @@ interface SkillManifestPreview {
   };
   execution: {
     adapterId: string;
-    kind: "cli" | "http";
+    kind: "cli" | "http" | "internal" | "mcp";
     requiredEnv: string[];
     supportsResume: boolean;
   };
@@ -408,6 +431,24 @@ const modules: ModuleDefinition[] = [
     records: 6,
     result: "latest monitor report",
     color: "#14b8a6",
+  },
+  {
+    id: "ai_actuary",
+    name: "ai_actuary",
+    description: "Invoke the reserving pipeline through the safe CLI executor.",
+    status: "queued",
+    records: 0,
+    result: "ready when configured",
+    color: "#f2c94c",
+  },
+  {
+    id: "example_reporter",
+    name: "example_reporter",
+    description: "Validation-only community manifest example for custom skill development.",
+    status: "queued",
+    records: 0,
+    result: "community example",
+    color: "#33c6d8",
   },
 ];
 
@@ -747,6 +788,115 @@ const skillManifestPreviews: SkillManifestPreview[] = [
       },
     ],
   },
+  {
+    id: "ai_actuary",
+    name: "ai_actuary",
+    description: "Invoke the ai_actuary reserving pipeline through the safe CLI executor.",
+    project: {
+      defaultSiblingPath: "../ai_actuary",
+      envPath: "AI_ACTUARY_PROJECT_PATH",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "ai_actuary.cli.v1",
+      kind: "cli",
+      requiredEnv: ["AI_ACTUARY_PROJECT_PATH"],
+      supportsResume: false,
+    },
+    ui: {
+      mode: "renderer",
+      openOnTrigger: false,
+      preferredRenderer: "json",
+    },
+    artifactKinds: ["actuary_run_json", "actuary_report"],
+    interactionKinds: ["approval", "blocked"],
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        scenario: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string" },
+        reportPath: { type: "string" },
+      },
+    },
+    sampleInput: {
+      scenario: "reserve-review",
+    },
+    sampleOutput: {
+      status: "queued",
+      reportPath: "reports/reserve-review.json",
+    },
+    sampleArtifacts: [
+      {
+        id: "ai_actuary_report_demo",
+        title: "Actuary run JSON",
+        kind: "actuary_run_json",
+        renderer: "json",
+        content: {
+          status: "ready_when_configured",
+          adapter: "ai_actuary.cli.v1",
+        },
+      },
+    ],
+  },
+  {
+    id: "example_reporter",
+    name: "example_reporter",
+    description: "Validation-only community manifest example.",
+    project: {
+      defaultSiblingPath: "skills/community/example_reporter",
+      envPath: "EXAMPLE_REPORTER_ENABLED",
+      readiness: "not_configured",
+    },
+    execution: {
+      adapterId: "example_reporter.internal.v1",
+      kind: "internal",
+      requiredEnv: [],
+      supportsResume: false,
+    },
+    ui: {
+      mode: "renderer",
+      openOnTrigger: false,
+      preferredRenderer: "json",
+    },
+    artifactKinds: ["example_report"],
+    interactionKinds: [],
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        report: { type: "object" },
+      },
+    },
+    sampleInput: {
+      title: "Example report",
+    },
+    sampleOutput: {
+      report: "validation example",
+    },
+    sampleArtifacts: [
+      {
+        id: "example_report_demo",
+        title: "Example report",
+        kind: "example_report",
+        renderer: "json",
+        content: {
+          source: "community",
+          status: "sample",
+        },
+      },
+    ],
+  },
 ];
 
 const moduleGuides: Record<ModuleId, CapabilityGuide> = {
@@ -784,6 +934,20 @@ const moduleGuides: Record<ModuleId, CapabilityGuide> = {
     action: "The Agent reads Climate Monitor status through ai_interface and can request dry-run or configured live-run executions.",
     output: "Latest report metadata, source/scope coverage, warnings, dedup status, and run JSON appear in Backstage.",
     boundary: "Live execution remains disabled until CLIMATE_MONITOR_PROJECT_PATH is configured and live runs are explicitly enabled.",
+  },
+  ai_actuary: {
+    summary: "Runs actuarial reserving workflows through the registered safe CLI adapter.",
+    trigger: "Use when a controlled actuarial pipeline run should be launched or inspected.",
+    action: "The Agent prepares a bounded run request and records the adapter output for review.",
+    output: "Run JSON and report artifacts become visible through Runs and Artifacts.",
+    boundary: "Execution depends on local ai_actuary configuration and remains adapter-gated.",
+  },
+  example_reporter: {
+    summary: "Demonstrates the community skill manifest shape without requiring external execution.",
+    trigger: "Use as a registry validation and UI rendering example.",
+    action: "The Agent treats it as a normal skill manifest with sample schemas and artifacts.",
+    output: "Example report metadata appears in the skill detail surface.",
+    boundary: "This is a community example, not a production pipeline.",
   },
 };
 
@@ -1276,8 +1440,15 @@ function moduleById(moduleId: ModuleId): ModuleDefinition {
   return modules.find((item) => item.id === moduleId) ?? modules[0]!;
 }
 
-function skillManifestById(skillId: ModuleId): SkillManifestPreview {
-  return skillManifestPreviews.find((item) => item.id === skillId) ?? skillManifestPreviews[0]!;
+function isModuleId(value: string): value is ModuleId {
+  return modules.some((module) => module.id === value);
+}
+
+function skillManifestById(
+  skillId: ModuleId,
+  catalog: SkillManifestPreview[] = skillManifestPreviews,
+): SkillManifestPreview {
+  return catalog.find((item) => item.id === skillId) ?? catalog[0] ?? skillManifestPreviews[0]!;
 }
 
 function hasBackstageSkillUi(skill: SkillManifestPreview): boolean {
@@ -1841,12 +2012,384 @@ function agentRunStateLabel(state: AgentRunSubmitState): string {
   return "Local mock";
 }
 
+function stringArrayValue(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function artifactRendererValue(value: unknown): ArtifactRendererKind {
+  if (
+    value === "markdown" ||
+    value === "table" ||
+    value === "json" ||
+    value === "text" ||
+    value === "image" ||
+    value === "file"
+  ) {
+    return value;
+  }
+  return "json";
+}
+
+function executionKindValue(value: unknown): "cli" | "http" | "internal" | "mcp" {
+  if (value === "cli" || value === "http" || value === "internal" || value === "mcp") {
+    return value;
+  }
+  return "internal";
+}
+
+function uiModeValue(value: unknown): "html" | "renderer" | "auto" {
+  if (value === "html" || value === "renderer" || value === "auto") return value;
+  return "renderer";
+}
+
+function normalizeSkillPreviews(payload: unknown): SkillManifestPreview[] {
+  if (!isRecord(payload) || !Array.isArray(payload["skills"])) return [];
+  const readinessBySkillId = new Map<string, "ready" | "not_configured">();
+  if (Array.isArray(payload["readiness"])) {
+    for (const item of payload["readiness"]) {
+      if (!isRecord(item)) continue;
+      const skillId = nullableString(item["skillId"]);
+      const project = isRecord(item["project"]) ? item["project"] : {};
+      const status = project["status"] === "ready" ? "ready" : "not_configured";
+      if (skillId) readinessBySkillId.set(skillId, status);
+    }
+  }
+
+  return payload["skills"].flatMap((item): SkillManifestPreview[] => {
+    if (!isRecord(item)) return [];
+    const rawId = nullableString(item["moduleId"]) ?? nullableString(item["skillId"]);
+    if (!rawId || !isModuleId(rawId)) return [];
+
+    const existing = skillManifestById(rawId);
+    const project = isRecord(item["project"]) ? item["project"] : {};
+    const execution = isRecord(item["execution"]) ? item["execution"] : {};
+    const ui = isRecord(item["ui"]) ? item["ui"] : {};
+
+    return [
+      {
+        ...existing,
+        id: rawId,
+        name: nullableString(item["name"]) ?? existing.name,
+        description: nullableString(item["description"]) ?? existing.description,
+        project: {
+          defaultSiblingPath:
+            nullableString(project["defaultSiblingPath"]) ??
+            existing.project.defaultSiblingPath,
+          envPath: nullableString(project["envPath"]) ?? existing.project.envPath,
+          readiness: readinessBySkillId.get(rawId) ?? existing.project.readiness,
+        },
+        execution: {
+          adapterId: nullableString(execution["adapterId"]) ?? existing.execution.adapterId,
+          kind: executionKindValue(execution["kind"]),
+          requiredEnv:
+            stringArrayValue(execution["requiredEnv"]).length > 0
+              ? stringArrayValue(execution["requiredEnv"])
+              : existing.execution.requiredEnv,
+          supportsResume:
+            typeof execution["supportsResume"] === "boolean"
+              ? execution["supportsResume"]
+              : existing.execution.supportsResume,
+        },
+        ui: {
+          mode: uiModeValue(ui["mode"]),
+          htmlEntrypoint:
+            nullableString(ui["htmlEntrypoint"]) ?? existing.ui.htmlEntrypoint,
+          openOnTrigger:
+            typeof ui["openOnTrigger"] === "boolean"
+              ? ui["openOnTrigger"]
+              : existing.ui.openOnTrigger,
+          preferredRenderer: artifactRendererValue(ui["preferredRenderer"]),
+        },
+        artifactKinds:
+          stringArrayValue(item["artifactKinds"]).length > 0
+            ? stringArrayValue(item["artifactKinds"])
+            : existing.artifactKinds,
+        interactionKinds: stringArrayValue(item["interactionKinds"]).filter(
+          (kind): kind is "question" | "approval" | "data_request" | "blocked" =>
+            isInteractionKind(kind),
+        ),
+        inputSchema: isJsonObject(item["inputSchema"]) ? item["inputSchema"] : existing.inputSchema,
+        outputSchema: isJsonObject(item["outputSchema"])
+          ? item["outputSchema"]
+          : existing.outputSchema,
+      },
+    ];
+  });
+}
+
+function isWorkbenchRunStatus(value: unknown): value is WorkbenchRunStatus {
+  return (
+    value === "pending" ||
+    value === "queued" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed" ||
+    value === "cancelled" ||
+    value === "approval_required" ||
+    value === "waiting_for_user" ||
+    value === "waiting_for_data" ||
+    value === "blocked" ||
+    value === "skipped"
+  );
+}
+
+function normalizeWorkbenchRunStatus(value: unknown): WorkbenchRunStatus {
+  if (isWorkbenchRunStatus(value)) return value;
+  if (value === "done") return "succeeded";
+  if (value === "waiting") return "waiting_for_user";
+  return "queued";
+}
+
+function toWorkbenchRunFromAgentRun(
+  response: AgentRunApiResponse,
+  fallbackAgentId?: string,
+): WorkbenchRunInspection {
+  const metadataAgentId = isJsonObject(response.pipelineRun.metadata)
+    ? nullableString(response.pipelineRun.metadata["agentId"])
+    : null;
+  const moduleSteps = response.moduleRuns.map((run, index) => ({
+    id: run.id,
+    order: index + 1,
+    moduleId: run.moduleId,
+    title: run.title ?? run.moduleId,
+    status: normalizeWorkbenchRunStatus(run.status),
+    summary: run.summary ?? run.externalRunId,
+    activeSkillId: run.status === "running" ? run.moduleId : undefined,
+    startedAt: run.startedAt,
+    completedAt: run.completedAt,
+  }));
+  const activeStep = moduleSteps.find((step) => step.status === "running");
+
+  return {
+    pipelineRunId: response.pipelineRun.id,
+    title: response.pipelineRun.title,
+    agentId: metadataAgentId ?? fallbackAgentId,
+    status: normalizeWorkbenchRunStatus(response.pipelineRun.status),
+    activeSkillId: activeStep?.moduleId,
+    updatedAt: response.pipelineRun.updatedAt,
+    moduleSteps,
+    events: response.moduleRuns.map((run) => ({
+      id: `${run.id}-event`,
+      time: run.updatedAt,
+      type: run.moduleId,
+      status: normalizeWorkbenchRunStatus(run.status),
+      title: run.title ?? run.moduleId,
+      detail: run.summary ?? run.externalRunId,
+    })),
+    raw: response,
+  };
+}
+
+function createLocalWorkbenchRun(agentId: string, title: string): WorkbenchRunInspection {
+  const agent = demoAgentManifests.find((item) => item.agentId === agentId);
+  const skillIds = agent?.skills.map((skill) => skill.skillId) ?? ["md_to_rag", "rag_to_agent"];
+  const pipelineRunId = `local_${agentId}_${Date.now()}`;
+
+  return {
+    pipelineRunId,
+    title,
+    agentId,
+    status: "queued",
+    activeSkillId: skillIds[0],
+    updatedAt: "Local",
+    moduleSteps: skillIds.map((skillId, index) => ({
+      id: `${pipelineRunId}_${skillId}`,
+      order: index + 1,
+      moduleId: skillId,
+      title: skillId,
+      status: index === 0 ? "queued" : "pending",
+      summary: index === 0 ? "Local demo fallback queued." : "Waiting for prior step.",
+      activeSkillId: index === 0 ? skillId : undefined,
+    })),
+    events: [
+      {
+        id: `${pipelineRunId}_queued`,
+        time: "Local",
+        type: "agent-run",
+        status: "queued",
+        title: "Local fallback",
+        detail: "Agent run API unavailable.",
+      },
+    ],
+    raw: {
+      source: "local-demo",
+      agentId,
+      pipelineRunId,
+    },
+  };
+}
+
+function runtimeStatusFromWorkbenchStatus(status: WorkbenchRunStatus): RuntimeRunStatus {
+  if (status === "succeeded") return "succeeded";
+  if (status === "running") return "running";
+  if (status === "approval_required") return "approval_required";
+  if (status === "waiting_for_user") return "waiting_for_user";
+  if (status === "waiting_for_data") return "waiting_for_data";
+  if (status === "blocked" || status === "failed" || status === "cancelled") {
+    return "blocked";
+  }
+  if (status === "skipped") return "skipped";
+  return "queued";
+}
+
+function toLocalRuntimeRuns(run: WorkbenchRunInspection): RuntimeModuleRun[] {
+  return run.moduleSteps.flatMap((step): RuntimeModuleRun[] => {
+    if (!isModuleId(step.moduleId)) return [];
+    return [
+      {
+        id: step.id,
+        moduleId: step.moduleId,
+        title: step.title,
+        status: runtimeStatusFromWorkbenchStatus(step.status),
+        adapterId: `${step.moduleId}.local`,
+        adapterKind: "cli",
+        externalRunId: run.pipelineRunId,
+        event: step.summary,
+        resultRecordIds: [],
+        missingRequiredEnv: [],
+        updatedAt: step.startedAt ?? step.completedAt ?? run.updatedAt,
+      },
+    ];
+  });
+}
+
+function normalizeApiRuns(payload: unknown): WorkbenchRunInspection[] {
+  if (!isRecord(payload) || !Array.isArray(payload["runs"])) return [];
+
+  return payload["runs"].flatMap((item): WorkbenchRunInspection[] => {
+    if (!isRecord(item) || !isRecord(item["pipelineRun"])) return [];
+    const pipelineRun = item["pipelineRun"];
+    const moduleRuns = Array.isArray(item["moduleRuns"]) ? item["moduleRuns"] : [];
+    const metadata = isJsonObject(pipelineRun["metadata"]) ? pipelineRun["metadata"] : {};
+    const pipelineRunId = nullableString(pipelineRun["id"]) ?? "api-run";
+    const steps = moduleRuns.flatMap((run, index) => {
+      if (!isRecord(run)) return [];
+      const moduleId = nullableString(run["moduleId"]) ?? "module";
+      const status = normalizeWorkbenchRunStatus(run["status"]);
+      return [
+        {
+          id: nullableString(run["id"]) ?? `${pipelineRunId}-${index}`,
+          order: index + 1,
+          moduleId,
+          title: nullableString(run["title"]) ?? moduleId,
+          status,
+          summary:
+            nullableString(run["summary"]) ??
+            nullableString(run["externalRunId"]) ??
+            "Module run",
+          activeSkillId: status === "running" ? moduleId : undefined,
+          startedAt: nullableString(run["startedAt"]),
+          completedAt: nullableString(run["completedAt"]),
+        },
+      ];
+    });
+    const activeStep = steps.find((step) => step.status === "running");
+
+    return [
+      {
+        pipelineRunId,
+        title: nullableString(pipelineRun["title"]) ?? "Agent run",
+        agentId: nullableString(metadata["agentId"]) ?? undefined,
+        status: normalizeWorkbenchRunStatus(pipelineRun["status"]),
+        activeSkillId: activeStep?.moduleId,
+        updatedAt: nullableString(pipelineRun["updatedAt"]) ?? "API",
+        moduleSteps: steps,
+        events: steps.map((step) => ({
+          id: `${step.id}-event`,
+          time: step.startedAt ?? step.completedAt ?? "API",
+          type: step.moduleId,
+          status: step.status,
+          title: step.title,
+          detail: step.summary,
+        })),
+        raw: item,
+      },
+    ];
+  });
+}
+
+function normalizeApiArtifacts(
+  payload: unknown,
+  context?: {
+    pipelineRunId?: string;
+    pipelineTitle?: string;
+  },
+): WorkbenchArtifactPipelineGroup[] {
+  if (!isRecord(payload) || !Array.isArray(payload["artifacts"])) return [];
+
+  const groups = new Map<string, WorkbenchArtifactPipelineGroup>();
+  for (const item of payload["artifacts"]) {
+    if (!isRecord(item)) continue;
+    const provenance = isJsonObject(item["provenance"]) ? item["provenance"] : {};
+    const pipelineRunId =
+      context?.pipelineRunId ??
+      nullableString(provenance["pipelineRunId"]) ??
+      nullableString(provenance["pipeline_run_id"]) ??
+      "api-artifacts";
+    const moduleRunId = nullableString(item["sourceRunId"]) ?? "module-run";
+    const moduleId = nullableString(item["sourceModuleId"]) ?? "module";
+    const artifact: WorkbenchArtifact = {
+      id: nullableString(item["id"]) ?? `${moduleRunId}-artifact`,
+      title: nullableString(item["title"]) ?? "Artifact",
+      kind: nullableString(item["artifactKind"]) ?? "artifact",
+      summary:
+        nullableString(item["contentText"]) ??
+        (isJsonObject(item["contentJson"]) ? "JSON artifact" : "Stored artifact"),
+      moduleRunId,
+      moduleId,
+      createdAt: nullableString(item["createdAt"]) ?? "API",
+      content: item["contentJson"] ?? item["contentText"],
+      raw: item,
+    };
+
+    const pipeline =
+      groups.get(pipelineRunId) ??
+      {
+        pipelineRunId,
+        title:
+          context?.pipelineTitle ??
+          (pipelineRunId === "api-artifacts" ? "API artifacts" : `Pipeline ${pipelineRunId}`),
+        moduleGroups: [],
+      };
+    const moduleGroup =
+      pipeline.moduleGroups.find((group) => group.moduleRunId === moduleRunId) ??
+      {
+        moduleRunId,
+        moduleId,
+        artifacts: [],
+      };
+    moduleGroup.artifacts.push(artifact);
+    if (!pipeline.moduleGroups.includes(moduleGroup)) {
+      pipeline.moduleGroups.push(moduleGroup);
+    }
+    groups.set(pipelineRunId, pipeline);
+  }
+
+  return Array.from(groups.values());
+}
+
 export function AgentFirstInterface() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("foreground");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
   const [selectedSkillId, setSelectedSkillId] = useState<ModuleId>("rag_to_agent");
+  const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>("agents");
+  const [selectedAgentId, setSelectedAgentId] = useState("knowledge_builder");
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(
+    demoRunInspections[0]?.pipelineRunId ?? null,
+  );
   const [backstageTab, setBackstageTab] = useState<BackstageTab>("ui");
+  const [agents, setAgents] = useState<AgentManifestPreview[]>(demoAgentManifests);
+  const [agentReadiness, setAgentReadiness] =
+    useState<AgentReadiness[]>(demoAgentReadiness);
+  const [workbenchRuns, setWorkbenchRuns] =
+    useState<WorkbenchRunInspection[]>(demoRunInspections);
+  const [artifactGroups, setArtifactGroups] =
+    useState<WorkbenchArtifactPipelineGroup[]>(demoArtifactGroups);
+  const [skillCatalog, setSkillCatalog] =
+    useState<SkillManifestPreview[]>(skillManifestPreviews);
   const [command, setCommand] = useState("");
   const [planMode, setPlanMode] = useState(true);
   const [executionMode, setExecutionMode] =
@@ -1877,14 +2420,21 @@ export function AgentFirstInterface() {
     useState("Local mock runtime");
   const [latestAgentRun, setLatestAgentRun] =
     useState<AgentRunUiState | null>(null);
+  const [localFallbackRuntimeRuns, setLocalFallbackRuntimeRuns] =
+    useState<RuntimeModuleRun[] | null>(null);
   const [runtimeActionStates, setRuntimeActionStates] =
     useState<Record<string, RuntimeActionState>>({});
   const [runtimeActionStatusText, setRuntimeActionStatusText] =
     useState("Runtime actions are local until API run data is available");
 
   const selectedModule = moduleById(selectedModuleId);
-  const selectedSkillManifest = skillManifestById(selectedSkillId);
-  const displayedRuntimeRuns = latestAgentRun?.runtimeRuns ?? mockRuntimeRuns;
+  const selectedSkillManifest = skillManifestById(selectedSkillId, skillCatalog);
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.agentId === selectedAgentId) ?? agents[0]!,
+    [agents, selectedAgentId],
+  );
+  const displayedRuntimeRuns =
+    latestAgentRun?.runtimeRuns ?? localFallbackRuntimeRuns ?? mockRuntimeRuns;
   const filteredRecords = useMemo(
     () =>
       selectedRecordKind === "all"
@@ -1892,6 +2442,90 @@ export function AgentFirstInterface() {
         : dataRecords.filter((record) => record.kind === selectedRecordKind),
     [selectedRecordKind],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkbenchIndexes(): Promise<void> {
+      try {
+        const [agentsResponse, skillsResponse, runsResponse] = await Promise.all([
+          fetch("/api/agents"),
+          fetch("/api/skills"),
+          fetch("/api/runs?limit=20"),
+        ]);
+
+        if (!cancelled && agentsResponse.ok) {
+          const data = (await agentsResponse.json()) as {
+            agents?: AgentManifestPreview[];
+            readiness?: AgentReadiness[];
+          };
+          if (Array.isArray(data.agents) && data.agents.length > 0) {
+            setAgents(data.agents);
+            setSelectedAgentId((current) =>
+              data.agents?.some((agent) => agent.agentId === current)
+                ? current
+                : data.agents?.[0]?.agentId ?? current,
+            );
+          }
+          if (Array.isArray(data.readiness)) {
+            setAgentReadiness(data.readiness);
+          }
+        }
+
+        if (!cancelled && skillsResponse.ok) {
+          const skillData = normalizeSkillPreviews(await skillsResponse.json());
+          if (skillData.length > 0) {
+            setSkillCatalog(skillData);
+            setSelectedSkillId((current) =>
+              skillData.some((skill) => skill.id === current)
+                ? current
+                : skillData[0]?.id ?? current,
+            );
+          }
+        }
+
+        let loadedRuns: WorkbenchRunInspection[] = [];
+        if (!cancelled && runsResponse.ok) {
+          loadedRuns = normalizeApiRuns(await runsResponse.json());
+          if (loadedRuns.length > 0) {
+            setWorkbenchRuns(loadedRuns);
+            setSelectedRunId(loadedRuns[0]?.pipelineRunId ?? null);
+          }
+        }
+
+        if (!cancelled && loadedRuns.length > 0) {
+          const artifactGroupsByRun = await Promise.all(
+            loadedRuns.map(async (run) => {
+              const response = await fetch(
+                `/api/artifacts?pipelineRunId=${encodeURIComponent(run.pipelineRunId)}&limit=50`,
+              );
+              if (!response.ok) return [];
+              return normalizeApiArtifacts(await response.json(), {
+                pipelineRunId: run.pipelineRunId,
+                pipelineTitle: run.title,
+              });
+            }),
+          );
+          if (!cancelled) {
+            setArtifactGroups(artifactGroupsByRun.flat());
+          }
+        }
+      } catch {
+        if (cancelled) return;
+        setAgents(demoAgentManifests);
+        setAgentReadiness(demoAgentReadiness);
+        setWorkbenchRuns(demoRunInspections);
+        setArtifactGroups(demoArtifactGroups);
+        setSkillCatalog(skillManifestPreviews);
+      }
+    }
+
+    void loadWorkbenchIndexes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const triggeredRun = displayedRuntimeRuns.find(shouldOpenBackstageForRun);
@@ -1911,6 +2545,7 @@ export function AgentFirstInterface() {
   function openBackstageSkill(moduleId: ModuleId, tab: BackstageTab = "io"): void {
     setSelectedSkillId(moduleId);
     setBackstageTab(tab);
+    setWorkbenchTab("skills");
     setWorkspaceMode("backstage");
   }
 
@@ -2158,6 +2793,7 @@ export function AgentFirstInterface() {
 
       if (!response.ok) {
         setLatestAgentRun(null);
+        setLocalFallbackRuntimeRuns(null);
         setAgentRunState("failed");
         setAgentRunStatusText("Agent run API failed - showing local mock");
         setRuntimeActionStatusText("Runtime actions are local until API run data is available");
@@ -2170,6 +2806,7 @@ export function AgentFirstInterface() {
         response: data,
         runtimeRuns,
       });
+      setLocalFallbackRuntimeRuns(null);
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
       setAgentRunState("saved");
@@ -2181,8 +2818,101 @@ export function AgentFirstInterface() {
       }
     } catch {
       setLatestAgentRun(null);
+      setLocalFallbackRuntimeRuns(null);
       setAgentRunState("offline");
       setAgentRunStatusText("API offline - showing local mock");
+      setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+      setConnectionStatus("offline");
+      setConnectionPayload(null);
+    }
+  }
+
+  function rememberWorkbenchRun(run: WorkbenchRunInspection): void {
+    setWorkbenchRuns((current) => [
+      run,
+      ...current.filter((item) => item.pipelineRunId !== run.pipelineRunId),
+    ]);
+    setSelectedRunId(run.pipelineRunId);
+  }
+
+  function rememberCreatedAgent(agent: AgentManifestPreview): void {
+    setAgents((current) => [
+      agent,
+      ...current.filter((item) => item.agentId !== agent.agentId),
+    ]);
+    setAgentReadiness((current) => [
+      {
+        agentId: agent.agentId,
+        status: "ready",
+        missingSkillIds: [],
+        enabledSkillIds: agent.skills.map((skill) => skill.skillId),
+      },
+      ...current.filter((item) => item.agentId !== agent.agentId),
+    ]);
+    setSelectedAgentId(agent.agentId);
+  }
+
+  async function testWorkbenchAgent(agentId: string): Promise<void> {
+    if (agentRunState === "submitting") return;
+
+    const agent = agents.find((item) => item.agentId === agentId);
+    const prompt = `Run ${(agent?.title ?? agent?.name ?? agentId)} test plan.`;
+
+    setSelectedAgentId(agentId);
+    setAgentRunState("submitting");
+    setAgentRunStatusText(`Submitting ${agentId}`);
+    setRuntimeActionStates({});
+    setRuntimeActionStatusText("Waiting for API run data");
+
+    try {
+      const response = await fetch("/api/agent-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId,
+          message: prompt,
+          executionMode,
+          metadata: { source: "mockup-sandbox", trigger: "workbench-test-run" },
+        }),
+      });
+
+      if (!response.ok) {
+        const localRun = createLocalWorkbenchRun(agentId, `${agent?.name ?? agentId} local test`);
+        rememberWorkbenchRun(localRun);
+        setLatestAgentRun(null);
+        setLocalFallbackRuntimeRuns(toLocalRuntimeRuns(localRun));
+        setConnectionStatus("offline");
+        setConnectionPayload(null);
+        setWorkbenchTab("runs");
+        setAgentRunState(response.status === 403 ? "failed" : "offline");
+        setAgentRunStatusText("Agent run API unavailable - local demo");
+        setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+        return;
+      }
+
+      const data = (await response.json()) as AgentRunApiResponse;
+      const runtimeRuns = toRuntimeRunsFromAgentRun(data);
+      const workbenchRun = toWorkbenchRunFromAgentRun(data, agentId);
+      setLatestAgentRun({
+        response: data,
+        runtimeRuns,
+      });
+      setLocalFallbackRuntimeRuns(null);
+      rememberWorkbenchRun(workbenchRun);
+      setConnectionStatus(data.connection.status);
+      setConnectionPayload(data.connection);
+      setWorkbenchTab("runs");
+      setAgentRunState("saved");
+      setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
+      setRuntimeActionStatusText("Runtime actions are connected to API run data");
+    } catch {
+      const localRun = createLocalWorkbenchRun(agentId, `${agent?.name ?? agentId} local test`);
+      rememberWorkbenchRun(localRun);
+      setLatestAgentRun(null);
+      setLocalFallbackRuntimeRuns(toLocalRuntimeRuns(localRun));
+      setWorkbenchTab("runs");
+      setAgentRunState("offline");
+      setAgentRunStatusText("API offline - local demo");
       setRuntimeActionStatusText("Runtime actions are local until API run data is available");
       setConnectionStatus("offline");
       setConnectionPayload(null);
@@ -2292,20 +3022,42 @@ export function AgentFirstInterface() {
         <main className="view-frame">
           {workspaceMode === "backstage" ? (
             <BackstageView
+              workbenchTab={workbenchTab}
+              agents={agents}
+              agentReadiness={agentReadiness}
+              selectedAgent={selectedAgent}
+              selectedAgentId={selectedAgentId}
+              workbenchRuns={workbenchRuns}
+              selectedRunId={selectedRunId}
+              artifactGroups={artifactGroups}
+              skillCatalog={skillCatalog}
               selectedSkill={selectedSkillManifest}
               selectedSkillId={selectedSkillId}
-              tab={backstageTab}
+              skillTab={backstageTab}
               runtimeRuns={displayedRuntimeRuns}
               latestAgentRun={latestAgentRun}
+              onSetWorkbenchTab={setWorkbenchTab}
+              onSelectAgent={setSelectedAgentId}
+              onSelectRun={setSelectedRunId}
+              onTestAgent={testWorkbenchAgent}
+              onCreateAgent={rememberCreatedAgent}
               onSelectSkill={(skillId) => {
                 setSelectedSkillId(skillId);
                 setSelectedModuleId(skillId);
               }}
-              onSetTab={setBackstageTab}
+              onSetSkillTab={setBackstageTab}
               onOpenForeground={(moduleId) => {
                 setSelectedModuleId(moduleId);
                 setWorkspaceMode("foreground");
                 setActiveView("modules");
+              }}
+              onOpenSkillFromAgent={(skillId) => {
+                if (isModuleId(skillId)) {
+                  setSelectedSkillId(skillId);
+                  setSelectedModuleId(skillId);
+                  setBackstageTab("io");
+                  setWorkbenchTab("skills");
+                }
               }}
             />
           ) : (
@@ -2578,171 +3330,274 @@ function AgentView({
 }
 
 function BackstageView({
+  workbenchTab,
+  agents,
+  agentReadiness,
+  selectedAgent,
+  selectedAgentId,
+  workbenchRuns,
+  selectedRunId,
+  artifactGroups,
+  skillCatalog,
   selectedSkill,
   selectedSkillId,
-  tab,
+  skillTab,
   runtimeRuns,
   latestAgentRun,
+  onSetWorkbenchTab,
+  onSelectAgent,
+  onSelectRun,
+  onTestAgent,
+  onCreateAgent,
   onSelectSkill,
-  onSetTab,
+  onSetSkillTab,
   onOpenForeground,
+  onOpenSkillFromAgent,
 }: {
+  workbenchTab: WorkbenchTab;
+  agents: AgentManifestPreview[];
+  agentReadiness: AgentReadiness[];
+  selectedAgent: AgentManifestPreview;
+  selectedAgentId: string;
+  workbenchRuns: WorkbenchRunInspection[];
+  selectedRunId: string | null;
+  artifactGroups: WorkbenchArtifactPipelineGroup[];
+  skillCatalog: SkillManifestPreview[];
   selectedSkill: SkillManifestPreview;
   selectedSkillId: ModuleId;
-  tab: BackstageTab;
+  skillTab: BackstageTab;
   runtimeRuns: RuntimeModuleRun[];
   latestAgentRun: AgentRunUiState | null;
+  onSetWorkbenchTab: (tab: WorkbenchTab) => void;
+  onSelectAgent: (agentId: string) => void;
+  onSelectRun: (pipelineRunId: string) => void;
+  onTestAgent: (agentId: string) => void;
+  onCreateAgent: (agent: AgentManifestPreview) => void;
   onSelectSkill: (skillId: ModuleId) => void;
-  onSetTab: (tab: BackstageTab) => void;
+  onSetSkillTab: (tab: BackstageTab) => void;
   onOpenForeground: (moduleId: ModuleId) => void;
+  onOpenSkillFromAgent: (skillId: string) => void;
 }) {
   const selectedRun = runtimeRuns.find((run) => run.moduleId === selectedSkill.id);
   const selectedRecords = dataRecords.filter((record) => record.moduleId === selectedSkill.id);
-  const tabs: Array<{ id: BackstageTab; label: string; enabled: boolean }> = [
+  const workbenchTabs: Array<{ id: WorkbenchTab; label: string }> = [
+    { id: "agents", label: "Agents" },
+    { id: "skills", label: "Skills" },
+    { id: "runs", label: "Runs" },
+    { id: "artifacts", label: "Artifacts" },
+  ];
+  const skillTabs: Array<{ id: BackstageTab; label: string; enabled: boolean }> = [
     { id: "io", label: "Run I/O", enabled: true },
     { id: "artifacts", label: "Artifacts", enabled: true },
     { id: "events", label: "Events", enabled: true },
     { id: "ui", label: "Skill UI", enabled: hasBackstageSkillUi(selectedSkill) },
     { id: "raw", label: "Raw JSON", enabled: true },
   ];
+  const selectedReadiness =
+    agentReadiness.find((item) => item.agentId === selectedAgent.agentId) ?? null;
+  const selectedAgentRun =
+    workbenchRuns.find((run) => run.agentId === selectedAgent.agentId) ?? null;
 
   return (
-    <section className="backstage-layout">
-      <aside className="skill-catalog" aria-label="Skill catalog">
-        <div className="panel-heading">
-          <span>
-            <Boxes size={16} />
-            Skills
-          </span>
-          <span className="soft-label">{skillManifestPreviews.length} loaded</span>
-        </div>
-        {skillManifestPreviews.map((skill) => {
-          const run = runtimeRuns.find((item) => item.moduleId === skill.id);
-          return (
-            <button
-              key={skill.id}
-              type="button"
-              className={skill.id === selectedSkillId ? "skill-row active" : "skill-row"}
-              onClick={() => onSelectSkill(skill.id)}
-            >
-              <i style={{ background: moduleById(skill.id).color }} />
-              <span>
-                <strong>{skill.name}</strong>
-                <em>{skill.project.defaultSiblingPath}</em>
-              </span>
-              <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
-                {run ? runtimeStatusLabel(run.status) : "Queued"}
-              </b>
-            </button>
-          );
-        })}
-      </aside>
-
-      <div className="backstage-main">
-        <div className="backstage-header">
-          <div>
-            <span className="soft-label">Skill manifest</span>
-            <h1>{selectedSkill.name}</h1>
-            <p>{selectedSkill.description}</p>
-          </div>
+    <section className="workbench-shell">
+      <div className="backstage-tabs workbench-primary-tabs" role="tablist" aria-label="Workbench tabs">
+        {workbenchTabs.map((item) => (
           <button
+            key={item.id}
             type="button"
-            className="small-action"
-            onClick={() => onOpenForeground(selectedSkill.id)}
+            role="tab"
+            aria-selected={workbenchTab === item.id}
+            className={workbenchTab === item.id ? "active" : ""}
+            onClick={() => onSetWorkbenchTab(item.id)}
           >
-            Foreground detail
+            {item.label}
           </button>
-        </div>
-
-        <div className="backstage-metrics">
-          <Metric label="Project" value={selectedSkill.project.defaultSiblingPath} />
-          <Metric
-            label="Readiness"
-            value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
-          />
-          <Metric label="Adapter" value={selectedSkill.execution.adapterId} />
-          <Metric label="UI" value={backstageUiLabel(selectedSkill)} />
-        </div>
-
-        <div className="backstage-tabs" role="tablist" aria-label="Backstage tabs">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              disabled={!item.enabled}
-              aria-selected={tab === item.id}
-              className={tab === item.id ? "active" : ""}
-              onClick={() => item.enabled && onSetTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "io" && (
-          <div className="backstage-grid two">
-            <JsonInspector title="Input" value={selectedRun?.id ? selectedSkill.sampleInput : selectedSkill.inputSchema} />
-            <JsonInspector title="Output" value={selectedSkill.sampleOutput} />
-          </div>
-        )}
-
-        {tab === "artifacts" && (
-          <div className="artifact-grid">
-            {selectedSkill.sampleArtifacts.map((artifact) => (
-              <ArtifactRenderer key={artifact.id} artifact={artifact} />
-            ))}
-            {selectedRecords.map((record) => (
-              <div key={record.id} className="artifact-card">
-                <div className="artifact-title">
-                  <FileText size={15} />
-                  <span>{record.title}</span>
-                </div>
-                <p>{record.summary}</p>
-                <code>{record.id}</code>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {tab === "events" && (
-          <div className="event-feed">
-            {(selectedRun ? [selectedRun] : runtimeRuns.filter((run) => run.moduleId === selectedSkill.id)).map(
-              (run) => (
-                <div key={run.id} className="event-row">
-                  <span className={runtimeStatusClass(run.status)}>{runtimeStatusLabel(run.status)}</span>
-                  <strong>{run.title}</strong>
-                  <p>{run.event}</p>
-                  <em>{run.updatedAt}</em>
-                </div>
-              ),
-            )}
-            {selectedRun?.interaction && (
-              <div className="event-row attention">
-                <span className="runtime-status approval_required">Interaction</span>
-                <strong>{selectedRun.interaction.title}</strong>
-                <p>{selectedRun.interaction.message}</p>
-                <em>{selectedRun.interaction.resumeHandle}</em>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === "ui" && <SkillHtmlPanel skill={selectedSkill} run={selectedRun} />}
-
-        {tab === "raw" && (
-          <div className="backstage-grid two">
-            <JsonInspector title="Manifest" value={selectedSkill} />
-            <JsonInspector
-              title="Runtime"
-              value={{
-                run: selectedRun ?? null,
-                latestPlan: latestAgentRun?.response.plan ?? null,
-              }}
-            />
-          </div>
-        )}
+        ))}
       </div>
+
+      {workbenchTab === "agents" && (
+        <section className="backstage-layout">
+          <aside className="skill-catalog" aria-label="Agent catalog">
+            <div className="panel-heading">
+              <span>
+                <Bot size={16} />
+                Agents
+              </span>
+              <span className="soft-label">{agents.length} loaded</span>
+            </div>
+            <AgentCatalog
+              agents={agents}
+              readiness={agentReadiness}
+              runs={workbenchRuns}
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={onSelectAgent}
+              onTestRun={onTestAgent}
+            />
+          </aside>
+
+          <div className="backstage-main">
+            <AgentDetail
+              agent={selectedAgent}
+              readiness={selectedReadiness}
+              skills={workbenchSkillOptions}
+              latestRun={selectedAgentRun}
+              onTestRun={onTestAgent}
+              onOpenSkill={onOpenSkillFromAgent}
+            />
+            <AgentManifestWizard skills={workbenchSkillOptions} onCreated={onCreateAgent} />
+          </div>
+        </section>
+      )}
+
+      {workbenchTab === "skills" && (
+        <section className="backstage-layout">
+          <aside className="skill-catalog" aria-label="Skill catalog">
+            <div className="panel-heading">
+              <span>
+                <Boxes size={16} />
+                Skills
+              </span>
+              <span className="soft-label">{skillCatalog.length} loaded</span>
+            </div>
+            {skillCatalog.map((skill) => {
+              const run = runtimeRuns.find((item) => item.moduleId === skill.id);
+              return (
+                <button
+                  key={skill.id}
+                  type="button"
+                  className={skill.id === selectedSkillId ? "skill-row active" : "skill-row"}
+                  onClick={() => onSelectSkill(skill.id)}
+                >
+                  <i style={{ background: moduleById(skill.id).color }} />
+                  <span>
+                    <strong>{skill.name}</strong>
+                    <em>{skill.project.defaultSiblingPath}</em>
+                  </span>
+                  <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
+                    {run ? runtimeStatusLabel(run.status) : "Queued"}
+                  </b>
+                </button>
+              );
+            })}
+          </aside>
+
+          <div className="backstage-main">
+            <div className="backstage-header">
+              <div>
+                <span className="soft-label">Skill manifest</span>
+                <h1>{selectedSkill.name}</h1>
+                <p>{selectedSkill.description}</p>
+              </div>
+              <button
+                type="button"
+                className="small-action"
+                onClick={() => onOpenForeground(selectedSkill.id)}
+              >
+                Foreground detail
+              </button>
+            </div>
+
+            <div className="backstage-metrics">
+              <Metric label="Project" value={selectedSkill.project.defaultSiblingPath} />
+              <Metric
+                label="Readiness"
+                value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
+              />
+              <Metric label="Adapter" value={selectedSkill.execution.adapterId} />
+              <Metric label="UI" value={backstageUiLabel(selectedSkill)} />
+            </div>
+
+            <div className="backstage-tabs" role="tablist" aria-label="Skill tabs">
+              {skillTabs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  disabled={!item.enabled}
+                  aria-selected={skillTab === item.id}
+                  className={skillTab === item.id ? "active" : ""}
+                  onClick={() => item.enabled && onSetSkillTab(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {skillTab === "io" && (
+              <div className="backstage-grid two">
+                <JsonInspector title="Input" value={selectedRun?.id ? selectedSkill.sampleInput : selectedSkill.inputSchema} />
+                <JsonInspector title="Output" value={selectedSkill.sampleOutput} />
+              </div>
+            )}
+
+            {skillTab === "artifacts" && (
+              <div className="artifact-grid">
+                {selectedSkill.sampleArtifacts.map((artifact) => (
+                  <ArtifactRenderer key={artifact.id} artifact={artifact} />
+                ))}
+                {selectedRecords.map((record) => (
+                  <div key={record.id} className="artifact-card">
+                    <div className="artifact-title">
+                      <FileText size={15} />
+                      <span>{record.title}</span>
+                    </div>
+                    <p>{record.summary}</p>
+                    <code>{record.id}</code>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {skillTab === "events" && (
+              <div className="event-feed">
+                {(selectedRun ? [selectedRun] : runtimeRuns.filter((run) => run.moduleId === selectedSkill.id)).map(
+                  (run) => (
+                    <div key={run.id} className="event-row">
+                      <span className={runtimeStatusClass(run.status)}>{runtimeStatusLabel(run.status)}</span>
+                      <strong>{run.title}</strong>
+                      <p>{run.event}</p>
+                      <em>{run.updatedAt}</em>
+                    </div>
+                  ),
+                )}
+                {selectedRun?.interaction && (
+                  <div className="event-row attention">
+                    <span className="runtime-status approval_required">Interaction</span>
+                    <strong>{selectedRun.interaction.title}</strong>
+                    <p>{selectedRun.interaction.message}</p>
+                    <em>{selectedRun.interaction.resumeHandle}</em>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {skillTab === "ui" && <SkillHtmlPanel skill={selectedSkill} run={selectedRun} />}
+
+            {skillTab === "raw" && (
+              <div className="backstage-grid two">
+                <JsonInspector title="Manifest" value={selectedSkill} />
+                <JsonInspector
+                  title="Runtime"
+                  value={{
+                    run: selectedRun ?? null,
+                    latestPlan: latestAgentRun?.response.plan ?? null,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {workbenchTab === "runs" && (
+        <RunInspector
+          runs={workbenchRuns}
+          selectedRunId={selectedRunId}
+          onSelectRun={onSelectRun}
+        />
+      )}
+
+      {workbenchTab === "artifacts" && <ArtifactInspector groups={artifactGroups} />}
     </section>
   );
 }
@@ -4631,6 +5486,10 @@ const styles = `
   .primary-action,
   .module-row,
   .skill-row,
+  .agent-catalog-select,
+  .agent-catalog-run,
+  .run-list-row,
+  .agent-skill-chip,
   .memory-node,
   .filter-chip,
   .segmented-button,
@@ -4793,8 +5652,24 @@ const styles = `
     gap: 14px;
   }
 
+  .workbench-shell {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .workbench-primary-tabs {
+    flex-shrink: 0;
+  }
+
   .skill-catalog,
   .backstage-main,
+  .run-list,
+  .run-detail,
+  .artifact-inspector-layout,
+  .workbench-section,
   .json-inspector,
   .artifact-card,
   .event-row {
@@ -4807,6 +5682,483 @@ const styles = `
     min-height: 0;
     overflow: auto;
     padding: 12px;
+  }
+
+  .agent-catalog-grid,
+  .agent-detail-layout,
+  .wizard-form,
+  .wizard-skill-select,
+  .wizard-permissions,
+  .run-step-list,
+  .artifact-inspector-layout,
+  .artifact-module-group {
+    display: grid;
+    gap: 10px;
+  }
+
+  .agent-catalog-row {
+    width: 100%;
+    min-height: 92px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #dfe7f2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+  }
+
+  .agent-catalog-row.active {
+    border-color: #31506f;
+    background: #142234;
+  }
+
+  .agent-catalog-select {
+    min-width: 0;
+    min-height: 90px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 8px 10px;
+    align-items: center;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .agent-catalog-icon {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #344456;
+    border-radius: 8px;
+    background: #0d141d;
+    display: grid;
+    place-items: center;
+    color: #4f9cff;
+  }
+
+  .agent-catalog-main,
+  .agent-catalog-meta {
+    min-width: 0;
+  }
+
+  .agent-catalog-main {
+    display: grid;
+    gap: 3px;
+  }
+
+  .agent-catalog-main strong,
+  .agent-catalog-main em,
+  .run-list-row strong,
+  .run-list-row em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agent-catalog-main strong {
+    font-size: 13px;
+  }
+
+  .agent-catalog-main em {
+    color: #8795a8;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 1.35;
+  }
+
+  .agent-catalog-meta {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .agent-catalog-meta span,
+  .agent-catalog-run,
+  .artifact-meta-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .agent-catalog-meta span,
+  .agent-catalog-run {
+    min-height: 25px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #101720;
+    color: #9aa7b8;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: capitalize;
+  }
+
+  .agent-catalog-run {
+    margin-right: 10px;
+    width: fit-content;
+    max-width: 100%;
+    cursor: pointer;
+  }
+
+  .agent-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .agent-detail-header h2 {
+    margin: 2px 0 5px;
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+
+  .agent-detail-header p,
+  .workbench-section p {
+    margin: 0;
+    color: #95a4b7;
+    line-height: 1.5;
+  }
+
+  .workbench-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .workbench-metrics span {
+    min-width: 0;
+    min-height: 62px;
+    border: 1px solid #263445;
+    border-radius: 8px;
+    background: #121a25;
+    display: grid;
+    align-content: center;
+    gap: 5px;
+    padding: 10px;
+  }
+
+  .workbench-metrics strong,
+  .workbench-metrics em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workbench-metrics strong {
+    font-size: 13px;
+    text-transform: capitalize;
+  }
+
+  .workbench-metrics em,
+  .workbench-lines em,
+  .artifact-pipeline-heading em,
+  .artifact-meta-line em {
+    color: #8795a8;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  .workbench-section {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .workbench-section-title {
+    color: #dfe7f2;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 850;
+    margin-bottom: 9px;
+  }
+
+  .agent-skill-list,
+  .workbench-two-column,
+  .wizard-layout,
+  .run-inspector-layout,
+  .artifact-module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .agent-skill-chip {
+    min-width: 0;
+    min-height: 48px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #dfe7f2;
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  .agent-skill-chip strong,
+  .agent-skill-chip em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agent-skill-chip em {
+    color: #8d9bad;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  .workbench-lines {
+    display: grid;
+    gap: 8px;
+  }
+
+  .workbench-lines span {
+    min-height: 38px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .workbench-lines em {
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .wizard-form,
+  .artifact-pipeline-group {
+    min-width: 0;
+    border: 1px solid #1f2b39;
+    border-radius: 8px;
+    background: #101720;
+    padding: 12px;
+  }
+
+  .wizard-field {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+
+  .wizard-field span {
+    color: #8290a3;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .wizard-field input,
+  .wizard-field textarea {
+    width: 100%;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #edf3fb;
+    font: inherit;
+    font-size: 13px;
+    padding: 9px 10px;
+  }
+
+  .wizard-field textarea {
+    min-height: 92px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  .wizard-skill-select,
+  .wizard-permissions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-inspector-layout {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .run-list,
+  .run-detail,
+  .artifact-inspector-layout {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+  }
+
+  .run-list-row {
+    width: 100%;
+    min-height: 68px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #dfe7f2;
+    display: grid;
+    gap: 7px;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .run-list-row + .run-list-row {
+    margin-top: 8px;
+  }
+
+  .run-list-row.active {
+    border-color: #31506f;
+    background: #142234;
+  }
+
+  .run-list-row span {
+    min-width: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .run-list-row b {
+    flex-shrink: 0;
+    font-size: 11px;
+    text-transform: capitalize;
+  }
+
+  .run-detail {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+  }
+
+  .run-step-row {
+    min-width: 0;
+    min-height: 58px;
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto minmax(96px, auto);
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+  }
+
+  .run-step-row > span {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #172130;
+    display: grid;
+    place-items: center;
+    color: #9aa7b8;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .run-step-row div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  .run-step-row strong,
+  .run-step-row em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .run-step-row em {
+    color: #8d9bad;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  .run-step-row b,
+  .run-step-row code {
+    font-size: 11px;
+    text-transform: capitalize;
+  }
+
+  .run-step-row code,
+  .artifact-meta-line code {
+    min-width: 0;
+    border: 1px solid #263445;
+    border-radius: 6px;
+    background: #0d141d;
+    color: #cfe1f5;
+    padding: 5px 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .artifact-inspector-layout {
+    flex: 1;
+  }
+
+  .artifact-pipeline-group {
+    display: grid;
+    gap: 10px;
+  }
+
+  .artifact-pipeline-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .artifact-pipeline-heading div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .artifact-pipeline-heading strong,
+  .artifact-pipeline-heading em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .artifact-pipeline-heading span {
+    border: 1px solid #263445;
+    border-radius: 7px;
+    background: #121a25;
+    color: #9aa7b8;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .artifact-module-group {
+    min-width: 0;
+  }
+
+  .artifact-meta-line {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .workbench-empty-state {
+    min-height: 220px;
+    border: 1px dashed #344456;
+    border-radius: 8px;
+    color: #8d9bad;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 7px;
+    padding: 18px;
+    text-align: center;
   }
 
   .skill-row {
@@ -6949,6 +8301,8 @@ const styles = `
   @media (max-width: 1020px) {
     .agent-layout,
     .module-layout,
+    .run-inspector-layout,
+    .wizard-layout,
     .backstage-layout {
       grid-template-columns: 1fr;
       height: auto;
@@ -6977,6 +8331,10 @@ const styles = `
     }
 
     .backstage-metrics,
+    .workbench-metrics,
+    .workbench-two-column,
+    .agent-skill-list,
+    .artifact-module-grid,
     .backstage-grid.two,
     .artifact-grid,
     .climate-ops-metrics,
@@ -7102,6 +8460,12 @@ const styles = `
     .runtime-status-grid,
     .runtime-meta-grid,
     .backstage-metrics,
+    .workbench-metrics,
+    .workbench-two-column,
+    .agent-skill-list,
+    .wizard-skill-select,
+    .wizard-permissions,
+    .artifact-module-grid,
     .backstage-grid.two,
     .artifact-grid,
     .climate-ops-metrics,
@@ -7124,13 +8488,38 @@ const styles = `
     }
 
     .backstage-header,
+    .agent-detail-header,
+    .artifact-pipeline-heading,
     .event-row {
       align-items: stretch;
       grid-template-columns: 1fr;
     }
 
-    .backstage-header {
+    .backstage-header,
+    .agent-detail-header,
+    .artifact-pipeline-heading {
       flex-direction: column;
+    }
+
+    .run-step-row {
+      grid-template-columns: 28px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .agent-catalog-row {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .agent-catalog-run {
+      margin: 0 10px 10px 52px;
+    }
+
+    .run-step-row b,
+    .run-step-row code {
+      grid-column: 2 / -1;
+      width: fit-content;
+      max-width: 100%;
     }
 
     .event-row p {
