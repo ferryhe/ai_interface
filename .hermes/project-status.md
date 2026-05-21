@@ -5,7 +5,7 @@ Updated: 2026-05-21
 ## Active Work
 
 - Branch: `codex/agent-registry-plan`
-- Scope: Planning PR for Agent Registry + Skill Registry + Run/Artifact Inspector flexible workbench. Code runtime changes are not part of this branch.
+- Scope: Planning PR for Agent Registry + Skill Registry + Run/Artifact Inspector flexible workbench, rebased onto the CI workflow now on `main`. Code runtime changes are not part of this branch.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -34,6 +34,8 @@ Updated: 2026-05-21
 - Portal `Request` and `Agent progress` bubbles now use content-aware sizing instead of fixed 760px width, and the message list scrolls within its available row.
 - Copilot reviewed PR #46 and generated no comments. No GitHub checks were configured for the branch.
 - The `codex/fix-agent-chat-layout` work branch was deleted locally and remotely after merge.
+- CI branch `ci/add-github-actions` adds `.github/workflows/ci.yml` for pull requests and pushes to `main`, using Node 22, pnpm install, `pnpm run typecheck`, `pnpm run build`, and `pnpm run skill:validate`.
+- `artifacts/mockup-sandbox` build requires `PORT` and `BASE_PATH`; the new CI workflow injects minimal defaults for the build step so the existing workspace build can run in GitHub Actions.
 
 ## Verification
 
@@ -61,7 +63,14 @@ Updated: 2026-05-21
   - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
   - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
   - `git diff --check` passed with CRLF warnings only.
+- CI workflow verification:
+  - `corepack enable` passed.
+  - `pnpm install --frozen-lockfile` passed.
+  - `pnpm run typecheck` passed.
+  - `PORT=3000 BASE_PATH=/ pnpm run build` passed.
+  - `pnpm run skill:validate` passed with `ok: true` and 7 skills loaded.
+  - `git diff --check` passed.
 
 ## Next Action
 
-- Open a documentation PR for `docs/superpowers/plans/2026-05-21-agent-registry-flexible-workbench.md`, then use it as the implementation roadmap for first-class agent manifests, agent-aware runs, inspector indexes, safe custom agent creation/import, workbench UI, and VS Code/MCP interop exports.
+- Merge PR #48 after remote review comments are resolved, then start Agent Registry Flexible Workbench PR 1 from latest `main` on a fresh `codex/...` branch.

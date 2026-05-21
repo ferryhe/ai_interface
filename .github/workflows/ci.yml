@@ -1,0 +1,42 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      npm_config_user_agent: pnpm/11.1.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm via Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.1.3 --activate
+
+      - name: Install dependencies
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            corepack pnpm install --frozen-lockfile --ignore-scripts
+          else
+            corepack pnpm install --ignore-scripts
+          fi
+
+      - name: Build
+        env:
+          PORT: 3000
+          BASE_PATH: /
+        run: corepack pnpm run build
+
+      - name: Validate skills
+        run: corepack pnpm run skill:validate

@@ -38,7 +38,7 @@ Import/Export
 
 ## Project Boundaries
 
-- Writable scope is only `C:\Project\ai_interface`.
+- Writable scope is only the `ai_interface` repository root for the active worker checkout.
 - Sibling repositories remain off-limits unless a future task explicitly names one.
 - Do not copy secrets, `.env` files, generated credentials, or unreviewed artifacts.
 - Keep `moduleId` compatibility; add `agentId` without breaking existing `POST /api/agent-runs` callers.
@@ -198,7 +198,13 @@ const DEFAULT_AGENT_ROOTS = [
   - custom can override community for local testing;
   - custom cannot override built-in unless `AI_INTERFACE_ALLOW_BUILTIN_AGENT_OVERRIDE=1`.
 
-- [ ] Validate every `agentId` and referenced `skillId` as a non-empty string.
+- [ ] Validate every `agentId` with the shared `AGENT_ID_PATTERN` used by manifest writing:
+
+```ts
+export const AGENT_ID_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
+```
+
+- [ ] Validate referenced `skillId` values as non-empty strings so existing skill IDs remain compatible with the skill manifest contract.
 - [ ] Validate `planner.mode` as `"linear" | "dag"`.
 - [ ] Validate `planner.failureStrategy` as `"fail_fast" | "continue_independent"`.
 - [ ] Validate `memory.promotionMode` as `"manual" | "run_summary" | "disabled"`.
