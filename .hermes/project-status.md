@@ -1,11 +1,11 @@
 # ai_interface Project Status
 
-Updated: 2026-05-20
+Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `ci/add-github-actions`
-- Scope: 为仓库补充最小 GitHub Actions CI（Node 22 + pnpm + typecheck/build/skill:validate），并在验证后开 PR。
+- Branch: `codex/agent-registry-plan`
+- Scope: Planning PR for Agent Registry + Skill Registry + Run/Artifact Inspector flexible workbench, rebased onto the CI workflow now on `main`. Code runtime changes are not part of this branch.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -73,4 +73,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- Run the Codex review gate, then commit/push the CI workflow branch and open a PR if review feedback is resolved.
+- Merge PR #48 after remote review comments are resolved, then start Agent Registry Flexible Workbench PR 1 from latest `main` on a fresh `codex/...` branch.
