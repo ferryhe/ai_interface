@@ -32,6 +32,14 @@ selects the agent's registered skills unless the request provides
 agent provider preferences only for that run, and records agent metadata on the
 new thread records, messages, pipeline run, and module runs.
 
+Run inspection is read-only through `GET /api/runs`,
+`GET /api/runs/:pipelineRunId/timeline`, and `GET /api/artifacts`.
+Runs can be filtered by `agentId`, `skillId`, `moduleId`, `status`, and
+`limit`; artifacts can be filtered by `pipelineRunId`, `moduleRunId`, `kind`,
+and `limit`. Inspector responses redact configured env values, provider keys,
+local provider URLs, MCP server URLs, token-like fields, and configured
+absolute local paths before returning stored metadata, events, and artifacts.
+
 ## Agent OS Overview
 
 ```mermaid
@@ -124,7 +132,7 @@ Backstage is the operations surface:
 
 - browse the skill catalog;
 - inspect each manifest, external project mapping, adapter readiness, UI capability, input/output schemas, and raw JSON;
-- view run I/O, events, and artifacts;
+- view filtered runs, ordered timelines, module-run events, and artifacts;
 - open a skill-provided HTML UI in a sandboxed iframe when `ui.htmlEntrypoint` exists;
 - fall back to generic renderers when a skill has no HTML UI.
 

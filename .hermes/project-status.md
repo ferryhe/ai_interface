@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/agent-aware-runtime-selection`
-- Scope: PR 2 implementation for Agent Registry Flexible Workbench: agent-aware `POST /api/agent-runs` skill selection, planner defaults, run metadata, generated API schemas/clients, and docs/status updates.
+- Branch: `codex/run-artifact-inspector-indexes`
+- Scope: PR 3 implementation for Agent Registry Flexible Workbench: read-only run and artifact inspector indexes, timeline/event retrieval, redaction, generated API schemas/clients, and docs/status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -48,6 +48,14 @@ Updated: 2026-05-21
 - PR 2 spec-compliance review follow-up added runtime coverage proving agent provider/model/reasoning overrides are passed to the planner for a single run and do not persist to saved config.
 - PR 2 code-quality review follow-up narrowed README/status metadata wording to new thread records and cleaned generated status-only line-ending noise.
 - PR #50 remote feedback follow-up made user-message metadata attachment explicit and lazy-loads the default agent runtime registry only when an `agentId` run needs it.
+- PR 3 Run and Artifact Inspector Indexes is implemented locally on `codex/run-artifact-inspector-indexes`.
+- Added `GET /api/runs` with `agentId`, `skillId`, `moduleId`, `status`, and `limit` filters over stored pipeline/module runs.
+- Added `GET /api/runs/:pipelineRunId/timeline` returning thread messages, pipeline state, module runs, and run events ordered by creation time.
+- Added `GET /api/artifacts` with `pipelineRunId`, `moduleRunId`, `kind`, and `limit` filters, including all module-run artifacts for a pipeline.
+- Inspector responses redact configured env values, provider keys, local provider URLs, MCP server URLs, token-like fields, and configured absolute local paths.
+- PR 3 spec-review P1 follow-up expanded inspector redaction to derive configured env names from the skill runtime registry, including adapter required/optional env names, MCP server env names, and skill project env paths such as `EXAMPLE_REPORTER_ENABLED`, `WEB_LISTENING_WORKDIR`, and `CROSS2_WORKDIR`.
+- PR 3 code-quality follow-up now uses generated run-inspector Zod validators, redacts common camelCase credential response keys such as `apiKey`, `accessToken`, `refreshToken`, `bearerToken`, `clientSecret`, and `clientToken`, and passes `/api/runs` limits to the repository when no module/skill post-filter is required.
+- PR #51 remote feedback follow-up added a localhost/same-origin read guard to run-inspector endpoints, moved `moduleId`/`skillId` run filtering into `AgentRuntimeRepository.listPipelineRuns` for in-memory and DB-backed repositories, and documented 403 inspector responses in OpenAPI.
 
 ## Verification
 
@@ -112,9 +120,35 @@ Updated: 2026-05-21
   - `git diff --check` passed with CRLF warnings only.
   - Spec-compliance follow-up red/fix cycle: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` initially failed because the new fixture inherited DAG defaults without planner `stepId`; after narrowing the fixture to linear mode, the command passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
   - Code-quality follow-up cleanup: `git status --short --branch`, `git diff --name-only`, and `git diff --numstat` confirmed generated status-only files had no content diff before restoring them; `git diff --check` is the required final check for this docs/status cleanup.
-  - PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
-  - PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
+- PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+- Run and Artifact Inspector Indexes verification:
+  - TDD red run 1: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts` failed because `src/routes/run-inspector` did not exist.
+  - TDD red run 2: the same command failed with 5 expected route assertion failures after adding a no-behavior route skeleton.
+  - TDD red run 3: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts src/modules/db-repository.test.ts` failed on missing `getAgentRunTimeline` and `listArtifacts` exports plus the route behavior assertions.
+  - Focused green rerun of that command passed through the package script with 242 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Post-codegen rerun of the same test command passed with 242 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF warnings only.
+  - Spec-review P1 red run: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts` failed on leaked `example-reporter-enabled-secret` before the fix.
+  - Spec-review P1 green rerun of the same command passed with 243 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Spec-review P1 follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Spec-review P1 follow-up: `git diff --check` passed with CRLF warnings only.
+  - Code-quality follow-up red run: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` failed with 3 expected failures covering missing repository limit propagation, invalid inspector params returning 200/404, and leaked `apiKey` response values.
+  - Code-quality follow-up green rerun of the same command passed with 247 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Code-quality follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Code-quality follow-up: `git diff --check` passed with CRLF warnings only.
+  - Code-quality follow-up attempted to clear status-only churn in `lib/api-zod/src/generated/types/createAgentRunRequest.ts`, but `git restore -- lib/api-zod/src/generated/types/createAgentRunRequest.ts` failed with `.git/index.lock: Permission denied`; `git diff` and `git diff --numstat` showed no content diff for that file.
+  - PR #51 remote feedback red run: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` failed with 3 expected failures covering missing inspector read guard and repository-side module/skill filtering before limit.
+  - PR #51 remote feedback green rerun of the same command passed with 250 passing, 1 skipped Windows symlink test, and 0 failures.
+  - PR #51 remote feedback: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - PR #51 remote feedback post-codegen rerun of `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` passed with 250 passing, 1 skipped Windows symlink test, and 0 failures.
+  - PR #51 remote feedback: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #51 remote feedback: `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 
-- Report PR #50 remote feedback follow-up changes and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.
+- Report PR 3 changes and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.

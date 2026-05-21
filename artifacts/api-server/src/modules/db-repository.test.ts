@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 
+import { InMemoryAgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
+import {
+  createModuleRun,
+  listArtifacts,
+  recordModuleRunArtifact,
+} from "./ingest-service";
 import type { SkillManifest } from "../skill-runtime/skill-manifest";
 import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 
@@ -78,4 +85,73 @@ test("catalog upsert helper writes custom manifest-derived definitions", async (
       resultKinds: ["custom_report"],
     },
   ]);
+});
+
+test("artifact listing filters by pipeline, module run, kind, and limit", async () => {
+  const repository = new InMemoryAgentRuntimeRepository();
+  const pipelineRun = await repository.createPipelineRun({
+    threadId: null,
+    title: "Artifact filter pipeline",
+    status: "pending",
+    activeModuleId: "doc_to_md",
+    metadata: null,
+  });
+  const otherPipelineRun = await repository.createPipelineRun({
+    threadId: null,
+    title: "Other artifact pipeline",
+    status: "pending",
+    activeModuleId: "rag_to_agent",
+    metadata: null,
+  });
+  const first = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `db-artifact-doc-${randomUUID()}`,
+    pipelineRunId: pipelineRun.id,
+  });
+  const second = await createModuleRun(repository, {
+    moduleId: "md_to_rag",
+    externalRunId: `db-artifact-rag-${randomUUID()}`,
+    pipelineRunId: pipelineRun.id,
+  });
+  const other = await createModuleRun(repository, {
+    moduleId: "rag_to_agent",
+    externalRunId: `db-artifact-agent-${randomUUID()}`,
+    pipelineRunId: otherPipelineRun.id,
+  });
+  await recordModuleRunArtifact(repository, first.run.id, {
+    artifactKind: "markdown",
+    title: "Converted Markdown",
+  });
+  await recordModuleRunArtifact(repository, second.run.id, {
+    artifactKind: "rag_records",
+    title: "RAG Records",
+  });
+  await recordModuleRunArtifact(repository, other.run.id, {
+    artifactKind: "agent_config",
+    title: "Other Agent Config",
+  });
+
+  const pipelineArtifacts = await listArtifacts(repository, {
+    pipelineRunId: pipelineRun.id,
+  });
+  const moduleArtifacts = await listArtifacts(repository, {
+    moduleRunId: second.run.id,
+  });
+  const limitedMarkdownArtifacts = await listArtifacts(repository, {
+    kind: "markdown",
+    limit: 1,
+  });
+
+  assert.deepEqual(
+    pipelineArtifacts.map((artifact) => artifact.title),
+    ["Converted Markdown", "RAG Records"],
+  );
+  assert.deepEqual(
+    moduleArtifacts.map((artifact) => artifact.title),
+    ["RAG Records"],
+  );
+  assert.deepEqual(
+    limitedMarkdownArtifacts.map((artifact) => artifact.title),
+    ["Converted Markdown"],
+  );
 });

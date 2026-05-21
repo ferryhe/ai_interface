@@ -18,6 +18,8 @@ tags:
     description: Portal token verification
   - name: agent-runs
     description: Agent runtime planning and module orchestration
+  - name: run-inspector
+    description: Read-only run, timeline, event, and artifact inspection
   - name: tool-adapters
     description: External tool adapter metadata and readiness
   - name: skills
@@ -450,6 +452,135 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /runs:
+    get:
+      operationId: listRuns
+      tags: [run-inspector]
+      summary: List agent pipeline runs
+      description: >-
+        Lists inspectable Agent pipeline runs with optional filters for agent,
+        skill, module, status, and limit. Responses are redacted so configured
+        secrets, provider URLs, MCP server URLs, adapter env values, and local
+        absolute paths are not exposed.
+      parameters:
+        - in: query
+          name: agentId
+          schema:
+            $ref: "#/components/schemas/AgentId"
+        - in: query
+          name: skillId
+          schema:
+            $ref: "#/components/schemas/SkillId"
+        - in: query
+          name: moduleId
+          schema:
+            $ref: "#/components/schemas/ModuleId"
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ModuleRunStatus"
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Filtered run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunListResponse"
+        "400":
+          description: Invalid run filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /runs/{pipelineRunId}/timeline:
+    get:
+      operationId: getRunTimeline
+      tags: [run-inspector]
+      summary: Get an agent run timeline
+      description: >-
+        Returns ordered thread messages, pipeline state, module runs, and run
+        events for an Agent pipeline run with inspector redaction applied.
+      parameters:
+        - $ref: "#/components/parameters/PipelineRunId"
+      responses:
+        "200":
+          description: Agent run timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunTimeline"
+        "404":
+          description: Agent run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /artifacts:
+    get:
+      operationId: listArtifacts
+      tags: [run-inspector]
+      summary: List artifacts
+      description: >-
+        Lists artifacts by pipeline run, module run, artifact kind, and limit
+        with inspector redaction applied to content and provenance.
+      parameters:
+        - in: query
+          name: pipelineRunId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: moduleRunId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: kind
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Filtered artifact list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactListResponse"
+        "400":
+          description: Invalid artifact filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
           content:
             application/json:
               schema:
@@ -2654,6 +2785,52 @@ components:
         - messages
         - pipelineRun
         - moduleRuns
+    AgentRunListItem:
+      type: object
+      properties:
+        pipelineRun:
+          $ref: "#/components/schemas/PipelineRun"
+        moduleRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleRun"
+      required:
+        - pipelineRun
+        - moduleRuns
+    AgentRunListResponse:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRunListItem"
+      required:
+        - runs
+    AgentRunTimeline:
+      type: object
+      properties:
+        thread:
+          $ref: "#/components/schemas/AgentThread"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentMessage"
+        pipelineRun:
+          $ref: "#/components/schemas/PipelineRun"
+        moduleRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleRun"
+        runEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunEvent"
+      required:
+        - thread
+        - messages
+        - pipelineRun
+        - moduleRuns
+        - runEvents
     ModuleDefinition:
       type: object
       properties:
@@ -2956,4 +3133,13 @@ components:
       required:
         - run
         - events
+        - artifacts
+    ArtifactListResponse:
+      type: object
+      properties:
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Artifact"
+      required:
         - artifacts

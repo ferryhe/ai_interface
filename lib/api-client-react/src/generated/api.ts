@@ -23,8 +23,11 @@ import type {
   AgentConnectionTestResponse,
   AgentListResponse,
   AgentRunDetail,
+  AgentRunListResponse,
   AgentRunResponse,
+  AgentRunTimeline,
   Artifact,
+  ArtifactListResponse,
   ClimateMonitorRunRequest,
   ClimateMonitorRunResponse,
   ClimateMonitorStatusResponse,
@@ -35,6 +38,8 @@ import type {
   CreateToolInteractionRequest,
   ErrorResponse,
   HealthStatus,
+  ListArtifactsParams,
+  ListRunsParams,
   ModuleListResponse,
   ModuleRun,
   ModuleRunDetail,
@@ -1384,6 +1389,285 @@ export function useGetArtifact<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetArtifactQueryOptions(artifactId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Lists inspectable Agent pipeline runs with optional filters for agent, skill, module, status, and limit. Responses are redacted so configured secrets, provider URLs, MCP server URLs, adapter env values, and local absolute paths are not exposed.
+ * @summary List agent pipeline runs
+ */
+export const getListRunsUrl = (params?: ListRunsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/runs?${stringifiedParams}`
+    : `/api/runs`;
+};
+
+export const listRuns = async (
+  params?: ListRunsParams,
+  options?: RequestInit,
+): Promise<AgentRunListResponse> => {
+  return customFetch<AgentRunListResponse>(getListRunsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRunsQueryKey = (params?: ListRunsParams) => {
+  return [`/api/runs`, ...(params ? [params] : [])] as const;
+};
+
+export const getListRunsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRuns>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListRunsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRuns>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRunsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRuns>>> = ({
+    signal,
+  }) => listRuns(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRuns>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRunsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRuns>>
+>;
+export type ListRunsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List agent pipeline runs
+ */
+
+export function useListRuns<
+  TData = Awaited<ReturnType<typeof listRuns>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListRunsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRuns>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRunsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns ordered thread messages, pipeline state, module runs, and run events for an Agent pipeline run with inspector redaction applied.
+ * @summary Get an agent run timeline
+ */
+export const getGetRunTimelineUrl = (pipelineRunId: string) => {
+  return `/api/runs/${pipelineRunId}/timeline`;
+};
+
+export const getRunTimeline = async (
+  pipelineRunId: string,
+  options?: RequestInit,
+): Promise<AgentRunTimeline> => {
+  return customFetch<AgentRunTimeline>(getGetRunTimelineUrl(pipelineRunId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRunTimelineQueryKey = (pipelineRunId: string) => {
+  return [`/api/runs/${pipelineRunId}/timeline`] as const;
+};
+
+export const getGetRunTimelineQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRunTimeline>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  pipelineRunId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRunTimeline>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRunTimelineQueryKey(pipelineRunId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunTimeline>>> = ({
+    signal,
+  }) => getRunTimeline(pipelineRunId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!pipelineRunId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRunTimeline>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRunTimelineQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRunTimeline>>
+>;
+export type GetRunTimelineQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get an agent run timeline
+ */
+
+export function useGetRunTimeline<
+  TData = Awaited<ReturnType<typeof getRunTimeline>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  pipelineRunId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRunTimeline>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRunTimelineQueryOptions(pipelineRunId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Lists artifacts by pipeline run, module run, artifact kind, and limit with inspector redaction applied to content and provenance.
+ * @summary List artifacts
+ */
+export const getListArtifactsUrl = (params?: ListArtifactsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/artifacts?${stringifiedParams}`
+    : `/api/artifacts`;
+};
+
+export const listArtifacts = async (
+  params?: ListArtifactsParams,
+  options?: RequestInit,
+): Promise<ArtifactListResponse> => {
+  return customFetch<ArtifactListResponse>(getListArtifactsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListArtifactsQueryKey = (params?: ListArtifactsParams) => {
+  return [`/api/artifacts`, ...(params ? [params] : [])] as const;
+};
+
+export const getListArtifactsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listArtifacts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListArtifactsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listArtifacts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListArtifactsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listArtifacts>>> = ({
+    signal,
+  }) => listArtifacts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listArtifacts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListArtifactsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listArtifacts>>
+>;
+export type ListArtifactsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List artifacts
+ */
+
+export function useListArtifacts<
+  TData = Awaited<ReturnType<typeof listArtifacts>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: ListArtifactsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listArtifacts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListArtifactsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

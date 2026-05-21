@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import {
   agentMessagesTable,
   agentThreadsTable,
@@ -19,6 +19,7 @@ import {
   type AgentMessageRole,
   type AgentRuntimeRepository,
   type AgentThreadRecord,
+  type ListPipelineRunsFilters,
   type PipelineRunRecord,
 } from "./agent-runtime-service";
 
@@ -26,6 +27,17 @@ type AgentThreadRow = typeof agentThreadsTable.$inferSelect;
 type AgentMessageRow = typeof agentMessagesTable.$inferSelect;
 type PipelineRunRow = typeof pipelineRunsTable.$inferSelect;
 type ModuleRunRow = typeof moduleRunsTable.$inferSelect;
+
+const pipelineRunColumns = {
+  id: pipelineRunsTable.id,
+  threadId: pipelineRunsTable.threadId,
+  title: pipelineRunsTable.title,
+  status: pipelineRunsTable.status,
+  activeModuleId: pipelineRunsTable.activeModuleId,
+  metadata: pipelineRunsTable.metadata,
+  createdAt: pipelineRunsTable.createdAt,
+  updatedAt: pipelineRunsTable.updatedAt,
+};
 
 function firstOrThrow<T>(rows: T[], label: string): T {
   const [row] = rows;
@@ -178,6 +190,73 @@ export class DbAgentRuntimeRepository
       .limit(1);
 
     return rows[0] ? mapPipelineRun(rows[0]) : null;
+  }
+
+  async listPipelineRuns(
+    input: ListPipelineRunsFilters = {},
+  ): Promise<PipelineRunRecord[]> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      conditions.push(sql`${pipelineRunsTable.metadata}->>'agentId' = ${input.agentId}`);
+    }
+    if (input.status) {
+      conditions.push(eq(pipelineRunsTable.status, input.status));
+    }
+    if (input.moduleId) {
+      conditions.push(sql`exists (
+        select 1
+        from module_runs module_filter
+        where module_filter.pipeline_run_id = ${pipelineRunsTable.id}
+          and module_filter.module_id = ${input.moduleId}
+      )`);
+    }
+    if (input.skillId) {
+      conditions.push(sql`exists (
+        select 1
+        from module_runs skill_filter
+        where skill_filter.pipeline_run_id = ${pipelineRunsTable.id}
+          and (
+            skill_filter.metadata->>'skillId' = ${input.skillId}
+            or skill_filter.module_id = ${input.skillId}
+          )
+      )`);
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`true`;
+    const needsModuleJoin = Boolean(input.moduleId || input.skillId);
+
+    if (needsModuleJoin) {
+      let query = db
+        .selectDistinct(pipelineRunColumns)
+        .from(pipelineRunsTable)
+        .innerJoin(
+          moduleRunsTable,
+          eq(moduleRunsTable.pipelineRunId, pipelineRunsTable.id),
+        )
+        .where(whereClause)
+        .orderBy(desc(pipelineRunsTable.createdAt))
+        .$dynamic();
+
+      if (input.limit !== undefined) {
+        query = query.limit(input.limit);
+      }
+
+      const rows = await query;
+      return rows.map((row) => mapPipelineRun(row as PipelineRunRow));
+    }
+
+    let query = db
+      .select(pipelineRunColumns)
+      .from(pipelineRunsTable)
+      .where(whereClause)
+      .orderBy(desc(pipelineRunsTable.createdAt))
+      .$dynamic();
+
+    if (input.limit !== undefined) {
+      query = query.limit(input.limit);
+    }
+
+    const rows = await query;
+    return rows.map((row) => mapPipelineRun(row as PipelineRunRow));
   }
 
   async listModuleRunsByPipelineRunId(

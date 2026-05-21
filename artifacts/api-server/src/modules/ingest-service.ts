@@ -121,6 +121,13 @@ export interface CreateArtifactInput {
   provenance?: JsonObject;
 }
 
+export interface ListArtifactsFilters {
+  pipelineRunId?: string;
+  moduleRunId?: string;
+  kind?: string;
+  limit?: number;
+}
+
 export type ToolInteractionKind =
   | "question"
   | "approval"
@@ -236,7 +243,9 @@ export interface ModuleRunRepository {
   createArtifact(input: CreateArtifactRecordInput): Promise<ArtifactRecord>;
   findArtifactById(id: string): Promise<ArtifactRecord | null>;
   listRunEvents(moduleRunId: string): Promise<RunEventRecord[]>;
+  listRunEventsByPipelineRunId(pipelineRunId: string): Promise<RunEventRecord[]>;
   listRunArtifacts(moduleRunId: string): Promise<ArtifactRecord[]>;
+  listArtifacts(filters: ListArtifactsFilters): Promise<ArtifactRecord[]>;
 }
 
 export class InMemoryModuleRunRepository implements ModuleRunRepository {
@@ -363,10 +372,52 @@ export class InMemoryModuleRunRepository implements ModuleRunRepository {
     return this.runEvents.filter((event) => event.moduleRunId === moduleRunId);
   }
 
+  async listRunEventsByPipelineRunId(
+    pipelineRunId: string,
+  ): Promise<RunEventRecord[]> {
+    const moduleRunIds = new Set(
+      this.moduleRuns
+        .filter((run) => run.pipelineRunId === pipelineRunId)
+        .map((run) => run.id),
+    );
+    return this.runEvents
+      .filter((event) => moduleRunIds.has(event.moduleRunId))
+      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+  }
+
   async listRunArtifacts(moduleRunId: string): Promise<ArtifactRecord[]> {
     return this.artifacts.filter(
       (artifact) => artifact.sourceRunId === moduleRunId,
     );
+  }
+
+  async listArtifacts(
+    filters: ListArtifactsFilters,
+  ): Promise<ArtifactRecord[]> {
+    const moduleRunIdsForPipeline = filters.pipelineRunId
+      ? new Set(
+          this.moduleRuns
+            .filter((run) => run.pipelineRunId === filters.pipelineRunId)
+            .map((run) => run.id),
+        )
+      : null;
+    const artifacts = this.artifacts
+      .filter((artifact) =>
+        filters.moduleRunId ? artifact.sourceRunId === filters.moduleRunId : true,
+      )
+      .filter((artifact) =>
+        moduleRunIdsForPipeline
+          ? moduleRunIdsForPipeline.has(artifact.sourceRunId)
+          : true,
+      )
+      .filter((artifact) =>
+        filters.kind ? artifact.artifactKind === filters.kind : true,
+      )
+      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+
+    return typeof filters.limit === "number"
+      ? artifacts.slice(0, filters.limit)
+      : artifacts;
   }
 }
 
@@ -508,6 +559,13 @@ export async function recordModuleRunArtifact(
     parentArtifactId: input.parentArtifactId ?? null,
     provenance: input.provenance ?? null,
   });
+}
+
+export async function listArtifacts(
+  repository: ModuleRunRepository,
+  filters: ListArtifactsFilters,
+): Promise<ArtifactRecord[]> {
+  return repository.listArtifacts(filters);
 }
 
 function interactionStatusForKind(

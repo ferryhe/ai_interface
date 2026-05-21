@@ -7,6 +7,7 @@ import healthRouter from "./health";
 import modulesRouter from "./modules";
 import pipelinesRouter from "./pipelines";
 import portalAuthRouter from "./portal-auth";
+import runInspectorRouter from "./run-inspector";
 import skillsRouter from "./skills";
 import toolAdaptersRouter from "./tool-adapters";
 
@@ -20,6 +21,7 @@ router.use(healthRouter);
 router.use(modulesRouter);
 router.use(pipelinesRouter);
 router.use(portalAuthRouter);
+router.use(runInspectorRouter);
 router.use(skillsRouter);
 router.use(toolAdaptersRouter);
 
