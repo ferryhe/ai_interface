@@ -16,6 +16,8 @@ import {
   type AgentConfigRecord,
   type AgentConfigRepository,
 } from "../agent-config/agent-config-service";
+import type { AgentRuntimeRegistry } from "../agent-registry/agent-runtime-registry";
+import type { AgentManifest } from "../agent-registry/agent-manifest";
 import {
   businessSkillDefinitionFromManifest,
   getBusinessSkillSetting,
@@ -169,6 +171,7 @@ export interface AgentPlanner {
 
 export interface CreateAgentRunInput {
   message: string;
+  agentId?: string;
   threadId?: string;
   title?: string;
   metadata?: JsonObject;
@@ -207,13 +210,17 @@ function normalizeJsonObject(value: unknown): JsonObject {
 
 function normalizePlanMode(
   value: AgentRuntimePlannerPlan["mode"],
+  fallback: AgentRuntimePlanMode = "linear",
 ): AgentRuntimePlanMode {
+  if (value === undefined) return fallback;
   return value === "dag" ? "dag" : "linear";
 }
 
 function normalizeFailureStrategy(
   value: AgentRuntimePlannerPlan["failureStrategy"],
+  fallback: DagFailureStrategy = "fail_fast",
 ): DagFailureStrategy {
+  if (value === undefined) return fallback;
   return value === "continue_independent" ? value : "fail_fast";
 }
 
@@ -295,6 +302,10 @@ function normalizePlan(
   rawPlan: AgentRuntimePlannerPlan,
   enabledSkills: BusinessSkillDefinition[],
   registeredSkills: BusinessSkillDefinition[],
+  defaults: {
+    mode?: AgentRuntimePlanMode;
+    failureStrategy?: DagFailureStrategy;
+  } = {},
 ): AgentRuntimePlan {
   const enabledSkillById = new Map(
     enabledSkills.map((skill) => [skill.skillId, skill]),
@@ -310,8 +321,11 @@ function normalizePlan(
   );
   const warnings = [...rawPlan.warnings];
   const steps: AgentRuntimePlanStep[] = [];
-  const mode = normalizePlanMode(rawPlan.mode);
-  const failureStrategy = normalizeFailureStrategy(rawPlan.failureStrategy);
+  const mode = normalizePlanMode(rawPlan.mode, defaults.mode);
+  const failureStrategy = normalizeFailureStrategy(
+    rawPlan.failureStrategy,
+    defaults.failureStrategy,
+  );
 
   for (const rawStep of rawPlan.steps) {
     const rawSkillId = rawStep.skillId?.trim();
@@ -380,6 +394,34 @@ function plannerConfigForActiveProvider(
       ? config.reasoningEffort
       : "none",
   };
+}
+
+function configWithAgentProviderOverrides(
+  config: AgentConfigRecord,
+  activeAgent: AgentManifest | null,
+): AgentConfigRecord {
+  if (!activeAgent?.provider) return config;
+  return {
+    ...config,
+    provider: activeAgent.provider.provider ?? config.provider,
+    modelId: activeAgent.provider.modelId ?? config.modelId,
+    reasoningEffort:
+      activeAgent.provider.reasoningEffort ?? config.reasoningEffort,
+  };
+}
+
+function agentMetadata(activeAgent: AgentManifest | null): JsonObject {
+  if (!activeAgent) return {};
+  return {
+    agentId: activeAgent.agentId,
+    agentName: activeAgent.title ?? activeAgent.name,
+    agentSkillIds: activeAgent.skills.map((binding) => binding.skillId),
+  };
+}
+
+async function getDefaultAgentRuntimeRegistry(): Promise<AgentRuntimeRegistry> {
+  const module = await import("../agent-registry/agent-runtime-registry");
+  return module.defaultAgentRuntimeRegistry;
 }
 
 export class InMemoryAgentRuntimeRepository
@@ -557,6 +599,7 @@ export async function createAgentRun(
     planner?: AgentPlanner;
     skillManifests?: SkillManifest[];
     registry?: SkillRuntimeRegistry;
+    agentRegistry?: AgentRuntimeRegistry;
   } = {},
 ): Promise<AgentRunResponse> {
   const env = options.env ?? process.env;
@@ -569,11 +612,26 @@ export async function createAgentRun(
           ...options.skillManifests,
         ])
       : defaultSkillRuntimeRegistry);
+  const agentRegistry = input.agentId
+    ? (options.agentRegistry ?? (await getDefaultAgentRuntimeRegistry()))
+    : null;
+  const activeAgent = input.agentId
+    ? agentRegistry?.getAgent(input.agentId) ?? null
+    : null;
+  if (input.agentId && !activeAgent) {
+    throw new Error(`Agent is not registered: ${input.agentId}`);
+  }
+  const currentAgentMetadata = agentMetadata(activeAgent);
   const config = await getAgentConfig(configRepository, skillRegistry);
-  const plannerSelection = selectPlannerProvider(config, env);
-  const connection = getConnectionStatus(env, config.provider);
+  const runConfig = configWithAgentProviderOverrides(config, activeAgent);
+  const plannerSelection = selectPlannerProvider(runConfig, env);
+  const connection = getConnectionStatus(env, runConfig.provider);
+  const agentSkillIds = activeAgent
+    ? activeAgent.skills.map((binding) => binding.skillId)
+    : undefined;
   const requestedSkillIds =
     input.enabledSkillIds ??
+    agentSkillIds ??
     (skillRegistry === defaultSkillRuntimeRegistry
       ? listEnabledBusinessSkillDefinitions(config.businessSkillSettings)
       : skillRegistry.listBusinessSkillDefinitions().filter((definition) => {
@@ -584,6 +642,10 @@ export async function createAgentRun(
           return setting?.enabled === true;
         })
     ).map((skill) => skill.skillId);
+  const missingAgentSkillIds =
+    activeAgent && !input.enabledSkillIds
+      ? requestedSkillIds.filter((skillId) => !skillRegistry.hasSkill(skillId))
+      : [];
   const enabledSkills = requestedSkillIds
     .map((skillId) => skillRegistry.getSkill(skillId))
     .filter((manifest): manifest is SkillManifest => Boolean(manifest))
@@ -603,18 +665,26 @@ export async function createAgentRun(
     ? await repository.findThreadById(input.threadId)
     : await repository.createThread({
         title,
-        metadata: { ...(input.metadata ?? {}), source: "agent-runtime" },
+        metadata: {
+          ...(input.metadata ?? {}),
+          source: "agent-runtime",
+          ...currentAgentMetadata,
+        },
       });
 
   if (!thread) {
     throw new Error(`Agent thread not found: ${input.threadId}`);
   }
 
+  const shouldAttachUserMessageMetadata =
+    Boolean(input.metadata) || Boolean(activeAgent);
   const userMessage = await repository.createMessage({
     threadId: thread.id,
     role: "user",
     content: input.message,
-    metadata: input.metadata ?? null,
+    metadata: shouldAttachUserMessageMetadata
+      ? { ...(input.metadata ?? {}), ...currentAgentMetadata }
+      : null,
   });
 
   let pipelineRun = await repository.createPipelineRun({
@@ -625,6 +695,7 @@ export async function createAgentRun(
     metadata: {
       source: "agent-runtime",
       connectionStatus: connection.status,
+      ...currentAgentMetadata,
     },
   });
 
@@ -641,16 +712,22 @@ export async function createAgentRun(
 
   const rawPlan = await planner.createPlan({
     message: input.message,
-    config: plannerConfigForActiveProvider(config, plannerSelection),
+    config: plannerConfigForActiveProvider(runConfig, plannerSelection),
     enabledSkills,
   });
   if (plannerSelection.definition.provider !== "deterministic") {
     rawPlan.warnings.unshift(...plannerSelection.warnings);
   }
+  rawPlan.warnings.unshift(
+    ...missingAgentSkillIds.map(
+      (skillId) => `Agent references unregistered skill: ${skillId}`,
+    ),
+  );
   const plan = normalizePlan(
     rawPlan,
     enabledSkills,
     skillRegistry.listBusinessSkillDefinitions(),
+    activeAgent?.planner,
   );
 
   if (plan.steps.length === 0) {
@@ -703,6 +780,7 @@ export async function createAgentRun(
       inputJson: step.input,
       registeredSkillIds: Array.from(new Set([step.moduleId, stepSkillId])),
       metadata: {
+        ...(activeAgent ? { agentId: activeAgent.agentId } : {}),
         skillId: stepSkillId,
         skillName: definition.displayName,
         action: step.action,
@@ -846,6 +924,7 @@ export async function createAgentRun(
       source: "agent-runtime",
       runtimeStatus: status,
       connectionStatus: connection.status,
+      ...currentAgentMetadata,
       plannedStepCount: moduleRuns.length,
       executionMode,
       planMode: effectivePlan.mode,
@@ -869,6 +948,7 @@ export async function createAgentRun(
       runtimeStatus: status,
       planMode: effectivePlan.mode,
       plannedModuleRunIds: responseModuleRuns.map((run) => run.id),
+      ...currentAgentMetadata,
     },
   });
 

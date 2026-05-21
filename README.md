@@ -26,6 +26,12 @@ Agent manifests are also file-backed and loaded from `agents/builtin`,
 skill references. Missing skill IDs are reported as readiness metadata rather
 than crashing catalog listing.
 
+`POST /api/agent-runs` accepts an optional `agentId`. When supplied, the runtime
+selects the agent's registered skills unless the request provides
+`enabledSkillIds`, uses the agent planner defaults as planner fallbacks, applies
+agent provider preferences only for that run, and records agent metadata on the
+new thread records, messages, pipeline run, and module runs.
+
 ## Agent OS Overview
 
 ```mermaid

@@ -2587,6 +2587,8 @@ components:
         message:
           type: string
           minLength: 1
+        agentId:
+          $ref: "#/components/schemas/AgentId"
         threadId:
           type: string
           format: uuid
