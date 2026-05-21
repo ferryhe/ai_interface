@@ -74,6 +74,16 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
+async function defaultCwd(startCwd: string): Promise<string> {
+  let current = resolve(startCwd);
+  while (true) {
+    if (await pathExists(join(current, "agents", "builtin"))) return current;
+    const parent = resolve(current, "..");
+    if (parent === current) return resolve(startCwd);
+    current = parent;
+  }
+}
+
 function assertInside(parent: string, child: string, message: string): void {
   const childRelative = relative(parent, child);
   if (
@@ -191,7 +201,10 @@ async function validateManifestBeforeFinalWrite(
 export async function writeAgentManifest(
   input: WriteAgentManifestInput,
 ): Promise<WriteAgentManifestResult> {
-  const cwd = resolve(input.cwd ?? process.cwd());
+  const cwd =
+    input.cwd === undefined
+      ? await defaultCwd(process.cwd())
+      : resolve(input.cwd);
   assertWritableAgentId(input.agentId);
 
   const customRoot = resolve(cwd, "agents", "custom");

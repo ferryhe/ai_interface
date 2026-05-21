@@ -17,6 +17,30 @@ async function createRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "agent-writer-"));
 }
 
+async function createWorkspaceLikeRoot(): Promise<{
+  root: string;
+  apiServerCwd: string;
+}> {
+  const root = await createRoot();
+  const apiServerCwd = join(root, "artifacts", "api-server");
+  await mkdir(join(root, "agents", "builtin"), { recursive: true });
+  await mkdir(apiServerCwd, { recursive: true });
+  return { root, apiServerCwd };
+}
+
+async function withProcessCwd<T>(
+  cwd: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const originalCwd = process.cwd();
+  process.chdir(cwd);
+  try {
+    return await callback();
+  } finally {
+    process.chdir(originalCwd);
+  }
+}
+
 function manifest(agentId = "my_agent"): AgentManifest {
   return {
     agentId,
@@ -70,6 +94,28 @@ test("creates agents/custom/my_agent/agent.yaml for a valid request", async () =
   assert.equal(result.manifest.source, "custom");
   assert.match(content, /^agentId: my_agent/m);
   assert.match(content, /^source: custom/m);
+});
+
+test("defaults writes to workspace root when process cwd is artifacts/api-server", async () => {
+  const { root, apiServerCwd } = await createWorkspaceLikeRoot();
+
+  const result = await withProcessCwd(apiServerCwd, () =>
+    writeAgentManifest({
+      agentId: "my_agent",
+      manifest: manifest(),
+    }),
+  );
+
+  assert.equal(
+    result.path,
+    join(root, "agents", "custom", "my_agent", "agent.yaml"),
+  );
+  assert.equal(
+    await fileExists(
+      join(apiServerCwd, "agents", "custom", "my_agent", "agent.yaml"),
+    ),
+    false,
+  );
 });
 
 test("rejects overwrite when the custom manifest already exists", async () => {

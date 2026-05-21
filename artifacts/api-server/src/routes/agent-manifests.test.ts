@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { request as httpRequest, type Server } from "node:http";
-import { readFile, mkdtemp } from "node:fs/promises";
+import { mkdir, readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,6 +11,30 @@ import { createAgentManifestsRouter } from "./agent-manifests";
 
 async function createRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "agent-manifests-route-"));
+}
+
+async function createWorkspaceLikeRoot(): Promise<{
+  root: string;
+  apiServerCwd: string;
+}> {
+  const root = await createRoot();
+  const apiServerCwd = join(root, "artifacts", "api-server");
+  await mkdir(join(root, "agents", "builtin"), { recursive: true });
+  await mkdir(apiServerCwd, { recursive: true });
+  return { root, apiServerCwd };
+}
+
+async function withProcessCwd<T>(
+  cwd: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const originalCwd = process.cwd();
+  process.chdir(cwd);
+  try {
+    return await callback();
+  } finally {
+    process.chdir(originalCwd);
+  }
 }
 
 async function withAgentManifestsApp<T>(
@@ -153,6 +177,36 @@ test("POST /api/agent-manifests creates and validates a custom agent when enable
   assert.equal(
     json.path,
     join(cwd, "agents", "custom", "my_agent", "agent.yaml"),
+  );
+});
+
+test("POST /api/agent-manifests defaults writes to workspace root from api-server cwd", async () => {
+  const { root, apiServerCwd } = await createWorkspaceLikeRoot();
+  const response = await withProcessCwd(apiServerCwd, () =>
+    withAgentManifestsApp(
+      {
+        env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+      },
+      (baseUrl) =>
+        fetch(`${baseUrl}/api/agent-manifests`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody()),
+        }),
+    ),
+  );
+  const json = (await response.json()) as { path: string };
+
+  assert.equal(response.status, 201);
+  assert.equal(
+    json.path,
+    join(root, "agents", "custom", "my_agent", "agent.yaml"),
+  );
+  assert.equal(
+    await fileExists(
+      join(apiServerCwd, "agents", "custom", "my_agent", "agent.yaml"),
+    ),
+    false,
   );
 });
 

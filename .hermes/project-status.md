@@ -62,6 +62,7 @@ Updated: 2026-05-21
 - Added `POST /api/agent-manifests`, gated by `AI_INTERFACE_MANIFEST_WRITE_MODE=custom`, plus local `agent:create` and `agent:import-vscode` scripts.
 - PR 4 code-quality review follow-up fixed blocking manifest write issues: invalid manifests are validated in a temporary custom root before final write, mismatched embedded `manifest.agentId` values are rejected, non-overwrite writes use exclusive create semantics, symlinked/junction custom paths are rejected before final write, and enabled API writes now require localhost/same-origin requests before file creation.
 - PR 4 re-review follow-up added a final `agent.yaml` lstat guard so `overwrite: true` rejects pre-existing manifest file symlinks instead of following them.
+- PR #52 remote feedback follow-up made the manifest writer discover the workspace root by walking upward to `agents/builtin` when no explicit `cwd` is supplied, so API servers launched from `artifacts/api-server` still write custom manifests under the repository-level `agents/custom`.
 
 ## Verification
 
@@ -183,6 +184,12 @@ Updated: 2026-05-21
   - Re-review follow-up `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - Re-review follow-up `corepack pnpm --filter @workspace/api-server run build` passed.
   - Re-review follow-up `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+  - PR #52 remote feedback TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-manifest-writer.test.ts src/agent-registry/vscode-agent-importer.test.ts src/routes/agent-manifests.test.ts` failed with 2 expected cwd-default failures showing writes under `artifacts/api-server/agents/custom`.
+  - PR #52 remote feedback green rerun of the same command passed with 268 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - PR #52 remote feedback smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` passed; `corepack pnpm run agent:validate` passed with `ok: true`, 2 agents, and no missing skill IDs; the smoke manifest and empty containing directory were removed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run build` passed.
 
 ## Next Action
 
