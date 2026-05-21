@@ -16,10 +16,7 @@ import {
   type AgentConfigRecord,
   type AgentConfigRepository,
 } from "../agent-config/agent-config-service";
-import {
-  defaultAgentRuntimeRegistry,
-  type AgentRuntimeRegistry,
-} from "../agent-registry/agent-runtime-registry";
+import type { AgentRuntimeRegistry } from "../agent-registry/agent-runtime-registry";
 import type { AgentManifest } from "../agent-registry/agent-manifest";
 import {
   businessSkillDefinitionFromManifest,
@@ -422,6 +419,11 @@ function agentMetadata(activeAgent: AgentManifest | null): JsonObject {
   };
 }
 
+async function getDefaultAgentRuntimeRegistry(): Promise<AgentRuntimeRegistry> {
+  const module = await import("../agent-registry/agent-runtime-registry");
+  return module.defaultAgentRuntimeRegistry;
+}
+
 export class InMemoryAgentRuntimeRepository
   extends InMemoryModuleRunRepository
   implements AgentRuntimeRepository
@@ -610,9 +612,11 @@ export async function createAgentRun(
           ...options.skillManifests,
         ])
       : defaultSkillRuntimeRegistry);
-  const agentRegistry = options.agentRegistry ?? defaultAgentRuntimeRegistry;
+  const agentRegistry = input.agentId
+    ? (options.agentRegistry ?? (await getDefaultAgentRuntimeRegistry()))
+    : null;
   const activeAgent = input.agentId
-    ? agentRegistry.getAgent(input.agentId)
+    ? agentRegistry?.getAgent(input.agentId) ?? null
     : null;
   if (input.agentId && !activeAgent) {
     throw new Error(`Agent is not registered: ${input.agentId}`);
@@ -672,14 +676,15 @@ export async function createAgentRun(
     throw new Error(`Agent thread not found: ${input.threadId}`);
   }
 
+  const shouldAttachUserMessageMetadata =
+    Boolean(input.metadata) || Boolean(activeAgent);
   const userMessage = await repository.createMessage({
     threadId: thread.id,
     role: "user",
     content: input.message,
-    metadata:
-      input.metadata || activeAgent
-        ? { ...(input.metadata ?? {}), ...currentAgentMetadata }
-        : null,
+    metadata: shouldAttachUserMessageMetadata
+      ? { ...(input.metadata ?? {}), ...currentAgentMetadata }
+      : null,
   });
 
   let pipelineRun = await repository.createPipelineRun({

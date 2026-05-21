@@ -47,6 +47,7 @@ Updated: 2026-05-21
 - Agent planner defaults provide fallback plan mode/failure strategy, agent provider preferences are applied for the run without persisting to config, and agent metadata is stored on new thread records, messages, pipeline records, and module records.
 - PR 2 spec-compliance review follow-up added runtime coverage proving agent provider/model/reasoning overrides are passed to the planner for a single run and do not persist to saved config.
 - PR 2 code-quality review follow-up narrowed README/status metadata wording to new thread records and cleaned generated status-only line-ending noise.
+- PR #50 remote feedback follow-up made user-message metadata attachment explicit and lazy-loads the default agent runtime registry only when an `agentId` run needs it.
 
 ## Verification
 
@@ -111,7 +112,9 @@ Updated: 2026-05-21
   - `git diff --check` passed with CRLF warnings only.
   - Spec-compliance follow-up red/fix cycle: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` initially failed because the new fixture inherited DAG defaults without planner `stepId`; after narrowing the fixture to linear mode, the command passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
   - Code-quality follow-up cleanup: `git status --short --branch`, `git diff --name-only`, and `git diff --numstat` confirmed generated status-only files had no content diff before restoring them; `git diff --check` is the required final check for this docs/status cleanup.
+  - PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run test -- src/agent-runtime/agent-runtime-service.test.ts` passed with 234 passing, 1 skipped Windows symlink test, and 0 failures.
+  - PR #50 remote feedback follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 
 ## Next Action
 
-- Report PR 2 code-quality follow-up wording cleanup, generated-file cleanup, and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.
+- Report PR #50 remote feedback follow-up changes and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.
