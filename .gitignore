@@ -34,6 +34,8 @@ node_modules
 /coverage
 /skills/custom/*
 !/skills/custom/.gitkeep
+/agents/custom/*
+!/agents/custom/.gitkeep
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log

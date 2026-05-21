@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/agent-registry-plan`
-- Scope: Planning PR for Agent Registry + Skill Registry + Run/Artifact Inspector flexible workbench, rebased onto the CI workflow now on `main`. Code runtime changes are not part of this branch.
+- Branch: `codex/agent-registry-foundation`
+- Scope: PR 1 implementation for Agent Registry Flexible Workbench: file-backed agent manifests, read-only runtime registry, `/api/agents`, validator script, generated API schemas/clients, and docs/status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -36,6 +36,10 @@ Updated: 2026-05-21
 - The `codex/fix-agent-chat-layout` work branch was deleted locally and remotely after merge.
 - CI branch `ci/add-github-actions` adds `.github/workflows/ci.yml` for pull requests and pushes to `main`, using Node 22, pnpm install, `pnpm run typecheck`, `pnpm run build`, and `pnpm run skill:validate`.
 - `artifacts/mockup-sandbox` build requires `PORT` and `BASE_PATH`; the new CI workflow injects minimal defaults for the build step so the existing workspace build can run in GitHub Actions.
+- PR 1 Agent Registry Foundation work is in progress on `codex/agent-registry-foundation`.
+- Added `agents/builtin/knowledge_builder/agent.yaml` with DAG planner defaults and bindings to `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
+- Added YAML-backed `AgentManifest` loading, override policy, `AgentRuntimeRegistry`, `/api/agents` readiness, and `corepack pnpm run agent:validate`.
+- PR 1 code-quality review follow-up added focused `agent-loader` tests for source/root mismatch rejection and explicit built-in override opt-in.
 
 ## Verification
 
@@ -70,7 +74,20 @@ Updated: 2026-05-21
   - `PORT=3000 BASE_PATH=/ pnpm run build` passed.
   - `pnpm run skill:validate` passed with `ok: true` and 7 skills loaded.
   - `git diff --check` passed.
+- Agent Registry Foundation verification so far:
+  - Initial TDD red run: `corepack pnpm --filter @workspace/api-server run test` failed because agent registry modules/routes did not exist.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `typecheck:libs`.
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 225 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm run agent:validate` passed with `ok: true`, 1 agent, and no missing skill IDs.
+  - `corepack pnpm run skill:validate` passed with `ok: true` and 7 skills loaded.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF warnings only.
+  - Review follow-up: direct `pnpm exec tsx --test src/agent-registry/agent-loader.test.ts` attempts failed because `tsx` was not resolved as a direct executable on this Windows shell.
+  - Review follow-up: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-loader.test.ts` passed through the package script with 227 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Review follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 
 ## Next Action
 
-- Merge PR #48 after remote review comments are resolved, then start Agent Registry Flexible Workbench PR 1 from latest `main` on a fresh `codex/...` branch.
+- Finish PR 1 verification commands, then report changed paths and results without committing or opening a PR per the current worker instructions.

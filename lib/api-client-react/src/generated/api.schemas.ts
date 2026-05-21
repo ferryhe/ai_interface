@@ -515,6 +515,138 @@ export interface SkillListResponse {
   readiness: SkillReadiness[];
 }
 
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,63}$
+ */
+export type AgentId = string;
+
+export type AgentSource = (typeof AgentSource)[keyof typeof AgentSource];
+
+export const AgentSource = {
+  builtin: "builtin",
+  community: "community",
+  custom: "custom",
+  external: "external",
+} as const;
+
+export type AgentMemoryPromotionMode =
+  (typeof AgentMemoryPromotionMode)[keyof typeof AgentMemoryPromotionMode];
+
+export const AgentMemoryPromotionMode = {
+  manual: "manual",
+  run_summary: "run_summary",
+  disabled: "disabled",
+} as const;
+
+export interface AgentSkillBinding {
+  skillId: SkillId;
+  required: boolean;
+}
+
+export interface AgentHandoff {
+  targetAgentId: AgentId;
+  description: string;
+}
+
+export interface AgentManifestTest {
+  name: string;
+  prompt: string;
+  expectedSkillIds: SkillId[];
+}
+
+export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
+
+export const AgentProvider = {
+  openai: "openai",
+  anthropic: "anthropic",
+  ollama: "ollama",
+  deterministic: "deterministic",
+} as const;
+
+export type AgentReasoningEffort =
+  (typeof AgentReasoningEffort)[keyof typeof AgentReasoningEffort];
+
+export const AgentReasoningEffort = {
+  none: "none",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "xhigh",
+} as const;
+
+export type AgentManifestProvider = {
+  provider?: AgentProvider;
+  modelId?: string;
+  reasoningEffort?: AgentReasoningEffort;
+};
+
+export type AgentRuntimePlanMode =
+  (typeof AgentRuntimePlanMode)[keyof typeof AgentRuntimePlanMode];
+
+export const AgentRuntimePlanMode = {
+  linear: "linear",
+  dag: "dag",
+} as const;
+
+export type DagFailureStrategy =
+  (typeof DagFailureStrategy)[keyof typeof DagFailureStrategy];
+
+export const DagFailureStrategy = {
+  fail_fast: "fail_fast",
+  continue_independent: "continue_independent",
+} as const;
+
+export type AgentManifestPlanner = {
+  mode: AgentRuntimePlanMode;
+  failureStrategy: DagFailureStrategy;
+};
+
+export type AgentManifestPermissions = {
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+};
+
+export type AgentManifestMemory = {
+  promotionMode: AgentMemoryPromotionMode;
+};
+
+export interface AgentManifest {
+  agentId: AgentId;
+  name: string;
+  title?: string;
+  description: string;
+  source: AgentSource;
+  instructions: string;
+  skills: AgentSkillBinding[];
+  provider?: AgentManifestProvider;
+  planner: AgentManifestPlanner;
+  permissions: AgentManifestPermissions;
+  memory: AgentManifestMemory;
+  handoffs: AgentHandoff[];
+  tests: AgentManifestTest[];
+}
+
+export type AgentReadinessStatus =
+  (typeof AgentReadinessStatus)[keyof typeof AgentReadinessStatus];
+
+export const AgentReadinessStatus = {
+  ready: "ready",
+  missing_skills: "missing_skills",
+} as const;
+
+export interface AgentReadiness {
+  agentId: AgentId;
+  status: AgentReadinessStatus;
+  missingSkillIds: SkillId[];
+  enabledSkillIds: SkillId[];
+}
+
+export interface AgentListResponse {
+  agents: AgentManifest[];
+  readiness: AgentReadiness[];
+}
+
 export type RunEventSeverity =
   (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
 
@@ -635,31 +767,11 @@ export interface ToolInteractionResponse {
   interaction: ToolInteraction;
 }
 
-export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
-
-export const AgentProvider = {
-  openai: "openai",
-  anthropic: "anthropic",
-  ollama: "ollama",
-  deterministic: "deterministic",
-} as const;
-
 export type AgentEndpoint = (typeof AgentEndpoint)[keyof typeof AgentEndpoint];
 
 export const AgentEndpoint = {
   responses: "responses",
   agents_sdk: "agents_sdk",
-} as const;
-
-export type AgentReasoningEffort =
-  (typeof AgentReasoningEffort)[keyof typeof AgentReasoningEffort];
-
-export const AgentReasoningEffort = {
-  none: "none",
-  low: "low",
-  medium: "medium",
-  high: "high",
-  xhigh: "xhigh",
 } as const;
 
 export type AgentConnectionStatus =
@@ -866,22 +978,6 @@ export type AgentRunExecutionMode =
 export const AgentRunExecutionMode = {
   plan_only: "plan_only",
   execute_ready: "execute_ready",
-} as const;
-
-export type AgentRuntimePlanMode =
-  (typeof AgentRuntimePlanMode)[keyof typeof AgentRuntimePlanMode];
-
-export const AgentRuntimePlanMode = {
-  linear: "linear",
-  dag: "dag",
-} as const;
-
-export type DagFailureStrategy =
-  (typeof DagFailureStrategy)[keyof typeof DagFailureStrategy];
-
-export const DagFailureStrategy = {
-  fail_fast: "fail_fast",
-  continue_independent: "continue_independent",
 } as const;
 
 export type AgentMessageRole =
