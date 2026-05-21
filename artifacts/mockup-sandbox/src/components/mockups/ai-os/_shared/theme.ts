@@ -66,7 +66,12 @@ export function workbenchStatusColor(status: string): string {
   ) {
     return colors.yellow;
   }
-  if (status === "failed" || status === "blocked" || status === "cancelled") {
+  if (
+    status === "failed" ||
+    status === "blocked" ||
+    status === "cancelled" ||
+    status === "missing_skills"
+  ) {
     return colors.red;
   }
   return colors.blue;
