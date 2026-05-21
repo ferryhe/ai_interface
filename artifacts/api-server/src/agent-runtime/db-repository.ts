@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import {
   agentMessagesTable,
   agentThreadsTable,
@@ -178,6 +178,34 @@ export class DbAgentRuntimeRepository
       .limit(1);
 
     return rows[0] ? mapPipelineRun(rows[0]) : null;
+  }
+
+  async listPipelineRuns(input: {
+    agentId?: string;
+    status?: ModuleRunStatus;
+    limit?: number;
+  } = {}): Promise<PipelineRunRecord[]> {
+    const conditions: SQL[] = [];
+    if (input.agentId) {
+      conditions.push(sql`${pipelineRunsTable.metadata}->>'agentId' = ${input.agentId}`);
+    }
+    if (input.status) {
+      conditions.push(eq(pipelineRunsTable.status, input.status));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`true`;
+    let query = db
+      .select()
+      .from(pipelineRunsTable)
+      .where(whereClause)
+      .orderBy(desc(pipelineRunsTable.createdAt))
+      .$dynamic();
+
+    if (input.limit !== undefined) {
+      query = query.limit(input.limit);
+    }
+
+    const rows = await query;
+    return rows.map(mapPipelineRun);
   }
 
   async listModuleRunsByPipelineRunId(

@@ -856,6 +856,216 @@ export const GetArtifactResponse = zod.object({
 });
 
 /**
+ * Lists inspectable Agent pipeline runs with optional filters for agent, skill, module, status, and limit. Responses are redacted so configured secrets, provider URLs, MCP server URLs, adapter env values, and local absolute paths are not exposed.
+ * @summary List agent pipeline runs
+ */
+export const listRunsQueryAgentIdRegExp = new RegExp("^[a-z][a-z0-9_]{1,63}$");
+
+export const listRunsQueryLimitMax = 200;
+
+export const ListRunsQueryParams = zod.object({
+  agentId: zod.coerce.string().regex(listRunsQueryAgentIdRegExp).optional(),
+  skillId: zod.coerce.string().min(1).optional(),
+  moduleId: zod.coerce.string().min(1).optional(),
+  status: zod
+    .enum(["pending", "running", "succeeded", "failed", "cancelled"])
+    .optional(),
+  limit: zod.coerce.number().min(1).max(listRunsQueryLimitMax).optional(),
+});
+
+export const ListRunsResponse = zod.object({
+  runs: zod.array(
+    zod.object({
+      pipelineRun: zod.object({
+        id: zod.string().uuid(),
+        threadId: zod.string().uuid().nullable(),
+        title: zod.string(),
+        status: zod.enum([
+          "pending",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+        ]),
+        activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+        metadata: zod.union([
+          zod.record(zod.string(), zod.unknown()),
+          zod.null(),
+        ]),
+        createdAt: zod.coerce.date(),
+        updatedAt: zod.coerce.date(),
+      }),
+      moduleRuns: zod.array(
+        zod.object({
+          id: zod.string().uuid(),
+          pipelineRunId: zod.string().uuid().nullable(),
+          moduleId: zod.string().min(1),
+          skillId: zod.string().min(1).optional(),
+          externalRunId: zod.string(),
+          title: zod.string().nullable(),
+          status: zod.enum([
+            "pending",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          inputJson: zod.union([
+            zod.record(zod.string(), zod.unknown()),
+            zod.null(),
+          ]),
+          outputJson: zod.union([
+            zod.record(zod.string(), zod.unknown()),
+            zod.null(),
+          ]),
+          summary: zod.string().nullable(),
+          metadata: zod.union([
+            zod.record(zod.string(), zod.unknown()),
+            zod.null(),
+          ]),
+          startedAt: zod.coerce.date().nullable(),
+          completedAt: zod.coerce.date().nullable(),
+          createdAt: zod.coerce.date(),
+          updatedAt: zod.coerce.date(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * Returns ordered thread messages, pipeline state, module runs, and run events for an Agent pipeline run with inspector redaction applied.
+ * @summary Get an agent run timeline
+ */
+export const GetRunTimelineParams = zod.object({
+  pipelineRunId: zod.coerce.string().uuid(),
+});
+
+export const GetRunTimelineResponse = zod.object({
+  thread: zod.object({
+    id: zod.string().uuid(),
+    title: zod.string(),
+    status: zod.enum(["active", "archived"]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      threadId: zod.string().uuid(),
+      role: zod.enum(["user", "agent", "system", "tool"]),
+      content: zod.string(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  pipelineRun: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid().nullable(),
+    title: zod.string(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  moduleRuns: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      pipelineRunId: zod.string().uuid().nullable(),
+      moduleId: zod.string().min(1),
+      skillId: zod.string().min(1).optional(),
+      externalRunId: zod.string(),
+      title: zod.string().nullable(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ]),
+      inputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      outputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      summary: zod.string().nullable(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      startedAt: zod.coerce.date().nullable(),
+      completedAt: zod.coerce.date().nullable(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  runEvents: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      moduleRunId: zod.string().uuid(),
+      eventType: zod.string(),
+      title: zod.string().nullable(),
+      message: zod.string().nullable(),
+      severity: zod.enum(["info", "warning", "error"]),
+      payload: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * Lists artifacts by pipeline run, module run, artifact kind, and limit with inspector redaction applied to content and provenance.
+ * @summary List artifacts
+ */
+export const listArtifactsQueryLimitMax = 200;
+
+export const ListArtifactsQueryParams = zod.object({
+  pipelineRunId: zod.coerce.string().uuid().optional(),
+  moduleRunId: zod.coerce.string().uuid().optional(),
+  kind: zod.coerce.string().optional(),
+  limit: zod.coerce.number().min(1).max(listArtifactsQueryLimitMax).optional(),
+});
+
+export const ListArtifactsResponse = zod.object({
+  artifacts: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      artifactKind: zod.string(),
+      title: zod.string(),
+      contentText: zod.string().nullable(),
+      contentJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      sourceModuleId: zod.string().min(1),
+      sourceSkillId: zod.string().min(1).optional(),
+      sourceRunId: zod.string().uuid(),
+      parentArtifactId: zod.string().uuid().nullable(),
+      provenance: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
  * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` or `metadata.source: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Create an Agent runtime plan
  */

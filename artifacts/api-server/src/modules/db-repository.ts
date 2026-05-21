@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import {
   artifactsTable,
   db,
@@ -11,6 +11,7 @@ import {
 import {
   type ArtifactRecord,
   type JsonObject,
+  type ListArtifactsFilters,
   type ModuleRunRecord,
   type ModuleRunRepository,
   type RunEventRecord,
@@ -304,6 +305,31 @@ export class DbModuleRunRepository implements ModuleRunRepository {
     return rows.map(mapRunEvent);
   }
 
+  async listRunEventsByPipelineRunId(
+    pipelineRunId: string,
+  ): Promise<RunEventRecord[]> {
+    const rows = await db
+      .select({
+        id: runEventsTable.id,
+        moduleRunId: runEventsTable.moduleRunId,
+        eventType: runEventsTable.eventType,
+        title: runEventsTable.title,
+        message: runEventsTable.message,
+        severity: runEventsTable.severity,
+        payload: runEventsTable.payload,
+        createdAt: runEventsTable.createdAt,
+      })
+      .from(runEventsTable)
+      .innerJoin(
+        moduleRunsTable,
+        eq(runEventsTable.moduleRunId, moduleRunsTable.id),
+      )
+      .where(eq(moduleRunsTable.pipelineRunId, pipelineRunId))
+      .orderBy(asc(runEventsTable.createdAt));
+
+    return rows.map((row) => mapRunEvent(row as RunEventRow));
+  }
+
   async listRunArtifacts(moduleRunId: string): Promise<ArtifactRecord[]> {
     const rows = await db
       .select()
@@ -312,5 +338,50 @@ export class DbModuleRunRepository implements ModuleRunRepository {
       .orderBy(asc(artifactsTable.createdAt));
 
     return rows.map(mapArtifact);
+  }
+
+  async listArtifacts(
+    filters: ListArtifactsFilters,
+  ): Promise<ArtifactRecord[]> {
+    const conditions: SQL[] = [];
+    if (filters.pipelineRunId) {
+      conditions.push(eq(moduleRunsTable.pipelineRunId, filters.pipelineRunId));
+    }
+    if (filters.moduleRunId) {
+      conditions.push(eq(artifactsTable.sourceRunId, filters.moduleRunId));
+    }
+    if (filters.kind) {
+      conditions.push(eq(artifactsTable.artifactKind, filters.kind));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`true`;
+    let query = db
+      .select({
+        id: artifactsTable.id,
+        artifactKind: artifactsTable.artifactKind,
+        title: artifactsTable.title,
+        contentText: artifactsTable.contentText,
+        contentJson: artifactsTable.contentJson,
+        sourceModuleId: artifactsTable.sourceModuleId,
+        sourceRunId: artifactsTable.sourceRunId,
+        parentArtifactId: artifactsTable.parentArtifactId,
+        provenance: artifactsTable.provenance,
+        createdAt: artifactsTable.createdAt,
+        updatedAt: artifactsTable.updatedAt,
+      })
+      .from(artifactsTable)
+      .innerJoin(
+        moduleRunsTable,
+        eq(artifactsTable.sourceRunId, moduleRunsTable.id),
+      )
+      .where(whereClause)
+      .orderBy(asc(artifactsTable.createdAt))
+      .$dynamic();
+
+    if (filters.limit !== undefined) {
+      query = query.limit(filters.limit);
+    }
+
+    const rows = await query;
+    return rows.map((row) => mapArtifact(row as ArtifactRow));
   }
 }

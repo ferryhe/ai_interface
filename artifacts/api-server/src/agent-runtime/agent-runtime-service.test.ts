@@ -11,9 +11,15 @@ import {
 import type { AgentManifest } from "../agent-registry/agent-manifest";
 import { createAgentRuntimeRegistry } from "../agent-registry/agent-runtime-registry";
 import {
+  createModuleRun,
+  recordModuleRunEvent,
+} from "../modules/ingest-service";
+import {
   createAgentRun,
   getAgentRunDetail,
+  getAgentRunTimeline,
   InMemoryAgentRuntimeRepository,
+  listAgentRuns,
   OpenAIResponsesPlanner,
   parseDagMaxConcurrency,
   type AgentPlanner,
@@ -156,6 +162,21 @@ function testAgentManifest(
     tests: [],
     ...overrides,
   };
+}
+
+class CapturingAgentRuntimeRepository extends InMemoryAgentRuntimeRepository {
+  readonly listPipelineRunsInputs: Array<
+    Parameters<InMemoryAgentRuntimeRepository["listPipelineRuns"]>[0]
+  > = [];
+
+  override async listPipelineRuns(
+    input: Parameters<
+      InMemoryAgentRuntimeRepository["listPipelineRuns"]
+    >[0] = {},
+  ): ReturnType<InMemoryAgentRuntimeRepository["listPipelineRuns"]> {
+    this.listPipelineRunsInputs.push(input);
+    return super.listPipelineRuns(input);
+  }
 }
 
 async function withAgentHttpServer(): Promise<{
@@ -1546,4 +1567,108 @@ test("reads agent run detail from the stored pipeline", async () => {
   assert.equal(detail.pipelineRun.id, created.pipelineRun.id);
   assert.equal(detail.messages.length, 2);
   assert.equal(detail.moduleRuns.length, 6);
+});
+
+test("lists agent runs by agent metadata and matching module skill id", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const agentRegistry = createAgentRuntimeRegistry([testAgentManifest()]);
+  const agentRun = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Build a knowledge agent.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["md_to_rag"],
+    },
+    { env: {}, agentRegistry },
+  );
+  await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    {
+      message: "Convert only.",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    { env: {} },
+  );
+
+  const byAgent = await listAgentRuns(runtimeRepository, {
+    agentId: "knowledge_builder",
+  });
+  const bySkill = await listAgentRuns(runtimeRepository, {
+    skillId: "md_to_rag",
+  });
+
+  assert.deepEqual(
+    byAgent.map((run) => run.pipelineRun.id),
+    [agentRun.pipelineRun.id],
+  );
+  assert.deepEqual(
+    bySkill.map((run) => run.pipelineRun.id),
+    [agentRun.pipelineRun.id],
+  );
+});
+
+test("passes list run limit to the repository when no module post-filter is needed", async () => {
+  const runtimeRepository = new CapturingAgentRuntimeRepository();
+
+  await listAgentRuns(runtimeRepository, {
+    agentId: "knowledge_builder",
+    status: "pending",
+    limit: 12,
+  });
+
+  assert.equal(runtimeRepository.listPipelineRunsInputs[0]?.limit, 12);
+});
+
+test("keeps repository run listing unbounded when module post-filtering is needed", async () => {
+  const runtimeRepository = new CapturingAgentRuntimeRepository();
+
+  await listAgentRuns(runtimeRepository, { skillId: "md_to_rag", limit: 1 });
+  await listAgentRuns(runtimeRepository, { moduleId: "doc_to_md", limit: 1 });
+
+  assert.deepEqual(
+    runtimeRepository.listPipelineRunsInputs.map((input) => input?.limit),
+    [undefined, undefined],
+  );
+});
+
+test("agent run timeline returns events ordered by creation time", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const thread = await runtimeRepository.createThread({
+    title: "Timeline service test",
+    metadata: null,
+  });
+  const pipelineRun = await runtimeRepository.createPipelineRun({
+    threadId: thread.id,
+    title: "Timeline service test",
+    status: "pending",
+    activeModuleId: "doc_to_md",
+    metadata: null,
+  });
+  const { run } = await createModuleRun(runtimeRepository, {
+    moduleId: "doc_to_md",
+    externalRunId: "timeline-service-test",
+    pipelineRunId: pipelineRun.id,
+  });
+
+  const second = await recordModuleRunEvent(runtimeRepository, run.id, {
+    eventType: "timeline.second",
+  });
+  const first = await recordModuleRunEvent(runtimeRepository, run.id, {
+    eventType: "timeline.first",
+  });
+  second.createdAt = new Date("2026-05-21T13:00:02.000Z");
+  first.createdAt = new Date("2026-05-21T13:00:01.000Z");
+
+  const timeline = await getAgentRunTimeline(
+    runtimeRepository,
+    pipelineRun.id,
+  );
+
+  assert.deepEqual(
+    timeline.runEvents.map((event) => event.eventType),
+    ["timeline.first", "timeline.second"],
+  );
 });

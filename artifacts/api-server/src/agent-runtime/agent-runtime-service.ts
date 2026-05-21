@@ -8,6 +8,7 @@ import {
   type ModuleRunRecord,
   type ModuleRunRepository,
   type ModuleRunStatus,
+  type RunEventRecord,
 } from "../modules/ingest-service";
 import { type ModuleId } from "../modules/registry";
 import {
@@ -116,6 +117,11 @@ export interface AgentRuntimeRepository extends ModuleRunRepository {
     },
   ): Promise<PipelineRunRecord>;
   findPipelineRunById(id: string): Promise<PipelineRunRecord | null>;
+  listPipelineRuns(input?: {
+    agentId?: string;
+    status?: ModuleRunStatus;
+    limit?: number;
+  }): Promise<PipelineRunRecord[]>;
   listModuleRunsByPipelineRunId(
     pipelineRunId: string,
   ): Promise<ModuleRunRecord[]>;
@@ -195,6 +201,23 @@ export interface AgentRunDetail {
   messages: AgentMessageRecord[];
   pipelineRun: PipelineRunRecord;
   moduleRuns: ModuleRunRecord[];
+}
+
+export interface ListAgentRunsFilters {
+  agentId?: string;
+  skillId?: string;
+  moduleId?: string;
+  status?: ModuleRunStatus;
+  limit?: number;
+}
+
+export interface AgentRunListItem {
+  pipelineRun: PipelineRunRecord;
+  moduleRuns: ModuleRunRecord[];
+}
+
+export interface AgentRunTimeline extends AgentRunDetail {
+  runEvents: RunEventRecord[];
 }
 
 function trimTitle(value: string): string {
@@ -513,6 +536,21 @@ export class InMemoryAgentRuntimeRepository
 
   async findPipelineRunById(id: string): Promise<PipelineRunRecord | null> {
     return this.pipelineRuns.find((run) => run.id === id) ?? null;
+  }
+
+  async listPipelineRuns(input: {
+    agentId?: string;
+    status?: ModuleRunStatus;
+    limit?: number;
+  } = {}): Promise<PipelineRunRecord[]> {
+    const runs = this.pipelineRuns
+      .filter((run) =>
+        input.agentId ? run.metadata?.["agentId"] === input.agentId : true,
+      )
+      .filter((run) => (input.status ? run.status === input.status : true))
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+
+    return typeof input.limit === "number" ? runs.slice(0, input.limit) : runs;
   }
 
   async listModuleRunsByPipelineRunId(
@@ -991,5 +1029,63 @@ export async function getAgentRunDetail(
     messages,
     pipelineRun,
     moduleRuns,
+  };
+}
+
+function moduleRunMatchesSkill(
+  run: ModuleRunRecord,
+  skillId: string,
+): boolean {
+  return run.metadata?.["skillId"] === skillId || run.moduleId === skillId;
+}
+
+export async function listAgentRuns(
+  repository: AgentRuntimeRepository,
+  filters: ListAgentRunsFilters = {},
+): Promise<AgentRunListItem[]> {
+  const needsModulePostFilter = Boolean(filters.moduleId || filters.skillId);
+  const pipelineRuns = await repository.listPipelineRuns({
+    agentId: filters.agentId,
+    status: filters.status,
+    ...(needsModulePostFilter ? {} : { limit: filters.limit }),
+  });
+  const items: AgentRunListItem[] = [];
+
+  for (const pipelineRun of pipelineRuns) {
+    const moduleRuns = await repository.listModuleRunsByPipelineRunId(
+      pipelineRun.id,
+    );
+    if (
+      filters.moduleId &&
+      !moduleRuns.some((run) => run.moduleId === filters.moduleId)
+    ) {
+      continue;
+    }
+    if (
+      filters.skillId &&
+      !moduleRuns.some((run) => moduleRunMatchesSkill(run, filters.skillId!))
+    ) {
+      continue;
+    }
+
+    items.push({ pipelineRun, moduleRuns });
+    if (filters.limit !== undefined && items.length >= filters.limit) {
+      break;
+    }
+  }
+
+  return items;
+}
+
+export async function getAgentRunTimeline(
+  repository: AgentRuntimeRepository,
+  pipelineRunId: string,
+): Promise<AgentRunTimeline> {
+  const detail = await getAgentRunDetail(repository, pipelineRunId);
+  const runEvents = await repository.listRunEventsByPipelineRunId(pipelineRunId);
+
+  return {
+    ...detail,
+    runEvents,
   };
 }

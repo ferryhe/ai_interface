@@ -1086,6 +1086,23 @@ export interface AgentRunDetail {
   moduleRuns: ModuleRun[];
 }
 
+export interface AgentRunListItem {
+  pipelineRun: PipelineRun;
+  moduleRuns: ModuleRun[];
+}
+
+export interface AgentRunListResponse {
+  runs: AgentRunListItem[];
+}
+
+export interface AgentRunTimeline {
+  thread: AgentThread;
+  messages: AgentMessage[];
+  pipelineRun: PipelineRun;
+  moduleRuns: ModuleRun[];
+  runEvents: RunEvent[];
+}
+
 export interface ModuleDefinition {
   moduleId: ModuleId;
   displayName: string;
@@ -1169,6 +1186,10 @@ export interface ModuleRunDetail {
   artifacts: Artifact[];
 }
 
+export interface ArtifactListResponse {
+  artifacts: Artifact[];
+}
+
 export type PortalSurfaceParameter =
   (typeof PortalSurfaceParameter)[keyof typeof PortalSurfaceParameter];
 
@@ -1185,3 +1206,26 @@ export type PortalTokenParameter = string;
  * Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.
  */
 export type AuthorizationHeaderParameter = string;
+
+export type ListRunsParams = {
+  agentId?: AgentId;
+  skillId?: SkillId;
+  moduleId?: ModuleId;
+  status?: ModuleRunStatus;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+};
+
+export type ListArtifactsParams = {
+  pipelineRunId?: string;
+  moduleRunId?: string;
+  kind?: string;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+};
