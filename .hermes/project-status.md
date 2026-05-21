@@ -40,6 +40,7 @@ Updated: 2026-05-21
 - Added `agents/builtin/knowledge_builder/agent.yaml` with DAG planner defaults and bindings to `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
 - Added YAML-backed `AgentManifest` loading, override policy, `AgentRuntimeRegistry`, `/api/agents` readiness, and `corepack pnpm run agent:validate`.
 - PR 1 code-quality review follow-up added focused `agent-loader` tests for source/root mismatch rejection and explicit built-in override opt-in.
+- PR #49 remote feedback follow-up fixed `scripts/src/validate-agents.ts` so it discovers the repository root by walking parent directories before resolving runtime imports or loader cwd.
 
 ## Verification
 
@@ -87,6 +88,12 @@ Updated: 2026-05-21
   - Review follow-up: direct `pnpm exec tsx --test src/agent-registry/agent-loader.test.ts` attempts failed because `tsx` was not resolved as a direct executable on this Windows shell.
   - Review follow-up: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-loader.test.ts` passed through the package script with 227 passing, 1 skipped Windows symlink test, and 0 failures.
   - Review follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #49 remote feedback follow-up reproduced the validator issue: `corepack pnpm run agent:validate` from `scripts/` failed before the fix because imports resolved under `scripts/artifacts/...`.
+  - PR #49 remote feedback follow-up validation passed: `corepack pnpm run agent:validate`.
+  - PR #49 remote feedback follow-up validation passed: `corepack pnpm --filter @workspace/scripts run agent:validate`.
+  - PR #49 remote feedback follow-up validation passed from `scripts/`: `corepack pnpm run agent:validate`.
+  - PR #49 remote feedback follow-up validation passed: `corepack pnpm --filter @workspace/scripts run typecheck`.
+  - PR #49 remote feedback follow-up validation passed: `git diff --check` with CRLF warnings only.
 
 ## Next Action
 

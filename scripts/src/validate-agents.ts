@@ -1,8 +1,9 @@
-import { isAbsolute, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const defaultRoots = ["agents/builtin", "agents/community", "agents/custom"];
-const workspaceRoot = process.env.INIT_CWD ?? process.cwd();
+const workspaceRoot = findWorkspaceRoot(process.env.INIT_CWD ?? process.cwd());
 
 interface AgentManifestSummary {
   agentId: string;
@@ -30,6 +31,23 @@ interface AgentValidationSummary {
   rootOrder: string[];
   agentCount: number;
   agents: AgentManifestSummary[];
+}
+
+function hasWorkspaceMarkers(path: string): boolean {
+  return (
+    existsSync(join(path, "artifacts", "api-server", "src")) ||
+    existsSync(join(path, "agents", "builtin"))
+  );
+}
+
+function findWorkspaceRoot(startPath: string): string {
+  let current = resolve(startPath);
+  while (true) {
+    if (hasWorkspaceMarkers(current)) return current;
+    const parent = dirname(current);
+    if (parent === current) return resolve(startPath);
+    current = parent;
+  }
 }
 
 function redactLocalPaths(value: string): string {
