@@ -249,6 +249,24 @@ The command prints a redacted JSON summary with agent IDs, sources, skill IDs,
 missing skill IDs, planner defaults, permissions, memory policy, and an `ok`
 boolean.
 
+Local custom agents can be generated without hand-editing YAML:
+
+```bash
+corepack pnpm run agent:create -- --agent-id my_agent --name "My Agent" --skills doc_to_md,md_to_rag
+```
+
+The generator and optional `POST /api/agent-manifests` write only to
+`agents/custom/<agentId>/agent.yaml`. The API write route returns 403 unless
+`AI_INTERFACE_MANIFEST_WRITE_MODE=custom` is set. VS Code `.agent.md` files can
+be imported with:
+
+```bash
+corepack pnpm run agent:import-vscode -- --agent-id imported_agent --name "Imported Agent" --file ./agent.agent.md
+```
+
+Only tool or skill names matching registered `skillId` values become bindings,
+and unmatched names are reported as warnings.
+
 Real tool execution is disabled unless
 `AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set. CLI, HTTP, and MCP adapters all
 run through bounded executor paths with timeout and output-size limits. MCP

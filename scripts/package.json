@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "agent:create": "tsx ./src/create-agent.ts",
+    "agent:import-vscode": "tsx ./src/import-vscode-agent.ts",
     "agent:validate": "tsx ./src/validate-agents.ts",
     "hello": "tsx ./src/hello.ts",
     "skill:validate": "tsx ./src/validate-skills.ts",

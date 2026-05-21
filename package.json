@@ -4,6 +4,8 @@
   "license": "MIT",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "agent:create": "corepack pnpm --filter @workspace/scripts run agent:create",
+    "agent:import-vscode": "corepack pnpm --filter @workspace/scripts run agent:import-vscode",
     "agent:validate": "corepack pnpm --filter @workspace/scripts run agent:validate",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "skill:validate": "corepack pnpm --filter @workspace/scripts run skill:validate",

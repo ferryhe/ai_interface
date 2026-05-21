@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/run-artifact-inspector-indexes`
-- Scope: PR 3 implementation for Agent Registry Flexible Workbench: read-only run and artifact inspector indexes, timeline/event retrieval, redaction, generated API schemas/clients, and docs/status updates.
+- Branch: `codex/safe-agent-creation-import`
+- Scope: PR 4 implementation for Agent Registry Flexible Workbench: safe custom agent manifest creation, VS Code `.agent.md` import, optional custom-only manifest write API, local scripts, and docs/status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -56,6 +56,13 @@ Updated: 2026-05-21
 - PR 3 spec-review P1 follow-up expanded inspector redaction to derive configured env names from the skill runtime registry, including adapter required/optional env names, MCP server env names, and skill project env paths such as `EXAMPLE_REPORTER_ENABLED`, `WEB_LISTENING_WORKDIR`, and `CROSS2_WORKDIR`.
 - PR 3 code-quality follow-up now uses generated run-inspector Zod validators, redacts common camelCase credential response keys such as `apiKey`, `accessToken`, `refreshToken`, `bearerToken`, `clientSecret`, and `clientToken`, and passes `/api/runs` limits to the repository when no module/skill post-filter is required.
 - PR #51 remote feedback follow-up added a localhost/same-origin read guard to run-inspector endpoints, moved `moduleId`/`skillId` run filtering into `AgentRuntimeRepository.listPipelineRuns` for in-memory and DB-backed repositories, and documented 403 inspector responses in OpenAPI.
+- PR 4 Safe Agent Creation and Import is implemented locally on `codex/safe-agent-creation-import`.
+- Added a custom-only agent manifest writer that validates `AGENT_ID_PATTERN`, writes only `agents/custom/<agentId>/agent.yaml`, rejects built-in/community manifest writes, rejects accidental overwrite without `overwrite: true`, and reloads the written manifest through the agent loader.
+- Added VS Code `.agent.md` import support that parses YAML front matter, uses Markdown body text as instructions, maps registered `tools`/`skills` names to skill bindings, and reports unmatched names as warnings.
+- Added `POST /api/agent-manifests`, gated by `AI_INTERFACE_MANIFEST_WRITE_MODE=custom`, plus local `agent:create` and `agent:import-vscode` scripts.
+- PR 4 code-quality review follow-up fixed blocking manifest write issues: invalid manifests are validated in a temporary custom root before final write, mismatched embedded `manifest.agentId` values are rejected, non-overwrite writes use exclusive create semantics, symlinked/junction custom paths are rejected before final write, and enabled API writes now require localhost/same-origin requests before file creation.
+- PR 4 re-review follow-up added a final `agent.yaml` lstat guard so `overwrite: true` rejects pre-existing manifest file symlinks instead of following them.
+- PR #52 remote feedback follow-up made the manifest writer discover the workspace root by walking upward to `agents/builtin` when no explicit `cwd` is supplied, so API servers launched from `artifacts/api-server` still write custom manifests under the repository-level `agents/custom`.
 
 ## Verification
 
@@ -148,7 +155,42 @@ Updated: 2026-05-21
   - PR #51 remote feedback post-codegen rerun of `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` passed with 250 passing, 1 skipped Windows symlink test, and 0 failures.
   - PR #51 remote feedback: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - PR #51 remote feedback: `git diff --check` passed with CRLF warnings only.
+- Safe Agent Creation and Import verification:
+  - TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-manifest-writer.test.ts src/agent-registry/vscode-agent-importer.test.ts src/routes/agent-manifests.test.ts` failed with expected missing-module failures for `agent-manifest-writer`, `vscode-agent-importer`, and `agent-manifests`.
+  - Focused green rerun of the same command passed through the package script with 258 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Post-polish focused rerun of the same command passed with 258 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Initial smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` failed because nested pnpm forwarding passed a literal `--`; parser handling was fixed and rerun.
+  - Required smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` passed and created `agents/custom/smoke_agent/agent.yaml`.
+  - `corepack pnpm run agent:validate` passed with `ok: true`, 2 agents, and no missing skill IDs while `smoke_agent` existed.
+  - `agents/custom/smoke_agent/agent.yaml` and its empty containing directory were removed after validation.
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 258 passing, 1 skipped Windows symlink test, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm --filter @workspace/scripts run typecheck` passed as an extra script-surface check.
+  - `git diff --check` passed with CRLF warnings only.
+  - Code-quality follow-up red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-manifest-writer.test.ts src/agent-registry/vscode-agent-importer.test.ts src/routes/agent-manifests.test.ts` failed with 7 expected failures covering conflicting `manifest.agentId`, invalid-manifest cleanup, symlinked custom-root escape, and missing API locality guards.
+  - Code-quality follow-up focused green rerun of the same command passed with 266 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Code-quality follow-up smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` passed and created `agents/custom/smoke_agent/agent.yaml`.
+  - Code-quality follow-up `corepack pnpm run agent:validate` passed with `ok: true`, 2 agents, and no missing skill IDs while `smoke_agent` existed.
+  - Code-quality follow-up removed `agents/custom/smoke_agent/agent.yaml` and its empty containing directory after validation.
+  - Code-quality follow-up `corepack pnpm --filter @workspace/api-server run test` passed with 266 passing, 1 skipped Windows symlink test, and 0 failures.
+  - Code-quality follow-up `corepack pnpm --filter @workspace/api-server run typecheck` initially failed on test fixture types, then passed after narrowing the invalid fixture casts.
+  - Code-quality follow-up `corepack pnpm --filter @workspace/api-server run build` passed.
+  - Code-quality follow-up `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+  - Code-quality follow-up `git diff --check` passed with CRLF warnings only.
+  - Re-review follow-up focused test `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-manifest-writer.test.ts src/agent-registry/vscode-agent-importer.test.ts src/routes/agent-manifests.test.ts` passed with 266 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - Re-review follow-up smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` passed; `corepack pnpm run agent:validate` passed with `ok: true`, 2 agents, and no missing skill IDs; the smoke manifest and empty containing directory were removed.
+  - Re-review follow-up `corepack pnpm --filter @workspace/api-server run test` passed with 266 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - Re-review follow-up `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Re-review follow-up `corepack pnpm --filter @workspace/api-server run build` passed.
+  - Re-review follow-up `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+  - PR #52 remote feedback TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/agent-manifest-writer.test.ts src/agent-registry/vscode-agent-importer.test.ts src/routes/agent-manifests.test.ts` failed with 2 expected cwd-default failures showing writes under `artifacts/api-server/agents/custom`.
+  - PR #52 remote feedback green rerun of the same command passed with 268 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - PR #52 remote feedback smoke command `corepack pnpm run agent:create -- --agent-id smoke_agent --name "Smoke Agent" --skills md_to_rag,rag_to_agent` passed; `corepack pnpm run agent:validate` passed with `ok: true`, 2 agents, and no missing skill IDs; the smoke manifest and empty containing directory were removed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/scripts run typecheck` passed.
+  - PR #52 remote feedback `corepack pnpm --filter @workspace/api-server run build` passed.
 
 ## Next Action
 
-- Report PR 3 changes and verification results without committing, pushing, merging, or opening a PR per the current worker instructions.
+- Publish PR 4, wait for the remote feedback gate, evaluate GitHub checks and Copilot comments, then merge and clean up the branch if clear.
