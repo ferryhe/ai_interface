@@ -1,11 +1,11 @@
 # ai_interface Project Status
 
-Updated: 2026-05-20
+Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `main`
-- Scope: Portal chat bubble sizing fix is complete; broader React frontend structure findings remain follow-up refactor candidates.
+- Branch: `codex/agent-registry-plan`
+- Scope: Planning PR for Agent Registry + Skill Registry + Run/Artifact Inspector flexible workbench. Code runtime changes are not part of this branch.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -64,4 +64,4 @@ Updated: 2026-05-20
 
 ## Next Action
 
-- No active PR. Consider follow-up React frontend refactors: split giant mockup components, move embedded CSS out of TSX, reduce inline style usage in `AIInterface.tsx`, centralize API clients, and add a Vite `/api` proxy for same-origin local development.
+- Open a documentation PR for `docs/superpowers/plans/2026-05-21-agent-registry-flexible-workbench.md`, then use it as the implementation roadmap for first-class agent manifests, agent-aware runs, inspector indexes, safe custom agent creation/import, workbench UI, and VS Code/MCP interop exports.
