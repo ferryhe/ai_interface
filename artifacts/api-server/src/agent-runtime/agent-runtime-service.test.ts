@@ -1622,15 +1622,80 @@ test("passes list run limit to the repository when no module post-filter is need
   assert.equal(runtimeRepository.listPipelineRunsInputs[0]?.limit, 12);
 });
 
-test("keeps repository run listing unbounded when module post-filtering is needed", async () => {
+test("passes list run limit and module filters to the repository", async () => {
   const runtimeRepository = new CapturingAgentRuntimeRepository();
 
   await listAgentRuns(runtimeRepository, { skillId: "md_to_rag", limit: 1 });
   await listAgentRuns(runtimeRepository, { moduleId: "doc_to_md", limit: 1 });
 
+  assert.deepEqual(runtimeRepository.listPipelineRunsInputs, [
+    { skillId: "md_to_rag", limit: 1 },
+    { moduleId: "doc_to_md", limit: 1 },
+  ]);
+});
+
+test("in-memory pipeline run listing applies module and skill filters before limit", async () => {
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const matchingBySkill = await runtimeRepository.createPipelineRun({
+    threadId: null,
+    title: "Matching skill pipeline",
+    status: "pending",
+    activeModuleId: "doc_to_md",
+    metadata: null,
+  });
+  matchingBySkill.createdAt = new Date("2026-05-21T14:00:01.000Z");
+  const matchingByModule = await runtimeRepository.createPipelineRun({
+    threadId: null,
+    title: "Matching module pipeline",
+    status: "pending",
+    activeModuleId: "md_to_rag",
+    metadata: null,
+  });
+  matchingByModule.createdAt = new Date("2026-05-21T14:00:02.000Z");
+  const nonMatchingNewer = await runtimeRepository.createPipelineRun({
+    threadId: null,
+    title: "Non-matching newer pipeline",
+    status: "pending",
+    activeModuleId: "rag_to_agent",
+    metadata: null,
+  });
+  nonMatchingNewer.createdAt = new Date("2026-05-21T14:00:03.000Z");
+
+  await createModuleRun(runtimeRepository, {
+    moduleId: "doc_to_md",
+    externalRunId: `skill-filter-${matchingBySkill.id}`,
+    pipelineRunId: matchingBySkill.id,
+    metadata: { skillId: "md_to_rag" },
+  });
+  await createModuleRun(runtimeRepository, {
+    moduleId: "md_to_rag",
+    externalRunId: `module-filter-${matchingByModule.id}`,
+    pipelineRunId: matchingByModule.id,
+    metadata: { skillId: "different_skill" },
+  });
+  await createModuleRun(runtimeRepository, {
+    moduleId: "rag_to_agent",
+    externalRunId: `non-match-${nonMatchingNewer.id}`,
+    pipelineRunId: nonMatchingNewer.id,
+    metadata: { skillId: "rag_to_agent" },
+  });
+
+  const bySkill = await runtimeRepository.listPipelineRuns({
+    skillId: "md_to_rag",
+    limit: 2,
+  } as Parameters<InMemoryAgentRuntimeRepository["listPipelineRuns"]>[0]);
+  const byModule = await runtimeRepository.listPipelineRuns({
+    moduleId: "md_to_rag",
+    limit: 1,
+  } as Parameters<InMemoryAgentRuntimeRepository["listPipelineRuns"]>[0]);
+
   assert.deepEqual(
-    runtimeRepository.listPipelineRunsInputs.map((input) => input?.limit),
-    [undefined, undefined],
+    bySkill.map((run) => run.id),
+    [matchingByModule.id, matchingBySkill.id],
+  );
+  assert.deepEqual(
+    byModule.map((run) => run.id),
+    [matchingByModule.id],
   );
 });
 

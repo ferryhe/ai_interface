@@ -1,4 +1,5 @@
-import { Router, type IRouter } from "express";
+import { isIP } from "node:net";
+import { Router, type IRouter, type Request } from "express";
 import {
   GetRunTimelineParams,
   GetRunTimelineResponse,
@@ -25,6 +26,73 @@ const REDACTED = "[redacted]";
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
+}
+
+function hostNameFromHeader(host: string): string | null {
+  try {
+    return new URL(`http://${host}`).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function normalizedHostFromHeader(host: string): string | null {
+  try {
+    return new URL(`http://${host}`).host;
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHost(host: string): boolean {
+  const hostname = hostNameFromHeader(host);
+  const normalizedHostname = hostname?.toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "[::1]" ||
+    normalizedHostname === "::1" ||
+    (normalizedHostname !== undefined &&
+      isIP(normalizedHostname) === 4 &&
+      normalizedHostname.startsWith("127."))
+  );
+}
+
+function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
+  if (!remoteAddress) return false;
+  const normalized = remoteAddress.trim().toLowerCase();
+  if (normalized === "::1") return true;
+  if (normalized.startsWith("::ffff:")) {
+    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
+  }
+  return isIP(normalized) === 4 && normalized.startsWith("127.");
+}
+
+function inspectorReadGuardError(req: Request): string | null {
+  if (req.get("sec-fetch-site") === "cross-site") {
+    return "Cross-site run inspector read requests are not allowed";
+  }
+
+  const host = req.get("host");
+  if (
+    !host ||
+    !isLoopbackHost(host) ||
+    !isLoopbackRemoteAddress(req.socket.remoteAddress)
+  ) {
+    return "Run inspector read requests are only allowed from localhost";
+  }
+
+  const origin = req.get("origin");
+  if (!origin) return null;
+
+  try {
+    const parsedOrigin = new URL(origin);
+    const normalizedHost = normalizedHostFromHeader(host);
+    return normalizedHost !== null && parsedOrigin.host === normalizedHost
+      ? null
+      : "Origin does not match the ai_interface host";
+  } catch {
+    return "Invalid Origin header";
+  }
 }
 
 function jsonEscaped(value: string): string {
@@ -259,6 +327,12 @@ export function createRunInspectorRouter(
   const registry = options.registry ?? defaultSkillRuntimeRegistry;
 
   router.get("/runs", async (req, res) => {
+    const guardError = inspectorReadGuardError(req);
+    if (guardError) {
+      res.status(403).json(errorResponse(guardError));
+      return;
+    }
+
     const query = ListRunsQueryParams.safeParse(req.query);
     if (!query.success) {
       res.status(400).json(errorResponse(query.error.message));
@@ -281,6 +355,12 @@ export function createRunInspectorRouter(
   });
 
   router.get("/runs/:pipelineRunId/timeline", async (req, res) => {
+    const guardError = inspectorReadGuardError(req);
+    if (guardError) {
+      res.status(403).json(errorResponse(guardError));
+      return;
+    }
+
     const params = GetRunTimelineParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json(errorResponse(params.error.message));
@@ -303,6 +383,12 @@ export function createRunInspectorRouter(
   });
 
   router.get("/artifacts", async (req, res) => {
+    const guardError = inspectorReadGuardError(req);
+    if (guardError) {
+      res.status(403).json(errorResponse(guardError));
+      return;
+    }
+
     const query = ListArtifactsQueryParams.safeParse(req.query);
     if (!query.success) {
       res.status(400).json(errorResponse(query.error.message));

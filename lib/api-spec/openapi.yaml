@@ -502,6 +502,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /runs/{pipelineRunId}/timeline:
     get:
       operationId: getRunTimeline
@@ -521,6 +527,12 @@ paths:
                 $ref: "#/components/schemas/AgentRunTimeline"
         "404":
           description: Agent run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
           content:
             application/json:
               schema:
@@ -563,6 +575,12 @@ paths:
                 $ref: "#/components/schemas/ArtifactListResponse"
         "400":
           description: Invalid artifact filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Run inspector reads are allowed only from localhost or same-origin admin clients
           content:
             application/json:
               schema:

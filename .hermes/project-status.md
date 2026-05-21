@@ -55,6 +55,7 @@ Updated: 2026-05-21
 - Inspector responses redact configured env values, provider keys, local provider URLs, MCP server URLs, token-like fields, and configured absolute local paths.
 - PR 3 spec-review P1 follow-up expanded inspector redaction to derive configured env names from the skill runtime registry, including adapter required/optional env names, MCP server env names, and skill project env paths such as `EXAMPLE_REPORTER_ENABLED`, `WEB_LISTENING_WORKDIR`, and `CROSS2_WORKDIR`.
 - PR 3 code-quality follow-up now uses generated run-inspector Zod validators, redacts common camelCase credential response keys such as `apiKey`, `accessToken`, `refreshToken`, `bearerToken`, `clientSecret`, and `clientToken`, and passes `/api/runs` limits to the repository when no module/skill post-filter is required.
+- PR #51 remote feedback follow-up added a localhost/same-origin read guard to run-inspector endpoints, moved `moduleId`/`skillId` run filtering into `AgentRuntimeRepository.listPipelineRuns` for in-memory and DB-backed repositories, and documented 403 inspector responses in OpenAPI.
 
 ## Verification
 
@@ -141,6 +142,12 @@ Updated: 2026-05-21
   - Code-quality follow-up: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - Code-quality follow-up: `git diff --check` passed with CRLF warnings only.
   - Code-quality follow-up attempted to clear status-only churn in `lib/api-zod/src/generated/types/createAgentRunRequest.ts`, but `git restore -- lib/api-zod/src/generated/types/createAgentRunRequest.ts` failed with `.git/index.lock: Permission denied`; `git diff` and `git diff --numstat` showed no content diff for that file.
+  - PR #51 remote feedback red run: `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` failed with 3 expected failures covering missing inspector read guard and repository-side module/skill filtering before limit.
+  - PR #51 remote feedback green rerun of the same command passed with 250 passing, 1 skipped Windows symlink test, and 0 failures.
+  - PR #51 remote feedback: `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - PR #51 remote feedback post-codegen rerun of `corepack pnpm --filter @workspace/api-server run test -- src/routes/run-inspector.test.ts src/agent-runtime/agent-runtime-service.test.ts` passed with 250 passing, 1 skipped Windows symlink test, and 0 failures.
+  - PR #51 remote feedback: `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #51 remote feedback: `git diff --check` passed with CRLF warnings only.
 
 ## Next Action
 

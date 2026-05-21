@@ -117,11 +117,7 @@ export interface AgentRuntimeRepository extends ModuleRunRepository {
     },
   ): Promise<PipelineRunRecord>;
   findPipelineRunById(id: string): Promise<PipelineRunRecord | null>;
-  listPipelineRuns(input?: {
-    agentId?: string;
-    status?: ModuleRunStatus;
-    limit?: number;
-  }): Promise<PipelineRunRecord[]>;
+  listPipelineRuns(input?: ListPipelineRunsFilters): Promise<PipelineRunRecord[]>;
   listModuleRunsByPipelineRunId(
     pipelineRunId: string,
   ): Promise<ModuleRunRecord[]>;
@@ -210,6 +206,8 @@ export interface ListAgentRunsFilters {
   status?: ModuleRunStatus;
   limit?: number;
 }
+
+export type ListPipelineRunsFilters = ListAgentRunsFilters;
 
 export interface AgentRunListItem {
   pipelineRun: PipelineRunRecord;
@@ -538,16 +536,36 @@ export class InMemoryAgentRuntimeRepository
     return this.pipelineRuns.find((run) => run.id === id) ?? null;
   }
 
-  async listPipelineRuns(input: {
-    agentId?: string;
-    status?: ModuleRunStatus;
-    limit?: number;
-  } = {}): Promise<PipelineRunRecord[]> {
+  async listPipelineRuns(
+    input: ListPipelineRunsFilters = {},
+  ): Promise<PipelineRunRecord[]> {
     const runs = this.pipelineRuns
       .filter((run) =>
         input.agentId ? run.metadata?.["agentId"] === input.agentId : true,
       )
       .filter((run) => (input.status ? run.status === input.status : true))
+      .filter((run) => {
+        const moduleRuns = this.moduleRuns.filter(
+          (moduleRun) => moduleRun.pipelineRunId === run.id,
+        );
+        if (
+          input.moduleId &&
+          !moduleRuns.some((moduleRun) => moduleRun.moduleId === input.moduleId)
+        ) {
+          return false;
+        }
+        if (
+          input.skillId &&
+          !moduleRuns.some(
+            (moduleRun) =>
+              moduleRun.metadata?.["skillId"] === input.skillId ||
+              moduleRun.moduleId === input.skillId,
+          )
+        ) {
+          return false;
+        }
+        return true;
+      })
       .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 
     return typeof input.limit === "number" ? runs.slice(0, input.limit) : runs;
@@ -1032,46 +1050,26 @@ export async function getAgentRunDetail(
   };
 }
 
-function moduleRunMatchesSkill(
-  run: ModuleRunRecord,
-  skillId: string,
-): boolean {
-  return run.metadata?.["skillId"] === skillId || run.moduleId === skillId;
-}
-
 export async function listAgentRuns(
   repository: AgentRuntimeRepository,
   filters: ListAgentRunsFilters = {},
 ): Promise<AgentRunListItem[]> {
-  const needsModulePostFilter = Boolean(filters.moduleId || filters.skillId);
-  const pipelineRuns = await repository.listPipelineRuns({
-    agentId: filters.agentId,
-    status: filters.status,
-    ...(needsModulePostFilter ? {} : { limit: filters.limit }),
-  });
+  const repositoryFilters: ListPipelineRunsFilters = {};
+  if (filters.agentId) repositoryFilters.agentId = filters.agentId;
+  if (filters.skillId) repositoryFilters.skillId = filters.skillId;
+  if (filters.moduleId) repositoryFilters.moduleId = filters.moduleId;
+  if (filters.status) repositoryFilters.status = filters.status;
+  if (filters.limit !== undefined) repositoryFilters.limit = filters.limit;
+
+  const pipelineRuns = await repository.listPipelineRuns(repositoryFilters);
   const items: AgentRunListItem[] = [];
 
   for (const pipelineRun of pipelineRuns) {
     const moduleRuns = await repository.listModuleRunsByPipelineRunId(
       pipelineRun.id,
     );
-    if (
-      filters.moduleId &&
-      !moduleRuns.some((run) => run.moduleId === filters.moduleId)
-    ) {
-      continue;
-    }
-    if (
-      filters.skillId &&
-      !moduleRuns.some((run) => moduleRunMatchesSkill(run, filters.skillId!))
-    ) {
-      continue;
-    }
 
     items.push({ pipelineRun, moduleRuns });
-    if (filters.limit !== undefined && items.length >= filters.limit) {
-      break;
-    }
   }
 
   return items;

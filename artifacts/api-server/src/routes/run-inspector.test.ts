@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
+import { request as httpRequest } from "node:http";
 import test from "node:test";
 import express from "express";
 import type { Server } from "node:http";
@@ -78,6 +79,48 @@ async function withInspectorApp<T>(
       (server as Server).close((error) => (error ? reject(error) : resolve()));
     });
   }
+}
+
+async function rawInspectorGet(
+  baseUrl: string,
+  path: string,
+  input: {
+    host?: string;
+    origin?: string;
+    secFetchSite?: string;
+  } = {},
+): Promise<{ statusCode: number; text: string }> {
+  const url = new URL(path, baseUrl);
+
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers: {
+          Host: input.host ?? url.host,
+          ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.secFetchSite
+            ? { "Sec-Fetch-Site": input.secFetchSite }
+            : {}),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        res.on("end", () =>
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            text: Buffer.concat(chunks).toString("utf8"),
+          }),
+        );
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 test("GET /runs?agentId=knowledge_builder returns only runs with matching agent metadata", async () => {
@@ -285,6 +328,141 @@ test("GET /artifacts?pipelineRunId returns artifacts from all module runs in tha
     json.artifacts.map((artifact) => artifact.artifactKind),
     ["markdown", "rag_records"],
   );
+});
+
+test("inspector read routes reject cross-site and non-local requests without exposing stored data", async () => {
+  const repository = new InMemoryAgentRuntimeRepository();
+  const thread = await repository.createThread({
+    title: "Guarded inspector data",
+    metadata: { marker: "secret-thread-marker" },
+  });
+  await repository.createMessage({
+    threadId: thread.id,
+    role: "user",
+    content: "secret-message-never-leak",
+    metadata: null,
+  });
+  const pipelineRun = await repository.createPipelineRun({
+    threadId: thread.id,
+    title: "Guarded inspector data",
+    status: "pending",
+    activeModuleId: "doc_to_md",
+    metadata: { marker: "secret-pipeline-marker" },
+  });
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `guarded-inspector-${randomUUID()}`,
+    pipelineRunId: pipelineRun.id,
+    title: "Guarded module data",
+    inputJson: { marker: "secret-run-input-never-leak" },
+  });
+  await recordModuleRunEvent(repository, run.id, {
+    eventType: "guarded.event",
+    payload: { marker: "secret-event-never-leak" },
+  });
+  await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: "markdown",
+    title: "Guarded artifact data",
+    contentText: "secret-artifact-never-leak",
+  });
+
+  const paths = [
+    "/runs",
+    `/runs/${pipelineRun.id}/timeline`,
+    `/artifacts?pipelineRunId=${pipelineRun.id}`,
+  ];
+  const responses = await withInspectorApp(repository, async (baseUrl) => {
+    const crossSite = await Promise.all(
+      paths.map((path) =>
+        rawInspectorGet(baseUrl, path, { secFetchSite: "cross-site" }),
+      ),
+    );
+    const nonLocal = await Promise.all(
+      paths.map((path) =>
+        rawInspectorGet(baseUrl, path, {
+          host: "example.com",
+          origin: "http://example.com",
+        }),
+      ),
+    );
+    return [...crossSite, ...nonLocal];
+  });
+  const serialized = responses.map((response) => response.text).join("\n");
+
+  assert.deepEqual(
+    responses.map((response) => response.statusCode),
+    [403, 403, 403, 403, 403, 403],
+  );
+  for (const secret of [
+    "secret-thread-marker",
+    "secret-message-never-leak",
+    "secret-pipeline-marker",
+    "secret-run-input-never-leak",
+    "secret-event-never-leak",
+    "secret-artifact-never-leak",
+  ]) {
+    assert.equal(serialized.includes(secret), false, secret);
+  }
+});
+
+test("inspector read routes accept same-origin localhost requests", async () => {
+  const repository = new InMemoryAgentRuntimeRepository();
+  const thread = await repository.createThread({
+    title: "Allowed inspector data",
+    metadata: null,
+  });
+  await repository.createMessage({
+    threadId: thread.id,
+    role: "user",
+    content: "allowed-message",
+    metadata: null,
+  });
+  const pipelineRun = await repository.createPipelineRun({
+    threadId: thread.id,
+    title: "Allowed inspector data",
+    status: "pending",
+    activeModuleId: "doc_to_md",
+    metadata: null,
+  });
+  const { run } = await createModuleRun(repository, {
+    moduleId: "doc_to_md",
+    externalRunId: `allowed-inspector-${randomUUID()}`,
+    pipelineRunId: pipelineRun.id,
+    title: "Allowed module data",
+  });
+  await recordModuleRunEvent(repository, run.id, {
+    eventType: "allowed.event",
+  });
+  await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: "markdown",
+    title: "Allowed artifact data",
+  });
+
+  const responses = await withInspectorApp(repository, async (baseUrl) => {
+    const host = new URL(baseUrl).host;
+    return Promise.all([
+      rawInspectorGet(baseUrl, "/runs", {
+        host,
+        origin: `http://${host}`,
+      }),
+      rawInspectorGet(baseUrl, `/runs/${pipelineRun.id}/timeline`, {
+        host,
+        origin: `http://${host}`,
+      }),
+      rawInspectorGet(baseUrl, `/artifacts?pipelineRunId=${pipelineRun.id}`, {
+        host,
+        origin: `http://${host}`,
+      }),
+    ]);
+  });
+
+  assert.deepEqual(
+    responses.map((response) => response.statusCode),
+    [200, 200, 200],
+  );
+  assert.match(responses[0]!.text, /Allowed inspector data/);
+  assert.match(responses[1]!.text, /allowed-message/);
+  assert.match(responses[2]!.text, /Allowed artifact data/);
 });
 
 test("inspector routes return 400 for invalid generated request parameters", async () => {
