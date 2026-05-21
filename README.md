@@ -130,6 +130,9 @@ Foreground is for the normal Agent conversation and workflow progress:
 
 Backstage is the operations surface:
 
+- browse Agents, Skills, Runs, and Artifacts as first-class workbench tabs;
+- inspect agent manifests, bound skills, planner mode, permissions, handoffs, and generated YAML for custom agents;
+- start an agent test run with an `agentId` payload and fall back to a local demo state when the API is unavailable;
 - browse the skill catalog;
 - inspect each manifest, external project mapping, adapter readiness, UI capability, input/output schemas, and raw JSON;
 - view filtered runs, ordered timelines, module-run events, and artifacts;
@@ -373,7 +376,10 @@ Browser smoke should verify:
 
 - Foreground renders and can submit/show a flow;
 - Backstage is switchable from the top bar;
-- the skill catalog shows the default built-in and community skills;
+- the Agents tab renders Knowledge Builder and the custom-agent YAML preview;
+- the Skills tab still shows the default built-in and community skills;
+- the Runs tab shows ordered module steps, events, active skill, and raw JSON;
+- the Artifacts tab groups artifacts by pipeline and module run;
 - selected skill detail shows manifest, readiness, I/O, events, artifacts, and raw JSON;
 - skills with `htmlEntrypoint` show a sandboxed Skill UI tab;
 - trigger/approval runs select the corresponding Backstage Skill UI tab.

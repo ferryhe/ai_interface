@@ -65,3 +65,134 @@ export interface InspectorFile {
   language: string;
   lines: string[];
 }
+
+export type AgentSource = "builtin" | "community" | "custom" | "external";
+
+export type AgentReadinessStatus = "ready" | "missing_skills";
+
+export type AgentPlannerMode = "linear" | "dag";
+
+export type AgentFailureStrategy = "fail_fast" | "continue_independent";
+
+export type AgentMemoryPromotionMode = "manual" | "run_summary" | "disabled";
+
+export type WorkbenchRunStatus =
+  | "pending"
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "approval_required"
+  | "waiting_for_user"
+  | "waiting_for_data"
+  | "blocked"
+  | "skipped";
+
+export interface AgentSkillBinding {
+  skillId: string;
+  required: boolean;
+}
+
+export interface AgentHandoff {
+  targetAgentId: string;
+  description: string;
+}
+
+export interface AgentManifestPreview {
+  agentId: string;
+  name: string;
+  title?: string;
+  description: string;
+  source: AgentSource;
+  instructions: string;
+  skills: AgentSkillBinding[];
+  planner: {
+    mode: AgentPlannerMode;
+    failureStrategy: AgentFailureStrategy;
+  };
+  permissions: {
+    approvalRequired: boolean;
+    canUseNetwork: boolean;
+    canWriteDatabase: boolean;
+  };
+  memory: {
+    promotionMode: AgentMemoryPromotionMode;
+  };
+  handoffs: AgentHandoff[];
+  tests: Array<{
+    name: string;
+    prompt: string;
+    expectedSkillIds: string[];
+  }>;
+}
+
+export interface AgentReadiness {
+  agentId: string;
+  status: AgentReadinessStatus;
+  missingSkillIds: string[];
+  enabledSkillIds: string[];
+}
+
+export interface WorkbenchSkillOption {
+  skillId: string;
+  name: string;
+  description: string;
+}
+
+export interface WorkbenchRunStep {
+  id: string;
+  order: number;
+  moduleId: string;
+  title: string;
+  status: WorkbenchRunStatus;
+  summary: string;
+  activeSkillId?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface WorkbenchRunEvent {
+  id: string;
+  time: string;
+  type: string;
+  status: WorkbenchRunStatus;
+  title: string;
+  detail: string;
+}
+
+export interface WorkbenchRunInspection {
+  pipelineRunId: string;
+  title: string;
+  agentId?: string;
+  status: WorkbenchRunStatus;
+  activeSkillId?: string;
+  updatedAt: string;
+  moduleSteps: WorkbenchRunStep[];
+  events: WorkbenchRunEvent[];
+  raw: unknown;
+}
+
+export interface WorkbenchArtifact {
+  id: string;
+  title: string;
+  kind: string;
+  summary: string;
+  moduleRunId: string;
+  moduleId: string;
+  createdAt: string;
+  content?: unknown;
+  raw?: unknown;
+}
+
+export interface WorkbenchArtifactModuleGroup {
+  moduleRunId: string;
+  moduleId: string;
+  artifacts: WorkbenchArtifact[];
+}
+
+export interface WorkbenchArtifactPipelineGroup {
+  pipelineRunId: string;
+  title: string;
+  moduleGroups: WorkbenchArtifactModuleGroup[];
+}

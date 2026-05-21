@@ -55,3 +55,19 @@ export function statusColor(state: "good" | "warn" | "neutral"): string {
   if (state === "warn") return colors.yellow;
   return colors.blue;
 }
+
+export function workbenchStatusColor(status: string): string {
+  if (status === "ready" || status === "succeeded") return colors.green;
+  if (
+    status === "running" ||
+    status === "approval_required" ||
+    status === "waiting_for_user" ||
+    status === "waiting_for_data"
+  ) {
+    return colors.yellow;
+  }
+  if (status === "failed" || status === "blocked" || status === "cancelled") {
+    return colors.red;
+  }
+  return colors.blue;
+}
