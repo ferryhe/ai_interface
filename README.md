@@ -17,6 +17,15 @@ The current runtime wires a generic skill runtime around YAML manifests loaded f
 
 This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
+Agent manifests are also file-backed and loaded from `agents/builtin`,
+`agents/community`, and `agents/custom`. The first built-in agent is
+`knowledge_builder`, which binds `web_listening`, `doc_to_md`, `md_to_rag`, and
+`rag_to_agent` into an inspectable knowledge-building workflow.
+
+`GET /api/agents` returns agent manifests plus readiness derived from registered
+skill references. Missing skill IDs are reported as readiness metadata rather
+than crashing catalog listing.
+
 ## Agent OS Overview
 
 ```mermaid
@@ -196,6 +205,35 @@ corepack pnpm run skill:validate
 The command prints a redacted JSON summary with skill IDs, source metadata, env
 var names, and readiness states. It does not print env values or configured
 absolute local paths.
+
+## Agent Manifest Contract
+
+Agent manifests describe reusable business agents: their instructions, allowed
+skills, planner defaults, permissions, memory promotion mode, handoffs, and
+manifest-level smoke tests. Built-in manifests live in
+`agents/builtin/<agentId>/agent.yaml`; reviewed community manifests live in
+`agents/community/<agentId>/agent.yaml`; local developer experiments live in
+`agents/custom/<agentId>/agent.yaml`, which is ignored except for `.gitkeep`.
+
+The API server loads agent roots in this order:
+
+1. `agents/builtin`
+2. `agents/community`
+3. `agents/custom`
+
+Override policy mirrors skills: community agents cannot override built-ins,
+custom agents can override community agents, and custom agents can only
+override built-ins when `AI_INTERFACE_ALLOW_BUILTIN_AGENT_OVERRIDE=1` is set.
+
+To validate agent manifests without starting the API server:
+
+```bash
+corepack pnpm run agent:validate
+```
+
+The command prints a redacted JSON summary with agent IDs, sources, skill IDs,
+missing skill IDs, planner defaults, permissions, memory policy, and an `ok`
+boolean.
 
 Real tool execution is disabled unless
 `AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set. CLI, HTTP, and MCP adapters all

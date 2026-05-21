@@ -22,6 +22,8 @@ tags:
     description: External tool adapter metadata and readiness
   - name: skills
     description: Generic skill manifests, UI capabilities, and readiness
+  - name: agents
+    description: Agent manifests, skill bindings, and readiness
   - name: pipelines
     description: Guarded local pipeline run operations and status visibility
   - name: climate-monitor
@@ -81,6 +83,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillListResponse"
+  /agents:
+    get:
+      operationId: getAgents
+      tags: [agents]
+      summary: List agent manifests
+      description: >-
+        Returns agent manifest metadata and skill-reference readiness without
+        exposing secrets or configured absolute local paths.
+      responses:
+        "200":
+          description: Agent manifests and readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentListResponse"
   /climate-monitor/status:
     get:
       operationId: getClimateMonitorStatus
@@ -1645,6 +1662,172 @@ components:
             $ref: "#/components/schemas/SkillReadiness"
       required:
         - skills
+        - readiness
+    AgentId:
+      type: string
+      pattern: "^[a-z][a-z0-9_]{1,63}$"
+    AgentSource:
+      type: string
+      enum:
+        - builtin
+        - community
+        - custom
+        - external
+    AgentMemoryPromotionMode:
+      type: string
+      enum:
+        - manual
+        - run_summary
+        - disabled
+    AgentSkillBinding:
+      type: object
+      properties:
+        skillId:
+          $ref: "#/components/schemas/SkillId"
+        required:
+          type: boolean
+      required:
+        - skillId
+        - required
+    AgentHandoff:
+      type: object
+      properties:
+        targetAgentId:
+          $ref: "#/components/schemas/AgentId"
+        description:
+          type: string
+      required:
+        - targetAgentId
+        - description
+    AgentManifestTest:
+      type: object
+      properties:
+        name:
+          type: string
+        prompt:
+          type: string
+        expectedSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
+      required:
+        - name
+        - prompt
+        - expectedSkillIds
+    AgentManifest:
+      type: object
+      properties:
+        agentId:
+          $ref: "#/components/schemas/AgentId"
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        source:
+          $ref: "#/components/schemas/AgentSource"
+        instructions:
+          type: string
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSkillBinding"
+        provider:
+          type: object
+          properties:
+            provider:
+              $ref: "#/components/schemas/AgentProvider"
+            modelId:
+              type: string
+            reasoningEffort:
+              $ref: "#/components/schemas/AgentReasoningEffort"
+        planner:
+          type: object
+          properties:
+            mode:
+              $ref: "#/components/schemas/AgentRuntimePlanMode"
+            failureStrategy:
+              $ref: "#/components/schemas/DagFailureStrategy"
+          required:
+            - mode
+            - failureStrategy
+        permissions:
+          type: object
+          properties:
+            approvalRequired:
+              type: boolean
+            canUseNetwork:
+              type: boolean
+            canWriteDatabase:
+              type: boolean
+          required:
+            - approvalRequired
+            - canUseNetwork
+            - canWriteDatabase
+        memory:
+          type: object
+          properties:
+            promotionMode:
+              $ref: "#/components/schemas/AgentMemoryPromotionMode"
+          required:
+            - promotionMode
+        handoffs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentHandoff"
+        tests:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentManifestTest"
+      required:
+        - agentId
+        - name
+        - description
+        - source
+        - instructions
+        - skills
+        - planner
+        - permissions
+        - memory
+        - handoffs
+        - tests
+    AgentReadiness:
+      type: object
+      properties:
+        agentId:
+          $ref: "#/components/schemas/AgentId"
+        status:
+          type: string
+          enum:
+            - ready
+            - missing_skills
+        missingSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
+        enabledSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
+      required:
+        - agentId
+        - status
+        - missingSkillIds
+        - enabledSkillIds
+    AgentListResponse:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentManifest"
+        readiness:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentReadiness"
+      required:
+        - agents
         - readiness
     RunEventSeverity:
       type: string

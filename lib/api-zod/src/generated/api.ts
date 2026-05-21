@@ -181,6 +181,86 @@ export const GetSkillsResponse = zod.object({
 });
 
 /**
+ * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
+ * @summary List agent manifests
+ */
+export const getAgentsResponseAgentsItemAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
+export const getAgentsResponseAgentsItemHandoffsItemTargetAgentIdRegExp =
+  new RegExp("^[a-z][a-z0-9_]{1,63}$");
+
+export const getAgentsResponseReadinessItemAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
+export const GetAgentsResponse = zod.object({
+  agents: zod.array(
+    zod.object({
+      agentId: zod.string().regex(getAgentsResponseAgentsItemAgentIdRegExp),
+      name: zod.string(),
+      title: zod.string().optional(),
+      description: zod.string(),
+      source: zod.enum(["builtin", "community", "custom", "external"]),
+      instructions: zod.string(),
+      skills: zod.array(
+        zod.object({
+          skillId: zod.string().min(1),
+          required: zod.boolean(),
+        }),
+      ),
+      provider: zod
+        .object({
+          provider: zod
+            .enum(["openai", "anthropic", "ollama", "deterministic"])
+            .optional(),
+          modelId: zod.string().optional(),
+          reasoningEffort: zod
+            .enum(["none", "low", "medium", "high", "xhigh"])
+            .optional(),
+        })
+        .optional(),
+      planner: zod.object({
+        mode: zod.enum(["linear", "dag"]),
+        failureStrategy: zod.enum(["fail_fast", "continue_independent"]),
+      }),
+      permissions: zod.object({
+        approvalRequired: zod.boolean(),
+        canUseNetwork: zod.boolean(),
+        canWriteDatabase: zod.boolean(),
+      }),
+      memory: zod.object({
+        promotionMode: zod.enum(["manual", "run_summary", "disabled"]),
+      }),
+      handoffs: zod.array(
+        zod.object({
+          targetAgentId: zod
+            .string()
+            .regex(getAgentsResponseAgentsItemHandoffsItemTargetAgentIdRegExp),
+          description: zod.string(),
+        }),
+      ),
+      tests: zod.array(
+        zod.object({
+          name: zod.string(),
+          prompt: zod.string(),
+          expectedSkillIds: zod.array(zod.string().min(1)),
+        }),
+      ),
+    }),
+  ),
+  readiness: zod.array(
+    zod.object({
+      agentId: zod.string().regex(getAgentsResponseReadinessItemAgentIdRegExp),
+      status: zod.enum(["ready", "missing_skills"]),
+      missingSkillIds: zod.array(zod.string().min(1)),
+      enabledSkillIds: zod.array(zod.string().min(1)),
+    }),
+  ),
+});
+
+/**
  * Returns redacted climate monitor repository status, latest report summary, source/scope coverage, and git branch/dirty state without exposing configured absolute paths or secret values.
  * @summary Get climate monitor status
  */

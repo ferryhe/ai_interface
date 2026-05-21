@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import agentsRouter from "./agents";
 import agentConfigRouter from "./agent-config";
 import agentRunsRouter from "./agent-runs";
 import climateMonitorRouter from "./climate-monitor";
@@ -11,6 +12,7 @@ import toolAdaptersRouter from "./tool-adapters";
 
 const router: IRouter = Router();
 
+router.use(agentsRouter);
 router.use(agentConfigRouter);
 router.use(agentRunsRouter);
 router.use(climateMonitorRouter);

@@ -1,0 +1,33 @@
+agentId: knowledge_builder
+name: Knowledge Builder
+description: Turn approved web and document sources into a RAG-backed agent configuration.
+source: builtin
+instructions: |
+  Build an inspectable knowledge pipeline from approved sources. Plan with the smallest
+  set of enabled skills that can monitor sources, convert documents, prepare RAG records,
+  and generate an agent configuration. Preserve intermediate artifacts for review.
+skills:
+  - skillId: web_listening
+    required: false
+  - skillId: doc_to_md
+    required: false
+  - skillId: md_to_rag
+    required: true
+  - skillId: rag_to_agent
+    required: true
+planner:
+  mode: dag
+  failureStrategy: fail_fast
+permissions:
+  approvalRequired: true
+  canUseNetwork: true
+  canWriteDatabase: true
+memory:
+  promotionMode: run_summary
+handoffs: []
+tests:
+  - name: build_from_markdown
+    prompt: Build an agent from approved Markdown source material.
+    expectedSkillIds:
+      - md_to_rag
+      - rag_to_agent
