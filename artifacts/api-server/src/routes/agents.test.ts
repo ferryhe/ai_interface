@@ -145,3 +145,60 @@ test("/agents serves an injected registry with readiness", async () => {
     },
   ]);
 });
+
+test("/agents/:agentId/export/vscode-agent returns VS Code agent markdown", async () => {
+  const response = await withAgentsApp((baseUrl) =>
+    fetch(`${baseUrl}/agents/custom_agent/export/vscode-agent`),
+  );
+  const text = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get("content-type")?.includes("text/markdown"),
+    true,
+  );
+  assert.match(
+    text,
+    /^---\ndescription: Coordinates a custom skill\.\ntools:\n  - custom_skill\n---\n\nUse approved skills\./,
+  );
+});
+
+test("/agents/:agentId/export/mcp-tool returns MCP wrapper metadata", async () => {
+  const response = await withAgentsApp((baseUrl) =>
+    fetch(`${baseUrl}/agents/custom_agent/export/mcp-tool`),
+  );
+  const json = (await response.json()) as {
+    name: string;
+    description: string;
+    inputSchema: {
+      required: string[];
+      properties: { executionMode: { enum: string[] } };
+    };
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(json.name, "run_custom_agent");
+  assert.equal(
+    json.description,
+    "Run the Custom Agent agent through ai_interface.",
+  );
+  assert.deepEqual(json.inputSchema.required, ["message"]);
+  assert.deepEqual(json.inputSchema.properties.executionMode.enum, [
+    "plan_only",
+    "execute_ready",
+  ]);
+});
+
+test("agent export endpoints return 404 for unknown agents", async () => {
+  await withAgentsApp(async (baseUrl) => {
+    const vscodeResponse = await fetch(
+      `${baseUrl}/agents/unknown_agent/export/vscode-agent`,
+    );
+    const mcpResponse = await fetch(
+      `${baseUrl}/agents/unknown_agent/export/mcp-tool`,
+    );
+
+    assert.equal(vscodeResponse.status, 404);
+    assert.equal(mcpResponse.status, 404);
+  });
+});

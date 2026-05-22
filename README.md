@@ -26,6 +26,19 @@ Agent manifests are also file-backed and loaded from `agents/builtin`,
 skill references. Missing skill IDs are reported as readiness metadata rather
 than crashing catalog listing.
 
+Agents can also be exported for interop:
+
+- `GET /api/agents/:agentId/export/vscode-agent` returns a VS Code-compatible
+  `.agent.md` file with YAML front matter (`description` and registered bound
+  skill IDs as `tools`) plus the agent instructions as the Markdown body.
+- `GET /api/agents/:agentId/export/mcp-tool` returns redacted MCP wrapper
+  metadata with a deterministic `run_<agentId>` tool name and an input schema
+  requiring `message`, with optional `executionMode` of `plan_only` or
+  `execute_ready`.
+
+Unknown agent IDs return 404, and export payloads redact secret-looking local
+values rather than exposing provider or MCP internals.
+
 `POST /api/agent-runs` accepts an optional `agentId`. When supplied, the runtime
 selects the agent's registered skills unless the request provides
 `enabledSkillIds`, uses the agent planner defaults as planner fallbacks, applies

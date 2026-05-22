@@ -261,6 +261,51 @@ export const GetAgentsResponse = zod.object({
 });
 
 /**
+ * Returns a VS Code-compatible `.agent.md` file with YAML front matter containing the agent description and registered bound skill IDs as tools. Secret-looking values, local provider URLs, MCP server URLs, and local paths are redacted from exported text.
+ * @summary Export a VS Code agent file
+ */
+export const exportVscodeAgentPathAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
+export const ExportVscodeAgentParams = zod.object({
+  agentId: zod.coerce.string().regex(exportVscodeAgentPathAgentIdRegExp),
+});
+
+/**
+ * Returns redacted metadata for exposing an agent run entrypoint as an MCP-callable tool. Provider internals and local configuration values are omitted.
+ * @summary Export MCP wrapper tool metadata
+ */
+export const exportAgentMcpToolPathAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
+export const ExportAgentMcpToolParams = zod.object({
+  agentId: zod.coerce.string().regex(exportAgentMcpToolPathAgentIdRegExp),
+});
+
+export const ExportAgentMcpToolResponse = zod.object({
+  name: zod.string(),
+  description: zod.string(),
+  inputSchema: zod.object({
+    type: zod.literal("object"),
+    properties: zod.object({
+      message: zod.object({
+        type: zod.literal("string"),
+        description: zod.string(),
+      }),
+      executionMode: zod.object({
+        type: zod.literal("string"),
+        enum: zod.array(zod.enum(["plan_only", "execute_ready"])),
+        description: zod.string(),
+      }),
+    }),
+    required: zod.array(zod.string()).min(1),
+    additionalProperties: zod.boolean(),
+  }),
+});
+
+/**
  * Returns redacted climate monitor repository status, latest report summary, source/scope coverage, and git branch/dirty state without exposing configured absolute paths or secret values.
  * @summary Get climate monitor status
  */
