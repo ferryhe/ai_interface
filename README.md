@@ -310,7 +310,9 @@ Community contributor workflow:
 │   ├── api-zod/           # Generated Zod schemas/types
 │   └── db/                # Drizzle schema and database client
 ├── docs/
-│   └── superpowers/plans/ # PR implementation plans
+│   ├── archive/           # Completed plans and migration notes
+│   ├── contracts/fixtures/ # Compatibility reference payloads
+│   └── project-overview.html
 └── scripts/
 ```
 

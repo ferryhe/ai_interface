@@ -1,11 +1,11 @@
 # ai_interface Project Status
 
-Updated: 2026-05-21
+Updated: 2026-05-22
 
 ## Active Work
 
-- Branch: `codex/agent-interop-export`
-- Scope: PR 6 implementation for VS Code `.agent.md` export and MCP tool metadata export for registered agents, plus OpenAPI/generated client, README, and status updates.
+- Branch: `codex/archive-completed-docs`
+- Scope: Documentation archive pass for completed plans and migration notes, plus README/docs index and project-status refresh.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -63,22 +63,18 @@ Updated: 2026-05-21
 - PR 4 code-quality review follow-up fixed blocking manifest write issues: invalid manifests are validated in a temporary custom root before final write, mismatched embedded `manifest.agentId` values are rejected, non-overwrite writes use exclusive create semantics, symlinked/junction custom paths are rejected before final write, and enabled API writes now require localhost/same-origin requests before file creation.
 - PR 4 re-review follow-up added a final `agent.yaml` lstat guard so `overwrite: true` rejects pre-existing manifest file symlinks instead of following them.
 - PR #52 remote feedback follow-up made the manifest writer discover the workspace root by walking upward to `agents/builtin` when no explicit `cwd` is supplied, so API servers launched from `artifacts/api-server` still write custom manifests under the repository-level `agents/custom`.
-- PR 5 Agent/Skill/Run/Artifact Workbench UI is in progress on `codex/workbench-ui`.
-- Backstage now has primary Agents, Skills, Runs, and Artifacts tabs inside `AgentFirstInterface`.
-- Agents renders Knowledge Builder plus catalog metadata, agent detail, generated custom-agent YAML, custom manifest write fallback status, and a test-run action that posts `agentId` to `/api/agent-runs`.
-- Runs and Artifacts render stable demo/API-backed inspector states without requiring backend/API spec changes; the existing skill manifest detail remains under the Skills tab.
-- PR 5 spec-review follow-up fixed artifact grouping to fetch artifacts per known pipeline run and preserve that pipeline context, and made the Skills tab load `/api/skills` with a seven-skill static fallback.
-- PR 5 code-quality follow-up cleared stale API runtime state on workbench Test Run local fallback and refactored the agent catalog row so selection and Test Run are sibling controls.
-- PR #53 remote feedback found 1 actionable Copilot comment: `missing_skills` agent readiness was using the default blue workbench status color. The follow-up maps `missing_skills` to the red status color with other failed/blocked states.
-- PR 6 VS Code and MCP Interop Export is in progress on `codex/agent-interop-export`.
-- Added VS Code `.agent.md` export support for agents with YAML front matter containing redacted `description` and registered bound skill IDs as `tools`, plus redacted instructions as the Markdown body.
-- Added MCP wrapper metadata export with deterministic `run_<agentId>` names, `Run the <Agent Name> agent through ai_interface.` descriptions, and an input schema requiring `message` with optional `executionMode` of `plan_only` or `execute_ready`.
-- Added `GET /api/agents/:agentId/export/vscode-agent` and `GET /api/agents/:agentId/export/mcp-tool`; unknown agents return 404 and MCP metadata is validated through generated Zod response schemas.
-- Export responses redact secret-looking API keys, localhost provider/MCP URLs, and common absolute local path forms, and omit provider internals.
-- PR 6 code-quality follow-up fixed spaced absolute path redaction for VS Code/MCP exports and added an exact MCP input-schema invariant for `required: ["message"]` and `additionalProperties: false`.
+- PR #53 completed the Agent/Skill/Run/Artifact Workbench UI and merged into `main` at `86499d7` on 2026-05-21. The branch `codex/workbench-ui` was deleted locally and remotely.
+- PR #54 completed VS Code `.agent.md` and MCP tool metadata export and merged into `main` at `bf1b235a8f8f8a8bb2ea7d2dbce3a51e10a91fed` on 2026-05-21. The branch `codex/agent-interop-export` was deleted locally and remotely.
+- The Agent Registry Flexible Workbench program is complete through PR6; the PR follow-up heartbeat `pr-48-follow-up` was deleted.
+- Documentation archive pass is in progress on `codex/archive-completed-docs`: completed plan documents are being moved under `docs/archive/plans` and `docs/archive/superpowers-plans`, and the completed mockup migration note is being moved under `docs/archive/mockup-sandbox`.
 
 ## Verification
 
+- Documentation archive pass verification:
+  - Current-doc scan for old active plan paths passed with no matches outside `docs/archive`.
+  - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
+  - `corepack pnpm run agent:validate` passed with `ok: true`, 1 agent, and no missing skill IDs.
+  - `git diff --check` passed with CRLF conversion warnings only.
 - PR #44 final verification before merge:
   - `corepack pnpm --filter @workspace/api-server run test` passed with 215 passing, 1 skipped Windows symlink test, and 0 failures.
   - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
@@ -244,4 +240,4 @@ Updated: 2026-05-21
 
 ## Next Action
 
-- Commit, push, and open PR 6 for VS Code and MCP interop export.
+- Finish docs-focused validation, then commit, push, and open the documentation archive PR.
