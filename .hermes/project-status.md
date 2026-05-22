@@ -10,7 +10,7 @@ Updated: 2026-05-22
 
 ## Current State
 
-- PR manifest-driven readiness implementation is in progress on `codex/manifest-driven-readiness`.
+- PR #56 manifest-driven readiness is open on `codex/manifest-driven-readiness`: https://github.com/ferryhe/ai_interface/pull/56
 - Skill manifests now support optional `project.readiness.requiredPaths`; the loader defaults it to `[]` and rejects absolute paths or `..` traversal segments.
 - `climate_monitor` declares `scripts/run_climate_monitor.py` and `ai_actuary` declares `scripts/run_tool_pipeline.py` in manifest readiness metadata.
 - Adapter project fallback metadata is derived from manifest project readiness instead of `moduleId` special-cases, and fallback readiness only clears the manifest project env path while preserving unrelated missing env vars and MCP server env requirements.
@@ -263,4 +263,4 @@ Updated: 2026-05-22
 
 ## Next Action
 
-- Commit and push `codex/manifest-driven-readiness`, open or update the PR, then perform the required follow-up review/check pass.
+- Wait for the PR #56 remote-feedback gate after the latest push, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.
