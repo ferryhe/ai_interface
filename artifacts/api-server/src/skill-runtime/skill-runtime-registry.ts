@@ -26,7 +26,14 @@ export interface SkillRuntimeRegistry {
 function cloneSkillManifest(manifest: SkillManifest): SkillManifest {
   return {
     ...manifest,
-    project: { ...manifest.project },
+    project: {
+      ...manifest.project,
+      readiness: manifest.project.readiness
+        ? {
+            requiredPaths: [...manifest.project.readiness.requiredPaths],
+          }
+        : undefined,
+    },
     execution: {
       ...manifest.execution,
       requiredEnv: [...manifest.execution.requiredEnv],

@@ -31,7 +31,8 @@ export interface ToolAdapterDefinition {
   mcpToolName?: string;
   projectFallback?: {
     defaultSiblingPath: string;
-    requiredPath: string;
+    envPath?: string;
+    requiredPaths: string[];
   };
 }
 
@@ -84,7 +85,11 @@ function hasReadyProjectFallback(
   const pathExists = options.pathExists ?? existsSync;
   const cwd = options.cwd ?? process.cwd();
   return defaultProjectCandidates(fallback.defaultSiblingPath, cwd).some(
-    (candidate) => pathExists(join(candidate, fallback.requiredPath)),
+    (candidate) =>
+      fallback.requiredPaths.length > 0 &&
+      fallback.requiredPaths.every((requiredPath) =>
+        pathExists(join(candidate, requiredPath)),
+      ),
   );
 }
 
@@ -121,10 +126,12 @@ export function getAdapterReadiness(
   );
   if (
     missingRequiredEnv.length > 0 &&
-    !missingRequiredEnv.includes(definition.mcpServerEnv ?? "") &&
     hasReadyProjectFallback(definition, options)
   ) {
-    missingRequiredEnv = [];
+    const projectEnvPath = definition.projectFallback?.envPath;
+    missingRequiredEnv = missingRequiredEnv.filter(
+      (name) => name !== projectEnvPath,
+    );
   }
   const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
     hasEnvValue(env, name),
@@ -137,7 +144,10 @@ export function getAdapterReadiness(
     optionalEnv: [...definition.optionalEnv],
     allowedCommands: [...definition.allowedCommands],
     projectFallback: definition.projectFallback
-      ? { ...definition.projectFallback }
+      ? {
+          ...definition.projectFallback,
+          requiredPaths: [...definition.projectFallback.requiredPaths],
+        }
       : undefined,
     configured,
     status: configured ? "ready" : "missing_required_env",

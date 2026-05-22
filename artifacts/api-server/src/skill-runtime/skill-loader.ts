@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { readdir, readFile as readFileFromFs } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, win32 } from "node:path";
 
 import { parse } from "yaml";
 
@@ -171,6 +171,31 @@ function stringArray(
   return [...value];
 }
 
+function relativePathArray(
+  record: Record<string, unknown>,
+  key: string,
+  path: string,
+  label = key,
+): string[] {
+  const values = stringArray(record, key, path);
+  for (const value of values) {
+    const trimmed = value.trim();
+    const normalized = trimmed.replace(/\\/g, "/");
+    if (
+      !trimmed ||
+      isAbsolute(trimmed) ||
+      win32.isAbsolute(trimmed) ||
+      normalized.split("/").includes("..")
+    ) {
+      throw manifestError(
+        path,
+        `Expected ${label} to contain relative paths without traversal segments`,
+      );
+    }
+  }
+  return values;
+}
+
 function allowedValue<T extends string>(
   value: string,
   allowed: readonly T[],
@@ -263,6 +288,7 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
   }
 
   const project = requiredRecord(raw, "project", path);
+  const projectReadiness = optionalRecord(project, "readiness", path);
   const execution = requiredRecord(raw, "execution", path);
   const ui = optionalRecord(raw, "ui", path);
   const permissions = optionalRecord(raw, "permissions", path);
@@ -316,6 +342,14 @@ function normalizeManifest(raw: unknown, path: string): SkillManifest {
       envPath: optionalString(project, "envPath", path),
       repoUrl: optionalString(project, "repoUrl", path),
       packageName: optionalString(project, "packageName", path),
+      readiness: {
+        requiredPaths: relativePathArray(
+          projectReadiness,
+          "requiredPaths",
+          path,
+          "project.readiness.requiredPaths",
+        ),
+      },
     },
     execution: {
       kind: executionKind,

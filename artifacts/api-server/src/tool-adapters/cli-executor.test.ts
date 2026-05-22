@@ -273,7 +273,8 @@ test("uses the discovered project fallback directory as manifest command cwd", a
             allowedCommands: [`${nodeExecutable} ${scriptPath}`],
             projectFallback: {
               defaultSiblingPath: projectDir,
-              requiredPath: "script.cjs",
+              envPath: "AI_ACTUARY_PROJECT_PATH",
+              requiredPaths: ["script.cjs"],
             },
           }),
           {},

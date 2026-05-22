@@ -9,6 +9,9 @@ project:
   envPath: AI_ACTUARY_PROJECT_PATH
   repoUrl: https://github.com/ferryhe/ai_actuary
   packageName: ai_actuary
+  readiness:
+    requiredPaths:
+      - scripts/run_tool_pipeline.py
 execution:
   kind: cli
   adapterId: ai_actuary.cli.v1

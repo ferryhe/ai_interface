@@ -201,6 +201,11 @@ test("uses the climate monitor sibling fallback for adapter readiness", () => {
   assert.equal(readiness.status, "ready");
   assert.equal(readiness.configured, true);
   assert.deepEqual(readiness.missingRequiredEnv, []);
+  assert.deepEqual(readiness.projectFallback, {
+    defaultSiblingPath: "../climate_monitor_wiki",
+    envPath: "CLIMATE_MONITOR_PROJECT_PATH",
+    requiredPaths: ["scripts/run_climate_monitor.py"],
+  });
 });
 
 test("uses the ai_actuary sibling fallback for adapter readiness", () => {
@@ -224,6 +229,52 @@ test("uses the ai_actuary sibling fallback for adapter readiness", () => {
   assert.equal(readiness.status, "ready");
   assert.equal(readiness.configured, true);
   assert.deepEqual(readiness.missingRequiredEnv, []);
+  assert.deepEqual(readiness.projectFallback, {
+    defaultSiblingPath: "../ai_actuary",
+    envPath: "AI_ACTUARY_PROJECT_PATH",
+    requiredPaths: ["scripts/run_tool_pipeline.py"],
+  });
+});
+
+test("project fallback only satisfies the project env missing requirement", () => {
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const readyScript = resolve(
+    "workspace",
+    "custom_project_tool",
+    "scripts",
+    "run_tool.py",
+  );
+  const readiness = getAdapterReadiness(
+    {
+      adapterId: "custom_project_tool.cli.v1",
+      moduleId: "custom_project_tool",
+      adapterKind: "cli",
+      displayName: "Custom Project Tool",
+      description: "Custom project tool.",
+      sourceRepo: "https://example.com/custom-project-tool",
+      requiredEnv: ["CUSTOM_PROJECT_TOOL_PATH", "CUSTOM_PROJECT_TOOL_CLI"],
+      optionalEnv: [],
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+      allowedCommands: ["scripts/run_tool.py"],
+      supportsResume: false,
+      readinessHint: "Configure custom project tool.",
+      projectFallback: {
+        defaultSiblingPath: "../custom_project_tool",
+        envPath: "CUSTOM_PROJECT_TOOL_PATH",
+        requiredPaths: ["scripts/run_tool.py"],
+      },
+    },
+    {},
+    {
+      cwd,
+      pathExists: (path) => path === readyScript,
+    },
+  );
+
+  assert.equal(readiness.status, "missing_required_env");
+  assert.equal(readiness.configured, false);
+  assert.deepEqual(readiness.missingRequiredEnv, ["CUSTOM_PROJECT_TOOL_CLI"]);
 });
 
 test("throws for unknown adapter module ids", () => {

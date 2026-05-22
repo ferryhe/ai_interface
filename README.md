@@ -169,6 +169,9 @@ interface SkillManifest {
     envPath?: string;
     repoUrl?: string;
     packageName?: string;
+    readiness?: {
+      requiredPaths: string[];
+    };
   };
   execution: {
     kind: "http" | "cli" | "internal" | "mcp";
@@ -223,6 +226,13 @@ Override policy is intentionally narrow:
 The loader validates YAML, applies documented defaults for omitted UI,
 execution, permissions, interaction, and artifact fields, and keeps runtime
 ordering deterministic for existing API behavior.
+
+`project.readiness.requiredPaths` is optional. When present, each path must be
+relative to the project root and cannot contain `..` traversal segments.
+Readiness and adapter sibling fallback then require those project-relative files
+to exist. The fallback only satisfies the manifest project env path, such as
+`CLIMATE_MONITOR_PROJECT_PATH`, and does not satisfy unrelated required env vars
+such as CLI binary paths.
 
 `GET /api/skills` reports readiness without exposing secret values or configured local paths. It returns env var names and default sibling path metadata only.
 
@@ -334,7 +344,12 @@ Default project path detection is intentionally shallow:
 - `ai_actuary` checks `AI_ACTUARY_PROJECT_PATH` or `../ai_actuary`.
 - `example_reporter` is a community validation fixture under `skills/community/example_reporter` and is disabled unless `EXAMPLE_REPORTER_ENABLED` is set.
 
-Readiness is a local existence check only. Real sibling project commands only
+`climate_monitor` additionally requires `scripts/run_climate_monitor.py`, and
+`ai_actuary` additionally requires `scripts/run_tool_pipeline.py`; both
+requirements are declared in their skill manifests under
+`project.readiness.requiredPaths`.
+
+Readiness is local existence checking only. Real sibling project commands only
 run through the opt-in safe executor path when
 `AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set and the manifest allowlist
 matches the requested command.

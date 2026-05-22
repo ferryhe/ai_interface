@@ -142,17 +142,26 @@ function configuredProjectPath(
   adapter: ToolAdapterDefinition,
   env: Record<string, string | undefined>,
 ): string | null {
-  for (const name of adapter.requiredEnv) {
-    const value = env[name]?.trim();
-    if (value) return value;
+  const fallback = adapter.projectFallback;
+  if (fallback?.envPath) {
+    const configuredPath = env[fallback.envPath]?.trim();
+    if (configuredPath) return configuredPath;
+  } else {
+    for (const name of adapter.requiredEnv) {
+      if (!/_PROJECT_(PATH|DIR|ROOT)$/.test(name)) continue;
+      const value = env[name]?.trim();
+      if (value) return value;
+    }
   }
 
-  const fallback = adapter.projectFallback;
   if (!fallback) return null;
   const candidates = defaultProjectCandidates(fallback.defaultSiblingPath);
   return (
     candidates.find((candidate) =>
-      existsSync(join(candidate, fallback.requiredPath)),
+      fallback.requiredPaths.length > 0 &&
+      fallback.requiredPaths.every((requiredPath) =>
+        existsSync(join(candidate, requiredPath)),
+      ),
     ) ??
     candidates[0] ??
     null

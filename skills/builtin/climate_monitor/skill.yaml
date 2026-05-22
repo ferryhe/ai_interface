@@ -9,6 +9,9 @@ project:
   envPath: CLIMATE_MONITOR_PROJECT_PATH
   repoUrl: https://github.com/ferryhe/climate_monitor_wiki
   packageName: climate_monitor_wiki
+  readiness:
+    requiredPaths:
+      - scripts/run_climate_monitor.py
 execution:
   kind: cli
   adapterId: climate_monitor.cli.v1

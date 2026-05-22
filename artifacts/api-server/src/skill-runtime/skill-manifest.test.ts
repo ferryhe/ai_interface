@@ -6,7 +6,54 @@ import {
   builtinSkillManifests,
   createSkillManifestRegistry,
   listSkillReadiness,
+  manifestAdapterDefinition,
+  type SkillManifest,
 } from "./skill-manifest";
+
+function customProjectCliManifest(
+  overrides: Partial<SkillManifest> = {},
+): SkillManifest {
+  return {
+    skillId: "community_tool",
+    moduleId: "community_tool",
+    name: "Community Tool",
+    description: "Community CLI tool.",
+    category: "agent",
+    project: {
+      source: "community",
+      envPath: "COMMUNITY_TOOL_PROJECT_PATH",
+      defaultSiblingPath: "../community_tool",
+      readiness: {
+        requiredPaths: ["bin/community-tool"],
+      },
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["json"],
+    interactionKinds: [],
+    execution: {
+      kind: "cli",
+      adapterId: "community_tool.cli.v1",
+      supportsResume: false,
+      timeoutMs: 30000,
+      maxOutputBytes: 65536,
+      requiredEnv: ["COMMUNITY_TOOL_PROJECT_PATH"],
+      optionalEnv: [],
+      allowedCommands: ["bin/community-tool"],
+    },
+    ui: {
+      mode: "auto",
+      preferredRenderer: "json",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: false,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+    ...overrides,
+  };
+}
 
 test("default skill manifests map built-in and community project skills", () => {
   assert.deepEqual(
@@ -36,6 +83,9 @@ test("default skill manifests map built-in and community project skills", () => 
     (skill) => skill.skillId === "climate_monitor",
   );
   assert.equal(climateMonitor?.project.envPath, "CLIMATE_MONITOR_PROJECT_PATH");
+  assert.deepEqual(climateMonitor?.project.readiness?.requiredPaths, [
+    "scripts/run_climate_monitor.py",
+  ]);
   assert.equal(climateMonitor?.execution.adapterId, "climate_monitor.cli.v1");
   assert.deepEqual(climateMonitor?.artifactKinds, [
     "climate_monitor_report",
@@ -49,6 +99,9 @@ test("default skill manifests map built-in and community project skills", () => 
     (skill) => skill.skillId === "ai_actuary",
   );
   assert.equal(aiActuary?.project.envPath, "AI_ACTUARY_PROJECT_PATH");
+  assert.deepEqual(aiActuary?.project.readiness?.requiredPaths, [
+    "scripts/run_tool_pipeline.py",
+  ]);
   assert.equal(aiActuary?.execution.adapterId, "ai_actuary.cli.v1");
   assert.deepEqual(aiActuary?.execution.command, [
     "python",
@@ -68,6 +121,16 @@ test("default skill manifests map built-in and community project skills", () => 
   ]);
 });
 
+test("manifest adapter fallback is derived from project readiness metadata", () => {
+  const manifest = customProjectCliManifest();
+
+  assert.deepEqual(manifestAdapterDefinition(manifest).projectFallback, {
+    defaultSiblingPath: "../community_tool",
+    envPath: "COMMUNITY_TOOL_PROJECT_PATH",
+    requiredPaths: ["bin/community-tool"],
+  });
+});
+
 test("skill manifest registry accepts registered custom skills", () => {
   const registry = createSkillManifestRegistry([
     {
@@ -79,6 +142,9 @@ test("skill manifest registry accepts registered custom skills", () => {
       project: {
         source: "external",
         defaultSiblingPath: "../custom_reporter",
+        readiness: {
+          requiredPaths: [],
+        },
       },
       inputSchema: { type: "object", properties: { topic: { type: "string" } } },
       outputSchema: { type: "object", properties: { report: { type: "string" } } },
@@ -124,6 +190,9 @@ test("skill readiness reports missing project paths without leaking env values",
         source: "external",
         envPath: "HTML_SKILL_PATH",
         defaultSiblingPath: "../missing-html-skill",
+        readiness: {
+          requiredPaths: [],
+        },
       },
       inputSchema: { type: "object" },
       outputSchema: { type: "object" },
@@ -168,6 +237,36 @@ test("skill readiness reports missing project paths without leaking env values",
     JSON.stringify(readiness).includes("C:/very/secret/local/path"),
     false,
   );
+});
+
+test("community manifest readiness uses required paths for project fallback", () => {
+  const registry = createSkillManifestRegistry([customProjectCliManifest()]);
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const projectPath = resolve("workspace", "community_tool");
+  const readyScript = resolve(projectPath, "bin", "community-tool");
+
+  const missingRequiredFile = listSkillReadiness(registry, {
+    env: {},
+    cwd,
+    pathExists: (path) => path === projectPath,
+  }).find((item) => item.skillId === "community_tool");
+
+  assert.equal(missingRequiredFile?.project.status, "not_configured");
+  assert.equal(missingRequiredFile?.adapter.status, "missing_required_env");
+  assert.deepEqual(missingRequiredFile?.adapter.missingRequiredEnv, [
+    "COMMUNITY_TOOL_PROJECT_PATH",
+  ]);
+
+  const ready = listSkillReadiness(registry, {
+    env: {},
+    cwd,
+    pathExists: (path) => path === projectPath || path === readyScript,
+  }).find((item) => item.skillId === "community_tool");
+
+  assert.equal(ready?.project.status, "ready");
+  assert.equal(ready?.project.configuredBy, "defaultSiblingPath");
+  assert.equal(ready?.adapter.status, "ready");
+  assert.deepEqual(ready?.adapter.missingRequiredEnv, []);
 });
 
 test("climate skill adapter readiness accepts the default sibling project", () => {
