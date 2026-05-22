@@ -21,7 +21,9 @@ import type {
   ActuarialPipelineRunsList,
   AgentConfigResponse,
   AgentConnectionTestResponse,
+  AgentId,
   AgentListResponse,
+  AgentMcpToolMetadata,
   AgentRunDetail,
   AgentRunListResponse,
   AgentRunResponse,
@@ -421,6 +423,185 @@ export function useGetAgents<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetAgentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns a VS Code-compatible `.agent.md` file with YAML front matter containing the agent description and registered bound skill IDs as tools. Secret-looking values, local provider URLs, MCP server URLs, and local paths are redacted from exported text.
+ * @summary Export a VS Code agent file
+ */
+export const getExportVscodeAgentUrl = (agentId: AgentId) => {
+  return `/api/agents/${agentId}/export/vscode-agent`;
+};
+
+export const exportVscodeAgent = async (
+  agentId: AgentId,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportVscodeAgentUrl(agentId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportVscodeAgentQueryKey = (agentId: AgentId) => {
+  return [`/api/agents/${agentId}/export/vscode-agent`] as const;
+};
+
+export const getExportVscodeAgentQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportVscodeAgent>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  agentId: AgentId,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVscodeAgent>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportVscodeAgentQueryKey(agentId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportVscodeAgent>>
+  > = ({ signal }) => exportVscodeAgent(agentId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!agentId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportVscodeAgent>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportVscodeAgentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportVscodeAgent>>
+>;
+export type ExportVscodeAgentQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Export a VS Code agent file
+ */
+
+export function useExportVscodeAgent<
+  TData = Awaited<ReturnType<typeof exportVscodeAgent>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  agentId: AgentId,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVscodeAgent>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportVscodeAgentQueryOptions(agentId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns redacted metadata for exposing an agent run entrypoint as an MCP-callable tool. Provider internals and local configuration values are omitted.
+ * @summary Export MCP wrapper tool metadata
+ */
+export const getExportAgentMcpToolUrl = (agentId: AgentId) => {
+  return `/api/agents/${agentId}/export/mcp-tool`;
+};
+
+export const exportAgentMcpTool = async (
+  agentId: AgentId,
+  options?: RequestInit,
+): Promise<AgentMcpToolMetadata> => {
+  return customFetch<AgentMcpToolMetadata>(getExportAgentMcpToolUrl(agentId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportAgentMcpToolQueryKey = (agentId: AgentId) => {
+  return [`/api/agents/${agentId}/export/mcp-tool`] as const;
+};
+
+export const getExportAgentMcpToolQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportAgentMcpTool>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  agentId: AgentId,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAgentMcpTool>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportAgentMcpToolQueryKey(agentId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportAgentMcpTool>>
+  > = ({ signal }) =>
+    exportAgentMcpTool(agentId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!agentId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportAgentMcpTool>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportAgentMcpToolQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportAgentMcpTool>>
+>;
+export type ExportAgentMcpToolQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Export MCP wrapper tool metadata
+ */
+
+export function useExportAgentMcpTool<
+  TData = Awaited<ReturnType<typeof exportAgentMcpTool>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  agentId: AgentId,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAgentMcpTool>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportAgentMcpToolQueryOptions(agentId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -4,8 +4,8 @@ Updated: 2026-05-21
 
 ## Active Work
 
-- Branch: `codex/workbench-ui`
-- Scope: PR 5 implementation for Agent Registry Flexible Workbench: Agent/Skill/Run/Artifact workbench UI in the mockup sandbox, plus README/status updates.
+- Branch: `codex/agent-interop-export`
+- Scope: PR 6 implementation for VS Code `.agent.md` export and MCP tool metadata export for registered agents, plus OpenAPI/generated client, README, and status updates.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -70,6 +70,12 @@ Updated: 2026-05-21
 - PR 5 spec-review follow-up fixed artifact grouping to fetch artifacts per known pipeline run and preserve that pipeline context, and made the Skills tab load `/api/skills` with a seven-skill static fallback.
 - PR 5 code-quality follow-up cleared stale API runtime state on workbench Test Run local fallback and refactored the agent catalog row so selection and Test Run are sibling controls.
 - PR #53 remote feedback found 1 actionable Copilot comment: `missing_skills` agent readiness was using the default blue workbench status color. The follow-up maps `missing_skills` to the red status color with other failed/blocked states.
+- PR 6 VS Code and MCP Interop Export is in progress on `codex/agent-interop-export`.
+- Added VS Code `.agent.md` export support for agents with YAML front matter containing redacted `description` and registered bound skill IDs as `tools`, plus redacted instructions as the Markdown body.
+- Added MCP wrapper metadata export with deterministic `run_<agentId>` names, `Run the <Agent Name> agent through ai_interface.` descriptions, and an input schema requiring `message` with optional `executionMode` of `plan_only` or `execute_ready`.
+- Added `GET /api/agents/:agentId/export/vscode-agent` and `GET /api/agents/:agentId/export/mcp-tool`; unknown agents return 404 and MCP metadata is validated through generated Zod response schemas.
+- Export responses redact secret-looking API keys, localhost provider/MCP URLs, and common absolute local path forms, and omit provider internals.
+- PR 6 code-quality follow-up fixed spaced absolute path redaction for VS Code/MCP exports and added an exact MCP input-schema invariant for `required: ["message"]` and `additionalProperties: false`.
 
 ## Verification
 
@@ -215,7 +221,27 @@ Updated: 2026-05-21
   - PR #53 remote feedback follow-up `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
   - PR #53 remote feedback follow-up `$env:PORT='8080'; $env:BASE_PATH='/'; $env:VITE_DEFAULT_PREVIEW='ai-os/AgentFirstInterface'; corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
   - PR #53 remote feedback follow-up `git diff --check` passed with CRLF conversion warnings only.
+- PR 6 interop export verification so far:
+  - TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/vscode-agent-exporter.test.ts src/agent-registry/mcp-tool-exporter.test.ts src/routes/agents.test.ts` failed with expected missing-module failures for the new exporters and 404/HTML responses for the not-yet-implemented export endpoints.
+  - Focused green rerun of the same command passed with 277 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - Final focused rerun after generated-schema route validation passed with 277 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run test` passed with 277 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - Final `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - `corepack pnpm run typecheck:libs` passed.
+  - `git diff --check` passed with CRLF conversion warnings only.
+  - Code-quality follow-up red run: `corepack pnpm --filter @workspace/api-server run test -- src/agent-registry/vscode-agent-exporter.test.ts src/agent-registry/mcp-tool-exporter.test.ts src/routes/agents.test.ts` failed with the expected missing `assertMcpToolMetadataContract` export and a spaced-path fragment leak in VS Code export.
+  - Code-quality follow-up focused green rerun of the same command passed with 280 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - Code-quality follow-up `corepack pnpm --filter @workspace/api-server run typecheck` passed after narrowing the malformed-schema test cast.
+  - Controller final `corepack pnpm --filter @workspace/api-server run test` passed with 280 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - Controller final `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Controller final `corepack pnpm --filter @workspace/api-server run build` passed.
+  - Controller final `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - Controller final `corepack pnpm run typecheck:libs` passed.
+  - Controller final `git diff --check` passed with CRLF conversion warnings only.
 
 ## Next Action
 
-- Commit and push the PR #53 remote feedback follow-up, then merge and clean up `codex/workbench-ui`.
+- Commit, push, and open PR 6 for VS Code and MCP interop export.

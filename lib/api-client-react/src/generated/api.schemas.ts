@@ -647,6 +647,44 @@ export interface AgentListResponse {
   readiness: AgentReadiness[];
 }
 
+export type AgentMcpToolInputSchemaPropertiesMessage = {
+  type: "string";
+  description: string;
+};
+
+export type AgentRunExecutionMode =
+  (typeof AgentRunExecutionMode)[keyof typeof AgentRunExecutionMode];
+
+export const AgentRunExecutionMode = {
+  plan_only: "plan_only",
+  execute_ready: "execute_ready",
+} as const;
+
+export type AgentMcpToolInputSchemaPropertiesExecutionMode = {
+  type: "string";
+  enum: AgentRunExecutionMode[];
+  description: string;
+};
+
+export type AgentMcpToolInputSchemaProperties = {
+  message: AgentMcpToolInputSchemaPropertiesMessage;
+  executionMode: AgentMcpToolInputSchemaPropertiesExecutionMode;
+};
+
+export interface AgentMcpToolInputSchema {
+  type: "object";
+  properties: AgentMcpToolInputSchemaProperties;
+  /** @minItems 1 */
+  required: string[];
+  additionalProperties: false;
+}
+
+export interface AgentMcpToolMetadata {
+  name: string;
+  description: string;
+  inputSchema: AgentMcpToolInputSchema;
+}
+
 export type RunEventSeverity =
   (typeof RunEventSeverity)[keyof typeof RunEventSeverity];
 
@@ -970,14 +1008,6 @@ export const AgentRuntimeStatus = {
   missing_key: "missing_key",
   needs_approval: "needs_approval",
   failed: "failed",
-} as const;
-
-export type AgentRunExecutionMode =
-  (typeof AgentRunExecutionMode)[keyof typeof AgentRunExecutionMode];
-
-export const AgentRunExecutionMode = {
-  plan_only: "plan_only",
-  execute_ready: "execute_ready",
 } as const;
 
 export type AgentMessageRole =
