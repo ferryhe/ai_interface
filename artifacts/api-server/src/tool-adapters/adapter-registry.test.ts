@@ -30,7 +30,7 @@ test("registers one adapter for each business module", () => {
     "CLIMATE_MONITOR_PROJECT_PATH",
   ]);
   assert.deepEqual(climateMonitor.allowedCommands, [
-    "scripts/run_climate_monitor.py",
+    "python scripts/run_climate_monitor.py",
   ]);
   const aiActuary = getAdapterDefinition("ai_actuary");
   assert.equal(aiActuary.adapterId, "ai_actuary.cli.v1");

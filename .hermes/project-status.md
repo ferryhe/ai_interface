@@ -4,13 +4,17 @@ Updated: 2026-05-22
 
 ## Active Work
 
-- Branch: `codex/manifest-driven-readiness`
-- Scope: Manifest-driven project readiness fallback for skill manifests, adapter readiness, built-in climate_monitor/ai_actuary metadata, and focused docs/tests.
+- Branch: `codex/pr56-review-followup`
+- Scope: Post-merge PR #56 review follow-up for manifest readiness normalization, climate monitor command metadata, and status cleanup.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
-- PR #56 manifest-driven readiness is open on `codex/manifest-driven-readiness`: https://github.com/ferryhe/ai_interface/pull/56
+- PR #56 manifest-driven readiness merged into `main` at `8c8be5e`: https://github.com/ferryhe/ai_interface/pull/56
+- Follow-up branch `codex/pr56-review-followup` is addressing confirmed-safe Copilot comments from PR #56 that arrived after merge.
+- PR #57 follow-up is open on `codex/pr56-review-followup`: https://github.com/ferryhe/ai_interface/pull/57
+- `project.readiness.requiredPaths` loader output is being normalized before storage so validated paths are the same paths used by readiness checks.
+- Climate monitor runner metadata is being moved to explicit manifest `execution.command`; readiness `requiredPaths` remains a project readiness contract rather than an implied ordered runner list.
 - Skill manifests now support optional `project.readiness.requiredPaths`; the loader defaults it to `[]` and rejects absolute paths or `..` traversal segments.
 - `climate_monitor` declares `scripts/run_climate_monitor.py` and `ai_actuary` declares `scripts/run_tool_pipeline.py` in manifest readiness metadata.
 - Adapter project fallback metadata is derived from manifest project readiness instead of `moduleId` special-cases, and fallback readiness only clears the manifest project env path while preserving unrelated missing env vars and MCP server env requirements.
@@ -89,6 +93,22 @@ Updated: 2026-05-22
   - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
   - Post-review `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - Post-review `git diff --check` passed with CRLF conversion warnings only.
+- PR #56 follow-up verification:
+  - Initial focused rerun `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/climate-monitor/service.test.ts src/tool-adapters/cli-executor.test.ts src/routes/climate-monitor.test.ts src/routes/skills.test.ts` failed on the new required-path normalization regression test because double separators were preserved after slash normalization.
+  - Fixed required-path normalization to collapse repeated slashes after converting Windows separators.
+  - Focused rerun of the same command passed with 291 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
+  - `git diff --check` passed with CRLF conversion warnings only.
+  - PR #57 remote feedback found 1 actionable Copilot comment: align the climate monitor `allowedCommands` allowlist with explicit `execution.command`.
+  - Updated climate monitor `allowedCommands` to `python scripts/run_climate_monitor.py` so the allowlist constrains both executable and script.
+  - First PR #57 remote-feedback focused rerun failed because two tests still expected the old climate monitor allowlist value; updated those expectations to cover the tightened executable+script allowlist.
+  - PR #57 remote-feedback focused rerun passed with 291 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - PR #57 remote-feedback `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - PR #57 remote-feedback `corepack pnpm --filter @workspace/api-server run build` passed.
+  - PR #57 remote-feedback `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
+  - PR #57 remote-feedback `git diff --check` passed with CRLF conversion warnings only.
 - Documentation archive pass verification:
   - Current-doc scan for old active plan paths passed with no matches outside `docs/archive`.
   - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
@@ -263,4 +283,4 @@ Updated: 2026-05-22
 
 ## Next Action
 
-- Wait for the PR #56 remote-feedback gate after the latest push, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.
+- Wait for the PR #57 remote-feedback gate, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.

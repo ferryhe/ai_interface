@@ -371,6 +371,25 @@ test("loads project readiness required paths from a manifest", async () => {
   ]);
 });
 
+test("normalizes project readiness required paths before storing", async () => {
+  const root = await createRoot();
+  await writeManifest(
+    root,
+    "fixture",
+    minimalManifest({
+      extraProject:
+        "  readiness:\n    requiredPaths:\n      - ' scripts\\\\run_fixture.py '\n      - config\\\\default.yaml",
+    }),
+  );
+
+  const [manifest] = await loadSkillManifests({ roots: [root] });
+
+  assert.deepEqual(manifest?.project.readiness?.requiredPaths, [
+    "scripts/run_fixture.py",
+    "config/default.yaml",
+  ]);
+});
+
 test("rejects absolute project readiness required paths", async () => {
   const root = await createRoot();
   const manifestPath = await writeManifest(

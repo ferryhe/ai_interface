@@ -266,7 +266,7 @@ test("creates a deterministic missing-key plan and stores module runs", async ()
   );
   assert.deepEqual(
     result.moduleRuns[1]?.metadata?.["adapterAllowedCommands"],
-    ["scripts/run_climate_monitor.py"],
+    ["python scripts/run_climate_monitor.py"],
   );
   assert.equal(
     result.moduleRuns[2]?.metadata?.["adapterId"],
