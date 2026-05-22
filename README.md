@@ -297,6 +297,9 @@ Community contributor workflow:
 3. Run `corepack pnpm --filter @workspace/api-server run test`.
 4. Open a PR.
 
+For a complete community skill manifest template, see
+`skills/community/README.md`.
+
 ## Repository Structure
 
 ```text

@@ -68,11 +68,16 @@ Updated: 2026-05-22
 - The Agent Registry Flexible Workbench program is complete through PR6; the PR follow-up heartbeat `pr-48-follow-up` was deleted.
 - Documentation archive pass is in review as PR #55: https://github.com/ferryhe/ai_interface/pull/55
 - Completed plan documents were moved under `docs/archive/plans` and `docs/archive/superpowers-plans`, and the completed mockup migration note was moved under `docs/archive/mockup-sandbox`.
+- Review follow-up on PR #55 is adding a complete community skill manifest template and documenting that existing sibling fallback is project-metadata driven but still has core-owned adapter required-file checks for some built-ins.
 
 ## Verification
 
 - Documentation archive pass verification:
   - Current-doc scan for old active plan paths passed with no matches outside `docs/archive`.
+  - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
+  - `corepack pnpm run agent:validate` passed with `ok: true`, 1 agent, and no missing skill IDs.
+  - `git diff --check` passed with CRLF conversion warnings only.
+- PR #55 manifest-doc follow-up verification:
   - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
   - `corepack pnpm run agent:validate` passed with `ok: true`, 1 agent, and no missing skill IDs.
   - `git diff --check` passed with CRLF conversion warnings only.
