@@ -24,7 +24,7 @@ execution:
     - scripts/run_climate_monitor.py
     - --json
   allowedCommands:
-    - scripts/run_climate_monitor.py
+    - python scripts/run_climate_monitor.py
   readinessHint: Set CLIMATE_MONITOR_PROJECT_PATH to enable climate monitor CLI handoffs.
 inputSchema:
   type: object
