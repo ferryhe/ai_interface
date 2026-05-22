@@ -86,7 +86,7 @@ function hasReadyProjectFallback(
   const cwd = options.cwd ?? process.cwd();
   return defaultProjectCandidates(fallback.defaultSiblingPath, cwd).some(
     (candidate) =>
-      fallback.requiredPaths.length > 0 &&
+      pathExists(candidate) &&
       fallback.requiredPaths.every((requiredPath) =>
         pathExists(join(candidate, requiredPath)),
       ),

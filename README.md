@@ -227,12 +227,13 @@ The loader validates YAML, applies documented defaults for omitted UI,
 execution, permissions, interaction, and artifact fields, and keeps runtime
 ordering deterministic for existing API behavior.
 
-`project.readiness.requiredPaths` is optional. When present, each path must be
-relative to the project root and cannot contain `..` traversal segments.
-Readiness and adapter sibling fallback then require those project-relative files
-to exist. The fallback only satisfies the manifest project env path, such as
-`CLIMATE_MONITOR_PROJECT_PATH`, and does not satisfy unrelated required env vars
-such as CLI binary paths.
+`project.readiness.requiredPaths` is optional. When omitted or empty, project
+readiness and adapter sibling fallback check that the project root exists. When
+present, each path must be relative to the project root and cannot contain `..`
+traversal segments; readiness and fallback then require the project root and
+those project-relative files to exist. The fallback only satisfies the manifest
+project env path, such as `CLIMATE_MONITOR_PROJECT_PATH`, and does not satisfy
+unrelated required env vars such as CLI binary paths.
 
 `GET /api/skills` reports readiness without exposing secret values or configured local paths. It returns env var names and default sibling path metadata only.
 

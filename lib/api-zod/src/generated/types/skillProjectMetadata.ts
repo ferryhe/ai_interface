@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SkillProjectReadinessMetadata } from "./skillProjectReadinessMetadata";
 import type { SkillProjectSource } from "./skillProjectSource";
 
 export interface SkillProjectMetadata {
@@ -13,4 +14,5 @@ export interface SkillProjectMetadata {
   envPath?: string;
   repoUrl?: string;
   packageName?: string;
+  readiness?: SkillProjectReadinessMetadata;
 }

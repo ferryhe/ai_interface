@@ -409,6 +409,10 @@ export const SkillProjectReadinessStatus = {
   not_configured: "not_configured",
 } as const;
 
+export interface SkillProjectReadinessMetadata {
+  requiredPaths: string[];
+}
+
 export interface SkillPermissionDefaults {
   approvalRequired: boolean;
   canUseNetwork: boolean;
@@ -421,6 +425,7 @@ export interface SkillProjectMetadata {
   envPath?: string;
   repoUrl?: string;
   packageName?: string;
+  readiness?: SkillProjectReadinessMetadata;
 }
 
 export interface SkillUi {

@@ -213,14 +213,11 @@ export function manifestAdapterDefinition(
     readinessHint:
       manifest.execution.readinessHint ??
       `Configure ${manifest.execution.adapterId} to enable skill handoffs.`,
-    projectFallback:
-      projectRequiredPaths(manifest.project).length > 0
-        ? {
-            defaultSiblingPath: manifest.project.defaultSiblingPath,
-            envPath: manifest.project.envPath,
-            requiredPaths: projectRequiredPaths(manifest.project),
-          }
-        : undefined,
+    projectFallback: {
+      defaultSiblingPath: manifest.project.defaultSiblingPath,
+      envPath: manifest.project.envPath,
+      requiredPaths: projectRequiredPaths(manifest.project),
+    },
   };
 }
 
@@ -295,7 +292,7 @@ function hasReadyProjectFallback(
   if (!fallback) return false;
   return defaultProjectCandidates(fallback.defaultSiblingPath, options.cwd).some(
     (candidate) =>
-      fallback.requiredPaths.length > 0 &&
+      options.pathExists(candidate) &&
       fallback.requiredPaths.every((requiredPath) =>
         options.pathExists(join(candidate, requiredPath)),
       ),

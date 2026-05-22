@@ -14,6 +14,7 @@ Updated: 2026-05-22
 - Skill manifests now support optional `project.readiness.requiredPaths`; the loader defaults it to `[]` and rejects absolute paths or `..` traversal segments.
 - `climate_monitor` declares `scripts/run_climate_monitor.py` and `ai_actuary` declares `scripts/run_tool_pipeline.py` in manifest readiness metadata.
 - Adapter project fallback metadata is derived from manifest project readiness instead of `moduleId` special-cases, and fallback readiness only clears the manifest project env path while preserving unrelated missing env vars and MCP server env requirements.
+- Root-only project fallback now emits adapter fallback metadata even when `project.envPath` and `project.readiness.requiredPaths` are absent, so `workingDirectory: project` CLI adapters can still discover sibling project cwd from the manifest default sibling path.
 - Climate monitor service project path and script metadata now come from the registered climate monitor adapter fallback metadata; report parsing and coverage logic remain service-owned.
 - The managed Skill Registry Generalization program is complete through PR7.
 - PR #36 added the unified registry context.
@@ -83,6 +84,11 @@ Updated: 2026-05-22
   - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
   - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
   - `git diff --check` passed with CRLF conversion warnings only.
+  - Review follow-up addressed 2 findings: the generated `skillProjectReadinessMetadata` type is included, and root-only project fallback is emitted for manifests without envPath/requiredPaths.
+  - Post-review focused rerun `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/skill-runtime/skill-manifest.test.ts src/tool-adapters/adapter-registry.test.ts src/tool-adapters/cli-executor.test.ts src/climate-monitor/service.test.ts src/routes/skills.test.ts` passed with 290 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - Post-review `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Post-review `git diff --check` passed with CRLF conversion warnings only.
 - Documentation archive pass verification:
   - Current-doc scan for old active plan paths passed with no matches outside `docs/archive`.
   - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.

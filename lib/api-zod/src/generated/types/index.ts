@@ -118,6 +118,7 @@ export * from "./skillListResponse";
 export * from "./skillManifest";
 export * from "./skillPermissionDefaults";
 export * from "./skillProjectMetadata";
+export * from "./skillProjectReadinessMetadata";
 export * from "./skillProjectReadinessStatus";
 export * from "./skillProjectSource";
 export * from "./skillReadiness";

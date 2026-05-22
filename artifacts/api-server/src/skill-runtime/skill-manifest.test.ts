@@ -131,6 +131,41 @@ test("manifest adapter fallback is derived from project readiness metadata", () 
   });
 });
 
+test("manifest adapter fallback can use project root readiness without required paths", () => {
+  const manifest = customProjectCliManifest({
+    project: {
+      source: "community",
+      envPath: "COMMUNITY_TOOL_PROJECT_PATH",
+      defaultSiblingPath: "../community_tool",
+    },
+  });
+
+  assert.deepEqual(manifestAdapterDefinition(manifest).projectFallback, {
+    defaultSiblingPath: "../community_tool",
+    envPath: "COMMUNITY_TOOL_PROJECT_PATH",
+    requiredPaths: [],
+  });
+});
+
+test("manifest adapter fallback is emitted for root-only projects without env path", () => {
+  const manifest = customProjectCliManifest({
+    project: {
+      source: "community",
+      defaultSiblingPath: "../community_tool",
+    },
+    execution: {
+      ...customProjectCliManifest().execution,
+      requiredEnv: [],
+    },
+  });
+
+  assert.deepEqual(manifestAdapterDefinition(manifest).projectFallback, {
+    defaultSiblingPath: "../community_tool",
+    envPath: undefined,
+    requiredPaths: [],
+  });
+});
+
 test("skill manifest registry accepts registered custom skills", () => {
   const registry = createSkillManifestRegistry([
     {
@@ -267,6 +302,30 @@ test("community manifest readiness uses required paths for project fallback", ()
   assert.equal(ready?.project.configuredBy, "defaultSiblingPath");
   assert.equal(ready?.adapter.status, "ready");
   assert.deepEqual(ready?.adapter.missingRequiredEnv, []);
+});
+
+test("community manifest project fallback can use an existing project root without required paths", () => {
+  const registry = createSkillManifestRegistry([
+    customProjectCliManifest({
+      project: {
+        source: "community",
+        envPath: "COMMUNITY_TOOL_PROJECT_PATH",
+        defaultSiblingPath: "../community_tool",
+      },
+    }),
+  ]);
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const projectPath = resolve("workspace", "community_tool");
+
+  const readiness = listSkillReadiness(registry, {
+    env: {},
+    cwd,
+    pathExists: (path) => path === projectPath,
+  }).find((item) => item.skillId === "community_tool");
+
+  assert.equal(readiness?.project.status, "ready");
+  assert.equal(readiness?.adapter.status, "ready");
+  assert.deepEqual(readiness?.adapter.missingRequiredEnv, []);
 });
 
 test("climate skill adapter readiness accepts the default sibling project", () => {

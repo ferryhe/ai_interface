@@ -189,12 +189,13 @@ test("uses the climate monitor sibling fallback for adapter readiness", () => {
     "scripts",
     "run_climate_monitor.py",
   );
+  const projectPath = resolve("workspace", "climate_monitor_wiki");
   const readiness = getAdapterReadiness(
     definition,
     {},
     {
       cwd,
-      pathExists: (path) => path === readyScript,
+      pathExists: (path) => path === projectPath || path === readyScript,
     },
   );
 
@@ -217,12 +218,13 @@ test("uses the ai_actuary sibling fallback for adapter readiness", () => {
     "scripts",
     "run_tool_pipeline.py",
   );
+  const projectPath = resolve("workspace", "ai_actuary");
   const readiness = getAdapterReadiness(
     definition,
     {},
     {
       cwd,
-      pathExists: (path) => path === readyScript,
+      pathExists: (path) => path === projectPath || path === readyScript,
     },
   );
 
@@ -244,6 +246,7 @@ test("project fallback only satisfies the project env missing requirement", () =
     "scripts",
     "run_tool.py",
   );
+  const projectPath = resolve("workspace", "custom_project_tool");
   const readiness = getAdapterReadiness(
     {
       adapterId: "custom_project_tool.cli.v1",
@@ -268,13 +271,49 @@ test("project fallback only satisfies the project env missing requirement", () =
     {},
     {
       cwd,
-      pathExists: (path) => path === readyScript,
+      pathExists: (path) => path === projectPath || path === readyScript,
     },
   );
 
   assert.equal(readiness.status, "missing_required_env");
   assert.equal(readiness.configured, false);
   assert.deepEqual(readiness.missingRequiredEnv, ["CUSTOM_PROJECT_TOOL_CLI"]);
+});
+
+test("project fallback can satisfy project env from an existing root without required paths", () => {
+  const cwd = resolve("workspace", "ai_interface", "artifacts", "api-server");
+  const projectPath = resolve("workspace", "custom_project_tool");
+  const readiness = getAdapterReadiness(
+    {
+      adapterId: "custom_project_tool.cli.v1",
+      moduleId: "custom_project_tool",
+      adapterKind: "cli",
+      displayName: "Custom Project Tool",
+      description: "Custom project tool.",
+      sourceRepo: "https://example.com/custom-project-tool",
+      requiredEnv: ["CUSTOM_PROJECT_TOOL_PATH"],
+      optionalEnv: [],
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+      allowedCommands: ["scripts/run_tool.py"],
+      supportsResume: false,
+      readinessHint: "Configure custom project tool.",
+      projectFallback: {
+        defaultSiblingPath: "../custom_project_tool",
+        envPath: "CUSTOM_PROJECT_TOOL_PATH",
+        requiredPaths: [],
+      },
+    },
+    {},
+    {
+      cwd,
+      pathExists: (path) => path === projectPath,
+    },
+  );
+
+  assert.equal(readiness.status, "ready");
+  assert.equal(readiness.configured, true);
+  assert.deepEqual(readiness.missingRequiredEnv, []);
 });
 
 test("throws for unknown adapter module ids", () => {

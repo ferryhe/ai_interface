@@ -81,9 +81,10 @@ permissions:
 ```
 
 `project.defaultSiblingPath` and `project.envPath` drive project readiness
-metadata. Add `project.readiness.requiredPaths` when a sibling checkout should
-only be considered ready after specific project-relative files exist. Required
-paths must be relative to the project root and cannot be absolute or contain
-`..` traversal segments. When required paths are present, adapter sibling
-fallback can satisfy only the manifest project env path, not unrelated required
-env vars such as CLI binary paths.
+metadata. If `project.readiness.requiredPaths` is omitted or empty, readiness
+checks only whether the project root exists. Add required paths when a sibling
+checkout should only be considered ready after specific project-relative files
+exist. Required paths must be relative to the project root and cannot be
+absolute or contain `..` traversal segments. Adapter sibling fallback can
+satisfy only the manifest project env path, not unrelated required env vars such
+as CLI binary paths.

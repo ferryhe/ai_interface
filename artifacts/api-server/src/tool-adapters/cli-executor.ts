@@ -158,7 +158,7 @@ function configuredProjectPath(
   const candidates = defaultProjectCandidates(fallback.defaultSiblingPath);
   return (
     candidates.find((candidate) =>
-      fallback.requiredPaths.length > 0 &&
+      existsSync(candidate) &&
       fallback.requiredPaths.every((requiredPath) =>
         existsSync(join(candidate, requiredPath)),
       ),
