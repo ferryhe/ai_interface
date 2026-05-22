@@ -297,6 +297,9 @@ Community contributor workflow:
 3. Run `corepack pnpm --filter @workspace/api-server run test`.
 4. Open a PR.
 
+For a complete community skill manifest template, see
+`skills/community/README.md`.
+
 ## Repository Structure
 
 ```text
@@ -310,7 +313,9 @@ Community contributor workflow:
 │   ├── api-zod/           # Generated Zod schemas/types
 │   └── db/                # Drizzle schema and database client
 ├── docs/
-│   └── superpowers/plans/ # PR implementation plans
+│   ├── archive/           # Completed plans and migration notes
+│   ├── contracts/fixtures/ # Compatibility reference payloads
+│   └── project-overview.html
 └── scripts/
 ```
 
