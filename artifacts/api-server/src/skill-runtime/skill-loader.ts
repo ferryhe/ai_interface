@@ -178,9 +178,9 @@ function relativePathArray(
   label = key,
 ): string[] {
   const values = stringArray(record, key, path);
-  for (const value of values) {
+  return values.map((value) => {
     const trimmed = value.trim();
-    const normalized = trimmed.replace(/\\/g, "/");
+    const normalized = trimmed.replace(/\\/g, "/").replace(/\/+/g, "/");
     if (
       !trimmed ||
       isAbsolute(trimmed) ||
@@ -192,8 +192,8 @@ function relativePathArray(
         `Expected ${label} to contain relative paths without traversal segments`,
       );
     }
-  }
-  return values;
+    return normalized;
+  });
 }
 
 function allowedValue<T extends string>(
