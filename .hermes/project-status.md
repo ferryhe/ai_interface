@@ -12,6 +12,7 @@ Updated: 2026-05-22
 
 - PR #56 manifest-driven readiness merged into `main` at `8c8be5e`: https://github.com/ferryhe/ai_interface/pull/56
 - Follow-up branch `codex/pr56-review-followup` is addressing confirmed-safe Copilot comments from PR #56 that arrived after merge.
+- PR #57 follow-up is open on `codex/pr56-review-followup`: https://github.com/ferryhe/ai_interface/pull/57
 - `project.readiness.requiredPaths` loader output is being normalized before storage so validated paths are the same paths used by readiness checks.
 - Climate monitor runner metadata is being moved to explicit manifest `execution.command`; readiness `requiredPaths` remains a project readiness contract rather than an implied ordered runner list.
 - Skill manifests now support optional `project.readiness.requiredPaths`; the loader defaults it to `[]` and rejects absolute paths or `..` traversal segments.
@@ -274,4 +275,4 @@ Updated: 2026-05-22
 
 ## Next Action
 
-- Commit and push `codex/pr56-review-followup`, open a follow-up PR, then run the standard remote feedback gate before merge.
+- Wait for the PR #57 remote-feedback gate, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.
