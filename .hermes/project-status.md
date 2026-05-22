@@ -66,7 +66,8 @@ Updated: 2026-05-22
 - PR #53 completed the Agent/Skill/Run/Artifact Workbench UI and merged into `main` at `86499d7` on 2026-05-21. The branch `codex/workbench-ui` was deleted locally and remotely.
 - PR #54 completed VS Code `.agent.md` and MCP tool metadata export and merged into `main` at `bf1b235a8f8f8a8bb2ea7d2dbce3a51e10a91fed` on 2026-05-21. The branch `codex/agent-interop-export` was deleted locally and remotely.
 - The Agent Registry Flexible Workbench program is complete through PR6; the PR follow-up heartbeat `pr-48-follow-up` was deleted.
-- Documentation archive pass is in progress on `codex/archive-completed-docs`: completed plan documents are being moved under `docs/archive/plans` and `docs/archive/superpowers-plans`, and the completed mockup migration note is being moved under `docs/archive/mockup-sandbox`.
+- Documentation archive pass is in review as PR #55: https://github.com/ferryhe/ai_interface/pull/55
+- Completed plan documents were moved under `docs/archive/plans` and `docs/archive/superpowers-plans`, and the completed mockup migration note was moved under `docs/archive/mockup-sandbox`.
 
 ## Verification
 
@@ -240,4 +241,4 @@ Updated: 2026-05-22
 
 ## Next Action
 
-- Finish docs-focused validation, then commit, push, and open the documentation archive PR.
+- Wait for the 15-minute PR follow-up gate, then check PR #55 status checks, reviews, and Copilot comments; apply only confirmed-safe documentation fixes, rerun focused validation, and merge if green.
