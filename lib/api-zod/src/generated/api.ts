@@ -106,6 +106,11 @@ export const GetSkillsResponse = zod.object({
         envPath: zod.string().optional(),
         repoUrl: zod.string().optional(),
         packageName: zod.string().optional(),
+        readiness: zod
+          .object({
+            requiredPaths: zod.array(zod.string()),
+          })
+          .optional(),
       }),
       execution: zod.object({
         kind: zod.enum(["http", "cli", "internal", "mcp"]),

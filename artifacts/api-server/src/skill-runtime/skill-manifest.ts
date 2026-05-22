@@ -40,6 +40,9 @@ export interface SkillProjectMetadata {
   envPath?: string;
   repoUrl?: string;
   packageName?: string;
+  readiness?: {
+    requiredPaths: string[];
+  };
 }
 
 export interface SkillUi {
@@ -119,6 +122,10 @@ export interface SkillReadiness {
 
 export const builtinSkillManifests: SkillManifest[] =
   await loadSkillManifests();
+
+function projectRequiredPaths(project: SkillProjectMetadata): string[] {
+  return project.readiness?.requiredPaths ?? [];
+}
 
 export function createSkillManifestRegistry(
   customManifests: SkillManifest[] = [],
@@ -206,18 +213,11 @@ export function manifestAdapterDefinition(
     readinessHint:
       manifest.execution.readinessHint ??
       `Configure ${manifest.execution.adapterId} to enable skill handoffs.`,
-    projectFallback:
-      manifest.moduleId === "climate_monitor"
-        ? {
-            defaultSiblingPath: manifest.project.defaultSiblingPath,
-            requiredPath: "scripts/run_climate_monitor.py",
-          }
-        : manifest.moduleId === "ai_actuary"
-          ? {
-              defaultSiblingPath: manifest.project.defaultSiblingPath,
-              requiredPath: "scripts/run_tool_pipeline.py",
-            }
-        : undefined,
+    projectFallback: {
+      defaultSiblingPath: manifest.project.defaultSiblingPath,
+      envPath: manifest.project.envPath,
+      requiredPaths: projectRequiredPaths(manifest.project),
+    },
   };
 }
 
@@ -245,7 +245,9 @@ function projectCandidatePath(
     project.defaultSiblingPath,
     cwd,
   );
-  const readyDefault = defaultCandidates.find(pathExistsFn);
+  const readyDefault = defaultCandidates.find((candidate) =>
+    projectIsReady(project, candidate, pathExistsFn),
+  );
   return {
     candidatePath:
       readyDefault ??
@@ -253,6 +255,19 @@ function projectCandidatePath(
       resolve(cwd, project.defaultSiblingPath),
     configuredBy: project.defaultSiblingPath ? "defaultSiblingPath" : null,
   };
+}
+
+function projectIsReady(
+  project: SkillProjectMetadata,
+  candidatePath: string,
+  pathExistsFn: (path: string) => boolean,
+): boolean {
+  return (
+    pathExistsFn(candidatePath) &&
+    projectRequiredPaths(project).every((requiredPath) =>
+      pathExistsFn(join(candidatePath, requiredPath)),
+    )
+  );
 }
 
 function defaultProjectCandidates(
@@ -276,7 +291,11 @@ function hasReadyProjectFallback(
   const fallback = definition.projectFallback;
   if (!fallback) return false;
   return defaultProjectCandidates(fallback.defaultSiblingPath, options.cwd).some(
-    (candidate) => options.pathExists(join(candidate, fallback.requiredPath)),
+    (candidate) =>
+      options.pathExists(candidate) &&
+      fallback.requiredPaths.every((requiredPath) =>
+        options.pathExists(join(candidate, requiredPath)),
+      ),
   );
 }
 
@@ -300,7 +319,10 @@ function adapterReadiness(
     missingRequiredEnv.length > 0 &&
     hasReadyProjectFallback(definition, options)
   ) {
-    missingRequiredEnv = [];
+    const projectEnvPath = definition.projectFallback?.envPath;
+    missingRequiredEnv = missingRequiredEnv.filter(
+      (name) => name !== projectEnvPath,
+    );
   }
 
   const configuredOptionalEnv = definition.optionalEnv.filter((name) =>
@@ -343,7 +365,9 @@ export function listSkillReadiness(
     return {
       skillId: manifest.skillId,
       project: {
-        status: pathExists(project.candidatePath) ? "ready" : "not_configured",
+        status: projectIsReady(manifest.project, project.candidatePath, pathExists)
+          ? "ready"
+          : "not_configured",
         configuredBy: project.configuredBy,
         defaultSiblingPath: manifest.project.defaultSiblingPath,
       },

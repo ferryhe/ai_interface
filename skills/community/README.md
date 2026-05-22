@@ -34,6 +34,9 @@ project:
   envPath: MY_SKILL_PROJECT_PATH
   repoUrl: https://github.com/example/my_skill
   packageName: my_skill
+  readiness:
+    requiredPaths:
+      - scripts/run_my_skill.py
 execution:
   kind: cli
   adapterId: my_skill.cli.v1
@@ -78,7 +81,10 @@ permissions:
 ```
 
 `project.defaultSiblingPath` and `project.envPath` drive project readiness
-metadata. Some existing built-in adapters still have core-owned sibling
-fallback checks for executor-specific files, such as runner scripts. Treat those
-as runtime implementation details until the manifest contract grows an explicit
-project readiness section for required files.
+metadata. If `project.readiness.requiredPaths` is omitted or empty, readiness
+checks only whether the project root exists. Add required paths when a sibling
+checkout should only be considered ready after specific project-relative files
+exist. Required paths must be relative to the project root and cannot be
+absolute or contain `..` traversal segments. Adapter sibling fallback can
+satisfy only the manifest project env path, not unrelated required env vars such
+as CLI binary paths.

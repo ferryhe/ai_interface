@@ -13,10 +13,12 @@ import {
   sep,
 } from "node:path";
 
-import { getAdapterDefinition } from "../tool-adapters/adapter-registry";
+import {
+  getAdapterDefinition,
+  type ToolAdapterDefinition,
+} from "../tool-adapters/adapter-registry";
 
-const defaultSiblingPath = "../climate_monitor_wiki";
-const runScript = "scripts/run_climate_monitor.py";
+const climateMonitorModuleId = "climate_monitor";
 const pythonExecutable = "python";
 const dryRunWorkspace = ".tmp/ai-interface-climate-monitor";
 const sourceConfigPath = "monitoring/supranational_sources.yaml";
@@ -40,7 +42,7 @@ export type ClimateMonitorCoverageStatus = "complete" | "partial" | "unknown";
 export interface ClimateMonitorStatus {
   project: {
     status: ClimateMonitorProjectReadinessStatus;
-    configuredBy: "CLIMATE_MONITOR_PROJECT_PATH" | "defaultSiblingPath";
+    configuredBy: string | "defaultSiblingPath";
     defaultSiblingPath: string;
     script: string;
   };
@@ -77,7 +79,7 @@ export interface ClimateMonitorRunResult {
     executable: string;
     args: string[];
     cwd:
-      | "CLIMATE_MONITOR_PROJECT_PATH"
+      | string
       | "defaultSiblingPath"
       | "ai_interface_workspace";
     shell: false;
@@ -134,27 +136,65 @@ export class ClimateMonitorProcessError extends Error {}
 function resolveProject(
   env: Record<string, string | undefined>,
   cwd: string,
+  adapter: ToolAdapterDefinition,
 ): {
   path: string;
-  configuredBy: "CLIMATE_MONITOR_PROJECT_PATH" | "defaultSiblingPath";
+  configuredBy: string | "defaultSiblingPath";
 } {
-  const configuredPath = env["CLIMATE_MONITOR_PROJECT_PATH"]?.trim();
-  if (configuredPath) {
-    return {
-      path: configuredPath,
-      configuredBy: "CLIMATE_MONITOR_PROJECT_PATH",
-    };
+  const fallback = requiredProjectFallback(adapter);
+  if (fallback.envPath) {
+    const configuredPath = env[fallback.envPath]?.trim();
+    if (configuredPath) {
+      return {
+        path: configuredPath,
+        configuredBy: fallback.envPath,
+      };
+    }
   }
 
-  const defaultCandidates = defaultProjectCandidates(cwd);
-  const readyDefault = defaultCandidates.find(projectIsReady);
+  const defaultCandidates = defaultProjectCandidates(
+    cwd,
+    fallback.defaultSiblingPath,
+  );
+  const readyDefault = defaultCandidates.find((candidate) =>
+    projectIsReady(candidate, fallback.requiredPaths),
+  );
   return {
-    path: readyDefault ?? defaultCandidates[0] ?? resolve(cwd, defaultSiblingPath),
+    path: readyDefault ?? defaultCandidates[0] ?? resolve(cwd, fallback.defaultSiblingPath),
     configuredBy: "defaultSiblingPath",
   };
 }
 
-function defaultProjectCandidates(cwd: string): string[] {
+function requiredProjectFallback(
+  adapter: ToolAdapterDefinition,
+): NonNullable<ToolAdapterDefinition["projectFallback"]> {
+  const fallback = adapter.projectFallback;
+  if (!fallback || fallback.requiredPaths.length === 0) {
+    throw new ClimateMonitorNotConfiguredError(
+      "Climate monitor project fallback metadata is not configured",
+    );
+  }
+  return fallback;
+}
+
+function climateMonitorScript(adapter: ToolAdapterDefinition): string {
+  const script = requiredProjectFallback(adapter).requiredPaths[0];
+  if (!script) {
+    throw new ClimateMonitorNotConfiguredError(
+      "Climate monitor script metadata is not configured",
+    );
+  }
+  return script;
+}
+
+function climateMonitorAdapter(): ToolAdapterDefinition {
+  return getAdapterDefinition(climateMonitorModuleId);
+}
+
+function defaultProjectCandidates(
+  cwd: string,
+  defaultSiblingPath: string,
+): string[] {
   return [
     resolve(cwd, defaultSiblingPath),
     resolve(cwd, "..", defaultSiblingPath),
@@ -162,8 +202,13 @@ function defaultProjectCandidates(cwd: string): string[] {
   ].filter((path, index, paths) => paths.indexOf(path) === index);
 }
 
-function projectIsReady(projectPath: string): boolean {
-  return existsSync(projectPath) && existsSync(join(projectPath, runScript));
+function projectIsReady(projectPath: string, requiredPaths: string[]): boolean {
+  return (
+    existsSync(projectPath) &&
+    requiredPaths.every((requiredPath) =>
+      existsSync(join(projectPath, requiredPath)),
+    )
+  );
 }
 
 function toPosixPath(path: string): string {
@@ -356,16 +401,19 @@ export async function getClimateMonitorStatus(
   options: ClimateMonitorStatusOptions = {},
 ): Promise<ClimateMonitorStatus> {
   const env = options.env ?? process.env;
-  const project = resolveProject(env, options.cwd ?? process.cwd());
-  const ready = projectIsReady(project.path);
+  const adapter = climateMonitorAdapter();
+  const fallback = requiredProjectFallback(adapter);
+  const script = climateMonitorScript(adapter);
+  const project = resolveProject(env, options.cwd ?? process.cwd(), adapter);
+  const ready = projectIsReady(project.path, fallback.requiredPaths);
   const runGit = options.runGit ?? runGitWithExecFile;
 
   return {
     project: {
       status: ready ? "ready" : "not_configured",
       configuredBy: project.configuredBy,
-      defaultSiblingPath,
-      script: runScript,
+      defaultSiblingPath: fallback.defaultSiblingPath,
+      script,
     },
     git: ready
       ? await gitStatus(project.path, runGit)
@@ -411,7 +459,7 @@ interface ClimateMonitorRunPlan {
   spawnArgs: string[];
   spawnCwd: string;
   commandCwd:
-    | "CLIMATE_MONITOR_PROJECT_PATH"
+    | string
     | "defaultSiblingPath"
     | "ai_interface_workspace";
 }
@@ -420,8 +468,9 @@ function buildRunPlan(
   input: ClimateMonitorRunInput,
   dryRun: boolean,
   projectPath: string,
-  projectConfiguredBy: "CLIMATE_MONITOR_PROJECT_PATH" | "defaultSiblingPath",
+  projectConfiguredBy: string | "defaultSiblingPath",
   workspacePath: string,
+  runScript: string,
 ): ClimateMonitorRunPlan {
   const displayArgs = [runScript, "--json"];
   const spawnArgs = [
@@ -715,8 +764,11 @@ export async function runClimateMonitor(
   options: ClimateMonitorRunOptions = {},
 ): Promise<ClimateMonitorRunResult> {
   const env = options.env ?? process.env;
-  const project = resolveProject(env, options.cwd ?? process.cwd());
-  if (!projectIsReady(project.path)) {
+  const adapter = climateMonitorAdapter();
+  const fallback = requiredProjectFallback(adapter);
+  const runScript = climateMonitorScript(adapter);
+  const project = resolveProject(env, options.cwd ?? process.cwd(), adapter);
+  if (!projectIsReady(project.path, fallback.requiredPaths)) {
     throw new ClimateMonitorNotConfiguredError(
       "Climate monitor project is not configured",
     );
@@ -729,7 +781,6 @@ export async function runClimateMonitor(
     );
   }
 
-  const adapter = getAdapterDefinition("climate_monitor");
   const workspacePath = resolve(options.cwd ?? process.cwd());
   const plan = buildRunPlan(
     input,
@@ -737,6 +788,7 @@ export async function runClimateMonitor(
     project.path,
     project.configuredBy,
     workspacePath,
+    runScript,
   );
   const timeoutMs = adapter.timeoutMs;
   const maxOutputBytes = adapter.maxOutputBytes;

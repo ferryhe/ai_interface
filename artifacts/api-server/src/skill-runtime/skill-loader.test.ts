@@ -22,6 +22,7 @@ interface MinimalManifestOptions {
   executionKind?: string;
   projectSource?: string;
   name?: string;
+  extraProject?: string;
   extraExecution?: string;
 }
 
@@ -35,6 +36,7 @@ category: source
 project:
   source: ${options.projectSource ?? "builtin"}
   defaultSiblingPath: ../fixture
+${options.extraProject ?? ""}
 execution:
   kind: ${options.executionKind ?? "cli"}
   adapterId: fixture.cli.v1
@@ -339,6 +341,7 @@ test("applies documented defaults to a minimal manifest", async () => {
   assert.equal(manifest?.execution.timeoutMs, 120000);
   assert.equal(manifest?.execution.maxOutputBytes, 1048576);
   assert.deepEqual(manifest?.execution.requiredEnv, []);
+  assert.deepEqual(manifest?.project.readiness?.requiredPaths, []);
   assert.deepEqual(manifest?.execution.optionalEnv, []);
   assert.deepEqual(manifest?.execution.allowedCommands, []);
   assert.equal(manifest?.execution.supportsResume, false);
@@ -347,6 +350,67 @@ test("applies documented defaults to a minimal manifest", async () => {
   assert.equal(manifest?.permissions.canWriteDatabase, true);
   assert.deepEqual(manifest?.interactionKinds, []);
   assert.deepEqual(manifest?.artifactKinds, []);
+});
+
+test("loads project readiness required paths from a manifest", async () => {
+  const root = await createRoot();
+  await writeManifest(
+    root,
+    "fixture",
+    minimalManifest({
+      extraProject:
+        "  readiness:\n    requiredPaths:\n      - scripts/run_fixture.py\n      - config/default.yaml",
+    }),
+  );
+
+  const [manifest] = await loadSkillManifests({ roots: [root] });
+
+  assert.deepEqual(manifest?.project.readiness?.requiredPaths, [
+    "scripts/run_fixture.py",
+    "config/default.yaml",
+  ]);
+});
+
+test("rejects absolute project readiness required paths", async () => {
+  const root = await createRoot();
+  const manifestPath = await writeManifest(
+    root,
+    "fixture",
+    minimalManifest({
+      extraProject:
+        "  readiness:\n    requiredPaths:\n      - /opt/fixture/run.py",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ roots: [root] }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("project.readiness.requiredPaths") &&
+      error.message.includes("relative paths") &&
+      error.message.includes(manifestPath),
+  );
+});
+
+test("rejects traversal project readiness required paths", async () => {
+  const root = await createRoot();
+  const manifestPath = await writeManifest(
+    root,
+    "fixture",
+    minimalManifest({
+      extraProject:
+        "  readiness:\n    requiredPaths:\n      - scripts/../run_fixture.py",
+    }),
+  );
+
+  await assert.rejects(
+    loadSkillManifests({ roots: [root] }),
+    (error) =>
+      error instanceof Error &&
+      error.message.includes("project.readiness.requiredPaths") &&
+      error.message.includes("relative paths") &&
+      error.message.includes(manifestPath),
+  );
 });
 
 test("loads MCP execution metadata from a manifest", async () => {

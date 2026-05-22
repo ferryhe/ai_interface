@@ -4,12 +4,18 @@ Updated: 2026-05-22
 
 ## Active Work
 
-- Branch: `codex/archive-completed-docs`
-- Scope: Documentation archive pass for completed plans and migration notes, plus README/docs index and project-status refresh.
+- Branch: `codex/manifest-driven-readiness`
+- Scope: Manifest-driven project readiness fallback for skill manifests, adapter readiness, built-in climate_monitor/ai_actuary metadata, and focused docs/tests.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR #56 manifest-driven readiness is open on `codex/manifest-driven-readiness`: https://github.com/ferryhe/ai_interface/pull/56
+- Skill manifests now support optional `project.readiness.requiredPaths`; the loader defaults it to `[]` and rejects absolute paths or `..` traversal segments.
+- `climate_monitor` declares `scripts/run_climate_monitor.py` and `ai_actuary` declares `scripts/run_tool_pipeline.py` in manifest readiness metadata.
+- Adapter project fallback metadata is derived from manifest project readiness instead of `moduleId` special-cases, and fallback readiness only clears the manifest project env path while preserving unrelated missing env vars and MCP server env requirements.
+- Root-only project fallback now emits adapter fallback metadata even when `project.envPath` and `project.readiness.requiredPaths` are absent, so `workingDirectory: project` CLI adapters can still discover sibling project cwd from the manifest default sibling path.
+- Climate monitor service project path and script metadata now come from the registered climate monitor adapter fallback metadata; report parsing and coverage logic remain service-owned.
 - The managed Skill Registry Generalization program is complete through PR7.
 - PR #36 added the unified registry context.
 - PR #37 moved built-in skills to YAML-backed loading.
@@ -68,10 +74,21 @@ Updated: 2026-05-22
 - The Agent Registry Flexible Workbench program is complete through PR6; the PR follow-up heartbeat `pr-48-follow-up` was deleted.
 - Documentation archive pass is in review as PR #55: https://github.com/ferryhe/ai_interface/pull/55
 - Completed plan documents were moved under `docs/archive/plans` and `docs/archive/superpowers-plans`, and the completed mockup migration note was moved under `docs/archive/mockup-sandbox`.
-- Review follow-up on PR #55 is adding a complete community skill manifest template and documenting that existing sibling fallback is project-metadata driven but still has core-owned adapter required-file checks for some built-ins.
+- PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
 
+- Manifest-driven readiness verification:
+  - TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/skill-runtime/skill-manifest.test.ts src/tool-adapters/adapter-registry.test.ts src/climate-monitor/service.test.ts` failed with expected missing `project.readiness.requiredPaths` loader/defaults, hard-coded fallback shape, custom fallback readiness, and non-project env fallback failures.
+  - Focused green rerun of the same command passed with 286 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `git diff --check` passed with CRLF conversion warnings only.
+  - Review follow-up addressed 2 findings: the generated `skillProjectReadinessMetadata` type is included, and root-only project fallback is emitted for manifests without envPath/requiredPaths.
+  - Post-review focused rerun `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/skill-runtime/skill-manifest.test.ts src/tool-adapters/adapter-registry.test.ts src/tool-adapters/cli-executor.test.ts src/climate-monitor/service.test.ts src/routes/skills.test.ts` passed with 290 passing, 2 skipped Windows symlink-permission tests, and 0 failures.
+  - `corepack pnpm --filter @workspace/api-spec run codegen` passed and ran `corepack pnpm -w run typecheck:libs`.
+  - Post-review `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - Post-review `git diff --check` passed with CRLF conversion warnings only.
 - Documentation archive pass verification:
   - Current-doc scan for old active plan paths passed with no matches outside `docs/archive`.
   - `corepack pnpm run skill:validate` passed with `ok: true` and 7 loaded skills.
@@ -246,4 +263,4 @@ Updated: 2026-05-22
 
 ## Next Action
 
-- Wait for the 15-minute PR follow-up gate, then check PR #55 status checks, reviews, and Copilot comments; apply only confirmed-safe documentation fixes, rerun focused validation, and merge if green.
+- Wait for the PR #56 remote-feedback gate after the latest push, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.

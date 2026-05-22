@@ -1631,6 +1631,15 @@ components:
       enum:
         - ready
         - not_configured
+    SkillProjectReadinessMetadata:
+      type: object
+      properties:
+        requiredPaths:
+          type: array
+          items:
+            type: string
+      required:
+        - requiredPaths
     SkillPermissionDefaults:
       type: object
       properties:
@@ -1657,6 +1666,8 @@ components:
           type: string
         packageName:
           type: string
+        readiness:
+          $ref: "#/components/schemas/SkillProjectReadinessMetadata"
       required:
         - source
         - defaultSiblingPath
