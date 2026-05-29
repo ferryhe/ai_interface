@@ -1,4 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import type { MissionPlan, MissionPlanStatus, MissionRiskLevel } from "./mission-plan";
+
+export function generateMissionId(): string {
+  return `mission-${randomUUID()}`;
+}
 
 export type MissionRevisionStatus = "draft" | "approved" | "superseded" | "executed";
 

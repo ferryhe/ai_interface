@@ -18,6 +18,8 @@ tags:
     description: Portal token verification
   - name: agent-runs
     description: Agent runtime planning and module orchestration
+  - name: missions
+    description: Mission intake, revision, approval, and execution readiness
   - name: run-inspector
     description: Read-only run, timeline, event, and artifact inspection
   - name: tool-adapters
@@ -642,6 +644,223 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /missions:
+    post:
+      operationId: createMission
+      tags: [missions]
+      summary: Create a draft mission
+      description: >-
+        Creates a mission intake record and initial draft plan for review.
+        Portal-origin requests send `X-AI-Interface-Surface: agent-portal`
+        and require a verified Portal token through `X-Portal-Token` or
+        `Authorization: Bearer <token>`.
+      parameters:
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMissionRequest"
+      responses:
+        "201":
+          description: Mission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMissionResult"
+        "400":
+          description: Invalid mission request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /missions/{missionId}:
+    get:
+      operationId: getMission
+      tags: [missions]
+      summary: Get a mission and latest revision
+      description: >-
+        Returns the mission record, latest revision, and mission plan.
+        Portal-origin reads send `X-AI-Interface-Surface: agent-portal`
+        and require a verified Portal token through `X-Portal-Token` or
+        `Authorization: Bearer <token>`.
+      parameters:
+        - $ref: "#/components/parameters/MissionId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      responses:
+        "200":
+          description: Mission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMissionResult"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /missions/{missionId}/revise:
+    post:
+      operationId: reviseMission
+      tags: [missions]
+      summary: Revise the latest mission draft
+      parameters:
+        - $ref: "#/components/parameters/MissionId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviseMissionRequest"
+      responses:
+        "200":
+          description: Mission revised
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviseMissionResult"
+        "400":
+          description: Invalid revise request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Stale mission revision conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /missions/{missionId}/approve:
+    post:
+      operationId: approveMission
+      tags: [missions]
+      summary: Approve the latest mission revision
+      parameters:
+        - $ref: "#/components/parameters/MissionId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveMissionRequest"
+      responses:
+        "200":
+          description: Mission approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApproveMissionResult"
+        "400":
+          description: Invalid approval request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mission or revision not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Stale mission revision conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /missions/{missionId}/execute:
+    post:
+      operationId: executeMission
+      tags: [missions]
+      summary: Mark a mission as executing
+      description: >-
+        Marks an approved mission as executing and returns stubbed execution
+        readiness metadata until runtime orchestration is connected.
+      parameters:
+        - $ref: "#/components/parameters/MissionId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteMissionRequest"
+      responses:
+        "200":
+          description: Mission execution marked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteMissionResult"
+        "400":
+          description: Invalid execution request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mission or revision not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Mission must be approved before execution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /agent-runs:
     post:
       operationId: createAgentRun
@@ -954,6 +1173,13 @@ components:
       schema:
         type: string
         format: uuid
+    MissionId:
+      name: missionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
   schemas:
     HealthStatus:
       type: object
@@ -969,6 +1195,356 @@ components:
           type: string
       required:
         - error
+    MissionReviewMode:
+      type: string
+      enum:
+        - draft_for_review
+        - plan_only
+    MissionExecutionMode:
+      type: string
+      enum:
+        - plan_only
+        - execute_ready
+    MissionPlanStatus:
+      type: string
+      enum:
+        - draft
+        - needs_confirmation
+        - approved
+        - executing
+        - completed
+        - failed
+    MissionRiskLevel:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+    MissionStepStatus:
+      type: string
+      enum:
+        - pending
+        - waiting_approval
+        - running
+        - blocked
+        - succeeded
+        - failed
+        - cancelled
+    MissionRevisionStatus:
+      type: string
+      enum:
+        - draft
+        - approved
+        - superseded
+        - executed
+    MissionStepApproval:
+      type: object
+      additionalProperties: false
+      properties:
+        required:
+          type: boolean
+        reason:
+          type: string
+          minLength: 1
+        riskLevel:
+          $ref: "#/components/schemas/MissionRiskLevel"
+      required:
+        - required
+        - reason
+        - riskLevel
+    MissionPlanStep:
+      type: object
+      additionalProperties: false
+      properties:
+        stepId:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        objective:
+          type: string
+          minLength: 1
+        skillId:
+          type: string
+        moduleId:
+          type: string
+          minLength: 1
+        assignedAgentId:
+          type: string
+        roleId:
+          type: string
+        dependsOn:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/MissionStepStatus"
+        approval:
+          $ref: "#/components/schemas/MissionStepApproval"
+      required:
+        - stepId
+        - title
+        - objective
+        - dependsOn
+        - status
+    MissionPlan:
+      type: object
+      additionalProperties: false
+      properties:
+        missionId:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        userGoal:
+          type: string
+          minLength: 1
+        summary:
+          type: string
+          minLength: 1
+        status:
+          $ref: "#/components/schemas/MissionPlanStatus"
+        riskLevel:
+          $ref: "#/components/schemas/MissionRiskLevel"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/MissionPlanStep"
+        warnings:
+          type: array
+          items:
+            type: string
+        nonGoals:
+          type: array
+          items:
+            type: string
+      required:
+        - missionId
+        - title
+        - userGoal
+        - summary
+        - status
+        - riskLevel
+        - steps
+        - warnings
+        - nonGoals
+    MissionRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        missionId:
+          type: string
+          minLength: 1
+        title:
+          type: string
+        userGoal:
+          type: string
+        status:
+          $ref: "#/components/schemas/MissionPlanStatus"
+        riskLevel:
+          $ref: "#/components/schemas/MissionRiskLevel"
+        approvedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        approvedBy:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - missionId
+        - title
+        - userGoal
+        - status
+        - riskLevel
+        - approvedAt
+        - approvedBy
+        - createdAt
+        - updatedAt
+    MissionPlanRevisionRecord:
+      type: object
+      additionalProperties: false
+      properties:
+        revisionId:
+          type: string
+          format: uuid
+        missionId:
+          type: string
+          minLength: 1
+        revisionNumber:
+          type: integer
+        status:
+          $ref: "#/components/schemas/MissionRevisionStatus"
+        plan:
+          $ref: "#/components/schemas/MissionPlan"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - revisionId
+        - missionId
+        - revisionNumber
+        - status
+        - plan
+        - createdAt
+    MissionExecutionReadiness:
+      type: object
+      additionalProperties: false
+      properties:
+        ready:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - approved
+            - stubbed
+        message:
+          type: string
+        revisionId:
+          type: string
+          format: uuid
+      required:
+        - ready
+        - status
+        - message
+    CreateMissionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+          minLength: 1
+        agentId:
+          $ref: "#/components/schemas/AgentId"
+        enabledSkillIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillId"
+        reviewMode:
+          $ref: "#/components/schemas/MissionReviewMode"
+      required:
+        - message
+    CreateMissionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        mission:
+          $ref: "#/components/schemas/MissionRecord"
+        revision:
+          $ref: "#/components/schemas/MissionPlanRevisionRecord"
+        plan:
+          $ref: "#/components/schemas/MissionPlan"
+      required:
+        - mission
+        - revision
+        - plan
+    GetMissionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        mission:
+          $ref: "#/components/schemas/MissionRecord"
+        latestRevision:
+          $ref: "#/components/schemas/MissionPlanRevisionRecord"
+        plan:
+          $ref: "#/components/schemas/MissionPlan"
+      required:
+        - mission
+        - latestRevision
+        - plan
+    ReviseMissionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        instruction:
+          type: string
+          minLength: 1
+        expectedRevisionId:
+          type: string
+          format: uuid
+      required:
+        - instruction
+        - expectedRevisionId
+    ReviseMissionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        mission:
+          $ref: "#/components/schemas/MissionRecord"
+        revision:
+          $ref: "#/components/schemas/MissionPlanRevisionRecord"
+        plan:
+          $ref: "#/components/schemas/MissionPlan"
+      required:
+        - mission
+        - revision
+        - plan
+    ApproveMissionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        revisionId:
+          type: string
+          format: uuid
+        approvedBy:
+          type: string
+      required:
+        - revisionId
+    ApproveMissionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        mission:
+          $ref: "#/components/schemas/MissionRecord"
+        approvedRevision:
+          $ref: "#/components/schemas/MissionPlanRevisionRecord"
+        executionReadiness:
+          $ref: "#/components/schemas/MissionExecutionReadiness"
+      required:
+        - mission
+        - approvedRevision
+        - executionReadiness
+    ExecuteMissionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        revisionId:
+          type: string
+          format: uuid
+        executionMode:
+          $ref: "#/components/schemas/MissionExecutionMode"
+      required:
+        - revisionId
+    ExecuteMissionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        mission:
+          $ref: "#/components/schemas/MissionRecord"
+        pipelineRun:
+          type: "null"
+        thread:
+          type: "null"
+        moduleRuns:
+          type: array
+          items: {}
+        executionReadiness:
+          $ref: "#/components/schemas/MissionExecutionReadiness"
+      required:
+        - mission
+        - pipelineRun
+        - thread
+        - moduleRuns
+        - executionReadiness
     JsonObject:
       type: object
       additionalProperties: true

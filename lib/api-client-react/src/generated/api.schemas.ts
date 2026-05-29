@@ -13,6 +13,214 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type MissionReviewMode =
+  (typeof MissionReviewMode)[keyof typeof MissionReviewMode];
+
+export const MissionReviewMode = {
+  draft_for_review: "draft_for_review",
+  plan_only: "plan_only",
+} as const;
+
+export type MissionExecutionMode =
+  (typeof MissionExecutionMode)[keyof typeof MissionExecutionMode];
+
+export const MissionExecutionMode = {
+  plan_only: "plan_only",
+  execute_ready: "execute_ready",
+} as const;
+
+export type MissionPlanStatus =
+  (typeof MissionPlanStatus)[keyof typeof MissionPlanStatus];
+
+export const MissionPlanStatus = {
+  draft: "draft",
+  needs_confirmation: "needs_confirmation",
+  approved: "approved",
+  executing: "executing",
+  completed: "completed",
+  failed: "failed",
+} as const;
+
+export type MissionRiskLevel =
+  (typeof MissionRiskLevel)[keyof typeof MissionRiskLevel];
+
+export const MissionRiskLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+} as const;
+
+export type MissionStepStatus =
+  (typeof MissionStepStatus)[keyof typeof MissionStepStatus];
+
+export const MissionStepStatus = {
+  pending: "pending",
+  waiting_approval: "waiting_approval",
+  running: "running",
+  blocked: "blocked",
+  succeeded: "succeeded",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export type MissionRevisionStatus =
+  (typeof MissionRevisionStatus)[keyof typeof MissionRevisionStatus];
+
+export const MissionRevisionStatus = {
+  draft: "draft",
+  approved: "approved",
+  superseded: "superseded",
+  executed: "executed",
+} as const;
+
+export interface MissionStepApproval {
+  required: boolean;
+  /** @minLength 1 */
+  reason: string;
+  riskLevel: MissionRiskLevel;
+}
+
+export interface MissionPlanStep {
+  /** @minLength 1 */
+  stepId: string;
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  objective: string;
+  skillId?: string;
+  /** @minLength 1 */
+  moduleId?: string;
+  assignedAgentId?: string;
+  roleId?: string;
+  dependsOn: string[];
+  status: MissionStepStatus;
+  approval?: MissionStepApproval;
+}
+
+export interface MissionPlan {
+  /** @minLength 1 */
+  missionId: string;
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  userGoal: string;
+  /** @minLength 1 */
+  summary: string;
+  status: MissionPlanStatus;
+  riskLevel: MissionRiskLevel;
+  steps: MissionPlanStep[];
+  warnings: string[];
+  nonGoals: string[];
+}
+
+export interface MissionRecord {
+  /** @minLength 1 */
+  missionId: string;
+  title: string;
+  userGoal: string;
+  status: MissionPlanStatus;
+  riskLevel: MissionRiskLevel;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @nullable */
+  approvedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MissionPlanRevisionRecord {
+  revisionId: string;
+  /** @minLength 1 */
+  missionId: string;
+  revisionNumber: number;
+  status: MissionRevisionStatus;
+  plan: MissionPlan;
+  createdAt: string;
+}
+
+export type MissionExecutionReadinessStatus =
+  (typeof MissionExecutionReadinessStatus)[keyof typeof MissionExecutionReadinessStatus];
+
+export const MissionExecutionReadinessStatus = {
+  approved: "approved",
+  stubbed: "stubbed",
+} as const;
+
+export interface MissionExecutionReadiness {
+  ready: boolean;
+  status: MissionExecutionReadinessStatus;
+  message: string;
+  revisionId?: string;
+}
+
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,63}$
+ */
+export type AgentId = string;
+
+/**
+ * @minLength 1
+ */
+export type SkillId = string;
+
+export interface CreateMissionRequest {
+  /** @minLength 1 */
+  message: string;
+  agentId?: AgentId;
+  enabledSkillIds?: SkillId[];
+  reviewMode?: MissionReviewMode;
+}
+
+export interface CreateMissionResult {
+  mission: MissionRecord;
+  revision: MissionPlanRevisionRecord;
+  plan: MissionPlan;
+}
+
+export interface GetMissionResult {
+  mission: MissionRecord;
+  latestRevision: MissionPlanRevisionRecord;
+  plan: MissionPlan;
+}
+
+export interface ReviseMissionRequest {
+  /** @minLength 1 */
+  instruction: string;
+  expectedRevisionId: string;
+}
+
+export interface ReviseMissionResult {
+  mission: MissionRecord;
+  revision: MissionPlanRevisionRecord;
+  plan: MissionPlan;
+}
+
+export interface ApproveMissionRequest {
+  revisionId: string;
+  approvedBy?: string;
+}
+
+export interface ApproveMissionResult {
+  mission: MissionRecord;
+  approvedRevision: MissionPlanRevisionRecord;
+  executionReadiness: MissionExecutionReadiness;
+}
+
+export interface ExecuteMissionRequest {
+  revisionId: string;
+  executionMode?: MissionExecutionMode;
+}
+
+export interface ExecuteMissionResult {
+  mission: MissionRecord;
+  /** @nullable */
+  pipelineRun: null;
+  /** @nullable */
+  thread: null;
+  moduleRuns: unknown[];
+  executionReadiness: MissionExecutionReadiness;
+}
+
 export interface JsonObject {
   [key: string]: unknown;
 }
@@ -356,11 +564,6 @@ export interface ClimateMonitorRunResponse {
   stderr: string;
 }
 
-/**
- * @minLength 1
- */
-export type SkillId = string;
-
 export type SkillExecutionKind =
   (typeof SkillExecutionKind)[keyof typeof SkillExecutionKind];
 
@@ -519,11 +722,6 @@ export interface SkillListResponse {
   skills: SkillManifest[];
   readiness: SkillReadiness[];
 }
-
-/**
- * @pattern ^[a-z][a-z0-9_]{1,63}$
- */
-export type AgentId = string;
 
 export type AgentSource = (typeof AgentSource)[keyof typeof AgentSource];
 

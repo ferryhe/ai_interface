@@ -28,6 +28,8 @@ import type {
   AgentRunListResponse,
   AgentRunResponse,
   AgentRunTimeline,
+  ApproveMissionRequest,
+  ApproveMissionResult,
   Artifact,
   ArtifactListResponse,
   ClimateMonitorRunRequest,
@@ -35,10 +37,15 @@ import type {
   ClimateMonitorStatusResponse,
   CreateAgentRunRequest,
   CreateArtifactRequest,
+  CreateMissionRequest,
+  CreateMissionResult,
   CreateModuleRunRequest,
   CreateRunEventRequest,
   CreateToolInteractionRequest,
   ErrorResponse,
+  ExecuteMissionRequest,
+  ExecuteMissionResult,
+  GetMissionResult,
   HealthStatus,
   ListArtifactsParams,
   ListRunsParams,
@@ -47,6 +54,8 @@ import type {
   ModuleRunDetail,
   ModuleRunIngestResponse,
   PortalAccessVerificationResponse,
+  ReviseMissionRequest,
+  ReviseMissionResult,
   RunEvent,
   SkillListResponse,
   StartPipelineRunRequest,
@@ -1856,6 +1865,443 @@ export function useListArtifacts<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Creates a mission intake record and initial draft plan for review. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
+ * @summary Create a draft mission
+ */
+export const getCreateMissionUrl = () => {
+  return `/api/missions`;
+};
+
+export const createMission = async (
+  createMissionRequest: CreateMissionRequest,
+  options?: RequestInit,
+): Promise<CreateMissionResult> => {
+  return customFetch<CreateMissionResult>(getCreateMissionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createMissionRequest),
+  });
+};
+
+export const getCreateMissionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMission>>,
+    TError,
+    { data: BodyType<CreateMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMission>>,
+  TError,
+  { data: BodyType<CreateMissionRequest> },
+  TContext
+> => {
+  const mutationKey = ["createMission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMission>>,
+    { data: BodyType<CreateMissionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMission(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createMission>>
+>;
+export type CreateMissionMutationBody = BodyType<CreateMissionRequest>;
+export type CreateMissionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a draft mission
+ */
+export const useCreateMission = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMission>>,
+    TError,
+    { data: BodyType<CreateMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createMission>>,
+  TError,
+  { data: BodyType<CreateMissionRequest> },
+  TContext
+> => {
+  return useMutation(getCreateMissionMutationOptions(options));
+};
+
+/**
+ * Returns the mission record, latest revision, and mission plan. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
+ * @summary Get a mission and latest revision
+ */
+export const getGetMissionUrl = (missionId: string) => {
+  return `/api/missions/${missionId}`;
+};
+
+export const getMission = async (
+  missionId: string,
+  options?: RequestInit,
+): Promise<GetMissionResult> => {
+  return customFetch<GetMissionResult>(getGetMissionUrl(missionId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMissionQueryKey = (missionId: string) => {
+  return [`/api/missions/${missionId}`] as const;
+};
+
+export const getGetMissionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMission>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  missionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMission>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMissionQueryKey(missionId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMission>>> = ({
+    signal,
+  }) => getMission(missionId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!missionId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMission>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMissionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMission>>
+>;
+export type GetMissionQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a mission and latest revision
+ */
+
+export function useGetMission<
+  TData = Awaited<ReturnType<typeof getMission>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  missionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMission>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMissionQueryOptions(missionId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Revise the latest mission draft
+ */
+export const getReviseMissionUrl = (missionId: string) => {
+  return `/api/missions/${missionId}/revise`;
+};
+
+export const reviseMission = async (
+  missionId: string,
+  reviseMissionRequest: ReviseMissionRequest,
+  options?: RequestInit,
+): Promise<ReviseMissionResult> => {
+  return customFetch<ReviseMissionResult>(getReviseMissionUrl(missionId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(reviseMissionRequest),
+  });
+};
+
+export const getReviseMissionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviseMission>>,
+    TError,
+    { missionId: string; data: BodyType<ReviseMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviseMission>>,
+  TError,
+  { missionId: string; data: BodyType<ReviseMissionRequest> },
+  TContext
+> => {
+  const mutationKey = ["reviseMission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviseMission>>,
+    { missionId: string; data: BodyType<ReviseMissionRequest> }
+  > = (props) => {
+    const { missionId, data } = props ?? {};
+
+    return reviseMission(missionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviseMissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviseMission>>
+>;
+export type ReviseMissionMutationBody = BodyType<ReviseMissionRequest>;
+export type ReviseMissionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Revise the latest mission draft
+ */
+export const useReviseMission = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviseMission>>,
+    TError,
+    { missionId: string; data: BodyType<ReviseMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reviseMission>>,
+  TError,
+  { missionId: string; data: BodyType<ReviseMissionRequest> },
+  TContext
+> => {
+  return useMutation(getReviseMissionMutationOptions(options));
+};
+
+/**
+ * @summary Approve the latest mission revision
+ */
+export const getApproveMissionUrl = (missionId: string) => {
+  return `/api/missions/${missionId}/approve`;
+};
+
+export const approveMission = async (
+  missionId: string,
+  approveMissionRequest: ApproveMissionRequest,
+  options?: RequestInit,
+): Promise<ApproveMissionResult> => {
+  return customFetch<ApproveMissionResult>(getApproveMissionUrl(missionId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(approveMissionRequest),
+  });
+};
+
+export const getApproveMissionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveMission>>,
+    TError,
+    { missionId: string; data: BodyType<ApproveMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveMission>>,
+  TError,
+  { missionId: string; data: BodyType<ApproveMissionRequest> },
+  TContext
+> => {
+  const mutationKey = ["approveMission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveMission>>,
+    { missionId: string; data: BodyType<ApproveMissionRequest> }
+  > = (props) => {
+    const { missionId, data } = props ?? {};
+
+    return approveMission(missionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveMissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveMission>>
+>;
+export type ApproveMissionMutationBody = BodyType<ApproveMissionRequest>;
+export type ApproveMissionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Approve the latest mission revision
+ */
+export const useApproveMission = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveMission>>,
+    TError,
+    { missionId: string; data: BodyType<ApproveMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveMission>>,
+  TError,
+  { missionId: string; data: BodyType<ApproveMissionRequest> },
+  TContext
+> => {
+  return useMutation(getApproveMissionMutationOptions(options));
+};
+
+/**
+ * Marks an approved mission as executing and returns stubbed execution readiness metadata until runtime orchestration is connected.
+ * @summary Mark a mission as executing
+ */
+export const getExecuteMissionUrl = (missionId: string) => {
+  return `/api/missions/${missionId}/execute`;
+};
+
+export const executeMission = async (
+  missionId: string,
+  executeMissionRequest: ExecuteMissionRequest,
+  options?: RequestInit,
+): Promise<ExecuteMissionResult> => {
+  return customFetch<ExecuteMissionResult>(getExecuteMissionUrl(missionId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(executeMissionRequest),
+  });
+};
+
+export const getExecuteMissionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeMission>>,
+    TError,
+    { missionId: string; data: BodyType<ExecuteMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof executeMission>>,
+  TError,
+  { missionId: string; data: BodyType<ExecuteMissionRequest> },
+  TContext
+> => {
+  const mutationKey = ["executeMission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof executeMission>>,
+    { missionId: string; data: BodyType<ExecuteMissionRequest> }
+  > = (props) => {
+    const { missionId, data } = props ?? {};
+
+    return executeMission(missionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExecuteMissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeMission>>
+>;
+export type ExecuteMissionMutationBody = BodyType<ExecuteMissionRequest>;
+export type ExecuteMissionMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Mark a mission as executing
+ */
+export const useExecuteMission = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeMission>>,
+    TError,
+    { missionId: string; data: BodyType<ExecuteMissionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof executeMission>>,
+  TError,
+  { missionId: string; data: BodyType<ExecuteMissionRequest> },
+  TContext
+> => {
+  return useMutation(getExecuteMissionMutationOptions(options));
+};
 
 /**
  * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` or `metadata.source: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.

@@ -4,8 +4,8 @@ Updated: 2026-05-29
 
 ## Active Work
 
-- Branch: `codex/pr3-mission-persistence-foundation`
-- Scope: PR 3 Mission Persistence Foundation DB schema/migration completion plus mission repository implementations and tests.
+- Branch: `codex/pr4-mission-intake-api`
+- Scope: PR 4 Mission Intake / Revise / Approve API — routes, service, tests.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -299,4 +299,4 @@ Updated: 2026-05-29
 
 ## Next Action
 
-- Complete the PR 3 diff review gate, commit/push `codex/pr3-mission-persistence-foundation`, open PR 3, then run the remote comments/checks follow-up before merge.
+- Push PR 4 branch, create PR, wait for CI/Copilot comments, merge, then start PR 5 (Mission Center / Plan Review UI).

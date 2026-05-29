@@ -235,7 +235,10 @@ export class InMemoryMissionRepository implements MissionRepository {
     };
 
     this.executionLinks.set(`${input.missionId}:${input.revisionId}`, link);
-    mission.updatedAt = new Date();
+    revision.status = "executed";
+    revision.plan = missionPlanWithStatus(revision.plan, "executing");
+    mission.status = "executing";
+    mission.updatedAt = input.executedAt ?? new Date();
 
     return cloneExecutionLink(link);
   }
