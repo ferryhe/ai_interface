@@ -9,21 +9,21 @@ teams:
       - backstage-governance
     roles:
       - boss-agent
-      - research
-      - builder
-      - qa
+      - research-agent
+      - builder-agent
+      - qa-agent
       - ops
 roles:
   boss-agent:
     doc: docs/workbench/roles/boss-agent.md
     team: mission-control
-  research:
+  research-agent:
     doc: docs/workbench/roles/research-agent.md
     team: mission-control
-  builder:
+  builder-agent:
     doc: docs/workbench/roles/builder-agent.md
     team: mission-control
-  qa:
+  qa-agent:
     doc: docs/workbench/roles/qa-agent.md
     team: mission-control
   ops:
