@@ -4,8 +4,8 @@ Updated: 2026-05-29
 
 ## Active Work
 
-- Branch: `codex/pr2-mission-plan-contract`
-- Scope: PR 2 minimal Mission Plan contract types, validation, fixtures, and AgentRuntimePlan mapping.
+- Branch: `codex/pr3-mission-persistence-foundation`
+- Scope: PR 3 Mission Persistence Foundation DB schema/migration completion plus mission repository implementations and tests.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -86,6 +86,13 @@ Updated: 2026-05-29
 - PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
+
+- Mission Persistence Foundation verification on 2026-05-30:
+  - Focused direct test `corepack pnpm --filter @workspace/api-server exec tsx --test src/mission/mission-repository.test.ts` passed with 9 passing and 0 failures (plus 1 skipped).
+  - Required test-script verification `corepack pnpm --filter @workspace/api-server run test -- src/mission/mission-repository.test.ts` passed; the package test script still executes `src/**/*.test.ts`, and all 307 tests passed (1 skipped).
+  - `corepack pnpm --filter @workspace/api-server run build` passed.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `corepack pnpm run typecheck:libs` passed.
 
 - Mission Plan contract verification on 2026-05-29:
   - `pnpm --filter @workspace/api-server run test -- src/mission/mission-plan.test.ts` passed (the workspace test script still executed the full `src/**/*.test.ts` suite; all 298 tests passed).
@@ -292,4 +299,4 @@ Updated: 2026-05-29
 
 ## Next Action
 
-- Wait for the PR #57 remote-feedback gate, then re-check GitHub checks, reviews, inline comments, and Copilot feedback before merge.
+- Complete the PR 3 diff review gate, commit/push `codex/pr3-mission-persistence-foundation`, open PR 3, then run the remote comments/checks follow-up before merge.

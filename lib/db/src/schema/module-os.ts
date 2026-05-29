@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -8,9 +9,11 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
-  type AnyPgColumn,
+  AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
 import { createInsertSchema } from "drizzle-zod";
+
 import { z } from "zod/v4";
 
 const defaultPublishSettings = {
@@ -74,6 +77,28 @@ export const agentReasoningEffortEnum = pgEnum("agent_reasoning_effort", [
   "medium",
   "high",
   "xhigh",
+]);
+
+export const missionStatusEnum = pgEnum("mission_status", [
+  "draft",
+  "needs_confirmation",
+  "approved",
+  "executing",
+  "completed",
+  "failed",
+]);
+
+export const missionRiskLevelEnum = pgEnum("mission_risk_level", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const missionPlanRevisionStatusEnum = pgEnum("mission_plan_revision_status", [
+  "draft",
+  "approved",
+  "superseded",
+  "executed",
 ]);
 
 export const agentThreadsTable = pgTable("agent_threads", {
@@ -254,6 +279,67 @@ export const typedDataRecordsTable = pgTable(
   }),
 );
 
+export const missionsTable = pgTable("missions", {
+  missionId: text("mission_id").primaryKey(),
+  title: text("title").notNull(),
+  userGoal: text("user_goal").notNull(),
+  status: missionStatusEnum("status").notNull().default("draft"),
+  riskLevel: missionRiskLevelEnum("risk_level").notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  approvedBy: text("approved_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const missionPlanRevisionsTable = pgTable(
+  "mission_plan_revisions",
+  {
+    revisionId: uuid("revision_id").primaryKey().defaultRandom(),
+    missionId: text("mission_id")
+      .notNull()
+      .references(() => missionsTable.missionId, { onDelete: "cascade" }),
+    revisionNumber: integer("revision_number").notNull(),
+    status: missionPlanRevisionStatusEnum("status").notNull().default("draft"),
+    planJson: jsonb("plan_json").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    missionRevisionNumberUniqueIdx: uniqueIndex(
+      "mission_plan_revisions_mission_revision_number_unique_idx",
+    ).on(table.missionId, table.revisionNumber),
+    missionStatusIdx: index("mission_plan_revisions_mission_status_idx").on(
+      table.missionId,
+      table.status,
+    ),
+  }),
+);
+
+export const missionExecutionLinksTable = pgTable(
+  "mission_execution_links",
+  {
+    missionId: text("mission_id")
+      .notNull()
+      .references(() => missionsTable.missionId, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => missionPlanRevisionsTable.revisionId, { onDelete: "cascade" }),
+    threadId: uuid("thread_id").references(() => agentThreadsTable.id, {
+      onDelete: "set null",
+    }),
+    pipelineRunId: uuid("pipeline_run_id").references(() => pipelineRunsTable.id, {
+      onDelete: "set null",
+    }),
+    sourceAgentRunId: text("source_agent_run_id"),
+    executedAt: timestamp("executed_at", { withTimezone: true }),
+  },
+  (table) => ({
+    missionRevisionUniqueIdx: uniqueIndex(
+      "mission_execution_links_mission_revision_unique_idx",
+    ).on(table.missionId, table.revisionId),
+    pipelineIdx: index("mission_execution_links_pipeline_idx").on(table.pipelineRunId),
+  }),
+);
+
 export const agentConfigsTable = pgTable("agent_configs", {
   id: uuid("id").primaryKey().defaultRandom(),
   configKey: text("config_key").notNull().unique().default("default"),
@@ -361,6 +447,19 @@ export const insertTypedDataRecordSchema = createInsertSchema(
   createdAt: true,
   updatedAt: true,
 });
+export const insertMissionSchema = createInsertSchema(missionsTable).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertMissionPlanRevisionSchema = createInsertSchema(
+  missionPlanRevisionsTable,
+).omit({
+  revisionId: true,
+  createdAt: true,
+});
+export const insertMissionExecutionLinkSchema = createInsertSchema(
+  missionExecutionLinksTable,
+);
 export const insertAgentConfigSchema = createInsertSchema(agentConfigsTable).omit({
   id: true,
   createdAt: true,
@@ -383,5 +482,11 @@ export type InsertArtifact = z.infer<typeof insertArtifactSchema>;
 export type Artifact = typeof artifactsTable.$inferSelect;
 export type InsertTypedDataRecord = z.infer<typeof insertTypedDataRecordSchema>;
 export type TypedDataRecord = typeof typedDataRecordsTable.$inferSelect;
+export type InsertMission = z.infer<typeof insertMissionSchema>;
+export type Mission = typeof missionsTable.$inferSelect;
+export type InsertMissionPlanRevision = z.infer<typeof insertMissionPlanRevisionSchema>;
+export type MissionPlanRevision = typeof missionPlanRevisionsTable.$inferSelect;
+export type InsertMissionExecutionLink = z.infer<typeof insertMissionExecutionLinkSchema>;
+export type MissionExecutionLink = typeof missionExecutionLinksTable.$inferSelect;
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type AgentConfig = typeof agentConfigsTable.$inferSelect;
