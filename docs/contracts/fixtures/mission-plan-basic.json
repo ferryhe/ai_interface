@@ -1,0 +1,41 @@
+{
+  "missionId": "mission-basic-001",
+  "title": "Build onboarding knowledge base",
+  "userGoal": "Turn approved onboarding sources into a searchable agent.",
+  "summary": "Collect sources, convert documents, and index them for the agent.",
+  "status": "needs_confirmation",
+  "riskLevel": "medium",
+  "steps": [
+    {
+      "stepId": "collect-sources",
+      "title": "Collect approved sources",
+      "objective": "Collect the approved websites and documents for ingestion.",
+      "skillId": "web_listening",
+      "moduleId": "web_listening",
+      "dependsOn": [],
+      "status": "pending"
+    },
+    {
+      "stepId": "convert-documents",
+      "title": "Convert documents to Markdown",
+      "objective": "Convert uploaded documents into normalized Markdown.",
+      "skillId": "doc_to_md",
+      "moduleId": "doc_to_md",
+      "dependsOn": ["collect-sources"],
+      "status": "pending"
+    },
+    {
+      "stepId": "index-knowledge",
+      "title": "Index knowledge",
+      "objective": "Index the normalized Markdown into the retrieval layer.",
+      "skillId": "md_to_rag",
+      "moduleId": "md_to_rag",
+      "dependsOn": ["convert-documents"],
+      "status": "pending"
+    }
+  ],
+  "warnings": [],
+  "nonGoals": [
+    "Do not assign child agents in this revision."
+  ]
+}

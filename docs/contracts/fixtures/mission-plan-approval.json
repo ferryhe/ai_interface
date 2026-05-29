@@ -1,0 +1,40 @@
+{
+  "missionId": "mission-approval-001",
+  "title": "Prepare and publish onboarding agent",
+  "userGoal": "Draft the onboarding agent, then require review before publishing it.",
+  "summary": "Build the draft agent and pause before the publish step for approval.",
+  "status": "needs_confirmation",
+  "riskLevel": "high",
+  "steps": [
+    {
+      "stepId": "draft-agent",
+      "title": "Draft agent configuration",
+      "objective": "Create the draft agent configuration from indexed knowledge.",
+      "skillId": "rag_to_agent",
+      "moduleId": "rag_to_agent",
+      "dependsOn": [],
+      "status": "pending"
+    },
+    {
+      "stepId": "publish-agent",
+      "title": "Publish agent configuration",
+      "objective": "Publish the drafted agent configuration to the shared catalog.",
+      "skillId": "rag_to_agent",
+      "moduleId": "rag_to_agent",
+      "dependsOn": ["draft-agent"],
+      "status": "waiting_approval",
+      "approval": {
+        "required": true,
+        "reason": "Publishing changes the shared agent behavior and must be reviewed.",
+        "riskLevel": "high"
+      }
+    }
+  ],
+  "warnings": [
+    "Publishing remains blocked until an operator approves the plan."
+  ],
+  "nonGoals": [
+    "Do not add a true child-agent scheduler.",
+    "Do not execute the publish step automatically."
+  ]
+}

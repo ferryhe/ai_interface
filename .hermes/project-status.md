@@ -1,15 +1,20 @@
 # ai_interface Project Status
 
-Updated: 2026-05-22
+Updated: 2026-05-29
 
 ## Active Work
 
-- Branch: `codex/pr56-review-followup`
-- Scope: Post-merge PR #56 review follow-up for manifest readiness normalization, climate monitor command metadata, and status cleanup.
+- Branch: `codex/pr2-mission-plan-contract`
+- Scope: PR 2 minimal Mission Plan contract types, validation, fixtures, and AgentRuntimePlan mapping.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR 2 minimal Mission Plan contract is implemented locally on `codex/pr2-mission-plan-contract`.
+- Added `artifacts/api-server/src/mission/mission-plan.ts` with minimal Mission plan types, validation, and `AgentRuntimePlan` mapping.
+- Added `artifacts/api-server/src/mission/mission-plan.test.ts` covering duplicate step IDs, unknown dependencies, dependency cycles, approval field validation, and runtime-plan mapping.
+- Added UI-readable fixtures `docs/contracts/fixtures/mission-plan-basic.json` and `docs/contracts/fixtures/mission-plan-approval.json`.
+- No `agent-runtime-service.ts` execution logic changes were required; compatibility is preserved by mapping from the existing exported `AgentRuntimePlan` shape.
 - PR #56 manifest-driven readiness merged into `main` at `8c8be5e`: https://github.com/ferryhe/ai_interface/pull/56
 - Follow-up branch `codex/pr56-review-followup` is addressing confirmed-safe Copilot comments from PR #56 that arrived after merge.
 - PR #57 follow-up is open on `codex/pr56-review-followup`: https://github.com/ferryhe/ai_interface/pull/57
@@ -81,6 +86,10 @@ Updated: 2026-05-22
 - PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
+
+- Mission Plan contract verification on 2026-05-29:
+  - `pnpm --filter @workspace/api-server run test -- src/mission/mission-plan.test.ts` passed (the workspace test script still executed the full `src/**/*.test.ts` suite; all 298 tests passed).
+  - `pnpm --filter @workspace/api-server run build` passed.
 
 - Manifest-driven readiness verification:
   - TDD red run: `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-loader.test.ts src/skill-runtime/skill-manifest.test.ts src/tool-adapters/adapter-registry.test.ts src/climate-monitor/service.test.ts` failed with expected missing `project.readiness.requiredPaths` loader/defaults, hard-coded fallback shape, custom fallback readiness, and non-project env fallback failures.
