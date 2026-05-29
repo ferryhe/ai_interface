@@ -15,6 +15,7 @@
 - `ai_interface` 的 Workbench Governance 在本 PR 先以 docs-only 方式落地。
 - 本层不改 API、DB、UI runtime 行为。
 - Workbench 当前按三条路径组织：`normal` / `operator` / `backstage`。
+- `normal` 即 user-facing 路径，面向普通用户；`operator` 面向值守；`backstage` 面向研发治理。
 - normal path 面向普通用户，默认不暴露 provider/model 作为主要认知对象。
 - 角色文档位于 `docs/workbench/roles/`。
 - 团队与角色映射位于 `docs/workbench/teams/team-registry.yaml`。
