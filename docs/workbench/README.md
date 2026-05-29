@@ -13,6 +13,7 @@ Workbench 是 `ai_interface` 的 mission control 文档层：只定义协作边�
 
 - `ai_interface` 负责编排 Agent、Skill、Run、Artifact 的前台与工作台协作体验。
 - mission 的运行时真实状态仍以 API、DB、日志、artifact 为准。
+- **approve（批准）与 execute（执行）解耦：**`approve` 只表示用户已接受计划/动作意图，不代表该动作已完成执行；实际执行仍以 runtime / run / artifact / event 状态为准。
 - Workbench 文档层只保留“人需要共同理解与持续维护的最小事实”。
 - **work in progress is intentional**：允许文档存在进行中、待决、未闭环条目，但必须明确谁负责、下一步是什么、什么不在这里记录。
 

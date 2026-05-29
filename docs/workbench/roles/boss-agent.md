@@ -9,6 +9,7 @@
 - 定义本轮要解决的问题与非目标。
 - 决定 normal / operator / backstage 的职责切分。
 - 决定哪些事实写入 Workbench，哪些必须回到系统事实源。
+- 定义何时触发 **approve** 与何时触发 **execute**。
 - 为 builder、research、qa 提供统一验收口径。
 
 ## 禁区

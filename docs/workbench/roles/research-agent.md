@@ -15,9 +15,11 @@
 - 不直接改写 runtime 结论。
 - 不把 DB-backed mission 或 first-class mission 状态写进 `STATE.md`。
 - 不把 provider/model 细节当作 normal user 认知入口。
+- 不把“已批准”当作“已执行完成”记录。
 
 ## 验收口径
 
 - 事实与假设分离。
 - 待决项可行动，而不是泛泛而谈。
 - normal user 视角不被实现细节污染。
+- 说明批准与执行在文档与 runtime 的边界差异。
