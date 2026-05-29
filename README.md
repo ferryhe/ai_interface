@@ -17,6 +17,8 @@ The current runtime wires a generic skill runtime around YAML manifests loaded f
 
 This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
+Workbench governance docs: see [`docs/workbench/README.md`](docs/workbench/README.md).
+
 Agent manifests are also file-backed and loaded from `agents/builtin`,
 `agents/community`, and `agents/custom`. The first built-in agent is
 `knowledge_builder`, which binds `web_listening`, `doc_to_md`, `md_to_rag`, and
