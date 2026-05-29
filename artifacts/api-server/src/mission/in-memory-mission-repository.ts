@@ -56,7 +56,7 @@ function normalizeMission(input: CreateMissionInput, now: Date): MissionRecord {
     missionId: input.missionId,
     title: input.title,
     userGoal: input.userGoal,
-    status: input.status ?? "draft",
+    status: input.status ?? "needs_confirmation",
     riskLevel: input.riskLevel,
     approvedAt: null,
     approvedBy: null,
@@ -109,12 +109,12 @@ export class InMemoryMissionRepository implements MissionRepository {
     const revision = this.createRevisionRecord(
       {
         missionId: input.missionId,
-        plan: missionPlanWithStatus(plan, mission.status),
+        plan: missionPlanWithStatus(plan, "needs_confirmation"),
       },
       1,
       now,
       "draft",
-      mission.status,
+      "needs_confirmation",
     );
 
     this.missions.set(mission.missionId, mission);

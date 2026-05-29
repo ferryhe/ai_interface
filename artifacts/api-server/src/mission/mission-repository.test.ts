@@ -462,3 +462,37 @@ test("link mission execution to a pipeline run", async () => {
     executedAt: new Date("2026-05-29T12:00:00.000Z"),
   });
 });
+
+test("create mission without explicit status defaults to needs_confirmation for both mission and plan", async () => {
+  const repository = new InMemoryMissionRepository();
+  const plan = createPlan({ missionId: "mission-no-status" });
+
+  const created = await repository.createMission({
+    missionId: plan.missionId,
+    title: plan.title,
+    userGoal: plan.userGoal,
+    riskLevel: plan.riskLevel,
+    plan,
+  });
+
+  assert.equal(created.mission.status, "needs_confirmation");
+  assert.equal(created.revision.status, "draft");
+  assert.equal(created.revision.plan.status, "needs_confirmation");
+});
+
+test("create mission with any explicit status always sets the initial revision plan status to needs_confirmation", async () => {
+  const repository = new InMemoryMissionRepository();
+  const plan = createPlan({ missionId: "mission-explicit-status" });
+
+  const created = await repository.createMission({
+    missionId: plan.missionId,
+    title: plan.title,
+    userGoal: plan.userGoal,
+    riskLevel: plan.riskLevel,
+    status: "draft",
+    plan,
+  });
+
+  assert.equal(created.revision.status, "draft");
+  assert.equal(created.revision.plan.status, "needs_confirmation");
+});

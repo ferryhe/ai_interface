@@ -117,7 +117,7 @@ export class DbMissionRepository implements MissionRepository {
           missionId: input.missionId,
           title: plan.title,
           userGoal: plan.userGoal,
-          status: input.status ?? "draft",
+          status: input.status ?? "needs_confirmation",
           riskLevel: plan.riskLevel,
         })
         .returning();
@@ -128,7 +128,7 @@ export class DbMissionRepository implements MissionRepository {
           missionId: input.missionId,
           revisionNumber: 1,
           status: "draft",
-          planJson: missionPlanToJson(withMissionPlanStatus(plan, input.status ?? "draft")),
+          planJson: missionPlanToJson(withMissionPlanStatus(plan, "needs_confirmation")),
         })
         .returning();
 
