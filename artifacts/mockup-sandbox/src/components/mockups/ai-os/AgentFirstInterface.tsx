@@ -2981,7 +2981,7 @@ export function AgentFirstInterface() {
         <header className="topbar">
           <div className="topbar-title">
             <Bot size={17} />
-            <span>Agent Module OS</span>
+            <span>AI Team Mission Control</span>
           </div>
           <div className="topbar-actions">
             <div className="workspace-switch" aria-label="Workspace mode">
@@ -2990,7 +2990,7 @@ export function AgentFirstInterface() {
                 className={workspaceMode === "mission" ? "active" : ""}
                 onClick={() => setWorkspaceMode("mission")}
               >
-                Mission
+                Mission Center
               </button>
               <button
                 type="button"
@@ -3005,6 +3005,16 @@ export function AgentFirstInterface() {
                 onClick={() => setWorkspaceMode("backstage")}
               >
                 Backstage
+              </button>
+              <button
+                type="button"
+                className={workspaceMode === "backstage" && workbenchTab === "operator" ? "active" : ""}
+                onClick={() => {
+                  setWorkspaceMode("backstage");
+                  setWorkbenchTab("operator");
+                }}
+              >
+                Operator
               </button>
             </div>
             <button
@@ -3032,7 +3042,16 @@ export function AgentFirstInterface() {
 
         <main className="view-frame">
           {workspaceMode === "mission" ? (
-            <MissionCenterShell onOpenBackstage={() => setWorkspaceMode("backstage")} />
+            <MissionCenterShell
+              onOpenBackstage={() => {
+                setWorkspaceMode("backstage");
+                setWorkbenchTab("runs");
+              }}
+              onOpenOperator={() => {
+                setWorkspaceMode("backstage");
+                setWorkbenchTab("operator");
+              }}
+            />
           ) : workspaceMode === "backstage" ? (
             <BackstageView
               workbenchTab={workbenchTab}

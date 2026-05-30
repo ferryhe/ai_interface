@@ -92,6 +92,12 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
           </Alert>
         ) : null}
 
+        {missionId && loadState === "loading" ? (
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+            正在同步 Mission execution board；稍后会显示最新角色状态、阻塞点与产物摘要。
+          </div>
+        ) : null}
+
         {!missionId ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
             先创建并选择一个 Mission，再查看 Execution Board。
@@ -100,7 +106,7 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
 
         {missionId && board.length === 0 && loadState !== "loading" && !errorMessage ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            当前还没有可展示的执行记录；如果尚未连上 runtime，会按 plan 保持待执行视图。
+            当前还没有可展示的执行记录；approve 只确认计划，只有 execute 后这里才会出现真实运行状态与产物回链。
           </div>
         ) : null}
 

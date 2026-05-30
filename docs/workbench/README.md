@@ -56,3 +56,32 @@ Workbench 是 `ai_interface` 的 mission control 文档层：只定义协作边�
 2. 再看 `progress.md` 确认当前 PR 目标、验收与待决。
 3. 按角色文档执行协作，不把运行时瞬时状态写成长期事实。
 4. 任何需要数据库/接口/日志才能确认的内容，都回到系统事实源验证。
+
+## PR4-PR10 新增模块索引
+
+- **PR4 Safe Agent Creation / Import**
+  - `POST /api/agent-manifests`
+  - custom-only `agents/custom/*` 写入保护
+  - VS Code `.agent.md` import / export 互操作面
+- **PR5 Mission Center / Plan Review**
+  - Mission intake、Plan Review、approve / execute 分离入口
+  - Mission Center 成为 normal-user 默认入口
+- **PR6 Agent interop export**
+  - `GET /api/agents/:agentId/export/vscode-agent`
+  - `GET /api/agents/:agentId/export/mcp-tool`
+- **PR7 Mission persistence foundation**
+  - mission / revision 持久化、revision 冲突保护、board projection 基础能力
+- **PR8 Operator Backstage read-only**
+  - Operator manifest viewer
+  - Workbench docs viewer
+  - redacted UI-only governance inspection
+- **PR9 Operator manifest mutation guards**
+  - `POST /api/skill-manifests`
+  - guarded custom manifest mutation
+  - built-in / community / path traversal 保护
+- **PR10 Knowledge Builder mission demo**
+  - `docs/contracts/fixtures/knowledge-builder-mission.json`
+  - `docs/demos/knowledge-builder-mission.md`
+  - Knowledge Builder mission walkthrough / smoke reference
+
+这些模块共同构成当前的 Mission Control 体验：Mission Center 面向普通用户，Backstage 面向执行观测，Operator 面向高级治理与受保护修改。

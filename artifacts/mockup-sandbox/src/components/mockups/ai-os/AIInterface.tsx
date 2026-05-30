@@ -3207,7 +3207,7 @@ export function AIInterface() {
                     const ln = i + 1;
                     const collab = ln === 8 ? { color: "#3fb950", name: "Sara" } : ln === 21 ? { color: "#bc8cff", name: "Marcus" } : null;
                     const hasThread = ln === 14;
-                    const ghostText = ln === cursorLine ? "  // TODO: validate with zod schema before lookup" : null;
+                    const ghostText = ln === cursorLine ? "  // validate with zod schema before lookup" : null;
                     return (
                       <div key={i} style={{ display: "flex", paddingRight: 8, background: ln === cursorLine ? "#1f6feb0a" : "transparent", borderLeft: ln === cursorLine ? "2px solid #1f6feb44" : "2px solid transparent", position: "relative" as const }}>
                         <span style={{ width: 40, textAlign: "right", paddingRight: 16, color: ln === cursorLine ? "#8b949e" : "#484f58", flexShrink: 0, userSelect: "none" }}>{ln}</span>

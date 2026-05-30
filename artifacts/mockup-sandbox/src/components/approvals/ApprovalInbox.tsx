@@ -123,9 +123,15 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
           </Alert>
         ) : null}
 
+        {loadState === "loading" ? (
+          <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+            正在刷新审批列表；如需继续执行，请等待最新待审批动作与 redacted 摘要返回。
+          </div>
+        ) : null}
+
         {approvals.length === 0 && loadState !== "loading" ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            当前没有 pending approvals。
+            当前没有待审批动作；Mission 已批准不代表已经执行，新的高风险步骤会在这里单独出现。
           </div>
         ) : null}
 
