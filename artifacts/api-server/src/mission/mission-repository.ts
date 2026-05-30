@@ -1,4 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import type { MissionPlan, MissionPlanStatus, MissionRiskLevel } from "./mission-plan";
+
+export function generateMissionId(): string {
+  return `mission-${randomUUID()}`;
+}
 
 export type MissionRevisionStatus = "draft" | "approved" | "superseded" | "executed";
 
@@ -68,6 +74,15 @@ export class MissionRevisionConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "MissionRevisionConflictError";
+  }
+}
+
+export class MissionValidationError extends Error {
+  readonly statusCode = 400;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "MissionValidationError";
   }
 }
 

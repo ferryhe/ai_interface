@@ -1116,6 +1116,520 @@ export const ListArtifactsResponse = zod.object({
 });
 
 /**
+ * Creates a mission intake record and initial draft plan for review. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
+ * @summary Create a draft mission
+ */
+export const CreateMissionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const createMissionBodyAgentIdRegExp = new RegExp(
+  "^[a-z][a-z0-9_]{1,63}$",
+);
+
+export const CreateMissionBody = zod.object({
+  message: zod.string().min(1),
+  agentId: zod.string().regex(createMissionBodyAgentIdRegExp).optional(),
+  enabledSkillIds: zod.array(zod.string().min(1)).optional(),
+  reviewMode: zod.enum(["draft_for_review", "plan_only"]).optional(),
+});
+
+/**
+ * Returns the mission record, latest revision, and mission plan. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
+ * @summary Get a mission and latest revision
+ */
+
+export const GetMissionParams = zod.object({
+  missionId: zod.coerce.string().min(1),
+});
+
+export const GetMissionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const GetMissionResponse = zod.object({
+  mission: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string(),
+    userGoal: zod.string(),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    approvedAt: zod.coerce.date().nullable(),
+    approvedBy: zod.string().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  latestRevision: zod.object({
+    revisionId: zod.string().uuid(),
+    missionId: zod.string().min(1),
+    revisionNumber: zod.number(),
+    status: zod.enum(["draft", "approved", "superseded", "executed"]),
+    plan: zod.object({
+      missionId: zod.string().min(1),
+      title: zod.string().min(1),
+      userGoal: zod.string().min(1),
+      summary: zod.string().min(1),
+      status: zod.enum([
+        "draft",
+        "needs_confirmation",
+        "approved",
+        "executing",
+        "completed",
+        "failed",
+      ]),
+      riskLevel: zod.enum(["low", "medium", "high"]),
+      steps: zod.array(
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.object({
+        stepId: zod.string().min(1),
+        title: zod.string().min(1),
+        objective: zod.string().min(1),
+        skillId: zod.string().optional(),
+        moduleId: zod.string().min(1).optional(),
+        assignedAgentId: zod.string().optional(),
+        roleId: zod.string().optional(),
+        dependsOn: zod.array(zod.string()),
+        status: zod.enum([
+          "pending",
+          "waiting_approval",
+          "running",
+          "blocked",
+          "succeeded",
+          "failed",
+          "cancelled",
+        ]),
+        approval: zod
+          .object({
+            required: zod.boolean(),
+            reason: zod.string().min(1),
+            riskLevel: zod.enum(["low", "medium", "high"]),
+          })
+          .optional(),
+      }),
+    ),
+    warnings: zod.array(zod.string()),
+    nonGoals: zod.array(zod.string()),
+  }),
+});
+
+/**
+ * @summary Revise the latest mission draft
+ */
+
+export const ReviseMissionParams = zod.object({
+  missionId: zod.coerce.string().min(1),
+});
+
+export const ReviseMissionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const ReviseMissionBody = zod.object({
+  instruction: zod.string().min(1),
+  expectedRevisionId: zod.string().uuid(),
+});
+
+export const ReviseMissionResponse = zod.object({
+  mission: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string(),
+    userGoal: zod.string(),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    approvedAt: zod.coerce.date().nullable(),
+    approvedBy: zod.string().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  revision: zod.object({
+    revisionId: zod.string().uuid(),
+    missionId: zod.string().min(1),
+    revisionNumber: zod.number(),
+    status: zod.enum(["draft", "approved", "superseded", "executed"]),
+    plan: zod.object({
+      missionId: zod.string().min(1),
+      title: zod.string().min(1),
+      userGoal: zod.string().min(1),
+      summary: zod.string().min(1),
+      status: zod.enum([
+        "draft",
+        "needs_confirmation",
+        "approved",
+        "executing",
+        "completed",
+        "failed",
+      ]),
+      riskLevel: zod.enum(["low", "medium", "high"]),
+      steps: zod.array(
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.object({
+        stepId: zod.string().min(1),
+        title: zod.string().min(1),
+        objective: zod.string().min(1),
+        skillId: zod.string().optional(),
+        moduleId: zod.string().min(1).optional(),
+        assignedAgentId: zod.string().optional(),
+        roleId: zod.string().optional(),
+        dependsOn: zod.array(zod.string()),
+        status: zod.enum([
+          "pending",
+          "waiting_approval",
+          "running",
+          "blocked",
+          "succeeded",
+          "failed",
+          "cancelled",
+        ]),
+        approval: zod
+          .object({
+            required: zod.boolean(),
+            reason: zod.string().min(1),
+            riskLevel: zod.enum(["low", "medium", "high"]),
+          })
+          .optional(),
+      }),
+    ),
+    warnings: zod.array(zod.string()),
+    nonGoals: zod.array(zod.string()),
+  }),
+});
+
+/**
+ * @summary Approve the latest mission revision
+ */
+
+export const ApproveMissionParams = zod.object({
+  missionId: zod.coerce.string().min(1),
+});
+
+export const ApproveMissionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const ApproveMissionBody = zod.object({
+  revisionId: zod.string().uuid(),
+  approvedBy: zod.string().optional(),
+});
+
+export const ApproveMissionResponse = zod.object({
+  mission: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string(),
+    userGoal: zod.string(),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    approvedAt: zod.coerce.date().nullable(),
+    approvedBy: zod.string().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  approvedRevision: zod.object({
+    revisionId: zod.string().uuid(),
+    missionId: zod.string().min(1),
+    revisionNumber: zod.number(),
+    status: zod.enum(["draft", "approved", "superseded", "executed"]),
+    plan: zod.object({
+      missionId: zod.string().min(1),
+      title: zod.string().min(1),
+      userGoal: zod.string().min(1),
+      summary: zod.string().min(1),
+      status: zod.enum([
+        "draft",
+        "needs_confirmation",
+        "approved",
+        "executing",
+        "completed",
+        "failed",
+      ]),
+      riskLevel: zod.enum(["low", "medium", "high"]),
+      steps: zod.array(
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  executionReadiness: zod.object({
+    ready: zod.boolean(),
+    status: zod.enum(["approved", "stubbed"]),
+    message: zod.string(),
+    revisionId: zod.string().uuid().optional(),
+  }),
+});
+
+/**
+ * Marks an approved mission as executing and returns stubbed execution readiness metadata until runtime orchestration is connected.
+ * @summary Mark a mission as executing
+ */
+
+export const ExecuteMissionParams = zod.object({
+  missionId: zod.coerce.string().min(1),
+});
+
+export const ExecuteMissionHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const ExecuteMissionBody = zod.object({
+  revisionId: zod.string().uuid(),
+  executionMode: zod.enum(["plan_only", "execute_ready"]).optional(),
+});
+
+export const ExecuteMissionResponse = zod.object({
+  mission: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string(),
+    userGoal: zod.string(),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    approvedAt: zod.coerce.date().nullable(),
+    approvedBy: zod.string().nullable(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  pipelineRun: zod.null(),
+  thread: zod.null(),
+  moduleRuns: zod.array(zod.unknown()),
+  executionReadiness: zod.object({
+    ready: zod.boolean(),
+    status: zod.enum(["approved", "stubbed"]),
+    message: zod.string(),
+    revisionId: zod.string().uuid().optional(),
+  }),
+});
+
+/**
  * Stores the user message, creates a pipeline run, and plans module runs using enabled business skills. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` or `metadata.source: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer <token>`.
  * @summary Create an Agent runtime plan
  */

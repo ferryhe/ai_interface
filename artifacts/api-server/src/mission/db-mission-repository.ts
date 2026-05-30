@@ -338,9 +338,31 @@ export class DbMissionRepository implements MissionRepository {
         })
         .returning();
 
+      const executedAt = input.executedAt ?? new Date();
+      const revisionPlan = withMissionPlanStatus(
+        jsonToMissionPlan(revisionRows[0].planJson),
+        "executing",
+      );
+
+      await tx
+        .update(missionPlanRevisionsTable)
+        .set({
+          status: "executed",
+          planJson: missionPlanToJson(revisionPlan),
+        })
+        .where(
+          and(
+            eq(missionPlanRevisionsTable.missionId, input.missionId),
+            eq(missionPlanRevisionsTable.revisionId, input.revisionId),
+          ),
+        );
+
       await tx
         .update(missionsTable)
-        .set({ updatedAt: new Date() })
+        .set({
+          status: "executing",
+          updatedAt: executedAt,
+        })
         .where(eq(missionsTable.missionId, input.missionId));
 
       return mapExecutionLink(firstOrThrow(linkRows, "mission execution link"));
