@@ -26,6 +26,7 @@ import { AgentDetail } from "./_components/AgentDetail";
 import { AgentManifestWizard } from "./_components/AgentManifestWizard";
 import { ArtifactInspector } from "./_components/ArtifactInspector";
 import { RunInspector } from "./_components/RunInspector";
+import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
 import {
   demoAgentManifests,
   demoAgentReadiness,
@@ -43,7 +44,7 @@ import type {
 } from "./_shared/types";
 
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
-type WorkspaceMode = "foreground" | "backstage";
+type WorkspaceMode = "mission" | "foreground" | "backstage";
 type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts";
 type BackstageTab = "io" | "artifacts" | "events" | "ui" | "raw";
 type ModuleId =
@@ -2371,7 +2372,7 @@ function normalizeApiArtifacts(
 }
 
 export function AgentFirstInterface() {
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("foreground");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("mission");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
   const [selectedSkillId, setSelectedSkillId] = useState<ModuleId>("rag_to_agent");
@@ -2983,6 +2984,13 @@ export function AgentFirstInterface() {
             <div className="workspace-switch" aria-label="Workspace mode">
               <button
                 type="button"
+                className={workspaceMode === "mission" ? "active" : ""}
+                onClick={() => setWorkspaceMode("mission")}
+              >
+                Mission
+              </button>
+              <button
+                type="button"
                 className={workspaceMode === "foreground" ? "active" : ""}
                 onClick={() => setWorkspaceMode("foreground")}
               >
@@ -3020,7 +3028,9 @@ export function AgentFirstInterface() {
         </header>
 
         <main className="view-frame">
-          {workspaceMode === "backstage" ? (
+          {workspaceMode === "mission" ? (
+            <MissionCenterShell onOpenBackstage={() => setWorkspaceMode("backstage")} />
+          ) : workspaceMode === "backstage" ? (
             <BackstageView
               workbenchTab={workbenchTab}
               agents={agents}
