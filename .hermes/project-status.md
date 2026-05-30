@@ -314,6 +314,13 @@ Updated: 2026-05-30
   - Controller final `corepack pnpm run typecheck:libs` passed.
   - Controller final `git diff --check` passed with CRLF conversion warnings only.
 
+## Review Notes
+
+- 2026-05-30 audit of PR 8 `codex/pr8-operator-backstage-readonly` confirmed scope remains frontend-only: no API/server files changed and no new routes were added.
+- Review found one must-fix issue in Operator redaction: `OperatorBackstage` passes `skill.project.defaultSiblingPath` into `ManifestViewer` subtitles, so local project paths are still rendered in the operator list/header despite the manifest body redaction.
+- Review found one should-fix issue in the standard Backstage skill view: the normal user path still surfaces `selectedSkill.project.defaultSiblingPath` in the skill list and metric header, so local path visibility is reduced less than the PR intent suggests even though raw JSON tabs were removed.
+- No new write operations were introduced inside the new operator components; interactions are limited to local tab/selection state.
+
 ## Next Action
 
-- Review PR 8 Operator Backstage changes, then push `codex/pr8-operator-backstage-readonly`, open/update PR, and run the scheduled follow-up pass for remote comments/checks.
+- Fix the operator subtitle/local-path leak, decide whether standard Backstage should also stop showing project paths, then update PR #66 with the review outcome.

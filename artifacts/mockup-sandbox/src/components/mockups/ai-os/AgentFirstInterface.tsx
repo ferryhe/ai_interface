@@ -3484,7 +3484,7 @@ function BackstageView({
                   <i style={{ background: moduleById(skill.id).color }} />
                   <span>
                     <strong>{skill.name}</strong>
-                    <em>{skill.project.defaultSiblingPath}</em>
+                    <em>{skill.execution.kind}</em>
                   </span>
                   <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
                     {run ? runtimeStatusLabel(run.status) : "Queued"}
@@ -3511,7 +3511,7 @@ function BackstageView({
             </div>
 
             <div className="backstage-metrics">
-              <Metric label="Project" value={selectedSkill.project.defaultSiblingPath} />
+              <Metric label="Kind" value={selectedSkill.execution.kind} />
               <Metric
                 label="Readiness"
                 value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}

@@ -56,7 +56,8 @@ function toSkillManifestItems(skills: OperatorSkillManifest[]): ManifestViewerIt
     name: skill.name,
     description: skill.description,
     source: inferSkillSource(skill.project.defaultSiblingPath, skill.project.source),
-    subtitle: `${skill.execution.kind} · ${skill.project.defaultSiblingPath}`,
+    subtitle: `${skill.execution.kind} · ${skill.project.readiness}`,
+    // defaultSiblingPath is intentionally omitted — local paths are redacted in operator view
     manifest: skill,
   }));
 }
