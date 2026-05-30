@@ -1,15 +1,21 @@
 # ai_interface Project Status
 
-Updated: 2026-05-29
+Updated: 2026-05-30
 
 ## Active Work
 
-- Branch: `codex/pr5-mission-center-ui`
-- Scope: PR 5 Mission Center / Plan Review 轻界面 — React UI components.
+- Branch: `codex/pr8-operator-backstage-readonly`
+- Scope: PR 8 Operator Backstage read-only — operator manifest/doc visibility in mockup-sandbox.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
+- PR 8 Operator Backstage read-only is implemented locally on `codex/pr8-operator-backstage-readonly`.
+- Added `artifacts/mockup-sandbox/src/components/operator/OperatorBackstage.tsx`, `ManifestViewer.tsx`, and `WorkbenchFileViewer.tsx`.
+- Added an Operator tab to the existing Backstage workbench navigation in `AgentFirstInterface.tsx`.
+- Operator view is read-only, reuses existing `GET /api/agents` and `GET /api/skills` payloads, and loads `docs/workbench/*` directly into the frontend bundle without adding new API routes.
+- Normal Backstage path no longer exposes raw agent manifest JSON or raw skill manifest/runtime JSON; raw manifest visibility is now isolated to the Operator tab.
+- Operator manifest/doc viewers label sources (`built-in`, `community`, `custom`, `workbench`) and redact secret-looking values, provider/MCP URLs, token-like strings, and local paths before rendering.
 - PR 2 minimal Mission Plan contract is implemented locally on `codex/pr2-mission-plan-contract`.
 - Added `artifacts/api-server/src/mission/mission-plan.ts` with minimal Mission plan types, validation, and `AgentRuntimePlan` mapping.
 - Added `artifacts/api-server/src/mission/mission-plan.test.ts` covering duplicate step IDs, unknown dependencies, dependency cycles, approval field validation, and runtime-plan mapping.
@@ -86,6 +92,12 @@ Updated: 2026-05-29
 - PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
+
+- PR 8 Operator Backstage read-only verification on 2026-05-30:
+  - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - Built asset string scan confirmed `Operator Backstage`, `Operator`, and `Workbench docs` are present in the generated frontend bundle.
+  - `git diff --check` passed.
 
 - PR 5 Mission Center / Plan Review UI verification on 2026-05-29:
   - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
@@ -304,4 +316,4 @@ Updated: 2026-05-29
 
 ## Next Action
 
-- Review Mission Center UI changes, then push `codex/pr5-mission-center-ui`, open PR, and run the scheduled follow-up pass for remote comments/checks.
+- Review PR 8 Operator Backstage changes, then push `codex/pr8-operator-backstage-readonly`, open/update PR, and run the scheduled follow-up pass for remote comments/checks.

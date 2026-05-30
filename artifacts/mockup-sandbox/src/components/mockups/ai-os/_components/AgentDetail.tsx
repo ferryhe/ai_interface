@@ -1,4 +1,4 @@
-import { Braces, KeyRound, Play, Route, ShieldCheck, Workflow } from "lucide-react";
+import { Braces, Play, Route, ShieldCheck, Workflow } from "lucide-react";
 
 import { workbenchStatusColor } from "../_shared/theme";
 import type {
@@ -144,14 +144,6 @@ export function AgentDetail({
           </div>
         </section>
       </div>
-
-      <section className="workbench-section">
-        <span className="workbench-section-title">
-          <KeyRound size={15} />
-          Manifest JSON
-        </span>
-        <pre className="artifact-json">{JSON.stringify(agent, null, 2)}</pre>
-      </section>
     </div>
   );
 }
