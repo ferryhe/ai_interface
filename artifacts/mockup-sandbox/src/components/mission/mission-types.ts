@@ -89,3 +89,27 @@ export interface MissionExecuteResult {
   moduleRuns: unknown[];
   executionReadiness: MissionExecutionReadiness;
 }
+
+export interface MissionBoardArtifact {
+  artifactId: string;
+  kind: string;
+  title: string;
+}
+
+export interface MissionBoardAgent {
+  agentId?: string;
+  roleId?: string;
+  displayName: string;
+  status: "pending" | "running" | "waiting_approval" | "blocked" | "succeeded" | "failed";
+  currentAction: string;
+  lastEventAt?: string;
+  blockingReason?: string;
+  moduleRunIds: string[];
+  latestArtifacts: MissionBoardArtifact[];
+}
+
+export interface MissionBoardResponse {
+  missionId: string;
+  revisionId: string | null;
+  board: MissionBoardAgent[];
+}

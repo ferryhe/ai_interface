@@ -8,6 +8,8 @@ import {
   InMemoryAgentConfigRepository,
   updateAgentConfig,
 } from "../agent-config/agent-config-service";
+import { InMemoryAgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
+import { createModuleRun } from "../modules/ingest-service";
 import { InMemoryMissionRepository } from "../mission/in-memory-mission-repository";
 import { createMissionsRouter } from "./missions";
 
@@ -15,15 +17,23 @@ async function withMissionsApp<T>(
   callback: (baseUrl: string, repositories: {
     missionRepository: InMemoryMissionRepository;
     configRepository: InMemoryAgentConfigRepository;
+    runtimeRepository: InMemoryAgentRuntimeRepository;
   }) => Promise<T>,
   repositories = {
     missionRepository: new InMemoryMissionRepository(),
     configRepository: new InMemoryAgentConfigRepository(),
+    runtimeRepository: new InMemoryAgentRuntimeRepository(),
   },
 ): Promise<T> {
   const app = express();
   app.use(express.json());
-  app.use(createMissionsRouter(repositories.missionRepository, repositories.configRepository));
+  app.use(
+    createMissionsRouter(
+      repositories.missionRepository,
+      repositories.configRepository,
+      repositories.runtimeRepository,
+    ),
+  );
 
   const server = app.listen(0);
   await once(server, "listening");
@@ -220,6 +230,7 @@ test("mission routes allow Portal-origin access with a verified token and suppor
   const repositories = {
     missionRepository: new InMemoryMissionRepository(),
     configRepository: new InMemoryAgentConfigRepository(),
+    runtimeRepository: new InMemoryAgentRuntimeRepository(),
   };
   await updateAgentConfig(repositories.configRepository, {
     publishSettings: {
@@ -248,6 +259,63 @@ test("mission routes allow Portal-origin access with a verified token and suppor
     assert.equal((fetched.json["mission"] as { missionId: string }).missionId, missionId);
     assert.equal(fetched.text.includes("portal-secret-token"), false);
   }, repositories);
+});
+
+test("GET /missions/:missionId/board returns execution board projection", async () => {
+  await withMissionsApp(async (baseUrl, repositories) => {
+    const created = await postJson(baseUrl, "/missions", {
+      message: "Show me the execution board.",
+      enabledSkillIds: ["doc_to_md"],
+    });
+    const missionId = (created.json["mission"] as { missionId: string }).missionId;
+    const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
+
+    const approved = await postJson(baseUrl, `/missions/${missionId}/approve`, {
+      revisionId,
+      approvedBy: "route-test",
+    });
+    const approvedRevisionId = (approved.json["approvedRevision"] as { revisionId: string }).revisionId;
+
+    const pipelineRun = await repositories.runtimeRepository.createPipelineRun({
+      threadId: null,
+      title: "Mission runtime",
+      status: "pending",
+      activeModuleId: null,
+      metadata: {
+        missionId,
+        revisionId: approvedRevisionId,
+      },
+    });
+
+    await createModuleRun(repositories.runtimeRepository, {
+      moduleId: "doc_to_md",
+      externalRunId: `${pipelineRun.id}:convert`,
+      pipelineRunId: pipelineRun.id,
+      title: "Doc converter",
+      status: "running",
+      registeredSkillIds: ["doc_to_md"],
+      metadata: {
+        missionId,
+        revisionId: approvedRevisionId,
+        agentId: "knowledge_builder",
+        skillId: "doc_to_md",
+        dagStepId: "step-1",
+        action: "Converting approved docs",
+      },
+    });
+
+    const response = await getJson(baseUrl, `/missions/${missionId}/board`);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json["missionId"], missionId);
+    assert.equal(response.json["revisionId"], approvedRevisionId);
+    assert.equal(Array.isArray(response.json["board"]), true);
+    const boardAgent = (response.json["board"] as Array<{ status: string }>)[0];
+    assert.ok(
+      boardAgent?.status === "running" || boardAgent?.status === "waiting_approval",
+      `Expected running or waiting_approval, got ${boardAgent?.status}`,
+    );
+  });
 });
 
 test("POST /missions with agentId uses only agent skill bindings", async () => {

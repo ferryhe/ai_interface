@@ -27,6 +27,8 @@ import {
   getMissionService,
   reviseMissionService,
 } from "../mission/mission-service";
+import { projectExecutionBoard } from "../mission/execution-board";
+import type { AgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
 import { createLazyRepository } from "./lazy-repository";
 import {
   isPortalRuntimeRequest,
@@ -65,9 +67,15 @@ const lazyConfigRepository = createLazyRepository<AgentConfigRepository>(async (
   return new DbAgentConfigRepository();
 });
 
+const lazyRuntimeRepository = createLazyRepository<AgentRuntimeRepository>(async () => {
+  const { DbAgentRuntimeRepository } = await import("../agent-runtime/db-repository");
+  return new DbAgentRuntimeRepository();
+});
+
 export function createMissionsRouter(
   repository: MissionRepository,
   configRepository: AgentConfigRepository,
+  runtimeRepository: AgentRuntimeRepository,
 ): IRouter {
   const router: IRouter = Router();
 
@@ -114,6 +122,47 @@ export function createMissionsRouter(
       const mission = await getMissionService(repository, params.data.missionId);
       const data = GetMissionResponse.parse(mission);
       res.json(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(errorStatus(error)).json(errorResponse(message));
+    }
+  });
+
+  router.get("/missions/:missionId/board", async (req, res) => {
+    const params = GetMissionParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json(errorResponse(params.error.message));
+      return;
+    }
+
+    if (isPortalRuntimeRequest(req)) {
+      const access = await requirePortalRuntimeAccess(req, configRepository);
+      if (!access.allowed) {
+        res.status(403).json(errorResponse(access.error));
+        return;
+      }
+    }
+
+    try {
+      const board = await projectExecutionBoard(
+        {
+          createMission: repository.createMission.bind(repository),
+          createRevision: repository.createRevision.bind(repository),
+          approveRevision: repository.approveRevision.bind(repository),
+          linkExecution: repository.linkExecution.bind(repository),
+          findMission: repository.findMission.bind(repository),
+          findRevision: repository.findRevision.bind(repository),
+          findLatestRevision: repository.findLatestRevision.bind(repository),
+          listRevisions: repository.listRevisions.bind(repository),
+          listPipelineRuns: runtimeRepository.listPipelineRuns.bind(runtimeRepository),
+          listModuleRunsByPipelineRunId:
+            runtimeRepository.listModuleRunsByPipelineRunId.bind(runtimeRepository),
+          listRunEvents: runtimeRepository.listRunEvents.bind(runtimeRepository),
+          listRunArtifacts: runtimeRepository.listRunArtifacts.bind(runtimeRepository),
+        },
+        params.data.missionId,
+      );
+      res.json(board);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(errorStatus(error)).json(errorResponse(message));
@@ -230,6 +279,10 @@ export function createMissionsRouter(
   return router;
 }
 
-const router = createMissionsRouter(lazyMissionRepository, lazyConfigRepository);
+const router = createMissionsRouter(
+  lazyMissionRepository,
+  lazyConfigRepository,
+  lazyRuntimeRepository,
+);
 
 export default router;
