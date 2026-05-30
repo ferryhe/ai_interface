@@ -4,8 +4,8 @@ Updated: 2026-05-29
 
 ## Active Work
 
-- Branch: `codex/pr4-mission-intake-api`
-- Scope: PR 4 Mission Intake / Revise / Approve API — routes, service, tests.
+- Branch: `codex/pr5-mission-center-ui`
+- Scope: PR 5 Mission Center / Plan Review 轻界面 — React UI components.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
@@ -86,6 +86,11 @@ Updated: 2026-05-29
 - PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
+
+- PR 5 Mission Center / Plan Review UI verification on 2026-05-29:
+  - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
+  - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - `git diff --check` passed.
 
 - Mission Persistence Foundation verification on 2026-05-30:
   - Focused direct test `corepack pnpm --filter @workspace/api-server exec tsx --test src/mission/mission-repository.test.ts` passed with 9 passing and 0 failures (plus 1 skipped).
@@ -299,4 +304,4 @@ Updated: 2026-05-29
 
 ## Next Action
 
-- Push PR 4 branch, create PR, wait for CI/Copilot comments, merge, then start PR 5 (Mission Center / Plan Review UI).
+- Review Mission Center UI changes, then push `codex/pr5-mission-center-ui`, open PR, and run the scheduled follow-up pass for remote comments/checks.
