@@ -4,13 +4,17 @@ Updated: 2026-05-30
 
 ## Active Work
 
-- Branch: `codex/pr8-operator-backstage-readonly`
-- Scope: PR 8 Operator Backstage read-only — operator manifest/doc visibility in mockup-sandbox.
+- Branch: `codex/pr9-manifest-mutation-guards`
+- Scope: PR 9 manifest mutation guards — add custom-only skill manifest write support, route, and tests in `artifacts/api-server`.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
 - PR 8 Operator Backstage read-only is implemented locally on `codex/pr8-operator-backstage-readonly`.
+- PR 9 skill manifest mutation follow-up is implemented locally on `codex/pr9-manifest-mutation-guards`.
+- Added `artifacts/api-server/src/skill-runtime/skill-manifest-writer.ts` for validated custom-only `skills/custom/<skillId>/skill.yaml` writes with builtin/community override rejection, traversal blocking, YAML serialization, temporary-load validation, and workspace-root discovery.
+- Added `POST /api/skill-manifests` to `artifacts/api-server/src/routes/skills.ts`, reusing the localhost/same-origin guard and response redaction pattern from `agent-manifests` without changing `GET /skills`.
+- Added focused coverage in `artifacts/api-server/src/skill-runtime/skill-manifest-writer.test.ts` and extended `artifacts/api-server/src/routes/skills.test.ts` for write-mode gating, localhost guard behavior, builtin rejection, traversal rejection, and redacted success responses.
 - Added `artifacts/mockup-sandbox/src/components/operator/OperatorBackstage.tsx`, `ManifestViewer.tsx`, and `WorkbenchFileViewer.tsx`.
 - Added an Operator tab to the existing Backstage workbench navigation in `AgentFirstInterface.tsx`.
 - Operator view is read-only, reuses existing `GET /api/agents` and `GET /api/skills` payloads, and loads `docs/workbench/*` directly into the frontend bundle without adding new API routes.
@@ -92,6 +96,10 @@ Updated: 2026-05-30
 - PR #55 review follow-up documented the prior core-owned adapter required-file checks; this branch supersedes that note by moving those checks into manifest `project.readiness.requiredPaths`.
 
 ## Verification
+
+- PR 9 skill manifest mutation guard verification on 2026-05-30:
+  - `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-manifest-writer.test.ts src/routes/skills.test.ts src/routes/agent-manifests.test.ts` passed; as currently scripted it executed the full `src/**/*.test.ts` suite with 356 passing and 1 skipped.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
 
 - PR 8 Operator Backstage read-only verification on 2026-05-30:
   - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
@@ -323,4 +331,4 @@ Updated: 2026-05-30
 
 ## Next Action
 
-- Fix the operator subtitle/local-path leak, decide whether standard Backstage should also stop showing project paths, then update PR #66 with the review outcome.
+- Commit and push the PR 9 api-server changes on `codex/pr9-manifest-mutation-guards`, keeping the unrelated `artifacts/mockup-sandbox/src/components/operator/ManifestEditor.tsx` change unstaged.

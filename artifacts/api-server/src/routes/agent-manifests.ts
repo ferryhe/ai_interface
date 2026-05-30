@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { isIP } from "node:net";
 import { GetAgentsResponse } from "@workspace/api-zod";
 
+import { redactAgentInteropText } from "../agent-registry/mcp-tool-exporter";
 import {
   writeAgentManifest,
   type WritableAgentManifest,
@@ -19,8 +20,34 @@ interface CreateAgentManifestBody {
   overwrite?: unknown;
 }
 
-function errorResponse(message: string): { error: string } {
+export function errorResponse(message: string): { error: string } {
   return { error: message };
+}
+
+export function redactManifestString(value: string): string {
+  return redactAgentInteropText(value);
+}
+
+export function redactManifestResponseValue<T>(value: T): T {
+  if (typeof value === "string") {
+    return redactManifestString(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactManifestResponseValue(item)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        redactManifestResponseValue(item),
+      ]),
+    ) as T;
+  }
+  return value;
+}
+
+export function redactedErrorResponse(message: string): { error: string } {
+  return errorResponse(redactManifestString(message));
 }
 
 function hostNameFromHeader(host: string): string | null {
@@ -62,7 +89,7 @@ function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
   return isIP(normalized) === 4 && normalized.startsWith("127.");
 }
 
-function manifestWriteGuardError(req: Request): string | null {
+export function manifestWriteGuardError(req: Request): string | null {
   if (req.get("sec-fetch-site") === "cross-site") {
     return "Cross-site agent manifest write requests are not allowed";
   }
@@ -133,8 +160,8 @@ function validateResponse(manifest: unknown, path: string): {
     readiness: [],
   });
   return {
-    manifest: parsed.agents[0],
-    path,
+    manifest: redactManifestResponseValue(parsed.agents[0]),
+    path: redactManifestString(path),
   };
 }
 
@@ -166,6 +193,7 @@ export function createAgentManifestsRouter(
       const body = parseCreateBody(req.body);
       const result = await writeAgentManifest({
         cwd: options.cwd,
+        env,
         agentId: body.agentId,
         manifest: body.manifest,
         overwrite: body.overwrite,
@@ -173,7 +201,7 @@ export function createAgentManifestsRouter(
       res.status(201).json(validateResponse(result.manifest, result.path));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      res.status(400).json(errorResponse(message));
+      res.status(400).json(redactedErrorResponse(message));
     }
   });
 
