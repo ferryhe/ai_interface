@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRightLeft, Bot, RefreshCcw, Workflow } from "lucide-react";
 
+import { ApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import { MissionIntake } from "./MissionIntake";
 import { PlanReview } from "./PlanReview";
 import type {
@@ -314,7 +315,7 @@ export function MissionCenterShell({
           )}
         </TabsContent>
 
-        <TabsContent value="backstage">
+        <TabsContent value="backstage" className="space-y-6">
           <Card className="border-border/60 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -322,20 +323,22 @@ export function MissionCenterShell({
                 Backstage handoff
               </CardTitle>
               <CardDescription>
-                Agents / Skills / Runs / Artifacts 工作台保持原样，这里只做 Mission 到执行现场的衔接。
+                Agents / Skills / Runs / Artifacts 工作台保持原样，这里补上待审批动作的收口面板。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
                 {executeResult?.executionReadiness.message ??
                   executionReadiness?.message ??
-                  "当你确认计划后，可切到 Backstage 查看 Runs、Artifacts 和 Skill UI。"}
+                  "当你确认计划后，可切到 Backstage 查看 Runs、Artifacts、Skill UI 与 Approval Inbox。"}
               </div>
               <Button onClick={onOpenBackstage} className="w-full sm:w-auto">
                 打开 Backstage 工作台
               </Button>
             </CardContent>
           </Card>
+
+          <ApprovalInbox />
         </TabsContent>
       </Tabs>
     </section>
