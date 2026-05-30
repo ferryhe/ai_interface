@@ -1,0 +1,81 @@
+{
+  "missionId": "knowledge-builder-demo-001",
+  "title": "Build a Q&A knowledge-base agent from approved web pages and documents",
+  "userGoal": "把我批准的网页和文档资料做成一个可问答的知识库 Agent。",
+  "summary": "Collect approved sources, normalize documents into Markdown, build the retrieval corpus, generate the agent configuration, and verify source traceability before delivery.",
+  "status": "needs_confirmation",
+  "riskLevel": "high",
+  "steps": [
+    {
+      "stepId": "collect-approved-web-sources",
+      "title": "Collect approved web sources",
+      "objective": "Fetch only the explicitly approved websites and preserve source snapshots for later traceability.",
+      "skillId": "web_listening",
+      "moduleId": "web_listening",
+      "roleId": "source_collector",
+      "assignedAgentId": "knowledge_builder",
+      "dependsOn": [],
+      "status": "waiting_approval",
+      "approval": {
+        "required": true,
+        "reason": "Network access must be explicitly approved before the collector can fetch approved web sources.",
+        "riskLevel": "high"
+      }
+    },
+    {
+      "stepId": "convert-approved-documents",
+      "title": "Convert approved documents to Markdown",
+      "objective": "Convert uploaded PDFs, DOCX files, and notes into normalized Markdown while preserving source filenames and sections.",
+      "skillId": "doc_to_md",
+      "moduleId": "doc_to_md",
+      "roleId": "source_collector",
+      "assignedAgentId": "knowledge_builder",
+      "dependsOn": [],
+      "status": "pending"
+    },
+    {
+      "stepId": "build-rag-corpus",
+      "title": "Build the RAG corpus",
+      "objective": "Chunk the approved Markdown corpus, attach source metadata, and write retrieval records to the knowledge store.",
+      "skillId": "md_to_rag",
+      "moduleId": "md_to_rag",
+      "roleId": "knowledge_builder",
+      "assignedAgentId": "knowledge_builder",
+      "dependsOn": ["collect-approved-web-sources", "convert-approved-documents"],
+      "status": "waiting_approval",
+      "approval": {
+        "required": true,
+        "reason": "Writing the retrieval database requires approval because it persists the approved corpus into shared knowledge infrastructure.",
+        "riskLevel": "high"
+      }
+    },
+    {
+      "stepId": "generate-agent-config",
+      "title": "Generate the knowledge-base agent configuration",
+      "objective": "Create the delivery-ready agent configuration that points at the built retrieval corpus and preserves artifact references.",
+      "skillId": "rag_to_agent",
+      "moduleId": "rag_to_agent",
+      "roleId": "knowledge_builder",
+      "assignedAgentId": "knowledge_builder",
+      "dependsOn": ["build-rag-corpus"],
+      "status": "pending"
+    },
+    {
+      "stepId": "qa-traceability-review",
+      "title": "QA review artifact completeness and traceability",
+      "objective": "Verify the generated agent config, Markdown conversions, and RAG records all point back to approved sources before delivery.",
+      "roleId": "qa_reviewer",
+      "dependsOn": ["build-rag-corpus", "generate-agent-config"],
+      "status": "pending"
+    }
+  ],
+  "warnings": [
+    "Only explicitly approved URLs and uploaded documents should be included in this mission revision.",
+    "Execution pauses at approval gates for network access and retrieval-database writes."
+  ],
+  "nonGoals": [
+    "Do not crawl or monitor unapproved websites.",
+    "Do not publish a broader child-agent orchestration system.",
+    "Do not deliver an agent without source-level traceability artifacts."
+  ]
+}

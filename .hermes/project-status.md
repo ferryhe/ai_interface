@@ -4,14 +4,18 @@ Updated: 2026-05-30
 
 ## Active Work
 
-- Branch: `codex/pr9-manifest-mutation-guards`
-- Scope: PR 9 manifest mutation guards — add custom-only skill manifest write support, route, and tests in `artifacts/api-server`.
+- Branch: `codex/pr10-knowledge-builder-demo`
+- Scope: PR 10 Knowledge Builder mission demo — add demo fixture, walkthrough docs, and smoke coverage for the end-to-end `knowledge_builder` mission flow.
 - Sibling repos: off-limits; edits and validation remain confined to `ai_interface`.
 
 ## Current State
 
 - PR 8 Operator Backstage read-only is implemented locally on `codex/pr8-operator-backstage-readonly`.
 - PR 9 skill manifest mutation follow-up is implemented locally on `codex/pr9-manifest-mutation-guards`.
+- PR 10 Knowledge Builder demo is implemented locally on `codex/pr10-knowledge-builder-demo`.
+- Added `docs/contracts/fixtures/knowledge-builder-mission.json` to demonstrate the reviewed mission-plan shape for approved web/document ingestion, RAG building, agent generation, and QA traceability review.
+- Added `docs/demos/knowledge-builder-mission.md` with intake, approval, Plan Review, Execution Board, and delivery walkthrough notes for the `knowledge_builder` mission story.
+- Added `artifacts/api-server/src/mission/knowledge-builder-demo.test.ts` to validate fixture shape plus the expected Source Collector / Knowledge Builder / QA Reviewer roles, network + DB-write approval gates, and builtin `knowledge_builder` skill/permission assumptions.
 - Added `artifacts/api-server/src/skill-runtime/skill-manifest-writer.ts` for validated custom-only `skills/custom/<skillId>/skill.yaml` writes with builtin/community override rejection, traversal blocking, YAML serialization, temporary-load validation, and workspace-root discovery.
 - Added `POST /api/skill-manifests` to `artifacts/api-server/src/routes/skills.ts`, reusing the localhost/same-origin guard and response redaction pattern from `agent-manifests` without changing `GET /skills`.
 - Added focused coverage in `artifacts/api-server/src/skill-runtime/skill-manifest-writer.test.ts` and extended `artifacts/api-server/src/routes/skills.test.ts` for write-mode gating, localhost guard behavior, builtin rejection, traversal rejection, and redacted success responses.
@@ -100,6 +104,12 @@ Updated: 2026-05-30
 - PR 9 skill manifest mutation guard verification on 2026-05-30:
   - `corepack pnpm --filter @workspace/api-server run test -- src/skill-runtime/skill-manifest-writer.test.ts src/routes/skills.test.ts src/routes/agent-manifests.test.ts` passed; as currently scripted it executed the full `src/**/*.test.ts` suite with 356 passing and 1 skipped.
   - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+
+- PR 10 Knowledge Builder demo verification on 2026-05-30:
+  - `corepack pnpm --filter @workspace/api-server run test -- src/mission/knowledge-builder-demo.test.ts` passed; as currently scripted it executed the full `src/**/*.test.ts` suite with 359 passing and 1 skipped.
+  - `corepack pnpm --filter @workspace/api-server run typecheck` passed.
+  - `PORT=8080 BASE_PATH=/ VITE_DEFAULT_PREVIEW=ai-os/AgentFirstInterface corepack pnpm --dir artifacts/mockup-sandbox run build` passed.
+  - `git diff --check` passed.
 
 - PR 8 Operator Backstage read-only verification on 2026-05-30:
   - `corepack pnpm --dir artifacts/mockup-sandbox run typecheck` passed.
@@ -331,4 +341,4 @@ Updated: 2026-05-30
 
 ## Next Action
 
-- Commit and push the PR 9 api-server changes on `codex/pr9-manifest-mutation-guards`, keeping the unrelated `artifacts/mockup-sandbox/src/components/operator/ManifestEditor.tsx` change unstaged.
+- Commit and push the PR 10 Knowledge Builder demo changes on `codex/pr10-knowledge-builder-demo`.
