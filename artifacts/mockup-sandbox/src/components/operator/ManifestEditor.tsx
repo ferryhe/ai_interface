@@ -12,6 +12,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function looksSensitiveKey(key: string): boolean {
+  return /(secret|token|api[_-]?key|apikey|password|bearer|authorization|client[_-]?secret|refresh[_-]?token|access[_-]?token|mcp|provider|url|uri|endpoint|path|directory|workdir|cwd|root)/i.test(
+    key,
+  );
+}
+
 function looksSensitiveValue(value: string): boolean {
   return (
     /^(https?|wss?):\/\//i.test(value) ||
@@ -23,19 +29,24 @@ function looksSensitiveValue(value: string): boolean {
   );
 }
 
-function redactEditableValue(value: unknown): unknown {
+function redactEditableValue(value: unknown, parentKey = ""): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => redactEditableValue(entry));
+    return value.map((entry) => redactEditableValue(entry, parentKey));
   }
 
   if (isRecord(value)) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, redactEditableValue(entry)]),
+      Object.entries(value).map(([key, entry]) => {
+        if (looksSensitiveKey(key)) {
+          return [key, "[redacted]"];
+        }
+        return [key, redactEditableValue(entry, key)];
+      }),
     );
   }
 
   if (typeof value === "string") {
-    return looksSensitiveValue(value) ? "[redacted]" : value;
+    return looksSensitiveKey(parentKey) || looksSensitiveValue(value) ? "[redacted]" : value;
   }
 
   return value;
