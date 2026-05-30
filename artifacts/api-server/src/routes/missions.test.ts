@@ -249,3 +249,91 @@ test("mission routes allow Portal-origin access with a verified token and suppor
     assert.equal(fetched.text.includes("portal-secret-token"), false);
   }, repositories);
 });
+
+test("POST /missions with agentId uses only agent skill bindings", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "Build a knowledge base from approved docs.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["md_to_rag", "rag_to_agent"],
+    });
+
+    assert.equal(response.status, 201);
+    const plan = response.json["plan"] as {
+      steps: Array<{ skillId: string; assignedAgentId: string }>;
+    };
+    const skillIds = plan.steps.map((s) => s.skillId);
+    assert.deepStrictEqual(skillIds, ["md_to_rag", "rag_to_agent"]);
+    assert.equal(plan.steps.every((s) => s.assignedAgentId === "knowledge_builder"), true);
+  });
+});
+
+test("POST /missions with agentId rejects cross-agent skill ids", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "Run a cross-agent mission.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["climate_monitor"],
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(
+      response.text,
+      /does not declare the following skill bindings:/i,
+    );
+  });
+});
+
+test("POST /missions without agentId allows any registered skill", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "Run a generic mission with any skill.",
+      enabledSkillIds: ["doc_to_md", "md_to_rag", "climate_monitor"],
+    });
+
+    assert.equal(response.status, 201);
+  });
+});
+
+test("POST /missions returns 400 for an empty message", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "   ",
+      enabledSkillIds: ["doc_to_md"],
+    });
+
+    assert.equal(response.status, 400);
+  });
+});
+
+test("POST /missions returns 400 for an unknown agentId", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "Mission with a missing agent.",
+      agentId: "nonexistent_agent",
+      enabledSkillIds: ["doc_to_md"],
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(response.text, /not registered/i);
+  });
+});
+
+test("GET /missions/:missionId returns 404 for an unknown mission", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await getJson(baseUrl, "/missions/nonexistent-mission-id");
+
+    assert.equal(response.status, 404);
+  });
+});
+
+test("POST /missions/:missionId/revise returns 404 for an unknown mission", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions/unknown-mission/revise", {
+      instruction: "Revise a missing mission.",
+      expectedRevisionId: "00000000-0000-0000-0000-000000000001",
+    });
+
+    assert.equal(response.status, 404);
+  });
+});

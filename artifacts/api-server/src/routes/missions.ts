@@ -17,6 +17,7 @@ import {
 import type { AgentConfigRepository } from "../agent-config/agent-config-service";
 import {
   MissionRevisionConflictError,
+  MissionValidationError,
   type MissionRepository,
 } from "../mission/mission-repository";
 import {
@@ -38,6 +39,9 @@ function errorResponse(message: string): { error: string } {
 
 function errorStatus(error: unknown): number {
   if (error instanceof MissionRevisionConflictError) {
+    return error.statusCode;
+  }
+  if (error instanceof MissionValidationError) {
     return error.statusCode;
   }
 

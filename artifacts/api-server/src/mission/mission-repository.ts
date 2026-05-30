@@ -77,6 +77,15 @@ export class MissionRevisionConflictError extends Error {
   }
 }
 
+export class MissionValidationError extends Error {
+  readonly statusCode = 400;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "MissionValidationError";
+  }
+}
+
 export interface MissionRepository {
   createMission(input: CreateMissionInput): Promise<{
     mission: MissionRecord;

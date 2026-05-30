@@ -2,6 +2,7 @@ import { defaultAgentRuntimeRegistry } from "../agent-registry/agent-runtime-reg
 import { defaultSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import {
   MissionRevisionConflictError,
+  MissionValidationError,
   generateMissionId,
   type MissionPlanRevisionRecord,
   type MissionRecord,
@@ -12,7 +13,7 @@ import { validateMissionPlan, type MissionPlan } from "./mission-plan";
 function trimText(value: string, label: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
-    throw new Error(`${label} must be a non-empty string.`);
+    throw new MissionValidationError(`${label} must be a non-empty string.`);
   }
   return trimmed;
 }
@@ -50,11 +51,11 @@ function createDraftPlan(input: {
   if (input.agentId) {
     const agent = defaultAgentRuntimeRegistry.getAgent(input.agentId);
     if (!agent) {
-      throw new Error(`Agent is not registered: ${input.agentId}`);
+      throw new MissionValidationError(`Agent is not registered: ${input.agentId}`);
     }
     allowedSkillIds = agent.skills.map((binding) => binding.skillId);
     if (allowedSkillIds.length === 0) {
-      throw new Error(`Agent ${input.agentId} has no skill bindings.`);
+      throw new MissionValidationError(`Agent ${input.agentId} has no skill bindings.`);
     }
   } else {
     allowedSkillIds = skillDefinitions.map((s) => s.skillId);
@@ -69,7 +70,7 @@ function createDraftPlan(input: {
     ? requestedIds.filter((id) => !allowedSkillIds.includes(id))
     : [];
   if (crossAgentSkills.length > 0) {
-    throw new Error(
+    throw new MissionValidationError(
       `Agent ${input.agentId} does not declare the following skill bindings: ${crossAgentSkills.join(", ")}`,
     );
   }
@@ -78,14 +79,14 @@ function createDraftPlan(input: {
     .map((skillId) => {
       const skill = skillDefinitions.find((d) => d.skillId === skillId);
       if (!skill) {
-        throw new Error(`Skill is not registered: ${skillId}`);
+        throw new MissionValidationError(`Skill is not registered: ${skillId}`);
       }
       return skill;
     })
     .filter((skill, index, list) => list.findIndex((item) => item.skillId === skill.skillId) === index);
 
   if (enabledSkills.length === 0) {
-    throw new Error("At least one skill must be enabled before creating a mission.");
+    throw new MissionValidationError("At least one skill must be enabled before creating a mission.");
   }
 
   const steps = enabledSkills.map((skill, index) => ({
