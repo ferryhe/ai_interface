@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { request as httpRequest, type Server } from "node:http";
-import { mkdir, readFile, mkdtemp } from "node:fs/promises";
+import { mkdir, readFile, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import express from "express";
 
+import { formatAgentManifestYaml } from "../agent-registry/agent-manifest-writer";
 import { createAgentManifestsRouter } from "./agent-manifests";
 
 async function createRoot(): Promise<string> {
@@ -174,10 +175,7 @@ test("POST /api/agent-manifests creates and validates a custom agent when enable
   assert.deepEqual(json.manifest.skills, [
     { skillId: "md_to_rag", required: false },
   ]);
-  assert.equal(
-    json.path,
-    join(cwd, "agents", "custom", "my_agent", "agent.yaml"),
-  );
+  assert.equal(json.path, "[redacted]");
 });
 
 test("POST /api/agent-manifests defaults writes to workspace root from api-server cwd", async () => {
@@ -198,10 +196,7 @@ test("POST /api/agent-manifests defaults writes to workspace root from api-serve
   const json = (await response.json()) as { path: string };
 
   assert.equal(response.status, 201);
-  assert.equal(
-    json.path,
-    join(root, "agents", "custom", "my_agent", "agent.yaml"),
-  );
+  assert.equal(json.path, "[redacted]");
   assert.equal(
     await fileExists(
       join(apiServerCwd, "agents", "custom", "my_agent", "agent.yaml"),
@@ -300,6 +295,164 @@ test("POST /api/agent-manifests rejects conflicting manifest agentId", async () 
 
   assert.equal(response.status, 400);
   assert.match(JSON.stringify(await response.json()), /manifest.agentId/);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
+    false,
+  );
+});
+
+test("POST /api/agent-manifests rejects writes that target built-in agent IDs", async () => {
+  const cwd = await createRoot();
+  const builtinDir = join(cwd, "agents", "builtin", "my_agent");
+  await mkdir(builtinDir, { recursive: true });
+  await writeFile(
+    join(builtinDir, "agent.yaml"),
+    formatAgentManifestYaml({
+      ...requestBody().manifest,
+      agentId: "my_agent",
+      source: "builtin",
+    } as never),
+    "utf8",
+  );
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/api/agent-manifests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody()),
+      }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.match(JSON.stringify(await response.json()), /built-in agent manifest/);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
+    false,
+  );
+});
+
+test("POST /api/agent-manifests rejects writes that target community agent IDs", async () => {
+  const cwd = await createRoot();
+  const communityDir = join(cwd, "agents", "community", "my_agent");
+  await mkdir(communityDir, { recursive: true });
+  await writeFile(
+    join(communityDir, "agent.yaml"),
+    formatAgentManifestYaml({
+      ...requestBody().manifest,
+      agentId: "my_agent",
+      source: "community",
+    } as never),
+    "utf8",
+  );
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/api/agent-manifests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody()),
+      }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.match(JSON.stringify(await response.json()), /community agent manifest/);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
+    false,
+  );
+});
+
+test("POST /api/agent-manifests rejects traversal-like agent IDs", async () => {
+  const cwd = await createRoot();
+  const body = requestBody();
+  body.agentId = "../escape";
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/api/agent-manifests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.match(JSON.stringify(await response.json()), /Invalid agentId/);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "escape", "agent.yaml")),
+    false,
+  );
+});
+
+test("POST /api/agent-manifests redacts sensitive paths from error and success responses", async () => {
+  const cwd = await createRoot();
+  const successResponse = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/api/agent-manifests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...requestBody(),
+          manifest: {
+            ...requestBody().manifest,
+            instructions: "Read /home/ec2-user/work/secret/.env before acting.",
+          },
+        }),
+      }),
+  );
+  const successText = JSON.stringify(await successResponse.json());
+  assert.equal(successText.includes("/home/ec2-user/work/secret/.env"), false);
+  assert.match(successText, /\[redacted\]/);
+
+  const duplicateResponse = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      fetch(`${baseUrl}/api/agent-manifests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody()),
+      }),
+  );
+  const duplicateText = JSON.stringify(await duplicateResponse.json());
+  assert.equal(duplicateText.includes(join(cwd, "agents", "custom")), false);
+  assert.match(duplicateText, /\[redacted\]/);
+});
+
+test("POST /api/agent-manifests rejects portal-style cross-origin writes", async () => {
+  const cwd = await createRoot();
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      rawAgentManifestPost(baseUrl, requestBody(), {
+        origin: "https://portal.example.com",
+      }),
+  );
+
+  assert.equal(response.statusCode, 403);
   assert.equal(
     await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
     false,

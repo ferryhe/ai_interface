@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { isIP } from "node:net";
 import { GetAgentsResponse } from "@workspace/api-zod";
 
+import { redactAgentInteropText } from "../agent-registry/mcp-tool-exporter";
 import {
   writeAgentManifest,
   type WritableAgentManifest,
@@ -21,6 +22,32 @@ interface CreateAgentManifestBody {
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
+}
+
+function redactManifestString(value: string): string {
+  return redactAgentInteropText(value);
+}
+
+function redactManifestResponseValue<T>(value: T): T {
+  if (typeof value === "string") {
+    return redactManifestString(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactManifestResponseValue(item)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        redactManifestResponseValue(item),
+      ]),
+    ) as T;
+  }
+  return value;
+}
+
+function redactedErrorResponse(message: string): { error: string } {
+  return errorResponse(redactManifestString(message));
 }
 
 function hostNameFromHeader(host: string): string | null {
@@ -133,8 +160,8 @@ function validateResponse(manifest: unknown, path: string): {
     readiness: [],
   });
   return {
-    manifest: parsed.agents[0],
-    path,
+    manifest: redactManifestResponseValue(parsed.agents[0]),
+    path: redactManifestString(path),
   };
 }
 
@@ -166,6 +193,7 @@ export function createAgentManifestsRouter(
       const body = parseCreateBody(req.body);
       const result = await writeAgentManifest({
         cwd: options.cwd,
+        env,
         agentId: body.agentId,
         manifest: body.manifest,
         overwrite: body.overwrite,
@@ -173,7 +201,7 @@ export function createAgentManifestsRouter(
       res.status(201).json(validateResponse(result.manifest, result.path));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      res.status(400).json(errorResponse(message));
+      res.status(400).json(redactedErrorResponse(message));
     }
   });
 

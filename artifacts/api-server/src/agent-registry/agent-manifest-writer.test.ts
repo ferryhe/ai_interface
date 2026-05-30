@@ -11,7 +11,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import type { AgentManifest } from "./agent-manifest";
-import { writeAgentManifest } from "./agent-manifest-writer";
+import {
+  formatAgentManifestYaml,
+  writeAgentManifest,
+} from "./agent-manifest-writer";
 
 async function createRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "agent-writer-"));
@@ -272,6 +275,69 @@ test("rejects direct writes to built-in or community manifest sources", async ()
       /Only custom agent manifests can be written/,
     );
   }
+});
+
+test("rejects overriding built-in and community agent IDs from custom writes", async () => {
+  const cwd = await createRoot();
+  const builtinDir = join(cwd, "agents", "builtin", "protected_builtin");
+  const communityDir = join(cwd, "agents", "community", "protected_community");
+  await mkdir(builtinDir, { recursive: true });
+  await mkdir(communityDir, { recursive: true });
+  await writeFile(
+    join(builtinDir, "agent.yaml"),
+    formatAgentManifestYaml({ ...manifest("protected_builtin"), source: "builtin" }),
+    "utf8",
+  );
+  await writeFile(
+    join(communityDir, "agent.yaml"),
+    formatAgentManifestYaml({
+      ...manifest("protected_community"),
+      source: "community",
+    }),
+    "utf8",
+  );
+
+  await assert.rejects(
+    writeAgentManifest({
+      cwd,
+      agentId: "protected_builtin",
+      manifest: manifest("protected_builtin"),
+      overwrite: true,
+    }),
+    /Refusing to override built-in agent manifest/,
+  );
+
+  await assert.rejects(
+    writeAgentManifest({
+      cwd,
+      agentId: "protected_community",
+      manifest: manifest("protected_community"),
+      overwrite: true,
+    }),
+    /Refusing to override community agent manifest/,
+  );
+});
+
+test("allows built-in override only when explicit env gate is enabled", async () => {
+  const cwd = await createRoot();
+  const builtinDir = join(cwd, "agents", "builtin", "protected_builtin");
+  await mkdir(builtinDir, { recursive: true });
+  await writeFile(
+    join(builtinDir, "agent.yaml"),
+    formatAgentManifestYaml({ ...manifest("protected_builtin"), source: "builtin" }),
+    "utf8",
+  );
+
+  const result = await writeAgentManifest({
+    cwd,
+    env: { AI_INTERFACE_ALLOW_BUILTIN_AGENT_OVERRIDE: "1" },
+    agentId: "protected_builtin",
+    manifest: { ...manifest("protected_builtin"), name: "Custom Override" },
+    overwrite: true,
+  });
+
+  assert.equal(result.manifest.source, "custom");
+  assert.equal(result.manifest.name, "Custom Override");
 });
 
 async function fileExists(path: string): Promise<boolean> {

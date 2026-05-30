@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AgentManifestPreview } from "@/components/mockups/ai-os/_shared/types";
 
+import { ManifestEditor } from "./ManifestEditor";
 import { ManifestViewer, inferSkillSource, type ManifestViewerItem } from "./ManifestViewer";
 import { WorkbenchFileViewer } from "./WorkbenchFileViewer";
 
@@ -81,7 +82,7 @@ export function OperatorBackstage({
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">Operator</Badge>
-            <Badge variant="outline">read-only</Badge>
+            <Badge variant="outline">guarded writes</Badge>
             <Badge variant="outline">governance</Badge>
           </div>
           <CardTitle className="mt-2 flex items-center gap-2 text-lg">
@@ -89,14 +90,14 @@ export function OperatorBackstage({
             Operator Backstage
           </CardTitle>
           <CardDescription>
-            Operator can inspect agent manifests, skill manifests, and workbench governance docs. Normal workflow stays on the standard Backstage tabs and does not expose raw manifests.
+            Operator can inspect all manifests and workbench governance docs. Built-in/community manifests and workbench docs remain read-only; only custom agent manifests can be edited through the guarded localhost manifest API.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
               <div className="font-medium text-foreground">Agent manifests</div>
-              <div className="mt-1 text-xs text-muted-foreground">Source-labelled and redacted before display.</div>
+              <div className="mt-1 text-xs text-muted-foreground">Source-labelled review plus guarded custom-only editing with redacted responses.</div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
               <div className="font-medium text-foreground">Skill manifests</div>
@@ -126,14 +127,15 @@ export function OperatorBackstage({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="agents">
+        <TabsContent value="agents" className="space-y-4">
           <ManifestViewer
             title="Agent manifests"
-            description="Read-only view of registered agent manifests via existing GET /api/agents data."
+            description="Read-only review of registered agent manifests via existing GET /api/agents data. Only custom manifests can be mutated below."
             items={agentItems}
             selectedId={selectedAgentId}
             onSelect={setSelectedAgentId}
           />
+          <ManifestEditor agents={agents} selectedAgentId={selectedAgentId} />
         </TabsContent>
 
         <TabsContent value="skills">

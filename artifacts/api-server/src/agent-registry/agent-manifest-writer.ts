@@ -28,6 +28,7 @@ export interface WriteAgentManifestInput {
   manifest: WritableAgentManifest;
   overwrite?: boolean;
   cwd?: string;
+  env?: Record<string, string | undefined>;
 }
 
 export interface WriteAgentManifestResult {
@@ -198,6 +199,39 @@ async function validateManifestBeforeFinalWrite(
   }
 }
 
+async function assertProtectedAgentIdWriteAllowed(
+  cwd: string,
+  agentId: string,
+  env: Record<string, string | undefined>,
+): Promise<void> {
+  let protectedManifests: AgentManifest[];
+  try {
+    protectedManifests = await loadAgentManifests({
+      cwd,
+      roots: [join("agents", "builtin"), join("agents", "community")],
+      env,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith("No agent manifests found under root(s):")) {
+      return;
+    }
+    throw error;
+  }
+  const existing =
+    protectedManifests.find((candidate) => candidate.agentId === agentId) ?? null;
+  if (!existing) return;
+
+  if (existing.source === "builtin") {
+    if (env.AI_INTERFACE_ALLOW_BUILTIN_AGENT_OVERRIDE === "1") return;
+    throw new Error(
+      `Refusing to override built-in agent manifest: ${agentId}; set AI_INTERFACE_ALLOW_BUILTIN_AGENT_OVERRIDE=1 to allow local override`,
+    );
+  }
+
+  throw new Error(`Refusing to override community agent manifest: ${agentId}`);
+}
+
 export async function writeAgentManifest(
   input: WriteAgentManifestInput,
 ): Promise<WriteAgentManifestResult> {
@@ -205,6 +239,7 @@ export async function writeAgentManifest(
     input.cwd === undefined
       ? await defaultCwd(process.cwd())
       : resolve(input.cwd);
+  const env = input.env ?? process.env;
   assertWritableAgentId(input.agentId);
 
   const customRoot = resolve(cwd, "agents", "custom");
@@ -221,6 +256,7 @@ export async function writeAgentManifest(
     manifest,
   );
 
+  await assertProtectedAgentIdWriteAllowed(cwd, input.agentId, env);
   await assertNoSymlinkedCustomPath(cwd, customRoot, agentDir);
   if ((await pathExists(manifestPath)) && input.overwrite !== true) {
     throw new Error(`Agent manifest already exists: ${manifestPath}`);
