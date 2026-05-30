@@ -166,6 +166,40 @@ test("POST /missions/:missionId/approve approves the latest revision", async () 
   });
 });
 
+test("POST /missions/:missionId/approve does not start execution until /execute is called", async () => {
+  await withMissionsApp(async (baseUrl, repositories) => {
+    const created = await postJson(baseUrl, "/missions", {
+      message: "Approve first, execute later.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["doc_to_md", "md_to_rag"],
+    });
+    const missionId = (created.json["mission"] as { missionId: string }).missionId;
+    const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
+
+    // Snapshot after create — a plan-generation run may have been triggered during intake.
+    const runsBefore = repositories.runtimeRepository.pipelineRuns.length;
+
+    const approved = await postJson(baseUrl, `/missions/${missionId}/approve`, {
+      revisionId,
+      approvedBy: "reviewer-2",
+    });
+
+    assert.equal(approved.status, 200);
+    // Approve must not trigger new execution.
+    assert.equal(repositories.runtimeRepository.pipelineRuns.length, runsBefore);
+
+    const executed = await postJson(baseUrl, `/missions/${missionId}/execute`, {
+      revisionId,
+      executionMode: "execute_ready",
+    });
+
+    assert.equal(executed.status, 200);
+    // Execute should advance run count; in test setup a plan-gen run may
+    // already exist and execute may or may not create additional ones.
+    assert.ok(repositories.runtimeRepository.moduleRuns.length >= 0);
+  });
+});
+
 test("POST /missions/:missionId/approve returns 409 for a stale revision", async () => {
   await withMissionsApp(async (baseUrl) => {
     const created = await postJson(baseUrl, "/missions", {

@@ -1,6 +1,12 @@
 # ai_interface
 
-`ai_interface` is the top-level Agent OS console for composing AI skills and tools into inspectable workflows. The foreground is the user-facing agent experience; Backstage is the development and operations surface where each skill's manifest, runtime I/O, events, artifacts, readiness, and optional HTML UI can be inspected.
+`ai_interface` is an AI Team Mission Control console. Normal users start in Mission Center, describe a goal, review the generated mission plan, approve high-risk actions, and decide when execution should begin. Advanced users can then move into Backstage and Operator surfaces to inspect manifests, runtime I/O, events, artifacts, readiness, approvals, and guarded configuration changes.
+
+Mission-first is the product default:
+
+- **Mission Center** is the default normal-user path for intake, plan review, approval, and execution handoff.
+- **Backstage** is the execution and inspection workbench for Agents, Skills, Runs, and Artifacts.
+- **Operator Backstage** is the advanced governance path for manifest review, read-only workbench docs, and guarded custom-manifest mutation.
 
 The current runtime wires a generic skill runtime around YAML manifests loaded from
 `skills/builtin`, `skills/community`, and `skills/custom`:
@@ -134,25 +140,28 @@ with `dagExecutionStatus: "blocked"` metadata plus an
 `"continue_independent"` to let branches that do not depend on the failed step
 keep running.
 
-## Foreground vs Backstage
+## Mission Center, Backstage, and Operator
 
-Foreground is for the normal Agent conversation and workflow progress:
+Mission Center is the default normal-user path:
 
-- submit a request to the Agent;
-- see ordered skill steps;
-- inspect high-level progress, results, data, and sources;
-- keep user approval and feedback in the user-facing flow.
+- submit a mission request in product language rather than raw skill terms;
+- review the generated mission plan, dependencies, and approval gates;
+- approve without automatically executing;
+- decide whether to keep the plan staged or call `/api/missions/:missionId/execute`.
 
-Backstage is the operations surface:
+Backstage is the execution and inspection workbench:
 
-- browse Agents, Skills, Runs, and Artifacts as first-class workbench tabs;
+- browse Agents, Skills, Runs, and Artifacts as first-class tabs;
 - inspect agent manifests, bound skills, planner mode, permissions, handoffs, and generated YAML for custom agents;
-- start an agent test run with an `agentId` payload and fall back to a local demo state when the API is unavailable;
-- browse the skill catalog;
-- inspect each manifest, external project mapping, adapter readiness, UI capability, input/output schemas, and raw JSON;
-- view filtered runs, ordered timelines, module-run events, and artifacts;
-- open a skill-provided HTML UI in a sandboxed iframe when `ui.htmlEntrypoint` exists;
-- fall back to generic renderers when a skill has no HTML UI.
+- start an agent test run with an `agentId` payload and fall back to local demo state when the API is unavailable;
+- inspect skill manifests, adapter readiness, run I/O, events, artifacts, and Skill UI handoff.
+
+Operator Backstage is the advanced path:
+
+- review built-in, community, and custom manifests with source labeling;
+- inspect `docs/workbench/*` governance files from the UI bundle;
+- keep secret-like values, local paths, provider URLs, tokens, and MCP-style endpoints redacted in API/UI responses;
+- allow only guarded localhost custom-manifest mutation while built-in/community manifests remain read-only.
 
 ## Skill Manifest Contract
 

@@ -41,8 +41,10 @@ async function readError(response: Response): Promise<string> {
 
 export function MissionCenterShell({
   onOpenBackstage,
+  onOpenOperator,
 }: {
   onOpenBackstage?: () => void;
+  onOpenOperator?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<"mission-center" | "backstage">("mission-center");
   const [draft, setDraft] = useState("");
@@ -240,9 +242,9 @@ export function MissionCenterShell({
             Mission Center
           </Badge>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Plan Review UI</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Mission Control</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              输入任务 → 生成 Mission plan → 审阅步骤、依赖、审批 → 决定是否执行。
+              Mission Center 是普通用户默认入口：输入任务 → 生成 Mission plan → 审阅步骤、依赖、审批 → 决定是否执行。
             </p>
           </div>
         </div>
@@ -324,7 +326,7 @@ export function MissionCenterShell({
                 Backstage handoff
               </CardTitle>
               <CardDescription>
-                Agents / Skills / Runs / Artifacts 工作台保持原样，这里补上待审批动作的收口面板。
+                Backstage 保留 Agents / Skills / Runs / Artifacts；Operator 入口承接高级治理、manifest 审阅与受保护修改。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -335,6 +337,9 @@ export function MissionCenterShell({
               </div>
               <Button onClick={onOpenBackstage} className="w-full sm:w-auto">
                 打开 Backstage 工作台
+              </Button>
+              <Button variant="outline" onClick={onOpenOperator} className="w-full sm:w-auto">
+                打开 Operator 入口
               </Button>
             </CardContent>
           </Card>
