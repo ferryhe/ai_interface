@@ -27,6 +27,7 @@ import { AgentManifestWizard } from "./_components/AgentManifestWizard";
 import { ArtifactInspector } from "./_components/ArtifactInspector";
 import { RunInspector } from "./_components/RunInspector";
 import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
+import { OperatorBackstage } from "@/components/operator/OperatorBackstage";
 import {
   demoAgentManifests,
   demoAgentReadiness,
@@ -45,8 +46,8 @@ import type {
 
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type WorkspaceMode = "mission" | "foreground" | "backstage";
-type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts";
-type BackstageTab = "io" | "artifacts" | "events" | "ui" | "raw";
+type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts" | "operator";
+type BackstageTab = "io" | "artifacts" | "events" | "ui";
 type ModuleId =
   | "web_listening"
   | "doc_to_md"
@@ -232,6 +233,7 @@ interface SkillManifestPreview {
   name: string;
   description: string;
   project: {
+    source?: string;
     defaultSiblingPath: string;
     envPath: string;
     readiness: "ready" | "not_configured";
@@ -2075,6 +2077,7 @@ function normalizeSkillPreviews(payload: unknown): SkillManifestPreview[] {
         name: nullableString(item["name"]) ?? existing.name,
         description: nullableString(item["description"]) ?? existing.description,
         project: {
+          source: nullableString(project["source"]) ?? existing.project.source,
           defaultSiblingPath:
             nullableString(project["defaultSiblingPath"]) ??
             existing.project.defaultSiblingPath,
@@ -3395,13 +3398,13 @@ function BackstageView({
     { id: "skills", label: "Skills" },
     { id: "runs", label: "Runs" },
     { id: "artifacts", label: "Artifacts" },
+    { id: "operator", label: "Operator" },
   ];
   const skillTabs: Array<{ id: BackstageTab; label: string; enabled: boolean }> = [
     { id: "io", label: "Run I/O", enabled: true },
     { id: "artifacts", label: "Artifacts", enabled: true },
     { id: "events", label: "Events", enabled: true },
     { id: "ui", label: "Skill UI", enabled: hasBackstageSkillUi(selectedSkill) },
-    { id: "raw", label: "Raw JSON", enabled: true },
   ];
   const selectedReadiness =
     agentReadiness.find((item) => item.agentId === selectedAgent.agentId) ?? null;
@@ -3481,7 +3484,7 @@ function BackstageView({
                   <i style={{ background: moduleById(skill.id).color }} />
                   <span>
                     <strong>{skill.name}</strong>
-                    <em>{skill.project.defaultSiblingPath}</em>
+                    <em>{skill.execution.kind}</em>
                   </span>
                   <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
                     {run ? runtimeStatusLabel(run.status) : "Queued"}
@@ -3508,7 +3511,7 @@ function BackstageView({
             </div>
 
             <div className="backstage-metrics">
-              <Metric label="Project" value={selectedSkill.project.defaultSiblingPath} />
+              <Metric label="Kind" value={selectedSkill.execution.kind} />
               <Metric
                 label="Readiness"
                 value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
@@ -3582,19 +3585,6 @@ function BackstageView({
             )}
 
             {skillTab === "ui" && <SkillHtmlPanel skill={selectedSkill} run={selectedRun} />}
-
-            {skillTab === "raw" && (
-              <div className="backstage-grid two">
-                <JsonInspector title="Manifest" value={selectedSkill} />
-                <JsonInspector
-                  title="Runtime"
-                  value={{
-                    run: selectedRun ?? null,
-                    latestPlan: latestAgentRun?.response.plan ?? null,
-                  }}
-                />
-              </div>
-            )}
           </div>
         </section>
       )}
@@ -3608,6 +3598,10 @@ function BackstageView({
       )}
 
       {workbenchTab === "artifacts" && <ArtifactInspector groups={artifactGroups} />}
+
+      {workbenchTab === "operator" && (
+        <OperatorBackstage agents={agents} skills={skillCatalog} />
+      )}
     </section>
   );
 }
