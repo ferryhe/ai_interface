@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRightLeft, Bot, RefreshCcw, Workflow } from "lucide-react";
 
 import { ApprovalInbox } from "@/components/approvals/ApprovalInbox";
+import { ExecutionBoard } from "./ExecutionBoard";
 import { MissionIntake } from "./MissionIntake";
 import { PlanReview } from "./PlanReview";
 import type {
@@ -338,7 +339,11 @@ export function MissionCenterShell({
             </CardContent>
           </Card>
 
-          <ApprovalInbox />
+          <ExecutionBoard missionId={missionId} />
+
+          <div id="approval-inbox">
+            <ApprovalInbox />
+          </div>
         </TabsContent>
       </Tabs>
     </section>
