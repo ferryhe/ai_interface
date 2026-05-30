@@ -330,7 +330,7 @@ export async function executeMissionService(
     executedAt: new Date(),
     threadId: null,
     pipelineRunId: null,
-    sourceAgentRunId: input.executionMode ?? "plan_only",
+    sourceAgentRunId: null,
   });
 
   const updatedMission = assertMissionExists(await repository.findMission(missionId), missionId);

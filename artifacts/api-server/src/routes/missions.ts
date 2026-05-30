@@ -45,7 +45,10 @@ function errorStatus(error: unknown): number {
   if (/not found/i.test(message)) {
     return 404;
   }
-  return 400;
+  if (error instanceof Error && error.name === "ZodError") {
+    return 400;
+  }
+  return 500;
 }
 
 const lazyMissionRepository = createLazyRepository<MissionRepository>(async () => {
