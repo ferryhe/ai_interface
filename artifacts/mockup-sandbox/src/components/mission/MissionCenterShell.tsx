@@ -20,8 +20,7 @@ import type {
 } from "./mission-types";
 
 function apiPath(path: string): string {
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${basePath}${path}`;
+  return path;
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -296,7 +295,9 @@ export function MissionCenterShell({
               onApprove={() => void handleApprove()}
               onRevise={() => void handleRevise()}
               onExecute={() => void handleExecute("execute_ready")}
-              onPlanOnly={() => void handleExecute("plan_only")}
+              onPlanOnly={() => {
+                setStatusMessage("已保留为计划模式，未启动执行。可随时回来看计划详情。");
+              }}
               actionState={actionState}
               executionReadiness={executionReadiness}
               conflictMessage={conflictMessage}

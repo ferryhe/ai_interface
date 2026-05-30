@@ -8,11 +8,12 @@ export type MissionStatus =
   | "failed";
 export type MissionStepStatus =
   | "pending"
-  | "ready"
+  | "waiting_approval"
+  | "running"
   | "blocked"
-  | "in_progress"
-  | "completed"
-  | "skipped";
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 export type MissionReviewMode = "draft_for_review" | "plan_only";
 export type MissionExecutionMode = "plan_only" | "execute_ready";
 
