@@ -20,15 +20,15 @@ interface CreateAgentManifestBody {
   overwrite?: unknown;
 }
 
-function errorResponse(message: string): { error: string } {
+export function errorResponse(message: string): { error: string } {
   return { error: message };
 }
 
-function redactManifestString(value: string): string {
+export function redactManifestString(value: string): string {
   return redactAgentInteropText(value);
 }
 
-function redactManifestResponseValue<T>(value: T): T {
+export function redactManifestResponseValue<T>(value: T): T {
   if (typeof value === "string") {
     return redactManifestString(value) as T;
   }
@@ -46,7 +46,7 @@ function redactManifestResponseValue<T>(value: T): T {
   return value;
 }
 
-function redactedErrorResponse(message: string): { error: string } {
+export function redactedErrorResponse(message: string): { error: string } {
   return errorResponse(redactManifestString(message));
 }
 
@@ -89,7 +89,7 @@ function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
   return isIP(normalized) === 4 && normalized.startsWith("127.");
 }
 
-function manifestWriteGuardError(req: Request): string | null {
+export function manifestWriteGuardError(req: Request): string | null {
   if (req.get("sec-fetch-site") === "cross-site") {
     return "Cross-site agent manifest write requests are not allowed";
   }
