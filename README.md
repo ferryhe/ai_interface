@@ -1,12 +1,14 @@
 # ai_interface
 
+[中文文档](README_zh.md)
+
 `ai_interface` is an AI Team Mission Control console. Normal users start in Mission Center, describe a goal, review the generated mission plan, approve high-risk actions, and decide when execution should begin. Advanced users can then move into Backstage and Operator surfaces to inspect manifests, runtime I/O, events, artifacts, readiness, approvals, and guarded configuration changes.
 
 Mission-first is the product default:
 
 - **Mission Center** is the default normal-user path for intake, plan review, approval, and execution handoff.
 - **Backstage** is the execution and inspection workbench for Agents, Skills, Runs, and Artifacts.
-- **Operator Backstage** is the advanced governance path for manifest review, read-only workbench docs, and guarded custom-manifest mutation.
+- **Operator Backstage** is the advanced governance path for manifest review, read-only inspection, and guarded custom-manifest mutation.
 
 The current runtime wires a generic skill runtime around YAML manifests loaded from
 `skills/builtin`, `skills/community`, and `skills/custom`:
@@ -21,9 +23,9 @@ The current runtime wires a generic skill runtime around YAML manifests loaded f
 | `ai_actuary` | builtin | `../ai_actuary` | Invoke the ai_actuary reserving pipeline through the safe CLI executor. |
 | `example_reporter` | community | `skills/community/example_reporter` | Validation-only community manifest example. |
 
-This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
+**Design principle:** approval and execution are decoupled — `approve` confirms the plan/revision and execution readiness, while `execute` is an explicit separate call that creates runtime runs. The runtime, API, database, and logs remain the system of record; documentation describes collaboration boundaries without duplicating runtime state.
 
-Workbench governance docs: see [`docs/workbench/README.md`](docs/workbench/README.md).
+This repository only edits and owns the `ai_interface` side. Sibling projects are referenced through manifest metadata and readiness checks; their code, secrets, and local `.env` files are not copied or modified by this app.
 
 Agent manifests are also file-backed and loaded from `agents/builtin`,
 `agents/community`, and `agents/custom`. The first built-in agent is
@@ -159,7 +161,6 @@ Backstage is the execution and inspection workbench:
 Operator Backstage is the advanced path:
 
 - review built-in, community, and custom manifests with source labeling;
-- inspect `docs/workbench/*` governance files from the UI bundle;
 - keep secret-like values, local paths, provider URLs, tokens, and MCP-style endpoints redacted in API/UI responses;
 - allow only guarded localhost custom-manifest mutation while built-in/community manifests remain read-only.
 
@@ -335,8 +336,8 @@ For a complete community skill manifest template, see
 │   ├── api-zod/           # Generated Zod schemas/types
 │   └── db/                # Drizzle schema and database client
 ├── docs/
-│   ├── archive/           # Completed plans and migration notes
 │   ├── contracts/fixtures/ # Compatibility reference payloads
+│   ├── demos/             # Mission walkthrough docs
 │   └── project-overview.html
 └── scripts/
 ```
