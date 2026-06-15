@@ -27,6 +27,12 @@ export interface MissionStepApproval {
 
 export type MissionStepRole = "executor" | "qa_reviewer";
 
+export interface ActivationProfile {
+  level: "full" | "sprint" | "micro";
+  maxAgents?: number;
+  reviewIntensity: "high" | "medium" | "low";
+}
+
 export interface EvidenceContract {
   requiredArtifacts: string[];
   assertionType: "presence" | "json_schema" | "content_contains";
@@ -58,6 +64,7 @@ export interface MissionPlan {
   steps: MissionPlanStep[];
   warnings: string[];
   nonGoals: string[];
+  activationProfile?: ActivationProfile;
 }
 
 export interface AgentRuntimePlanMissionOptions {

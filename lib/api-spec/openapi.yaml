@@ -1356,6 +1356,26 @@ components:
           type: array
           items:
             type: string
+        activationProfile:
+          type: object
+          properties:
+            level:
+              type: string
+              enum:
+                - full
+                - sprint
+                - micro
+            maxAgents:
+              type: integer
+            reviewIntensity:
+              type: string
+              enum:
+                - high
+                - medium
+                - low
+          required:
+            - level
+            - reviewIntensity
       required:
         - missionId
         - title
