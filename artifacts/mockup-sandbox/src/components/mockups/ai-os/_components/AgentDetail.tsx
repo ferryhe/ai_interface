@@ -72,6 +72,33 @@ export function AgentDetail({
         </span>
       </div>
 
+      {agent.identity && (
+        <>
+          <section className="workbench-section">
+            <span className="workbench-section-title">
+              <ShieldCheck size={15} />
+              Identity
+            </span>
+            <div className="workbench-lines">
+              <span><strong>Persona</strong><em>{agent.identity.persona}</em></span>
+              <span><strong>Background</strong><em>{agent.identity.background}</em></span>
+            </div>
+          </section>
+          {agent.teamId && <p className="soft-label">Team: {agent.teamId}</p>}
+          {agent.runtimeStatus && <p className="soft-label">Status: {agent.runtimeStatus}</p>}
+        </>
+      )}
+      {agent.criticalRules && agent.criticalRules.length > 0 && (
+        <section className="workbench-section">
+          <span className="workbench-section-title">⚠ Critical Rules</span>
+          <div className="workbench-lines">
+            {agent.criticalRules.map((rule) => (
+              <span key={rule.id}><strong>{rule.severity}</strong><em>{rule.description}</em></span>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="workbench-section">
         <span className="workbench-section-title">
           <Braces size={15} />

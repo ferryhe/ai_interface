@@ -125,6 +125,47 @@ export interface AgentManifestPreview {
     prompt: string;
     expectedSkillIds: string[];
   }>;
+  identity?: {
+    persona: string;
+    background: string;
+  };
+  criticalRules?: Array<{
+    id: string;
+    description: string;
+    severity: "blocker" | "warning";
+  }>;
+  deliverables?: Array<{
+    name: string;
+    format: string;
+    description: string;
+    successCriteria: string;
+  }>;
+  workflow?: Array<{
+    name: string;
+    description: string;
+    approvalRequired: boolean;
+    deliverables: string[];
+  }>;
+  communicationStyle?: {
+    tone: string;
+    outputFormat: string;
+    languagePreference: string;
+  };
+  successMetrics?: Array<{
+    metric: string;
+    target: string;
+    measurement: string;
+  }>;
+  teamId?: string;
+  runtimeStatus?: string;
+}
+
+export interface TeamPreview {
+  teamId: string;
+  displayName: string;
+  description: string;
+  industries: string[];
+  memberAgentIds: string[];
 }
 
 export interface AgentReadiness {
