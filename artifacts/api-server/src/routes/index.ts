@@ -12,6 +12,7 @@ import pipelinesRouter from "./pipelines";
 import portalAuthRouter from "./portal-auth";
 import runInspectorRouter from "./run-inspector";
 import skillsRouter from "./skills";
+import teamsRouter from "./teams";
 import toolAdaptersRouter from "./tool-adapters";
 
 const router: IRouter = Router();
@@ -29,6 +30,7 @@ router.use(pipelinesRouter);
 router.use(portalAuthRouter);
 router.use(runInspectorRouter);
 router.use(skillsRouter);
+router.use(teamsRouter);
 router.use(toolAdaptersRouter);
 
 export default router;
