@@ -1,9 +1,16 @@
 # ai_interface Documentation
 
-## Current Docs
+## Project Overview
 
-- [`../README.md`](../README.md) — Mission-first product overview, API/runtime summary, and verification commands.
+- [`../README.md`](../README.md) — English: complete Mission Control overview, API/runtime summary, agent manifest, teams, QA gate, and verification.
 - [`../README_zh.md`](../README_zh.md) — 中文版项目说明。
 - `project-overview.html` — Browser-friendly project introduction and usage guide.
-- `contracts/fixtures/` — Example module-run contract payloads used as compatibility references.
+
+## Contracts & Fixtures
+
+- `contracts/fixtures/` — Example module-run contract payloads used as compatibility references (web-listening, doc-to-md, md-to-rag, rag-to-agent).
+
+## Demos
+
 - `demos/knowledge-builder-mission.md` — Knowledge Builder mission walkthrough.
+- `demos/life-insurance-agents.md` — Life insurance template agents overview.

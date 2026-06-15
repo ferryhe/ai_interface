@@ -36,30 +36,146 @@
 
 ---
 
-## Agent 清单
+## Agent Manifest（九段式 Agent 定义）
 
-Agent manifest 同样基于文件加载，从 `agents/builtin`、`agents/community`、`agents/custom` 三个来源读取。首个内置 Agent 是 `knowledge_builder`，绑定了 `web_listening`、`doc_to_md`、`md_to_rag`、`rag_to_agent`，构成可观测的知识构建工作流。
+每个 Agent 通过 YAML manifest 定义，包含九大核心段落，构成完整的数字化专家定义——超越技能绑定，覆盖身份、操作规则、交付物、工作流、沟通风格和成功指标：
 
-`GET /api/agents` 返回 Agent manifest 及根据已注册技能推断的就绪状态。缺失的技能 ID 以就绪元数据形式报告，不会导致列表接口崩溃。
+```yaml
+agentId: knowledge_builder
+name: Knowledge Builder
+description: ...
+source: builtin|community|custom
+runtimeStatus: active|template       # template=尚未就绪运行
 
-Agent 互操作导出：
+# ── 九段 ──
+identity:                            # 身份定义
+  persona: ...                       # 角色人设
+  background: ...                    # 背景经验
+
+criticalRules:                       # 必须遵守的约束
+  - id: ...
+    description: ...
+    severity: blocker|warning
+
+deliverables:                        # 产出物
+  - name: ...
+    format: YAML|PDF|Markdown|...
+    successCriteria: ...
+
+workflow:                            # 工作流程
+  - name: ...
+    approvalRequired: true|false
+    deliverables: [...]
+
+communicationStyle:                  # 沟通风格
+  tone: ...
+  outputFormat: ...
+  languagePreference: zh-CN|en
+
+successMetrics:                      # 成功指标
+  - metric: ...
+    target: ...
+    measurement: ...
+
+# ── 运营配置 ──
+teamId: insurance|knowledge          # 所属团队/业务线
+skills: [...]                        # 绑定的技能
+planner: { mode: linear|dag, ... }
+permissions: { ... }
+memory: { promotionMode: ... }
+handoffs: [...]
+tests: [...]                         # Manifest 级冒烟测试
+```
+
+### 内置 Agent
+
+| Agent ID | 名称 | 团队 | 运行状态 | 说明 |
+|---|---|---|---|---|
+| `knowledge_builder` | Knowledge Builder | knowledge | active | 全链路：web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `evidence_collector` | Evidence Collector | — | active | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
+
+### 模板 Agent（寿险行业）
+
+`agents/custom/` 下包含 4 个寿险行业模板 Agent（`runtimeStatus: template`），具备完整的九段 manifest 但技能绑定为空——可接入实际适配器后启用：
+
+| Agent ID | 名称 | 角色 |
+|---|---|---|
+| `claims_reviewer` | 理赔审核师 | 寿险理赔审核专家，核查理赔申请的合规性和真实性 |
+| `compliance_auditor` | 合规审计师 | 寿险合规审计专家，确保业务流程符合监管要求 |
+| `life_uw_analyst` | 核保分析师 | 寿险核保分析专家，评估投保申请的风险等级 |
+| `pricing_actuary` | 定价精算师 | 寿险定价精算专家，计算保险费率和准备金 |
+
+### Agent 互操作导出
 
 - `GET /api/agents/:agentId/export/vscode-agent` — 返回 VS Code 兼容的 `.agent.md` 文件，包含 YAML front matter 和 Markdown 指令体。
 - `GET /api/agents/:agentId/export/mcp-tool` — 返回脱敏的 MCP 包装元数据，提供确定性的 `run_<agentId>` 工具名和输入 schema。
 
-未知 Agent ID 返回 404，导出数据脱敏处理本地敏感值，不暴露 provider 或 MCP 内部信息。
-
-`POST /api/agent-runs` 支持可选的 `agentId`。提供后，运行时会选择该 Agent 的已注册技能、使用其 planner 默认值、仅对当次运行应用 provider 偏好设置，并在新的 thread 记录、消息、pipeline 运行和 module 运行上记录 Agent 元数据。
+未知 Agent ID 返回 404，导出数据脱敏处理本地敏感值。
 
 ---
 
-## 运行巡检
+## 团队与业务线（Teams）
 
-运行巡检为只读接口：
+Agent 通过 `teamId` 归属到业务线/团队。团队定义在 `teams/team-registry.yaml`：
 
-- `GET /api/runs` — 可按 `agentId`、`skillId`、`moduleId`、`status`、`limit` 过滤
-- `GET /api/runs/:pipelineRunId/timeline` — 返回按时间排序的 thread 消息、pipeline 状态、module 运行和事件
-- `GET /api/artifacts` — 可按 `pipelineRunId`、`moduleRunId`、`kind`、`limit` 过滤
+```yaml
+teams:
+  insurance:
+    displayName: 寿险业务
+    description: 寿险精算、核保、理赔、合规
+    industries:
+      - life_insurance
+  knowledge:
+    displayName: 知识工程
+    description: 文档处理、知识库构建
+```
+
+`GET /api/teams` 返回团队列表。`GET /api/agents?teamId=insurance` 按团队过滤 Agent。
+
+---
+
+## 任务计划、质量关卡与激活画像
+
+任务计划（Mission Plan）支持结构化质量关卡和风险级激活画像：
+
+**QA 步骤**（`missionPlanStep` 带证据合约）：
+- 每个步骤可声明 `qaStepId` 引用一个独立的 QA 步骤。
+- QA 步骤携带 `evidenceContract`，指定需通过的断言类型（`equals|contains|matches|exists`）和期望值。
+- `stepRole: qa` 的步骤会阻塞下游执行——QA 步骤通过前，下游非 QA 步骤保持阻塞状态。
+
+**激活画像**（`missionPlanActivationProfile`）：
+- `level`: `none` | `low` | `medium` | `high` — 控制审核强度。
+- `reviewIntensity`: `none` | `light` | `standard` | `deep` — 控制注入的 QA 关卡和证据检查数量。
+- `level: high` 或 `reviewIntensity: deep` 的画像会自动添加额外关卡步骤。
+
+---
+
+## API 摘要
+
+### Agents
+- `GET /api/agents` — 列出所有 Agent（支持 `?teamId=` 过滤）
+- `GET /api/agents/:agentId` — 单个 Agent manifest（含九段详情）
+- `GET /api/agents/:agentId/export/vscode-agent` — VS Code 导出
+- `GET /api/agents/:agentId/export/mcp-tool` — MCP 导出
+
+### Teams
+- `GET /api/teams` — 列出已注册团队
+
+### Skills
+- `GET /api/skills` — 列出技能及脱敏就绪状态
+
+### Runs
+- `POST /api/agent-runs` — 创建运行（可选 `agentId`）
+- `GET /api/runs` — 列出运行（可按 `agentId`、`skillId`、`moduleId`、`status`、`limit` 过滤）
+- `GET /api/runs/:pipelineRunId/timeline` — 时间线（消息、状态、模块、事件）
+
+### Artifacts
+- `GET /api/artifacts` — 列出产物（可按 `pipelineRunId`、`moduleRunId`、`kind`、`limit` 过滤）
+
+### Missions
+- `POST /api/missions` — 创建任务
+- `POST /api/missions/:missionId/approve` — 批准（不执行）
+- `POST /api/missions/:missionId/execute` — 显式执行
 
 所有巡检响应在返回前脱敏处理：环境变量值、provider 密钥、本地 provider URL、MCP 服务器 URL、token 类字段和配置的绝对路径。
 
@@ -128,8 +244,9 @@ DAG 模式下，无审批要求的就绪步骤并行执行（默认最大并发 
 ### Backstage（执行与观测工作台）
 
 - 浏览 Agents、Skills、Runs、Artifacts 四大一级标签页
-- 检查 Agent manifest、绑定技能、planner 模式、权限、handoff 和自定义 Agent 生成的 YAML
-- 发起 Agent 测试运行，API 不可用时回退到本地演示状态
+- 查看 Agent 完整九段信息（identity、criticalRules、deliverables、workflow、communicationStyle、successMetrics）
+- 查看 Agent 所属团队（`teamId`）并按团队过滤
+- 查看 runtimeStatus 标识（active / template）
 - 检查技能 manifest、适配器就绪状态、运行 I/O、事件、产物和 Skill UI 交接
 
 ### Operator Backstage（高级治理路径）
@@ -148,13 +265,15 @@ DAG 模式下，无审批要求的就绪步骤并行执行（默认最大并发 
 │   ├── api-server/        # Express API、Agent 运行时、模块接入、技能运行时
 │   └── mockup-sandbox/    # React/Vite Agent OS 界面
 ├── agents/
-│   ├── builtin/           # 内置 Agent 清单
-│   ├── community/         # 社区 Agent 清单
-│   └── custom/            # 本地开发 Agent 清单
+│   ├── builtin/           # 内置 Agent manifest（knowledge_builder, evidence_collector）
+│   ├── community/         # 社区 Agent manifest
+│   └── custom/            # 模板 Agent（寿险行业）及本地实验
 ├── skills/
-│   ├── builtin/           # 内置技能清单
-│   ├── community/         # 社区技能清单
-│   └── custom/            # 本地开发技能清单
+│   ├── builtin/           # 内置技能 manifest
+│   ├── community/         # 社区技能 manifest
+│   └── custom/            # 本地技能实验（除 .gitkeep 外 gitignore）
+├── teams/
+│   └── team-registry.yaml # 团队/业务线定义
 ├── lib/
 │   ├── api-spec/          # OpenAPI 规范（唯一事实源）
 │   ├── api-client-react/  # 生成的 React Query 客户端
@@ -165,6 +284,7 @@ DAG 模式下，无审批要求的就绪步骤并行执行（默认最大并发 
 │   ├── demos/             # 任务演示文档
 │   └── project-overview.html
 └── scripts/
+    └── src/               # CLI 工具：验证、创建、导入 agent/skill
 ```
 
 ---
@@ -222,7 +342,7 @@ git diff --check
 
 - 前台可渲染并提交/展示流程
 - 可从顶栏切换至 Backstage
-- Agents 标签页渲染 Knowledge Builder 及自定义 Agent YAML 预览
+- Agents 标签页完整渲染全部 6 个 Agent，展示九段详情，支持按团队过滤
 - Skills 标签页显示默认内置和社区技能
 - Runs 标签页显示有序的模块步骤、事件和活跃技能
 - Artifacts 标签页按 pipeline 和 module 运行分组

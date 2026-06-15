@@ -50,6 +50,15 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
+# Dev tooling (process files, not for release)
+.hermes/
+.codex/
+attached_assets/
+AGENTS.md
+
+# Script local deps
+scripts/node_modules/
+
 # Local tool caches
 .cache/
 .local/
