@@ -1209,6 +1209,220 @@ export const zhCN = {
         },
       },
     },
+    legacyAi: {
+      dock: {
+        views: {
+          preview: "预览",
+          agent: "Agent",
+          deploy: "部署",
+          tasks: "任务",
+        },
+        tools: {
+          git: "Git",
+          console: "控制台",
+          secrets: "密钥",
+          database: "数据库",
+          packages: "包",
+          search: "搜索",
+          debugger: "调试",
+        },
+        actions: {
+          start: "启动",
+          stop: "停止",
+          run: "运行",
+          startApp: "启动应用",
+          stopApp: "停止应用",
+          switchToolPage: "切换工具页",
+          switchToolTo: "切换工具到 {{tool}}",
+        },
+      },
+      command: {
+        placeholder: {
+          plan: "描述你希望 Agent 准备的计划...",
+          power: "告诉 Agent 你想创建的结果...",
+        },
+        attachFile: "附加文件",
+        togglePlanMode: "切换计划模式",
+        plan: "计划",
+        agentSettings: "Agent 设置",
+        voiceInput: "语音输入",
+        send: "发送",
+        sendMessage: "发送消息",
+        meta: {
+          plan: "计划模式会在行动前等待审批。",
+          power: "强力模式可以检查、编辑、运行并汇报结果。",
+        },
+        shortcut: "Enter 发送 / Shift+Enter 换行",
+      },
+      taskRail: {
+        workspaceTitle: "Agent OS",
+        workspaceHandle: "@你",
+        searchTasks: "搜索任务",
+        newObjective: "新目标",
+        activeWork: "进行中的工作",
+        status: {
+          running: "运行中",
+          waiting: "等待中",
+          paused: "已暂停",
+          done: "完成",
+        },
+      },
+      context: {
+        livePreview: "实时预览",
+        open: "打开",
+        preview: {
+          title: "认证 API",
+          status: "401 已处理 / 200 已就绪",
+        },
+        runtime: "运行时",
+        changes: "变更",
+        review: "审阅",
+        agentControl: "Agent 控制",
+        permissions: {
+          writeAccess: "写入权限",
+          networkTools: "网络工具",
+          deploy: "部署",
+        },
+        permissionState: {
+          on: "开启",
+          ask: "询问",
+          manual: "手动",
+        },
+        model: "模型",
+        modelDescription: "已启用完整工具使用、代码审查和审批检查点。",
+      },
+      inspector: {
+        eyebrow: "检查器",
+        title: "Agent 实现详情",
+        close: "关闭检查器",
+        tabs: {
+          changes: "变更",
+          code: "代码",
+          logs: "日志",
+          preview: "预览",
+        },
+        preview: {
+          title: "认证 API 预览",
+          description: "登录、刷新和登出端点已进入预备状态。",
+          status: {
+            ready: "就绪",
+            waiting: "等待中",
+          },
+        },
+      },
+      timeline: {
+        objective: "目标",
+        reviewChanges: "审阅变更",
+        inspectCode: "检查代码",
+        statusTitle: "Agent 正在实现，并会在审批点暂停。",
+        statusDescription: "主界面会跟踪意图、进度、决策和结果。",
+        progress: "进度",
+        queuedUserInstruction: "已排队的用户指令",
+        approval: {
+          approveSecureCookie: "批准安全 cookie 流程",
+          keepJsonTokens: "保留 JSON token",
+        },
+      },
+      data: {
+        tasks: {
+          authApi: {
+            title: "交付 JWT 认证 API",
+            updatedAt: "现在",
+            model: "强力 / GPT-4o",
+          },
+          dashboard: {
+            title: "审阅管理后台仪表盘",
+            updatedAt: "12 分钟前",
+            model: "轻量 / Claude Haiku",
+          },
+          deploy: {
+            title: "部署预发预览",
+            updatedAt: "1 小时前",
+            model: "强力 / GPT-4o",
+          },
+        },
+        timeline: {
+          authApi: {
+            plan: {
+              title: "计划已批准",
+              detail:
+                "创建 Express 认证路由、JWT 中间件、refresh-token 轮换和请求限流。",
+              artifact: "6 个实现步骤",
+            },
+            deps: {
+              title: "已安装运行时依赖",
+              detail:
+                "已添加 express-rate-limit、jsonwebtoken、bcrypt 和校验辅助函数。",
+            },
+            routes: {
+              title: "正在编写路由处理器",
+              detail:
+                "登录和刷新端点已接好。Agent 正在验证 token 过期时间和响应结构，然后再继续。",
+            },
+            approval: {
+              title: "需要审批",
+              detail:
+                "是否使用 httpOnly cookie 保存 refresh token，而不是在 JSON 中返回两个 token？",
+              artifact: "安全敏感决策",
+            },
+            tests: {
+              title: "运行认证契约测试",
+              detail: "refresh-token 决策确认后即会排队执行。",
+              time: "下一步",
+            },
+          },
+          dashboard: {
+            audit: {
+              title: "审计已完成",
+              detail: "已检查图表层级、加载状态和键盘焦点顺序。",
+            },
+            review: {
+              title: "等待审阅",
+              detail: "代码改动前，有两个布局选项等待审批。",
+            },
+          },
+          deploy: {
+            build: {
+              title: "生产构建已通过",
+              detail: "静态资源已编译，冒烟检查已通过。",
+            },
+            preview: {
+              title: "预览已部署",
+              detail: "预发 URL 已上线，并启用了 webhook 重放。",
+            },
+          },
+        },
+        fileChanges: {
+          authRoutes: {
+            summary: "登录、刷新和登出端点",
+          },
+          jwtMiddleware: {
+            summary: "Bearer token 守卫和带类型的请求用户",
+          },
+          tokenLib: {
+            summary: "Token 签名和 refresh 轮换辅助函数",
+          },
+        },
+        runtimeSignals: {
+          apiServer: {
+            label: "API 服务器",
+            value: "运行中 :3000",
+          },
+          tests: {
+            label: "测试",
+            value: "已排队",
+          },
+          secrets: {
+            label: "密钥",
+            value: "需要 2 项",
+          },
+          preview: {
+            label: "预览",
+            value: "健康",
+          },
+        },
+      },
+    },
     missionCenter: {
       badge: "Mission Center",
       title: "Mission Control",

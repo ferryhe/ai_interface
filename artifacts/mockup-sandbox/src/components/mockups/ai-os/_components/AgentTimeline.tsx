@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   Terminal,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { colors, fontFamily, toolbarButton } from "../_shared/theme";
 import type {
@@ -56,12 +57,14 @@ export function AgentTimeline({
   sessionNote,
   onOpenInspector,
 }: AgentTimelineProps) {
+  const { t } = useTranslation();
+
   return (
     <main className="agent-main">
       <div className="agent-main-header">
         <div style={{ minWidth: 0 }}>
           <div style={{ color: colors.muted, fontSize: 12 }}>
-            {task.project} / objective
+            {task.project} / {t("legacyAi.timeline.objective")}
           </div>
           <h1
             style={{
@@ -82,7 +85,7 @@ export function AgentTimeline({
             style={toolbarButton}
           >
             <GitBranch size={14} />
-            Review changes
+            {t("legacyAi.timeline.reviewChanges")}
           </button>
           <button
             type="button"
@@ -90,7 +93,7 @@ export function AgentTimeline({
             style={toolbarButton}
           >
             <Code2 size={14} />
-            Inspect code
+            {t("legacyAi.timeline.inspectCode")}
           </button>
         </div>
       </div>
@@ -109,10 +112,10 @@ export function AgentTimeline({
           />
           <div style={{ minWidth: 0 }}>
             <div style={{ color: colors.text, fontWeight: 700, fontSize: 13 }}>
-              Agent is implementing and pausing at approval points.
+              {t("legacyAi.timeline.statusTitle")}
             </div>
             <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
-              The main surface tracks intent, progress, decisions, and outcomes.
+              {t("legacyAi.timeline.statusDescription")}
             </div>
           </div>
         </div>
@@ -124,7 +127,7 @@ export function AgentTimeline({
             textAlign: "right",
           }}
         >
-          <div style={{ color: colors.muted }}>Progress</div>
+          <div style={{ color: colors.muted }}>{t("legacyAi.timeline.progress")}</div>
           <strong>{task.progress}%</strong>
         </div>
       </section>
@@ -136,7 +139,9 @@ export function AgentTimeline({
               <CircleDashed size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div className="event-title">Queued user instruction</div>
+              <div className="event-title">
+                {t("legacyAi.timeline.queuedUserInstruction")}
+              </div>
               <div className="event-detail">{sessionNote}</div>
             </div>
           </div>
@@ -185,10 +190,10 @@ export function AgentTimeline({
                 {event.requiresApproval && (
                   <div className="approval-row">
                     <button type="button" className="approve-button">
-                      Approve secure cookie flow
+                      {t("legacyAi.timeline.approval.approveSecureCookie")}
                     </button>
                     <button type="button" className="secondary-button">
-                      Keep JSON tokens
+                      {t("legacyAi.timeline.approval.keepJsonTokens")}
                     </button>
                   </div>
                 )}

@@ -13,7 +13,9 @@ import {
   Terminal,
   UploadCloud,
 } from "lucide-react";
+import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { colors, fontFamily } from "../_shared/theme";
 import type { MainDockView, ToolSlotId } from "../_shared/types";
@@ -29,14 +31,21 @@ interface BottomDockProps {
   onSelectTool: (tool: ToolSlotId) => void;
 }
 
-const toolLabels: Record<ToolSlotId, string> = {
-  git: "Git",
-  console: "Console",
-  secrets: "Secrets",
-  database: "Database",
-  packages: "Packages",
-  search: "Search",
-  debugger: "Debug",
+const dockViewLabelKeys: Record<Exclude<MainDockView, "tool">, string> = {
+  preview: "legacyAi.dock.views.preview",
+  agent: "legacyAi.dock.views.agent",
+  deploy: "legacyAi.dock.views.deploy",
+  tasks: "legacyAi.dock.views.tasks",
+};
+
+const toolLabelKeys: Record<ToolSlotId, string> = {
+  git: "legacyAi.dock.tools.git",
+  console: "legacyAi.dock.tools.console",
+  secrets: "legacyAi.dock.tools.secrets",
+  database: "legacyAi.dock.tools.database",
+  packages: "legacyAi.dock.tools.packages",
+  search: "legacyAi.dock.tools.search",
+  debugger: "legacyAi.dock.tools.debugger",
 };
 
 function ToolIcon({ tool, size = 20 }: { tool: ToolSlotId; size?: number }) {
@@ -49,6 +58,10 @@ function ToolIcon({ tool, size = 20 }: { tool: ToolSlotId; size?: number }) {
   return <ServerCog size={size} />;
 }
 
+function toolLabel(tool: ToolSlotId, t: TFunction): string {
+  return t(toolLabelKeys[tool]);
+}
+
 export function BottomDock({
   activeView,
   currentTool,
@@ -59,6 +72,12 @@ export function BottomDock({
   onToggleToolSwitcher,
   onSelectTool,
 }: BottomDockProps) {
+  const { t } = useTranslation();
+  const currentToolLabel = toolLabel(currentTool, t);
+  const runningTitle = running
+    ? t("legacyAi.dock.actions.stop")
+    : t("legacyAi.dock.actions.start");
+
   const dockButton = (
     view: MainDockView,
     label: string,
@@ -92,24 +111,44 @@ export function BottomDock({
         type="button"
         className={running ? "stop-button running" : "stop-button"}
         onClick={onToggleRunning}
-        title={running ? "Stop" : "Start"}
-        aria-label={running ? "Stop app" : "Start app"}
+        title={runningTitle}
+        aria-label={
+          running
+            ? t("legacyAi.dock.actions.stopApp")
+            : t("legacyAi.dock.actions.startApp")
+        }
       >
         <Square size={19} fill="currentColor" />
-        <span>{running ? "Stop" : "Run"}</span>
+        <span>
+          {running
+            ? t("legacyAi.dock.actions.stop")
+            : t("legacyAi.dock.actions.run")}
+        </span>
       </button>
 
       <nav className="bottom-dock">
-        {dockButton("preview", "Preview", <PanelsRightBottom size={21} />)}
-        {dockButton("agent", "Agent", <Bot size={24} />)}
-        {dockButton("deploy", "Deploy", <UploadCloud size={21} />)}
+        {dockButton(
+          "preview",
+          t(dockViewLabelKeys.preview),
+          <PanelsRightBottom size={21} />,
+        )}
+        {dockButton("agent", t(dockViewLabelKeys.agent), <Bot size={24} />)}
+        {dockButton(
+          "deploy",
+          t(dockViewLabelKeys.deploy),
+          <UploadCloud size={21} />,
+        )}
         <span className="dock-divider" />
         {dockButton(
           "tool",
-          toolLabels[currentTool],
+          currentToolLabel,
           <ToolIcon tool={currentTool} size={21} />,
         )}
-        {dockButton("tasks", "Tasks", <ListChecks size={21} />)}
+        {dockButton(
+          "tasks",
+          t(dockViewLabelKeys.tasks),
+          <ListChecks size={21} />,
+        )}
       </nav>
 
       <div className="tool-switcher-wrap">
@@ -117,8 +156,8 @@ export function BottomDock({
           type="button"
           className={toolSwitcherOpen ? "switcher-button active" : "switcher-button"}
           onClick={onToggleToolSwitcher}
-          title="Switch tool page"
-          aria-label="Switch tool page"
+          title={t("legacyAi.dock.actions.switchToolPage")}
+          aria-label={t("legacyAi.dock.actions.switchToolPage")}
         >
           <Globe2 size={20} />
         </button>
@@ -141,10 +180,12 @@ export function BottomDock({
                 type="button"
                 className={currentTool === tool ? "tool-option active" : "tool-option"}
                 onClick={() => onSelectTool(tool)}
-                aria-label={`Switch tool to ${toolLabels[tool]}`}
+                aria-label={t("legacyAi.dock.actions.switchToolTo", {
+                  tool: toolLabel(tool, t),
+                })}
               >
                 <ToolIcon tool={tool} size={16} />
-                {toolLabels[tool]}
+                {toolLabel(tool, t)}
               </button>
             ))}
           </div>

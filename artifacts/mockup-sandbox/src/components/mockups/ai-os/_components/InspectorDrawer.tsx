@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Code2, Eye, FileText, GitBranch, Terminal, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { colors, fontFamily, monoFamily } from "../_shared/theme";
 import type { FileChange, InspectorFile, InspectorView } from "../_shared/types";
@@ -14,11 +15,11 @@ interface InspectorDrawerProps {
   onClose: () => void;
 }
 
-const views: Array<{ id: InspectorView; label: string }> = [
-  { id: "changes", label: "Changes" },
-  { id: "code", label: "Code" },
-  { id: "logs", label: "Logs" },
-  { id: "preview", label: "Preview" },
+const views: Array<{ id: InspectorView; labelKey: string }> = [
+  { id: "changes", labelKey: "legacyAi.inspector.tabs.changes" },
+  { id: "code", labelKey: "legacyAi.inspector.tabs.code" },
+  { id: "logs", labelKey: "legacyAi.inspector.tabs.logs" },
+  { id: "preview", labelKey: "legacyAi.inspector.tabs.preview" },
 ];
 
 function viewIcon(view: InspectorView) {
@@ -49,6 +50,7 @@ export function InspectorDrawer({
   onChangeView,
   onClose,
 }: InspectorDrawerProps) {
+  const { t } = useTranslation();
   const drawerRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -127,19 +129,21 @@ export function InspectorDrawer({
       >
         <header className="inspector-header">
           <div>
-            <div style={{ color: colors.faint, fontSize: 11 }}>Inspector</div>
+            <div style={{ color: colors.faint, fontSize: 11 }}>
+              {t("legacyAi.inspector.eyebrow")}
+            </div>
             <div
               id="inspector-title"
               style={{ color: colors.text, fontWeight: 800 }}
             >
-              Agent implementation details
+              {t("legacyAi.inspector.title")}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="close-drawer"
-            aria-label="Close inspector"
+            aria-label={t("legacyAi.inspector.close")}
           >
             <X size={16} />
           </button>
@@ -154,7 +158,7 @@ export function InspectorDrawer({
               className={view === item.id ? "active" : ""}
             >
               {viewIcon(item.id)}
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>
@@ -206,15 +210,17 @@ export function InspectorDrawer({
             <div className="wide-preview">
               <div className="wide-preview-header">my-rest-api.local</div>
               <div className="wide-preview-body">
-                <h2>Auth API preview</h2>
-                <p>Login, refresh, and logout endpoints are staged.</p>
+                <h2>{t("legacyAi.inspector.preview.title")}</h2>
+                <p>{t("legacyAi.inspector.preview.description")}</p>
                 <div className="endpoint-table">
                   <span>POST /api/auth/login</span>
-                  <strong>ready</strong>
+                  <strong>{t("legacyAi.inspector.preview.status.ready")}</strong>
                   <span>POST /api/auth/refresh</span>
-                  <strong>waiting</strong>
+                  <strong>
+                    {t("legacyAi.inspector.preview.status.waiting")}
+                  </strong>
                   <span>POST /api/auth/logout</span>
-                  <strong>ready</strong>
+                  <strong>{t("legacyAi.inspector.preview.status.ready")}</strong>
                 </div>
               </div>
             </div>

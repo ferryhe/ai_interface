@@ -1,4 +1,5 @@
 import { Mic, Paperclip, Send, SlidersHorizontal, WandSparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { colors, fontFamily } from "../_shared/theme";
 
@@ -17,6 +18,8 @@ export function CommandBar({
   onTogglePlanMode,
   onSubmit,
 }: CommandBarProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="command-bar-shell">
       <div className="command-bar">
@@ -40,8 +43,8 @@ export function CommandBar({
           rows={2}
           placeholder={
             planMode
-              ? "Describe the plan you want the agent to prepare..."
-              : "Tell the agent what outcome to create..."
+              ? t("legacyAi.command.placeholder.plan")
+              : t("legacyAi.command.placeholder.power")
           }
           style={{
             flex: 1,
@@ -60,42 +63,43 @@ export function CommandBar({
         <div className="command-actions">
           <button
             type="button"
-            title="Attach file"
-            aria-label="Attach file"
+            title={t("legacyAi.command.attachFile")}
+            aria-label={t("legacyAi.command.attachFile")}
             className="icon-command"
           >
             <Paperclip size={16} />
           </button>
           <button
             type="button"
-            title="Toggle plan mode"
+            title={t("legacyAi.command.togglePlanMode")}
+            aria-label={t("legacyAi.command.togglePlanMode")}
             aria-pressed={planMode}
             onClick={onTogglePlanMode}
             className={planMode ? "mode-command active" : "mode-command"}
           >
             <WandSparkles size={15} />
-            Plan
+            {t("legacyAi.command.plan")}
           </button>
           <button
             type="button"
-            title="Agent settings"
-            aria-label="Agent settings"
+            title={t("legacyAi.command.agentSettings")}
+            aria-label={t("legacyAi.command.agentSettings")}
             className="icon-command"
           >
             <SlidersHorizontal size={16} />
           </button>
           <button
             type="button"
-            title="Voice input"
-            aria-label="Voice input"
+            title={t("legacyAi.command.voiceInput")}
+            aria-label={t("legacyAi.command.voiceInput")}
             className="icon-command"
           >
             <Mic size={16} />
           </button>
           <button
             type="button"
-            title="Send"
-            aria-label="Send message"
+            title={t("legacyAi.command.send")}
+            aria-label={t("legacyAi.command.sendMessage")}
             onClick={onSubmit}
             className="send-command"
             disabled={!value.trim()}
@@ -105,8 +109,12 @@ export function CommandBar({
         </div>
       </div>
       <div className="command-meta">
-        <span>{planMode ? "Plan mode waits for approval before acting." : "Power mode can inspect, edit, run, and report back."}</span>
-        <span>Enter to send / Shift+Enter for newline</span>
+        <span>
+          {planMode
+            ? t("legacyAi.command.meta.plan")
+            : t("legacyAi.command.meta.power")}
+        </span>
+        <span>{t("legacyAi.command.shortcut")}</span>
       </div>
 
       <style>{`
