@@ -10,6 +10,7 @@ import type { ModuleId } from "../modules/registry";
 import {
   executeDagModuleRuns,
   validateDagPlan,
+  evaluateQaSteps,
   type DagBlockedReason,
 } from "./dag-executor";
 
@@ -407,4 +408,36 @@ test("executeDagModuleRuns continues independent branches when configured", asyn
     dagBlockedReason: "upstream_failed",
     dagBlockedByStepIds: ["convert"],
   });
+});
+
+
+// ── QA Gate tests ──
+
+test("QA gate: passes when all artifacts exist", () => {
+  const evaluations = evaluateQaSteps(
+    [{ stepId: "qa-1", dependsOn: ["step-a"], evidenceContract: { requiredArtifacts: ["a1"], assertionType: "presence", assertionConfig: {} } }],
+    new Set(["step-a"]),
+    ["a1"],
+  );
+  assert.equal(evaluations[0]!.passed, true);
+});
+
+test("QA gate: fails when artifact missing", () => {
+  const evaluations = evaluateQaSteps(
+    [{ stepId: "qa-1", dependsOn: ["step-a"], evidenceContract: { requiredArtifacts: ["a1","a2"], assertionType: "presence", assertionConfig: {} } }],
+    new Set(["step-a"]),
+    ["a1"],
+  );
+  assert.equal(evaluations[0]!.passed, false);
+  assert.deepEqual(evaluations[0]!.missingArtifacts, ["a2"]);
+});
+
+test("QA gate: fails when upstream not complete", () => {
+  const evaluations = evaluateQaSteps(
+    [{ stepId: "qa-1", dependsOn: ["step-a"], evidenceContract: { requiredArtifacts: ["x"], assertionType: "presence", assertionConfig: {} } }],
+    new Set([]),
+    ["x"],
+  );
+  assert.equal(evaluations[0]!.passed, false);
+  assert.equal(evaluations[0]!.reason, "upstream steps not complete");
 });
