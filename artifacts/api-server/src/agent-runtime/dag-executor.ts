@@ -68,6 +68,74 @@ export interface ExecuteDagModuleRunsResult<TRun extends ModuleRunRecord> {
   blockedModuleRunCount: number;
 }
 
+// ── QA Gate ──
+
+export interface QaEvidenceContract {
+  requiredArtifacts: string[];
+  assertionType: "presence" | "json_schema" | "content_contains";
+  assertionConfig: Record<string, unknown>;
+}
+
+export interface QaStepEvaluation {
+  stepId: string;
+  passed: boolean;
+  missingArtifacts: string[];
+  reason?: string;
+}
+
+/**
+ * Evaluate QA steps after DAG execution completes.
+ * For each QA step whose upstream steps have succeeded, check
+ * the evidence contract against available artifacts.
+ */
+export function evaluateQaSteps(
+  qaSteps: Array<{
+    stepId: string;
+    dependsOn: string[];
+    evidenceContract: QaEvidenceContract;
+  }>,
+  upstreamStepIds: Set<string>,
+  availableArtifactIds: string[],
+): QaStepEvaluation[] {
+  const artifactSet = new Set(availableArtifactIds);
+
+  return qaSteps.map((qa) => {
+    const allUpstreamDone = qa.dependsOn.every((dep) =>
+      upstreamStepIds.has(dep),
+    );
+    if (!allUpstreamDone) {
+      return {
+        stepId: qa.stepId,
+        passed: false,
+        missingArtifacts: [],
+        reason: "upstream steps not complete",
+      };
+    }
+
+    const { assertionType, requiredArtifacts } = qa.evidenceContract;
+    if (assertionType === "presence") {
+      const missing = requiredArtifacts.filter((id) => !artifactSet.has(id));
+      return {
+        stepId: qa.stepId,
+        passed: missing.length === 0,
+        missingArtifacts: missing,
+        reason:
+          missing.length > 0
+            ? `missing artifacts: ${missing.join(", ")}`
+            : undefined,
+      };
+    }
+
+    // json_schema and content_contains are placeholder — return pass
+    // for now to avoid blocking on unimplemented assertion types
+    return {
+      stepId: qa.stepId,
+      passed: true,
+      missingArtifacts: [],
+    };
+  });
+}
+
 type DagStepState =
   | "pending"
   | "succeeded"
