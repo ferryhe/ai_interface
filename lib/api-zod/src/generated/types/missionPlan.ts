@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MissionPlanActivationProfile } from "./missionPlanActivationProfile";
 import type { MissionPlanStatus } from "./missionPlanStatus";
 import type { MissionPlanStep } from "./missionPlanStep";
 import type { MissionRiskLevel } from "./missionRiskLevel";
@@ -23,4 +24,5 @@ export interface MissionPlan {
   steps: MissionPlanStep[];
   warnings: string[];
   nonGoals: string[];
+  activationProfile?: MissionPlanActivationProfile;
 }

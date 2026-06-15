@@ -5,6 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MissionPlanStepEvidenceContract } from "./missionPlanStepEvidenceContract";
+import type { MissionPlanStepRole } from "./missionPlanStepRole";
 import type { MissionStepApproval } from "./missionStepApproval";
 import type { MissionStepStatus } from "./missionStepStatus";
 
@@ -20,6 +22,8 @@ export interface MissionPlanStep {
   moduleId?: string;
   assignedAgentId?: string;
   roleId?: string;
+  role?: MissionPlanStepRole;
+  evidenceContract?: MissionPlanStepEvidenceContract;
   dependsOn: string[];
   status: MissionStepStatus;
   approval?: MissionStepApproval;
