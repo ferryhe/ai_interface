@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { FilePlus2, Save, WandSparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type {
   AgentManifestPreview,
@@ -116,6 +117,7 @@ export function AgentManifestWizard({
   skills: WorkbenchSkillOption[];
   onCreated: (agent: AgentManifestPreview) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<WizardDraft>(defaultDraft);
   const [saveState, setSaveState] = useState<WizardSaveState>("idle");
   const agentId = useMemo(() => agentIdFromName(draft.name), [draft.name]);
@@ -171,20 +173,20 @@ export function AgentManifestWizard({
 
   const saveLabel =
     saveState === "saving"
-      ? "Writing"
+      ? t("agentFirst.workbench.writing")
       : saveState === "disabled"
-        ? "Write disabled"
+        ? t("agentFirst.workbench.writeDisabled")
         : saveState === "saved"
-          ? "Written"
-          : "Create";
+          ? t("agentFirst.workbench.written")
+          : t("agentFirst.workbench.create");
   const statusText =
     saveState === "disabled"
-      ? "Local write mode disabled"
+      ? t("agentFirst.workbench.localWriteModeDisabled")
       : saveState === "failed"
-        ? "Local preview only"
+        ? t("agentFirst.workbench.localPreviewOnly")
         : saveState === "saved"
-          ? "Manifest written"
-          : "YAML preview";
+          ? t("agentFirst.workbench.manifestWritten")
+          : t("agentFirst.workbench.yamlPreview");
 
   return (
     <div className="wizard-layout">
@@ -192,27 +194,27 @@ export function AgentManifestWizard({
         <div className="panel-heading">
           <span>
             <FilePlus2 size={16} />
-            New Agent
+            {t("agentFirst.workbench.newAgent")}
           </span>
           <span className="soft-label">{statusText}</span>
         </div>
 
         <label className="wizard-field">
-          <span>Name</span>
+          <span>{t("agentFirst.workbench.name")}</span>
           <input
             value={draft.name}
             onChange={(event) => updateDraft({ name: event.target.value })}
           />
         </label>
         <label className="wizard-field">
-          <span>Description</span>
+          <span>{t("agentFirst.workbench.description")}</span>
           <input
             value={draft.description}
             onChange={(event) => updateDraft({ description: event.target.value })}
           />
         </label>
         <label className="wizard-field">
-          <span>Instructions</span>
+          <span>{t("agentFirst.workbench.instructions")}</span>
           <textarea
             value={draft.instructions}
             onChange={(event) => updateDraft({ instructions: event.target.value })}
@@ -220,7 +222,7 @@ export function AgentManifestWizard({
         </label>
 
         <div className="wizard-field">
-          <span>Planner</span>
+          <span>{t("agentFirst.workbench.planner")}</span>
           <div className="segmented-control">
             {(["linear", "dag"] as const).map((mode) => (
               <button
@@ -255,7 +257,7 @@ export function AgentManifestWizard({
               checked={draft.approvalRequired}
               onChange={(event) => updateDraft({ approvalRequired: event.target.checked })}
             />
-            <span>Approval</span>
+            <span>{t("agentFirst.configure.approval")}</span>
           </label>
           <label className="toggle-row large">
             <input
@@ -263,7 +265,7 @@ export function AgentManifestWizard({
               checked={draft.canUseNetwork}
               onChange={(event) => updateDraft({ canUseNetwork: event.target.checked })}
             />
-            <span>Network</span>
+            <span>{t("agentFirst.configure.network")}</span>
           </label>
           <label className="toggle-row large">
             <input
@@ -271,7 +273,7 @@ export function AgentManifestWizard({
               checked={draft.canWriteDatabase}
               onChange={(event) => updateDraft({ canWriteDatabase: event.target.checked })}
             />
-            <span>Database</span>
+            <span>{t("agentFirst.nav.data")}</span>
           </label>
         </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PencilLine, Save, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { AgentManifestPreview } from "@/components/mockups/ai-os/_shared/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+
+import { formatOperatorSourceLabel } from "./ManifestViewer";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -29,31 +32,42 @@ function looksSensitiveValue(value: string): boolean {
   );
 }
 
-function redactEditableValue(value: unknown, parentKey = ""): unknown {
+function redactEditableValue(
+  value: unknown,
+  parentKey = "",
+  redactionPlaceholder = "[redacted]",
+): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => redactEditableValue(entry, parentKey));
+    return value.map((entry) =>
+      redactEditableValue(entry, parentKey, redactionPlaceholder),
+    );
   }
 
   if (isRecord(value)) {
     return Object.fromEntries(
       Object.entries(value).map(([key, entry]) => {
         if (looksSensitiveKey(key)) {
-          return [key, "[redacted]"];
+          return [key, redactionPlaceholder];
         }
-        return [key, redactEditableValue(entry, key)];
+        return [key, redactEditableValue(entry, key, redactionPlaceholder)];
       }),
     );
   }
 
   if (typeof value === "string") {
-    return looksSensitiveKey(parentKey) || looksSensitiveValue(value) ? "[redacted]" : value;
+    return looksSensitiveKey(parentKey) || looksSensitiveValue(value)
+      ? redactionPlaceholder
+      : value;
   }
 
   return value;
 }
 
-function toEditableManifest(agent: AgentManifestPreview): string {
-  return JSON.stringify(redactEditableValue(agent), null, 2);
+function toEditableManifest(
+  agent: AgentManifestPreview,
+  redactionPlaceholder: string,
+): string {
+  return JSON.stringify(redactEditableValue(agent, "", redactionPlaceholder), null, 2);
 }
 
 type SaveState = "idle" | "saving" | "saved" | "failed";
@@ -65,22 +79,26 @@ export function ManifestEditor({
   agents: AgentManifestPreview[];
   selectedAgentId: string | null;
 }) {
+  const { t } = useTranslation();
+  const redactionPlaceholder = t("operator.redaction.placeholder");
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.agentId === selectedAgentId) ?? null,
     [agents, selectedAgentId],
   );
   const editableAgent = selectedAgent?.source === "custom" ? selectedAgent : null;
   const [editorValue, setEditorValue] = useState<string>(
-    editableAgent ? toEditableManifest(editableAgent) : "",
+    editableAgent ? toEditableManifest(editableAgent, redactionPlaceholder) : "",
   );
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [message, setMessage] = useState<string>("");
 
   useEffect(() => {
-    setEditorValue(editableAgent ? toEditableManifest(editableAgent) : "");
+    setEditorValue(
+      editableAgent ? toEditableManifest(editableAgent, redactionPlaceholder) : "",
+    );
     setSaveState("idle");
     setMessage("");
-  }, [editableAgent]);
+  }, [editableAgent, redactionPlaceholder]);
 
   async function saveManifest(): Promise<void> {
     if (!editableAgent) return;
@@ -89,12 +107,16 @@ export function ManifestEditor({
     try {
       const candidate = JSON.parse(editorValue) as unknown;
       if (!isRecord(candidate)) {
-        throw new Error("Manifest JSON must be an object.");
+        throw new Error(t("operator.manifestEditor.errors.mustBeObject"));
       }
       parsed = { ...candidate };
     } catch (error) {
       setSaveState("failed");
-      setMessage(error instanceof Error ? error.message : "Invalid manifest JSON.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("operator.manifestEditor.errors.invalidJson"),
+      );
       return;
     }
 
@@ -119,14 +141,23 @@ export function ManifestEditor({
       };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? `Manifest API returned ${response.status}`);
+        throw new Error(
+          payload.error ??
+            t("operator.manifestEditor.errors.apiReturned", {
+              status: response.status,
+            }),
+        );
       }
 
       setSaveState("saved");
-      setMessage("Custom manifest written through guarded localhost-only API.");
+      setMessage(t("operator.manifestEditor.messages.saved"));
     } catch (error) {
       setSaveState("failed");
-      setMessage(error instanceof Error ? error.message : "Manifest write failed.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("operator.manifestEditor.errors.writeFailed"),
+      );
     }
   }
 
@@ -136,36 +167,43 @@ export function ManifestEditor({
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <PencilLine className="h-4 w-4" />
-            Custom manifest editor
+            {t("operator.manifestEditor.title")}
           </CardTitle>
-          <Badge variant="outline">custom only</Badge>
-          <Badge variant="outline">localhost guarded</Badge>
+          <Badge variant="outline">{t("operator.manifestEditor.badges.customOnly")}</Badge>
+          <Badge variant="outline">{t("operator.manifestEditor.badges.localhostGuarded")}</Badge>
         </div>
         <CardDescription>
-          Built-in and community manifests stay read-only. Editor content is redacted before display so operator view does not expose raw secrets or local paths.
+          {t("operator.manifestEditor.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <ShieldCheck className="h-4 w-4" />
-          <AlertTitle>Guardrails stay in effect</AlertTitle>
+          <AlertTitle>{t("operator.manifestEditor.guardrails.title")}</AlertTitle>
           <AlertDescription>
-            Writes are limited to <code>agents/custom/&lt;agentId&gt;/agent.yaml</code>, require same-origin localhost access, and return redacted responses.
+            {t("operator.manifestEditor.guardrails.prefix")}{" "}
+            <code>agents/custom/&lt;agentId&gt;/agent.yaml</code>
+            {t("operator.manifestEditor.guardrails.suffix")}
           </AlertDescription>
         </Alert>
 
         {!selectedAgent ? (
           <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-            Select an agent manifest to inspect or edit.
+            {t("operator.manifestEditor.emptySelect")}
           </div>
         ) : !editableAgent ? (
           <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{selectedAgent.agentId}</span> is a {selectedAgent.source} manifest. Operator editing is only enabled for custom manifests.
+            {t("operator.manifestEditor.nonCustom", {
+              agentId: selectedAgent.agentId,
+              source: formatOperatorSourceLabel(selectedAgent.source, t),
+            })}
           </div>
         ) : (
           <>
             <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              Editing <span className="font-medium text-foreground">{editableAgent.agentId}</span>. Redacted placeholders may need to be replaced manually before saving.
+              {t("operator.manifestEditor.editing", {
+                agentId: editableAgent.agentId,
+              })}
             </div>
             <Textarea
               value={editorValue}
@@ -180,18 +218,20 @@ export function ManifestEditor({
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={() => void saveManifest()} disabled={saveState === "saving"}>
                 <Save className="h-4 w-4" />
-                {saveState === "saving" ? "Saving" : "Save custom manifest"}
+                {saveState === "saving"
+                  ? t("operator.manifestEditor.saving")
+                  : t("operator.manifestEditor.save")}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setEditorValue(toEditableManifest(editableAgent));
+                  setEditorValue(toEditableManifest(editableAgent, redactionPlaceholder));
                   setSaveState("idle");
                   setMessage("");
                 }}
               >
-                Reset redacted draft
+                {t("operator.manifestEditor.reset")}
               </Button>
               {message ? (
                 <span

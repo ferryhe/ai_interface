@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import type { TFunction } from "i18next";
 import { FileJson, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +19,21 @@ export interface ManifestViewerItem {
 function normalizeSourceLabel(source: string): string {
   if (source === "builtin") return "built-in";
   return source;
+}
+
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  "built-in": "operator.source.builtin",
+  builtin: "operator.source.builtin",
+  community: "operator.source.community",
+  custom: "operator.source.custom",
+  workbench: "operator.source.workbench",
+};
+
+export function formatOperatorSourceLabel(source: string, t: TFunction): string {
+  const normalized = normalizeSourceLabel(source);
+  return t(SOURCE_LABEL_KEYS[normalized] ?? "operator.source.unknown", {
+    source: normalized,
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -40,24 +57,30 @@ function looksSensitiveValue(value: string): boolean {
   );
 }
 
-function redactValue(value: unknown, parentKey = ""): unknown {
+function redactValue(
+  value: unknown,
+  parentKey = "",
+  redactionPlaceholder = "[redacted]",
+): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => redactValue(entry, parentKey));
+    return value.map((entry) => redactValue(entry, parentKey, redactionPlaceholder));
   }
 
   if (isRecord(value)) {
     return Object.fromEntries(
       Object.entries(value).map(([key, entry]) => {
         if (looksSensitiveKey(key)) {
-          return [key, "[redacted]"];
+          return [key, redactionPlaceholder];
         }
-        return [key, redactValue(entry, key)];
+        return [key, redactValue(entry, key, redactionPlaceholder)];
       }),
     );
   }
 
   if (typeof value === "string") {
-    return looksSensitiveKey(parentKey) || looksSensitiveValue(value) ? "[redacted]" : value;
+    return looksSensitiveKey(parentKey) || looksSensitiveValue(value)
+      ? redactionPlaceholder
+      : value;
   }
 
   return value;
@@ -120,12 +143,16 @@ export function ManifestViewer({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+  const redactionPlaceholder = t("operator.redaction.placeholder");
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) ?? items[0] ?? null,
     [items, selectedId],
   );
 
-  const redactedManifest = selectedItem ? redactValue(selectedItem.manifest) : null;
+  const redactedManifest = selectedItem
+    ? redactValue(selectedItem.manifest, "", redactionPlaceholder)
+    : null;
   const renderedYaml = redactedManifest ? yamlLines(redactedManifest).join("\n") : "";
 
   return (
@@ -160,7 +187,7 @@ export function ManifestViewer({
                         <div className="mt-1 truncate text-xs text-muted-foreground">{item.id}</div>
                       </div>
                       <Badge variant="secondary" className="shrink-0 capitalize">
-                        {normalizeSourceLabel(item.source)}
+                        {formatOperatorSourceLabel(item.source, t)}
                       </Badge>
                     </div>
                     {item.subtitle ? (
@@ -177,27 +204,32 @@ export function ManifestViewer({
       <Card className="border-border/60 shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-base">{selectedItem?.name ?? "No manifest loaded"}</CardTitle>
+            <CardTitle className="text-base">
+              {selectedItem?.name ?? t("operator.manifestViewer.emptyTitle")}
+            </CardTitle>
             {selectedItem ? (
               <Badge variant="outline" className="capitalize">
-                {normalizeSourceLabel(selectedItem.source)}
+                {formatOperatorSourceLabel(selectedItem.source, t)}
               </Badge>
             ) : null}
-            <Badge variant="outline">read-only</Badge>
+            <Badge variant="outline">{t("operator.manifestViewer.readOnly")}</Badge>
           </div>
           <CardDescription>
-            {selectedItem?.description ?? "No manifest available."}
+            {selectedItem?.description ?? t("operator.manifestViewer.emptyDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-            Sensitive values, local paths, provider URLs, tokens, and MCP-style endpoints are redacted in this operator view.
+            {t("operator.manifestViewer.redactionNotice")}
           </div>
           {selectedItem ? (
             <>
               <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Manifest ID:</span> {selectedItem.id}
+                <span className="font-medium text-foreground">
+                  {t("operator.manifestViewer.manifestId")}
+                </span>{" "}
+                {selectedItem.id}
                 {selectedItem.subtitle ? <span> · {selectedItem.subtitle}</span> : null}
               </div>
               <ScrollArea className="h-[460px] rounded-lg border border-border/60 bg-slate-950/95 p-4">
@@ -208,7 +240,7 @@ export function ManifestViewer({
             </>
           ) : (
             <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-              No manifest available.
+              {t("operator.manifestViewer.emptyDescription")}
             </div>
           )}
         </CardContent>

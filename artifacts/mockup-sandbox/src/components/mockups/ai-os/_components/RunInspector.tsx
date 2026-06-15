@@ -1,10 +1,14 @@
 import { Activity, Braces, Clock3, GitBranch, ListChecks } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import { workbenchStatusColor } from "../_shared/theme";
 import type { WorkbenchRunInspection } from "../_shared/types";
 
-function statusText(status: string): string {
-  return status.replace(/_/g, " ");
+function statusText(status: string, t: TFunction): string {
+  return t(`agentFirst.status.workbenchRun.${status}`, {
+    defaultValue: status.replace(/_/g, " "),
+  });
 }
 
 export function RunInspector({
@@ -16,18 +20,19 @@ export function RunInspector({
   selectedRunId: string | null;
   onSelectRun: (pipelineRunId: string) => void;
 }) {
+  const { t } = useTranslation();
   const selectedRun =
     runs.find((run) => run.pipelineRunId === selectedRunId) ?? runs[0] ?? null;
 
   return (
     <div className="run-inspector-layout">
-      <aside className="run-list" aria-label="Runs">
+      <aside className="run-list" aria-label={t("agentFirst.workbench.runs")}>
         <div className="panel-heading">
           <span>
             <Activity size={16} />
-            Runs
+            {t("agentFirst.workbench.runs")}
           </span>
-          <span className="soft-label">{runs.length} visible</span>
+          <span className="soft-label">{t("agentFirst.workbench.visibleCount", { count: runs.length })}</span>
         </div>
         {runs.length > 0 ? (
           runs.map((run) => (
@@ -43,17 +48,17 @@ export function RunInspector({
             >
               <strong>{run.title}</strong>
               <span>
-                <em>{run.agentId ?? "unassigned"}</em>
+                <em>{run.agentId ?? t("agentFirst.workbench.unassigned")}</em>
                 <b style={{ color: workbenchStatusColor(run.status) }}>
-                  {statusText(run.status)}
+                  {statusText(run.status, t)}
                 </b>
               </span>
             </button>
           ))
         ) : (
           <div className="workbench-empty-state">
-            <strong>No runs</strong>
-            <em>Empty</em>
+            <strong>{t("agentFirst.workbench.noRuns")}</strong>
+            <em>{t("agentFirst.workbench.empty")}</em>
           </div>
         )}
       </aside>
@@ -63,7 +68,7 @@ export function RunInspector({
           <>
             <div className="agent-detail-header">
               <div>
-                <span className="soft-label">Pipeline run</span>
+                <span className="soft-label">{t("agentFirst.workbench.pipelineRun")}</span>
                 <h2>{selectedRun.title}</h2>
                 <p>{selectedRun.pipelineRunId}</p>
               </div>
@@ -71,33 +76,33 @@ export function RunInspector({
                 className="runtime-status"
                 style={{ color: workbenchStatusColor(selectedRun.status) }}
               >
-                {statusText(selectedRun.status)}
+                {statusText(selectedRun.status, t)}
               </span>
             </div>
 
             <div className="workbench-metrics">
               <span>
-                <strong>{selectedRun.agentId ?? "none"}</strong>
-                <em>Agent</em>
+                <strong>{selectedRun.agentId ?? t("agentFirst.workbench.none")}</strong>
+                <em>{t("agentFirst.workbench.agent")}</em>
               </span>
               <span>
-                <strong>{selectedRun.activeSkillId ?? "idle"}</strong>
-                <em>Active skill</em>
+                <strong>{selectedRun.activeSkillId ?? t("agentFirst.workbench.idle")}</strong>
+                <em>{t("agentFirst.workbench.activeSkill")}</em>
               </span>
               <span>
                 <strong>{selectedRun.moduleSteps.length}</strong>
-                <em>Steps</em>
+                <em>{t("agentFirst.workbench.steps")}</em>
               </span>
               <span>
                 <strong>{selectedRun.updatedAt}</strong>
-                <em>Updated</em>
+                <em>{t("agentFirst.metrics.updated")}</em>
               </span>
             </div>
 
             <section className="workbench-section">
               <span className="workbench-section-title">
                 <ListChecks size={15} />
-                Module steps
+                {t("agentFirst.workbench.moduleSteps")}
               </span>
               <div className="run-step-list">
                 {[...selectedRun.moduleSteps]
@@ -110,7 +115,7 @@ export function RunInspector({
                         <em>{step.summary}</em>
                       </div>
                       <b style={{ color: workbenchStatusColor(step.status) }}>
-                        {statusText(step.status)}
+                        {statusText(step.status, t)}
                       </b>
                       <code>{step.moduleId}</code>
                     </div>
@@ -121,7 +126,7 @@ export function RunInspector({
             <section className="workbench-section">
               <span className="workbench-section-title">
                 <Clock3 size={15} />
-                Events
+                {t("agentFirst.workbench.events")}
               </span>
               <div className="event-feed">
                 {selectedRun.events.map((event) => (
@@ -140,7 +145,7 @@ export function RunInspector({
             <section className="workbench-section">
               <span className="workbench-section-title">
                 <Braces size={15} />
-                Raw JSON
+                {t("agentFirst.workbench.rawJson")}
               </span>
               <pre className="artifact-json">{JSON.stringify(selectedRun.raw, null, 2)}</pre>
             </section>
@@ -148,8 +153,8 @@ export function RunInspector({
         ) : (
           <div className="workbench-empty-state">
             <GitBranch size={18} />
-            <strong>No run selected</strong>
-            <em>Empty</em>
+            <strong>{t("agentFirst.workbench.noRunSelected")}</strong>
+            <em>{t("agentFirst.workbench.empty")}</em>
           </div>
         )}
       </div>

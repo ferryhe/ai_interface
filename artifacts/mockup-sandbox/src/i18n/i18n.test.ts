@@ -24,6 +24,22 @@ const portalComponentSource = readFileSync(
   ),
   "utf8",
 );
+const operatorComponentSources = [
+  "../components/operator/OperatorBackstage.tsx",
+  "../components/operator/ManifestViewer.tsx",
+  "../components/operator/ManifestEditor.tsx",
+  "../components/operator/WorkbenchFileViewer.tsx",
+].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+const operatorComponentSource = operatorComponentSources.join("\n");
+const agentFirstComponentSources = [
+  "../components/mockups/ai-os/AgentFirstInterface.tsx",
+  "../components/mockups/ai-os/_components/AgentCatalog.tsx",
+  "../components/mockups/ai-os/_components/AgentDetail.tsx",
+  "../components/mockups/ai-os/_components/AgentManifestWizard.tsx",
+  "../components/mockups/ai-os/_components/ArtifactInspector.tsx",
+  "../components/mockups/ai-os/_components/RunInspector.tsx",
+].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+const agentFirstComponentSource = agentFirstComponentSources.join("\n");
 
 test("normalizes supported English and Chinese locale inputs", () => {
   assert.equal(DEFAULT_LOCALE, "en-US");
@@ -409,6 +425,259 @@ test("end-user portal locale resources have matching key and placeholder coverag
   }
 });
 
+test("standalone operator components use operator-owned translation keys", () => {
+  const literalKeys = operatorLiteralTranslationKeys();
+  assert.ok(
+    literalKeys.size > 0,
+    "operator components should contain operator.* translation keys",
+  );
+
+  for (const key of [
+    "operator.backstage.title",
+    "operator.manifestViewer.emptyTitle",
+    "operator.manifestEditor.title",
+    "operator.workbench.title",
+  ]) {
+    assert.ok(literalKeys.has(key), `operator components missing ${key}`);
+  }
+
+  assert.doesNotMatch(operatorComponentSource, />Operator Backstage</);
+  assert.doesNotMatch(operatorComponentSource, />Custom manifest editor</);
+  assert.doesNotMatch(operatorComponentSource, />Workbench docs</);
+});
+
+test("standalone operator component translation keys resolve in both locale resources", () => {
+  for (const key of operatorLiteralTranslationKeys()) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("standalone operator dynamic translation key families resolve in both locale resources", () => {
+  const readinessStates = ["ready", "not_configured"];
+
+  for (const key of readinessStates.map(
+    (state) => `operator.backstage.readiness.${state}`,
+  )) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("operator locale resources have matching key and placeholder coverage", () => {
+  const enOperatorPaths = flattenStringPaths(enUS.translation.operator, "operator");
+  const zhOperatorPaths = flattenStringPaths(zhCN.translation.operator, "operator");
+  assert.deepEqual(zhOperatorPaths, enOperatorPaths);
+
+  for (const key of enOperatorPaths) {
+    const enValue = lookup(enUS.translation, key);
+    const zhValue = lookup(zhCN.translation, key);
+    assert.deepEqual(
+      placeholders(zhValue),
+      placeholders(enValue),
+      `${key} placeholder mismatch`,
+    );
+  }
+});
+
+test("agent-first admin components use agentFirst-owned translation keys", () => {
+  const literalKeys = agentFirstLiteralTranslationKeys();
+  assert.ok(
+    literalKeys.size > 0,
+    "agent-first components should contain agentFirst.* translation keys",
+  );
+
+  for (const key of [
+    "agentFirst.topbar.title",
+    "agentFirst.nav.configure",
+    "agentFirst.backstage.tabs.agents",
+    "agentFirst.configure.title",
+    "agentFirst.publish.title",
+    "agentFirst.workbench.newAgent",
+  ]) {
+    assert.ok(literalKeys.has(key), `agent-first components missing ${key}`);
+  }
+
+  assert.doesNotMatch(agentFirstComponentSource, />Configure Agent</);
+  assert.doesNotMatch(agentFirstComponentSource, />Publish agent</);
+  assert.doesNotMatch(agentFirstComponentSource, />Pipeline progress</);
+});
+
+test("agent-first component translation keys resolve in both locale resources", () => {
+  for (const key of agentFirstLiteralTranslationKeys()) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("agent-first dynamic translation key families resolve in both locale resources", () => {
+  const runStatuses = ["running", "waiting", "succeeded", "queued"];
+  const runtimeStatuses = [
+    "succeeded",
+    "running",
+    "resumable",
+    "approval_required",
+    "waiting_for_user",
+    "waiting_for_data",
+    "blocked",
+    "skipped",
+    "queued",
+  ];
+  const connectionStatuses = ["configured", "missing_key", "offline"];
+  const agentRunStates = ["local", "submitting", "saved", "offline", "failed"];
+  const agentRunApiStatuses = [
+    "planned",
+    "missing_key",
+    "needs_approval",
+    "failed",
+  ];
+  const publishStatuses = ["draft", "published", "paused"];
+  const publishSaveStates = ["local", "saving", "saved", "offline", "failed"];
+  const climateApiStates = ["loading", "api", "offline"];
+  const climateRunStates = ["idle", "submitting", "succeeded", "offline", "failed"];
+  const agentReadinessStates = ["ready", "missing_skills"];
+  const workbenchRunStatuses = [
+    "pending",
+    "queued",
+    "running",
+    "succeeded",
+    "failed",
+    "cancelled",
+    "approval_required",
+    "waiting_for_user",
+    "waiting_for_data",
+    "blocked",
+    "skipped",
+  ];
+  const memoryModes = ["shortLong", "longOnly", "shortOnly"];
+  const switches = ["enabled", "approval", "network", "dbWrite", "onDemand"];
+  const portalViews = ["chat", "steps", "data", "sources", "result"];
+  const executionModes = ["plan_only", "execute_ready"];
+  const businessGuideIds = [
+    "web_listening",
+    "doc_to_md",
+    "md_to_rag",
+    "rag_to_agent",
+    "climate_monitor",
+    "ai_actuary",
+    "example_reporter",
+  ];
+  const generalGuideIds = [
+    "web_search",
+    "browser",
+    "github",
+    "notion",
+    "lark",
+    "file_tools",
+  ];
+  const guideFields = ["summary", "trigger", "action", "output", "boundary"];
+
+  const requiredKeys = [
+    ...runStatuses.map((status) => `agentFirst.status.run.${status}`),
+    ...runtimeStatuses.map((status) => `agentFirst.status.runtime.${status}`),
+    ...connectionStatuses.map(
+      (status) => `agentFirst.status.connection.${status}`,
+    ),
+    ...agentRunStates.map((state) => `agentFirst.status.agentRun.${state}`),
+    ...agentRunApiStatuses.map(
+      (status) => `agentFirst.status.agentRunApi.${status}`,
+    ),
+    ...publishStatuses.map((status) => `agentFirst.status.publish.${status}`),
+    ...publishSaveStates.map(
+      (state) => `agentFirst.status.publishSave.${state}`,
+    ),
+    ...climateApiStates.map((state) => `agentFirst.status.climateApi.${state}`),
+    ...climateRunStates.map(
+      (state) => `agentFirst.status.climateRun.${state}`,
+    ),
+    ...agentReadinessStates.map(
+      (state) => `agentFirst.status.agentReadiness.${state}`,
+    ),
+    ...workbenchRunStatuses.map(
+      (status) => `agentFirst.status.workbenchRun.${status}`,
+    ),
+    ...memoryModes.map((mode) => `agentFirst.configure.memoryMode.${mode}`),
+    ...switches.flatMap((item) => [
+      `agentFirst.configure.switches.${item}.label`,
+      `agentFirst.configure.switches.${item}.detail`,
+    ]),
+    ...portalViews.flatMap((view) => [
+      `agentFirst.publish.portalViews.${view}.label`,
+      `agentFirst.publish.portalViews.${view}.detail`,
+    ]),
+    ...executionModes.map((mode) => `agentFirst.executionMode.${mode}`),
+    ...businessGuideIds.flatMap((guideId) =>
+      guideFields.map(
+        (field) => `agentFirst.configure.guides.business.${guideId}.${field}`,
+      ),
+    ),
+    ...generalGuideIds.flatMap((guideId) =>
+      guideFields.map(
+        (field) => `agentFirst.configure.guides.general.${guideId}.${field}`,
+      ),
+    ),
+  ];
+
+  for (const key of requiredKeys) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("agent-first locale resources have matching key and placeholder coverage", () => {
+  const enAgentFirstPaths = flattenStringPaths(
+    enUS.translation.agentFirst,
+    "agentFirst",
+  );
+  const zhAgentFirstPaths = flattenStringPaths(
+    zhCN.translation.agentFirst,
+    "agentFirst",
+  );
+  assert.deepEqual(zhAgentFirstPaths, enAgentFirstPaths);
+
+  for (const key of enAgentFirstPaths) {
+    const enValue = lookup(enUS.translation, key);
+    const zhValue = lookup(zhCN.translation, key);
+    assert.deepEqual(
+      placeholders(zhValue),
+      placeholders(enValue),
+      `${key} placeholder mismatch`,
+    );
+  }
+});
+
 test("persists locale choices and lets URL lang override stored locale in browser context", () => {
   const storedValues = new Map<string, string>([[LOCALE_STORAGE_KEY, "en-US"]]);
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -467,4 +736,23 @@ function placeholders(value: unknown): string[] {
     value.matchAll(/{{\s*([^}\s]+)\s*}}/g),
     (match) => match[1],
   ).sort();
+}
+
+function operatorLiteralTranslationKeys(): Set<string> {
+  return literalTranslationKeys(operatorComponentSource, "operator");
+}
+
+function agentFirstLiteralTranslationKeys(): Set<string> {
+  return literalTranslationKeys(agentFirstComponentSource, "agentFirst");
+}
+
+function literalTranslationKeys(source: string, namespace: string): Set<string> {
+  return new Set(
+    Array.from(
+      source.matchAll(
+        new RegExp(`["'\`]((?:${namespace})\\.[A-Za-z0-9_.-]+)["'\`]`, "g"),
+      ),
+      (match) => match[1],
+    ).filter((key) => !key.endsWith(".")),
+  );
 }

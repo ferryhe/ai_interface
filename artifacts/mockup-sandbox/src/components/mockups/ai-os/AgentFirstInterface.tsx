@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   Activity,
@@ -85,6 +86,13 @@ type GeneralSkillId =
   | "notion"
   | "lark"
   | "file_tools";
+
+type AgentFirstMessageValues = Record<string, string | number>;
+
+interface AgentFirstLocalizedMessage {
+  key: string;
+  values?: AgentFirstMessageValues;
+}
 
 interface ModuleDefinition {
   id: ModuleId;
@@ -213,11 +221,7 @@ interface DataRecord {
 }
 
 interface CapabilityGuide {
-  summary: string;
-  trigger: string;
-  action: string;
-  output: string;
-  boundary: string;
+  keyPrefix: string;
 }
 
 type ArtifactRendererKind = "markdown" | "table" | "json" | "text" | "image" | "file";
@@ -906,98 +910,46 @@ const skillManifestPreviews: SkillManifestPreview[] = [
 
 const moduleGuides: Record<ModuleId, CapabilityGuide> = {
   web_listening: {
-    summary: "Watches source URLs and turns web changes into database records the Agent can reason about.",
-    trigger: "Use when a source website, docs page, changelog, or competitor page needs monitoring.",
-    action: "The Agent asks the module to fetch pages, snapshot HTML, extract readable text, and compare changes.",
-    output: "Snapshots, extracted text, detected change events, and provenance appear in Modules, Progress, and Data.",
-    boundary: "This is the only business skill that normally needs network access.",
+    keyPrefix: "agentFirst.configure.guides.business.web_listening.",
   },
   doc_to_md: {
-    summary: "Converts uploaded or collected documents into clean Markdown that downstream modules can consume.",
-    trigger: "Use when PDFs, Word docs, exports, or raw source documents need to become structured text.",
-    action: "The Agent sends source document references to the module and stores Markdown plus warnings/assets.",
-    output: "Markdown documents, conversion warnings, asset references, and source metadata are stored as artifacts.",
-    boundary: "It should not decide knowledge structure; it only prepares readable Markdown.",
+    keyPrefix: "agentFirst.configure.guides.business.doc_to_md.",
   },
   md_to_rag: {
-    summary: "Builds retrieval memory from Markdown by chunking text and preparing embedding/index metadata.",
-    trigger: "Use after Markdown exists and the Agent needs searchable long-term knowledge.",
-    action: "The Agent asks for chunks, token counts, embedding payload metadata, and index status records.",
-    output: "RAG chunks, token counts, embedding metadata, and index progress become visible in Data.",
-    boundary: "It prepares memory records; model-facing answers still come from the Agent runtime.",
+    keyPrefix: "agentFirst.configure.guides.business.md_to_rag.",
   },
   rag_to_agent: {
-    summary: "Turns validated RAG memory into a publishable agent configuration with prompts and tool bindings.",
-    trigger: "Use when the knowledge base is ready and you want a publishable or testable agent.",
-    action: "The Agent asks for prompts, tool definitions, validation checks, and final handoff state.",
-    output: "Generated agent configs, prompts, tool bindings, and validation results appear before Publish.",
-    boundary: "Keep approval on for this skill because it can shape what the final agent is allowed to do.",
+    keyPrefix: "agentFirst.configure.guides.business.rag_to_agent.",
   },
   climate_monitor: {
-    summary: "Keeps the climate and actuarial monitor reports, source scopes, and guarded run state visible to operators.",
-    trigger: "Use when report freshness, Excel-derived website coverage, or research deduplication state must be checked.",
-    action: "The Agent reads Climate Monitor status through ai_interface and can request dry-run or configured live-run executions.",
-    output: "Latest report metadata, source/scope coverage, warnings, dedup status, and run JSON appear in Backstage.",
-    boundary: "Live execution remains disabled until CLIMATE_MONITOR_PROJECT_PATH is configured and live runs are explicitly enabled.",
+    keyPrefix: "agentFirst.configure.guides.business.climate_monitor.",
   },
   ai_actuary: {
-    summary: "Runs actuarial reserving workflows through the registered safe CLI adapter.",
-    trigger: "Use when a controlled actuarial pipeline run should be launched or inspected.",
-    action: "The Agent prepares a bounded run request and records the adapter output for review.",
-    output: "Run JSON and report artifacts become visible through Runs and Artifacts.",
-    boundary: "Execution depends on local ai_actuary configuration and remains adapter-gated.",
+    keyPrefix: "agentFirst.configure.guides.business.ai_actuary.",
   },
   example_reporter: {
-    summary: "Demonstrates the community skill manifest shape without requiring external execution.",
-    trigger: "Use as a registry validation and UI rendering example.",
-    action: "The Agent treats it as a normal skill manifest with sample schemas and artifacts.",
-    output: "Example report metadata appears in the skill detail surface.",
-    boundary: "This is a community example, not a production pipeline.",
+    keyPrefix: "agentFirst.configure.guides.business.example_reporter.",
   },
 };
 
 const generalSkillGuides: Record<GeneralSkillId, CapabilityGuide> = {
   web_search: {
-    summary: "Lets the Agent look up fresh public information when project memory may be stale.",
-    trigger: "Use for latest docs, pricing, release notes, laws, APIs, news, or anything time-sensitive.",
-    action: "The Agent searches, reads selected sources, cites what it used, then folds the result into the plan.",
-    output: "Search findings show in chat summaries and can be saved into memory when relevant.",
-    boundary: "Requires network and approval because it leaves the local project context.",
+    keyPrefix: "agentFirst.configure.guides.general.web_search.",
   },
   browser: {
-    summary: "Lets the Agent open local previews and inspect actual UI state instead of guessing from code.",
-    trigger: "Use for smoke tests, visual checks, clicking through flows, and reading browser console issues.",
-    action: "The Agent opens the page, navigates, clicks controls, checks DOM/console, and reports what rendered.",
-    output: "Verified page state, screenshots when useful, and console findings are reported back in the thread.",
-    boundary: "Approval stays useful for external sites or any action that changes third-party state.",
+    keyPrefix: "agentFirst.configure.guides.general.browser.",
   },
   github: {
-    summary: "Lets the Agent inspect repository work, pull requests, checks, reviews, and issues.",
-    trigger: "Use when PR state, CI failures, review comments, or remote branch status matters.",
-    action: "The Agent reads PR metadata, checks, comments, and can push confirmed-safe fixes from this repo.",
-    output: "PR summaries, check status, review decisions, commits, and links are shown in the conversation.",
-    boundary: "Writes, merges, or destructive Git operations should remain approval-gated.",
+    keyPrefix: "agentFirst.configure.guides.general.github.",
   },
   notion: {
-    summary: "Lets the Agent use workspace knowledge and capture decisions into structured documents.",
-    trigger: "Use when plans, meeting notes, specs, decisions, or knowledge pages should live in Notion.",
-    action: "The Agent reads selected pages or writes structured summaries when you approve the destination.",
-    output: "Notion pages, implementation specs, and linked knowledge records become part of the handoff.",
-    boundary: "Workspace reads/writes should be explicit because they may contain private team context.",
+    keyPrefix: "agentFirst.configure.guides.general.notion.",
   },
   lark: {
-    summary: "Lets the Agent interact with Lark messages, docs, tasks, calendars, approvals, and Base records.",
-    trigger: "Use for team workflows: send updates, create docs, query tasks, prepare meetings, or sync tables.",
-    action: "The Agent routes to the right Lark capability and asks before sending or changing shared state.",
-    output: "Messages, docs, tasks, calendar results, or Base records are linked back to the Agent thread.",
-    boundary: "External communication and sensitive-data transmission must stay approval-gated.",
+    keyPrefix: "agentFirst.configure.guides.general.lark.",
   },
   file_tools: {
-    summary: "Lets the Agent read and prepare files inside the approved project workspace.",
-    trigger: "Use for local code, docs, fixtures, generated plans, and files that belong to this project.",
-    action: "The Agent reads relevant files, edits scoped files when requested, and keeps Git changes isolated.",
-    output: "Changed files, diffs, verification results, commits, and PR links are reported in the run summary.",
-    boundary: "It should stay inside `ai_interface`; sibling repositories remain off-limits unless requested.",
+    keyPrefix: "agentFirst.configure.guides.general.file_tools.",
   },
 };
 
@@ -1057,43 +1009,9 @@ function plannerProviderLabel(provider: AgentProvider): string {
   );
 }
 
-const businessSwitchGuides = [
-  {
-    label: "Enabled",
-    detail: "Whether the Agent is allowed to call this business module.",
-  },
-  {
-    label: "Approval",
-    detail: "When on, the Agent asks before running sensitive or finalizing actions.",
-  },
-  {
-    label: "Network",
-    detail: "Whether this module may reach external URLs or services.",
-  },
-  {
-    label: "DB write",
-    detail: "Whether this module may persist results, events, and artifacts into Postgres memory.",
-  },
-];
+const businessSwitchGuides = ["enabled", "approval", "network", "dbWrite"] as const;
 
-const generalSwitchGuides = [
-  {
-    label: "Enabled",
-    detail: "The Agent can use this general skill without first proposing installation.",
-  },
-  {
-    label: "On demand",
-    detail: "The Agent may suggest installing or enabling it during a conversation.",
-  },
-  {
-    label: "Approval",
-    detail: "The Agent must ask before actions with external, shared, or sensitive effects.",
-  },
-  {
-    label: "Network",
-    detail: "The skill may connect to external services or public web sources.",
-  },
-];
+const generalSwitchGuides = ["enabled", "onDemand", "approval", "network"] as const;
 
 const defaultAgentConfig: AgentConfigDraft = {
   provider: "openai",
@@ -1400,13 +1318,13 @@ const dataRecords: DataRecord[] = [
   },
 ];
 
-const navItems: Array<{ id: AppView; label: string; icon: ReactNode }> = [
-  { id: "agent", label: "Agent", icon: <Bot size={18} /> },
-  { id: "modules", label: "Modules", icon: <Boxes size={18} /> },
-  { id: "progress", label: "Progress", icon: <ListChecks size={18} /> },
-  { id: "data", label: "Data", icon: <Database size={18} /> },
-  { id: "configure", label: "Configure", icon: <Settings2 size={18} /> },
-  { id: "publish", label: "Publish", icon: <UploadCloud size={18} /> },
+const navItems: Array<{ id: AppView; labelKey: string; icon: ReactNode }> = [
+  { id: "agent", labelKey: "agentFirst.nav.agent", icon: <Bot size={18} /> },
+  { id: "modules", labelKey: "agentFirst.nav.modules", icon: <Boxes size={18} /> },
+  { id: "progress", labelKey: "agentFirst.nav.progress", icon: <ListChecks size={18} /> },
+  { id: "data", labelKey: "agentFirst.nav.data", icon: <Database size={18} /> },
+  { id: "configure", labelKey: "agentFirst.nav.configure", icon: <Settings2 size={18} /> },
+  { id: "publish", labelKey: "agentFirst.nav.publish", icon: <UploadCloud size={18} /> },
 ];
 
 function previewUrl(componentPath: string, search = ""): string {
@@ -1414,27 +1332,30 @@ function previewUrl(componentPath: string, search = ""): string {
   return `${basePath}/preview/${componentPath}${search}`;
 }
 
-function statusLabel(status: RunStatus): string {
-  if (status === "succeeded") return "Succeeded";
-  if (status === "running") return "Running";
-  if (status === "waiting") return "Waiting";
-  return "Queued";
+function agentFirstMessage(
+  key: string,
+  values?: AgentFirstMessageValues,
+): AgentFirstLocalizedMessage {
+  return values ? { key, values } : { key };
+}
+
+function translateAgentFirstMessage(
+  t: TFunction,
+  message: AgentFirstLocalizedMessage,
+): string {
+  return t(message.key, message.values);
+}
+
+function statusLabel(status: RunStatus, t: TFunction): string {
+  return t(`agentFirst.status.run.${status}`);
 }
 
 function statusClass(status: RunStatus): string {
   return `status-dot ${status}`;
 }
 
-function runtimeStatusLabel(status: RuntimeRunStatus): string {
-  if (status === "approval_required") return "Approval";
-  if (status === "waiting_for_user") return "Needs reply";
-  if (status === "waiting_for_data") return "Needs data";
-  if (status === "blocked") return "Blocked";
-  if (status === "resumable") return "Resume ready";
-  if (status === "skipped") return "Config needed";
-  if (status === "succeeded") return "Succeeded";
-  if (status === "running") return "Running";
-  return "Queued";
+function runtimeStatusLabel(status: RuntimeRunStatus, t: TFunction): string {
+  return t(`agentFirst.status.runtime.${status}`);
 }
 
 function runtimeStatusClass(status: RuntimeRunStatus): string {
@@ -1460,9 +1381,11 @@ function hasBackstageSkillUi(skill: SkillManifestPreview): boolean {
   return skill.id === "climate_monitor" || Boolean(skill.ui.htmlEntrypoint);
 }
 
-function backstageUiLabel(skill: SkillManifestPreview): string {
-  if (skill.id === "climate_monitor") return "Ops panel";
-  return skill.ui.htmlEntrypoint ? "HTML tab" : skill.ui.preferredRenderer;
+function backstageUiLabel(skill: SkillManifestPreview, t: TFunction): string {
+  if (skill.id === "climate_monitor") return t("agentFirst.backstage.ui.opsPanel");
+  return skill.ui.htmlEntrypoint
+    ? t("agentFirst.backstage.ui.htmlTab")
+    : skill.ui.preferredRenderer;
 }
 
 function shouldOpenBackstageForRun(run: RuntimeModuleRun): boolean {
@@ -2003,18 +1926,19 @@ function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
   };
 }
 
-function connectionLabel(status: AgentConnectionStatus): string {
-  if (status === "configured") return "Provider ready";
-  if (status === "missing_key") return "Provider env missing";
-  return "API offline";
+function connectionLabel(status: AgentConnectionStatus, t: TFunction): string {
+  return t(`agentFirst.status.connection.${status}`);
 }
 
-function agentRunStateLabel(state: AgentRunSubmitState): string {
-  if (state === "submitting") return "Submitting";
-  if (state === "saved") return "API saved";
-  if (state === "offline") return "API offline";
-  if (state === "failed") return "API failed";
-  return "Local mock";
+function agentRunStateLabel(state: AgentRunSubmitState, t: TFunction): string {
+  return t(`agentFirst.status.agentRun.${state}`);
+}
+
+function agentRunApiStatusLabel(
+  status: AgentRunApiResponse["status"],
+  t: TFunction,
+): string {
+  return t(`agentFirst.status.agentRunApi.${status}`);
 }
 
 function stringArrayValue(value: unknown): string[] {
@@ -2412,27 +2336,31 @@ export function AgentFirstInterface() {
   const [publishTokenDraft, setPublishTokenDraft] = useState("");
   const [publishSaveState, setPublishSaveState] =
     useState<PublishSaveState>("local");
-  const [publishStatusText, setPublishStatusText] = useState(
-    "Local publish settings",
+  const [publishStatusMessage, setPublishStatusMessage] = useState(
+    agentFirstMessage("agentFirst.statusMessages.localPublishSettings"),
   );
   const [connectionStatus, setConnectionStatus] =
     useState<AgentConnectionStatus>("offline");
   const [connectionPayload, setConnectionPayload] =
     useState<AgentConnectionPayload | null>(null);
-  const [configStatus, setConfigStatus] = useState("Local draft");
+  const [configStatusMessage, setConfigStatusMessage] = useState(
+    agentFirstMessage("agentFirst.statusMessages.localDraft"),
+  );
   const [isConfigBusy, setIsConfigBusy] = useState(false);
   const [agentRunState, setAgentRunState] =
     useState<AgentRunSubmitState>("local");
-  const [agentRunStatusText, setAgentRunStatusText] =
-    useState("Local mock runtime");
+  const [agentRunStatusMessage, setAgentRunStatusMessage] = useState(
+    agentFirstMessage("agentFirst.statusMessages.localMockRuntime"),
+  );
   const [latestAgentRun, setLatestAgentRun] =
     useState<AgentRunUiState | null>(null);
   const [localFallbackRuntimeRuns, setLocalFallbackRuntimeRuns] =
     useState<RuntimeModuleRun[] | null>(null);
   const [runtimeActionStates, setRuntimeActionStates] =
     useState<Record<string, RuntimeActionState>>({});
-  const [runtimeActionStatusText, setRuntimeActionStatusText] =
-    useState("Runtime actions are local until API run data is available");
+  const [runtimeActionStatusMessage, setRuntimeActionStatusMessage] = useState(
+    agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
+  );
 
   const selectedModule = moduleById(selectedModuleId);
   const selectedSkillManifest = skillManifestById(selectedSkillId, skillCatalog);
@@ -2442,6 +2370,13 @@ export function AgentFirstInterface() {
   );
   const displayedRuntimeRuns =
     latestAgentRun?.runtimeRuns ?? localFallbackRuntimeRuns ?? mockRuntimeRuns;
+  const configStatusText = translateAgentFirstMessage(t, configStatusMessage);
+  const publishStatusText = translateAgentFirstMessage(t, publishStatusMessage);
+  const agentRunStatusText = translateAgentFirstMessage(t, agentRunStatusMessage);
+  const runtimeActionStatusText = translateAgentFirstMessage(
+    t,
+    runtimeActionStatusMessage,
+  );
   const filteredRecords = useMemo(
     () =>
       selectedRecordKind === "all"
@@ -2587,16 +2522,20 @@ export function AgentFirstInterface() {
         setPublishTokenDraft("");
         setConnectionStatus(data.connection.status);
         setConnectionPayload(data.connection);
-        setConfigStatus("Loaded from API");
+        setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.loadedFromApi"));
         setPublishSaveState("saved");
-        setPublishStatusText("Loaded publish settings from API");
+        setPublishStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.loadedPublishSettingsFromApi"),
+        );
       } catch {
         if (cancelled) return;
         setConnectionStatus("offline");
         setConnectionPayload(null);
-        setConfigStatus("API offline - local draft");
+        setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalDraft"));
         setPublishSaveState("offline");
-        setPublishStatusText("API offline - local publish settings");
+        setPublishStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalPublishSettings"),
+        );
       }
     }
 
@@ -2609,7 +2548,7 @@ export function AgentFirstInterface() {
 
   function updateConfig(patch: Partial<AgentConfigDraft>): void {
     setAgentConfig((current) => ({ ...current, ...patch }));
-    setConfigStatus("Unsaved local draft");
+    setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
 
   function updateBusinessSkill(
@@ -2622,7 +2561,7 @@ export function AgentFirstInterface() {
         skill.moduleId === moduleId ? { ...skill, ...patch } : skill,
       ),
     }));
-    setConfigStatus("Unsaved local draft");
+    setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
 
   function updateGeneralSkill(
@@ -2635,7 +2574,7 @@ export function AgentFirstInterface() {
         skill.skillId === skillId ? { ...skill, ...patch } : skill,
       ),
     }));
-    setConfigStatus("Unsaved local draft");
+    setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
 
   function updateMemorySettings(patch: Partial<AgentMemorySettings>): void {
@@ -2643,7 +2582,7 @@ export function AgentFirstInterface() {
       ...current,
       memorySettings: { ...current.memorySettings, ...patch },
     }));
-    setConfigStatus("Unsaved local draft");
+    setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
 
   function updateSafetySettings(patch: Partial<AgentSafetySettings>): void {
@@ -2651,7 +2590,7 @@ export function AgentFirstInterface() {
       ...current,
       safetySettings: { ...current.safetySettings, ...patch },
     }));
-    setConfigStatus("Unsaved local draft");
+    setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
 
   async function saveAgentConfig(): Promise<void> {
@@ -2670,11 +2609,11 @@ export function AgentFirstInterface() {
       setAgentConfig(toConfigDraft(data.config));
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
-      setConfigStatus("Saved to API");
+      setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.savedToApi"));
     } catch {
       setConnectionStatus("offline");
       setConnectionPayload(null);
-      setConfigStatus("API offline - local draft only");
+      setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalDraftOnly"));
     } finally {
       setIsConfigBusy(false);
     }
@@ -2683,7 +2622,9 @@ export function AgentFirstInterface() {
   function updatePublishVersionLabel(versionLabel: string): void {
     setPublishSettings((current) => ({ ...current, versionLabel }));
     setPublishSaveState("local");
-    setPublishStatusText("Unsaved local publish settings");
+    setPublishStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.unsavedLocalPublishSettings"),
+    );
   }
 
   async function savePublishSettings(nextStatus: PublishStatus): Promise<void> {
@@ -2693,7 +2634,9 @@ export function AgentFirstInterface() {
     const token = publishTokenDraft.trim();
 
     setPublishSaveState("saving");
-    setPublishStatusText("Saving publish settings");
+    setPublishStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.savingPublishSettings"),
+    );
 
     try {
       const publishSettingsPayload: {
@@ -2729,7 +2672,9 @@ export function AgentFirstInterface() {
       setConnectionPayload(data.connection);
       setPublishTokenDraft("");
       setPublishSaveState("saved");
-      setPublishStatusText("Saved publish settings to API");
+      setPublishStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.savedPublishSettingsToApi"),
+      );
     } catch {
       const now = new Date().toISOString();
       setPublishSettings((current) => ({
@@ -2746,7 +2691,9 @@ export function AgentFirstInterface() {
       setConnectionStatus("offline");
       setConnectionPayload(null);
       setPublishSaveState("offline");
-      setPublishStatusText("API offline - local publish settings only");
+      setPublishStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalPublishSettingsOnly"),
+      );
     }
   }
 
@@ -2763,11 +2710,13 @@ export function AgentFirstInterface() {
       const data = (await response.json()) as AgentConnectionApiResponse;
       setConnectionStatus(data.status);
       setConnectionPayload(data);
-      setConfigStatus(connectionLabel(data.status));
+      setConfigStatusMessage(
+        agentFirstMessage(`agentFirst.status.connection.${data.status}`),
+      );
     } catch {
       setConnectionStatus("offline");
       setConnectionPayload(null);
-      setConfigStatus("API offline - cannot test key");
+      setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.apiOfflineCannotTestKey"));
     } finally {
       setIsConfigBusy(false);
     }
@@ -2782,9 +2731,13 @@ export function AgentFirstInterface() {
     setQueuedPrompt(trimmed);
     setCommand("");
     setAgentRunState("submitting");
-    setAgentRunStatusText("Submitting to Agent Run API");
+    setAgentRunStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.submittingAgentRunApi"),
+    );
     setRuntimeActionStates({});
-    setRuntimeActionStatusText("Waiting for API run data");
+    setRuntimeActionStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.waitingForApiRunData"),
+    );
     setActiveView("progress");
 
     try {
@@ -2802,8 +2755,12 @@ export function AgentFirstInterface() {
         setLatestAgentRun(null);
         setLocalFallbackRuntimeRuns(null);
         setAgentRunState("failed");
-        setAgentRunStatusText("Agent run API failed - showing local mock");
-        setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+        setAgentRunStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.agentRunApiFailedLocal"),
+        );
+        setRuntimeActionStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
+        );
         return;
       }
 
@@ -2817,8 +2774,14 @@ export function AgentFirstInterface() {
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
       setAgentRunState("saved");
-      setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
-      setRuntimeActionStatusText("Runtime actions are connected to API run data");
+      setAgentRunStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.savedRun", {
+          runId: data.pipelineRun.id.slice(0, 8),
+        }),
+      );
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.runtimeActionsConnected"),
+      );
       const triggeredRun = runtimeRuns.find(shouldOpenBackstageForRun);
       if (triggeredRun) {
         openBackstageSkill(triggeredRun.moduleId, "ui");
@@ -2827,8 +2790,12 @@ export function AgentFirstInterface() {
       setLatestAgentRun(null);
       setLocalFallbackRuntimeRuns(null);
       setAgentRunState("offline");
-      setAgentRunStatusText("API offline - showing local mock");
-      setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+      setAgentRunStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalMock"),
+      );
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
+      );
       setConnectionStatus("offline");
       setConnectionPayload(null);
     }
@@ -2867,9 +2834,13 @@ export function AgentFirstInterface() {
 
     setSelectedAgentId(agentId);
     setAgentRunState("submitting");
-    setAgentRunStatusText(`Submitting ${agentId}`);
+    setAgentRunStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.submittingAgent", { agentId }),
+    );
     setRuntimeActionStates({});
-    setRuntimeActionStatusText("Waiting for API run data");
+    setRuntimeActionStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.waitingForApiRunData"),
+    );
 
     try {
       const response = await fetch("/api/agent-runs", {
@@ -2892,8 +2863,12 @@ export function AgentFirstInterface() {
         setConnectionPayload(null);
         setWorkbenchTab("runs");
         setAgentRunState(response.status === 403 ? "failed" : "offline");
-        setAgentRunStatusText("Agent run API unavailable - local demo");
-        setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+        setAgentRunStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.agentRunApiUnavailableLocalDemo"),
+        );
+        setRuntimeActionStatusMessage(
+          agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
+        );
         return;
       }
 
@@ -2910,8 +2885,14 @@ export function AgentFirstInterface() {
       setConnectionPayload(data.connection);
       setWorkbenchTab("runs");
       setAgentRunState("saved");
-      setAgentRunStatusText(`Saved run ${data.pipelineRun.id.slice(0, 8)}`);
-      setRuntimeActionStatusText("Runtime actions are connected to API run data");
+      setAgentRunStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.savedRun", {
+          runId: data.pipelineRun.id.slice(0, 8),
+        }),
+      );
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.runtimeActionsConnected"),
+      );
     } catch {
       const localRun = createLocalWorkbenchRun(agentId, `${agent?.name ?? agentId} local test`);
       rememberWorkbenchRun(localRun);
@@ -2919,8 +2900,12 @@ export function AgentFirstInterface() {
       setLocalFallbackRuntimeRuns(toLocalRuntimeRuns(localRun));
       setWorkbenchTab("runs");
       setAgentRunState("offline");
-      setAgentRunStatusText("API offline - local demo");
-      setRuntimeActionStatusText("Runtime actions are local until API run data is available");
+      setAgentRunStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalDemo"),
+      );
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
+      );
       setConnectionStatus("offline");
       setConnectionPayload(null);
     }
@@ -2933,7 +2918,11 @@ export function AgentFirstInterface() {
     }
 
     setRuntimeActionStates((current) => ({ ...current, [run.id]: "submitting" }));
-    setRuntimeActionStatusText(`Resuming ${run.moduleId}`);
+    setRuntimeActionStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.resumingModule", {
+        moduleId: run.moduleId,
+      }),
+    );
 
     try {
       const response = await fetch(`/api/module-runs/${encodeURIComponent(run.id)}/resume`, {
@@ -2946,37 +2935,48 @@ export function AgentFirstInterface() {
       const data = (await response.json()) as ToolInteractionApiResponse;
       updateRuntimeRun(toRuntimeRunFromApiModuleRun(data.run));
       setRuntimeActionStates((current) => ({ ...current, [run.id]: "succeeded" }));
-      setRuntimeActionStatusText(`Resume submitted for ${run.moduleId}`);
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.resumeSubmittedForModule", {
+          moduleId: run.moduleId,
+        }),
+      );
     } catch {
       setRuntimeActionStates((current) => ({ ...current, [run.id]: "failed" }));
-      setRuntimeActionStatusText(`Resume API failed for ${run.moduleId}`);
+      setRuntimeActionStatusMessage(
+        agentFirstMessage("agentFirst.statusMessages.resumeApiFailedForModule", {
+          moduleId: run.moduleId,
+        }),
+      );
     }
   }
 
   return (
     <div className="agent-os-shell">
-      <aside className="side-rail" aria-label="Main navigation">
+      <aside className="side-rail" aria-label={t("agentFirst.aria.mainNavigation")}>
         <div className="brand-mark">
           <Sparkles size={17} />
           <span>AI</span>
         </div>
         <nav className="rail-nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeView === item.id ? "rail-button active" : "rail-button"}
-              onClick={() => {
-                setWorkspaceMode("foreground");
-                setActiveView(item.id);
-              }}
-              title={item.label}
-              aria-label={item.label}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const label = t(item.labelKey);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={activeView === item.id ? "rail-button active" : "rail-button"}
+                onClick={() => {
+                  setWorkspaceMode("foreground");
+                  setActiveView(item.id);
+                }}
+                title={label}
+                aria-label={label}
+              >
+                {item.icon}
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </nav>
       </aside>
 
@@ -2984,30 +2984,30 @@ export function AgentFirstInterface() {
         <header className="topbar">
           <div className="topbar-title">
             <Bot size={17} />
-            <span>AI Team Mission Control</span>
+            <span>{t("agentFirst.topbar.title")}</span>
           </div>
           <div className="topbar-actions">
-            <div className="workspace-switch" aria-label="Workspace mode">
+            <div className="workspace-switch" aria-label={t("agentFirst.aria.workspaceMode")}>
               <button
                 type="button"
                 className={workspaceMode === "mission" ? "active" : ""}
                 onClick={() => setWorkspaceMode("mission")}
               >
-                Mission Center
+                {t("agentFirst.workspace.mission")}
               </button>
               <button
                 type="button"
                 className={workspaceMode === "foreground" ? "active" : ""}
                 onClick={() => setWorkspaceMode("foreground")}
               >
-                Foreground
+                {t("agentFirst.workspace.foreground")}
               </button>
               <button
                 type="button"
                 className={workspaceMode === "backstage" ? "active" : ""}
                 onClick={() => setWorkspaceMode("backstage")}
               >
-                Backstage
+                {t("agentFirst.workspace.backstage")}
               </button>
               <button
                 type="button"
@@ -3017,7 +3017,7 @@ export function AgentFirstInterface() {
                   setWorkbenchTab("operator");
                 }}
               >
-                Operator
+                {t("agentFirst.workspace.operator")}
               </button>
             </div>
             <LanguageSwitcher className="topbar-mode-switch" variant="ghost" />
@@ -3035,11 +3035,11 @@ export function AgentFirstInterface() {
             </button>
             <span className="topbar-pill">
               <ShieldCheck size={14} />
-              Postgres memory
+              {t("agentFirst.topbar.postgresMemory")}
             </span>
             <span className="topbar-pill live">
               <Activity size={14} />
-              1 run active
+              {t("agentFirst.topbar.activeRuns", { count: 1 })}
             </span>
           </div>
         </header>
@@ -3155,7 +3155,7 @@ export function AgentFirstInterface() {
               config={agentConfig}
               connectionStatus={connectionStatus}
               connection={connectionPayload}
-              statusText={configStatus}
+              statusText={configStatusText}
               isBusy={isConfigBusy}
               onUpdateConfig={updateConfig}
               onUpdateBusinessSkill={updateBusinessSkill}
@@ -3193,22 +3193,25 @@ export function AgentFirstInterface() {
           />
         )}
 
-        <nav className="mobile-nav" aria-label="Mobile navigation">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeView === item.id ? "mobile-nav-button active" : "mobile-nav-button"}
-              onClick={() => {
-                setWorkspaceMode("foreground");
-                setActiveView(item.id);
-              }}
-              aria-label={item.label}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
+        <nav className="mobile-nav" aria-label={t("agentFirst.aria.mobileNavigation")}>
+          {navItems.map((item) => {
+            const label = t(item.labelKey);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={activeView === item.id ? "mobile-nav-button active" : "mobile-nav-button"}
+                onClick={() => {
+                  setWorkspaceMode("foreground");
+                  setActiveView(item.id);
+                }}
+                aria-label={label}
+              >
+                {item.icon}
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </nav>
       </div>
 
@@ -3244,6 +3247,7 @@ function AgentView({
   onOpenProgress: () => void;
   onOpenData: () => void;
 }) {
+  const { t } = useTranslation();
   const resumeReadyCount = runtimeRuns.filter((run) => run.status === "resumable").length;
   const approvalCount = runtimeRuns.filter((run) => run.status === "approval_required").length;
   const configNeededCount = runtimeRuns.filter((run) => run.status === "skipped").length;
@@ -3260,42 +3264,47 @@ function AgentView({
         <div className="panel-heading">
           <span>
             <MessageSquareText size={16} />
-            Agent
+            {t("agentFirst.agentView.title")}
           </span>
           <span className="soft-label">
-            {executionMode === "execute_ready" ? "Execute ready" : "Plan only"}
+            {t(`agentFirst.executionMode.${executionMode}`)}
           </span>
         </div>
 
         <div className="chat-stream">
           <ChatBubble role="user">
-            Build an onboarding knowledge agent from the watched docs and keep every module result in the database.
+            {t("agentFirst.agentView.demoUserMessage")}
           </ChatBubble>
           <ChatBubble role="agent">
-            I will run the five-module chain and store snapshots, Markdown, chunks, agent config, and climate report records in Postgres.
+            {t("agentFirst.agentView.demoAgentMessage")}
           </ChatBubble>
 
           <RunCard
-            title="Pipeline: docs to publishable agent"
-            detail={`${succeededCount} succeeded / ${resumeReadyCount} resume ready / ${approvalCount} approval / ${configNeededCount} config`}
+            title={t("agentFirst.agentView.pipelineTitle")}
+            detail={t("agentFirst.agentView.pipelineDetail", {
+              succeededCount,
+              resumeReadyCount,
+              approvalCount,
+              configNeededCount,
+            })}
             status={executionMode === "execute_ready" ? "running" : "queued"}
             actions={
               <>
                 <button type="button" className="small-action" onClick={onOpenProgress}>
-                  Progress
+                  {t("agentFirst.nav.progress")}
                 </button>
                 <button type="button" className="small-action" onClick={onOpenData}>
-                  Data
+                  {t("agentFirst.nav.data")}
                 </button>
                 <button type="button" className="small-action" onClick={() => onOpenModules()}>
-                  Modules
+                  {t("agentFirst.nav.modules")}
                 </button>
                 <button
                   type="button"
                   className="small-action"
                   onClick={() => onOpenBackstage("rag_to_agent", "ui")}
                 >
-                  Backstage
+                  {t("agentFirst.workspace.backstage")}
                 </button>
               </>
             }
@@ -3329,16 +3338,16 @@ function AgentView({
         <div className="panel-heading">
           <span>
             <Layers3 size={16} />
-            Live workspace
+            {t("agentFirst.agentView.liveWorkspace")}
           </span>
-          <span className="soft-label">API ingest v1</span>
+          <span className="soft-label">{t("agentFirst.agentView.apiIngest")}</span>
         </div>
         <div className="workspace-preview">
           <div className="preview-bar">
             <span />
             <span />
             <span />
-            <strong>module memory</strong>
+            <strong>{t("agentFirst.agentView.moduleMemory")}</strong>
           </div>
           <div className="memory-map">
             {modules.map((module) => (
@@ -3356,9 +3365,9 @@ function AgentView({
           </div>
         </div>
         <div className="agent-summary-grid">
-          <Metric label="Runs" value={String(Math.max(runtimeRuns.length, modules.length))} />
-          <Metric label="Records" value={String(storedRecordCount)} />
-          <Metric label="Artifacts" value={String(artifactCount)} />
+          <Metric label={t("agentFirst.metrics.runs")} value={String(Math.max(runtimeRuns.length, modules.length))} />
+          <Metric label={t("agentFirst.metrics.records")} value={String(storedRecordCount)} />
+          <Metric label={t("agentFirst.metrics.artifacts")} value={String(artifactCount)} />
         </div>
       </div>
     </section>
@@ -3414,20 +3423,21 @@ function BackstageView({
   onOpenForeground: (moduleId: ModuleId) => void;
   onOpenSkillFromAgent: (skillId: string) => void;
 }) {
+  const { t } = useTranslation();
   const selectedRun = runtimeRuns.find((run) => run.moduleId === selectedSkill.id);
   const selectedRecords = dataRecords.filter((record) => record.moduleId === selectedSkill.id);
-  const workbenchTabs: Array<{ id: WorkbenchTab; label: string }> = [
-    { id: "agents", label: "Agents" },
-    { id: "skills", label: "Skills" },
-    { id: "runs", label: "Runs" },
-    { id: "artifacts", label: "Artifacts" },
-    { id: "operator", label: "Operator" },
+  const workbenchTabs: Array<{ id: WorkbenchTab; labelKey: string }> = [
+    { id: "agents", labelKey: "agentFirst.backstage.tabs.agents" },
+    { id: "skills", labelKey: "agentFirst.backstage.tabs.skills" },
+    { id: "runs", labelKey: "agentFirst.backstage.tabs.runs" },
+    { id: "artifacts", labelKey: "agentFirst.backstage.tabs.artifacts" },
+    { id: "operator", labelKey: "agentFirst.backstage.tabs.operator" },
   ];
-  const skillTabs: Array<{ id: BackstageTab; label: string; enabled: boolean }> = [
-    { id: "io", label: "Run I/O", enabled: true },
-    { id: "artifacts", label: "Artifacts", enabled: true },
-    { id: "events", label: "Events", enabled: true },
-    { id: "ui", label: "Skill UI", enabled: hasBackstageSkillUi(selectedSkill) },
+  const skillTabs: Array<{ id: BackstageTab; labelKey: string; enabled: boolean }> = [
+    { id: "io", labelKey: "agentFirst.backstage.skillTabs.io", enabled: true },
+    { id: "artifacts", labelKey: "agentFirst.backstage.skillTabs.artifacts", enabled: true },
+    { id: "events", labelKey: "agentFirst.backstage.skillTabs.events", enabled: true },
+    { id: "ui", labelKey: "agentFirst.backstage.skillTabs.ui", enabled: hasBackstageSkillUi(selectedSkill) },
   ];
   const selectedReadiness =
     agentReadiness.find((item) => item.agentId === selectedAgent.agentId) ?? null;
@@ -3436,7 +3446,7 @@ function BackstageView({
 
   return (
     <section className="workbench-shell">
-      <div className="backstage-tabs workbench-primary-tabs" role="tablist" aria-label="Workbench tabs">
+      <div className="backstage-tabs workbench-primary-tabs" role="tablist" aria-label={t("agentFirst.aria.workbenchTabs")}>
         {workbenchTabs.map((item) => (
           <button
             key={item.id}
@@ -3446,20 +3456,20 @@ function BackstageView({
             className={workbenchTab === item.id ? "active" : ""}
             onClick={() => onSetWorkbenchTab(item.id)}
           >
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
       </div>
 
       {workbenchTab === "agents" && (
         <section className="backstage-layout">
-          <aside className="skill-catalog" aria-label="Agent catalog">
+          <aside className="skill-catalog" aria-label={t("agentFirst.aria.agentCatalog")}>
             <div className="panel-heading">
               <span>
                 <Bot size={16} />
-                Agents
+                {t("agentFirst.backstage.agentsTitle")}
               </span>
-              <span className="soft-label">{agents.length} loaded</span>
+              <span className="soft-label">{t("agentFirst.backstage.loadedCount", { count: agents.length })}</span>
             </div>
             <AgentCatalog
               agents={agents}
@@ -3487,13 +3497,13 @@ function BackstageView({
 
       {workbenchTab === "skills" && (
         <section className="backstage-layout">
-          <aside className="skill-catalog" aria-label="Skill catalog">
+          <aside className="skill-catalog" aria-label={t("agentFirst.aria.skillCatalog")}>
             <div className="panel-heading">
               <span>
                 <Boxes size={16} />
-                Skills
+                {t("agentFirst.backstage.skillsTitle")}
               </span>
-              <span className="soft-label">{skillCatalog.length} loaded</span>
+              <span className="soft-label">{t("agentFirst.backstage.loadedCount", { count: skillCatalog.length })}</span>
             </div>
             {skillCatalog.map((skill) => {
               const run = runtimeRuns.find((item) => item.moduleId === skill.id);
@@ -3510,7 +3520,7 @@ function BackstageView({
                     <em>{skill.execution.kind}</em>
                   </span>
                   <b className={run ? runtimeStatusClass(run.status) : "runtime-status queued"}>
-                    {run ? runtimeStatusLabel(run.status) : "Queued"}
+                    {run ? runtimeStatusLabel(run.status, t) : t("agentFirst.status.runtime.queued")}
                   </b>
                 </button>
               );
@@ -3520,7 +3530,7 @@ function BackstageView({
           <div className="backstage-main">
             <div className="backstage-header">
               <div>
-                <span className="soft-label">Skill manifest</span>
+                <span className="soft-label">{t("agentFirst.backstage.skillManifest")}</span>
                 <h1>{selectedSkill.name}</h1>
                 <p>{selectedSkill.description}</p>
               </div>
@@ -3529,21 +3539,25 @@ function BackstageView({
                 className="small-action"
                 onClick={() => onOpenForeground(selectedSkill.id)}
               >
-                Foreground detail
+                {t("agentFirst.backstage.foregroundDetail")}
               </button>
             </div>
 
             <div className="backstage-metrics">
-              <Metric label="Kind" value={selectedSkill.execution.kind} />
+              <Metric label={t("agentFirst.metrics.kind")} value={selectedSkill.execution.kind} />
               <Metric
-                label="Readiness"
-                value={selectedSkill.project.readiness === "ready" ? "Ready" : "Not configured"}
+                label={t("agentFirst.metrics.readiness")}
+                value={
+                  selectedSkill.project.readiness === "ready"
+                    ? t("agentFirst.status.readiness.ready")
+                    : t("agentFirst.status.readiness.not_configured")
+                }
               />
-              <Metric label="Adapter" value={selectedSkill.execution.adapterId} />
-              <Metric label="UI" value={backstageUiLabel(selectedSkill)} />
+              <Metric label={t("agentFirst.metrics.adapter")} value={selectedSkill.execution.adapterId} />
+              <Metric label={t("agentFirst.metrics.ui")} value={backstageUiLabel(selectedSkill, t)} />
             </div>
 
-            <div className="backstage-tabs" role="tablist" aria-label="Skill tabs">
+            <div className="backstage-tabs" role="tablist" aria-label={t("agentFirst.aria.skillTabs")}>
               {skillTabs.map((item) => (
                 <button
                   key={item.id}
@@ -3554,15 +3568,15 @@ function BackstageView({
                   className={skillTab === item.id ? "active" : ""}
                   onClick={() => item.enabled && onSetSkillTab(item.id)}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </button>
               ))}
             </div>
 
             {skillTab === "io" && (
               <div className="backstage-grid two">
-                <JsonInspector title="Input" value={selectedRun?.id ? selectedSkill.sampleInput : selectedSkill.inputSchema} />
-                <JsonInspector title="Output" value={selectedSkill.sampleOutput} />
+                <JsonInspector title={t("agentFirst.backstage.input")} value={selectedRun?.id ? selectedSkill.sampleInput : selectedSkill.inputSchema} />
+                <JsonInspector title={t("agentFirst.backstage.output")} value={selectedSkill.sampleOutput} />
               </div>
             )}
 
@@ -3589,7 +3603,7 @@ function BackstageView({
                 {(selectedRun ? [selectedRun] : runtimeRuns.filter((run) => run.moduleId === selectedSkill.id)).map(
                   (run) => (
                     <div key={run.id} className="event-row">
-                      <span className={runtimeStatusClass(run.status)}>{runtimeStatusLabel(run.status)}</span>
+                      <span className={runtimeStatusClass(run.status)}>{runtimeStatusLabel(run.status, t)}</span>
                       <strong>{run.title}</strong>
                       <p>{run.event}</p>
                       <em>{run.updatedAt}</em>
@@ -3598,7 +3612,7 @@ function BackstageView({
                 )}
                 {selectedRun?.interaction && (
                   <div className="event-row attention">
-                    <span className="runtime-status approval_required">Interaction</span>
+                    <span className="runtime-status approval_required">{t("agentFirst.backstage.interaction")}</span>
                     <strong>{selectedRun.interaction.title}</strong>
                     <p>{selectedRun.interaction.message}</p>
                     <em>{selectedRun.interaction.resumeHandle}</em>
@@ -3709,6 +3723,8 @@ function SkillHtmlPanel({
   skill: SkillManifestPreview;
   run?: RuntimeModuleRun;
 }) {
+  const { t } = useTranslation();
+
   if (skill.id === "climate_monitor") {
     return <ClimateMonitorOpsPanel run={run} />;
   }
@@ -3716,11 +3732,15 @@ function SkillHtmlPanel({
   if (!skill.ui.htmlEntrypoint) {
     return (
       <div className="json-inspector empty-state">
-        <strong>Generic renderer</strong>
-        <p>This skill does not ship an HTML backstage surface.</p>
+        <strong>{t("agentFirst.skillUi.genericRenderer")}</strong>
+        <p>{t("agentFirst.skillUi.noHtmlSurface")}</p>
       </div>
     );
   }
+
+  const runStatus = run
+    ? runtimeStatusLabel(run.status, t)
+    : t("agentFirst.status.runtime.queued");
 
   const html = `<!doctype html>
 <html>
@@ -3739,11 +3759,11 @@ function SkillHtmlPanel({
     <main>
       <section>
         <h1>${skill.name}</h1>
-        <p>Backstage HTML entrypoint: <code>${skill.ui.htmlEntrypoint}</code></p>
+        <p>${t("agentFirst.skillUi.htmlEntrypoint")}: <code>${skill.ui.htmlEntrypoint}</code></p>
       </section>
       <section>
-        <p>Run status: <code>${run ? runtimeStatusLabel(run.status) : "queued"}</code></p>
-        <p>Adapter: <code>${skill.execution.adapterId}</code></p>
+        <p>${t("agentFirst.skillUi.runStatus")}: <code>${runStatus}</code></p>
+        <p>${t("agentFirst.metrics.adapter")}: <code>${skill.execution.adapterId}</code></p>
       </section>
     </main>
   </body>
@@ -3756,10 +3776,8 @@ function SkillHtmlPanel({
   );
 }
 
-function climateApiStateLabel(state: ClimateMonitorApiState): string {
-  if (state === "api") return "API";
-  if (state === "loading") return "Loading";
-  return "Mock fallback";
+function climateApiStateLabel(state: ClimateMonitorApiState, t: TFunction): string {
+  return t(`agentFirst.status.climateApi.${state}`);
 }
 
 function climateApiStateClass(state: ClimateMonitorApiState): string {
@@ -3768,12 +3786,8 @@ function climateApiStateClass(state: ClimateMonitorApiState): string {
   return "runtime-status skipped";
 }
 
-function climateRunStateLabel(state: ClimateMonitorRunState): string {
-  if (state === "submitting") return "Submitting";
-  if (state === "succeeded") return "Accepted";
-  if (state === "offline") return "Local fallback";
-  if (state === "failed") return "Failed";
-  return "Idle";
+function climateRunStateLabel(state: ClimateMonitorRunState, t: TFunction): string {
+  return t(`agentFirst.status.climateRun.${state}`);
 }
 
 function climateTimestamp(): string {
@@ -3781,10 +3795,13 @@ function climateTimestamp(): string {
 }
 
 function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<ClimateMonitorStatus>(mockClimateMonitorStatus);
   const [apiState, setApiState] = useState<ClimateMonitorApiState>("loading");
   const [runState, setRunState] = useState<ClimateMonitorRunState>("idle");
-  const [statusText, setStatusText] = useState("Loading Climate Monitor status");
+  const [statusMessage, setStatusMessage] = useState(
+    agentFirstMessage("agentFirst.statusMessages.loadingClimateMonitorStatus"),
+  );
   const [runDate, setRunDate] = useState("");
   const [manifestFixture, setManifestFixture] = useState("");
   const [researchFixture, setResearchFixture] = useState("");
@@ -3795,6 +3812,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       : ["CLIMATE_MONITOR_PROJECT_PATH"];
   const dryRunDisabled = !status.configured || runState === "submitting";
   const liveRunDisabled = !status.configured || runState === "submitting";
+  const statusText = translateAgentFirstMessage(t, statusMessage);
 
   useEffect(() => {
     let cancelled = false;
@@ -3813,12 +3831,12 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
 
         setStatus(normalizeClimateMonitorStatus(data));
         setApiState("api");
-        setStatusText("Status loaded from API");
+        setStatusMessage(agentFirstMessage("agentFirst.statusMessages.climateStatusLoadedFromApi"));
       } catch {
         if (cancelled) return;
         setStatus(mockClimateMonitorStatus);
         setApiState("offline");
-        setStatusText("API offline - local mock status");
+        setStatusMessage(agentFirstMessage("agentFirst.statusMessages.climateApiOfflineLocalMock"));
       }
     }
 
@@ -3829,23 +3847,33 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
     };
   }, []);
 
-  async function climateRunErrorMessage(response: Response): Promise<string> {
+  async function climateRunErrorMessage(response: Response): Promise<AgentFirstLocalizedMessage> {
     try {
       const payload = (await response.json()) as unknown;
       if (isJsonObject(payload) && typeof payload["error"] === "string") {
-        return payload["error"];
+        return agentFirstMessage("agentFirst.statusMessages.climateRunFailed", {
+          message: payload["error"],
+        });
       }
     } catch {
       // Fall through to the generic HTTP status message.
     }
-    return `Climate Monitor run returned ${response.status}`;
+    return agentFirstMessage("agentFirst.statusMessages.climateRunHttpError", {
+      status: response.status,
+    });
   }
 
   async function submitClimateRun(mode: ClimateMonitorRunMode): Promise<void> {
     if (!status.configured) return;
 
     setRunState("submitting");
-    setStatusText(mode === "dry_run" ? "Submitting dry-run" : "Submitting live run");
+    setStatusMessage(
+      agentFirstMessage(
+        mode === "dry_run"
+          ? "agentFirst.statusMessages.submittingClimateDryRun"
+          : "agentFirst.statusMessages.submittingClimateLiveRun",
+      ),
+    );
 
     const runRequest: {
       dryRun: boolean;
@@ -3874,7 +3902,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       if (!response.ok) {
         setApiState("api");
         setRunState("failed");
-        setStatusText(await climateRunErrorMessage(response));
+        setStatusMessage(await climateRunErrorMessage(response));
         return;
       }
 
@@ -3882,7 +3910,13 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       setStatus(normalizeClimateMonitorStatus(data, status));
       setApiState("api");
       setRunState("succeeded");
-      setStatusText(mode === "dry_run" ? "Dry-run accepted by API" : "Live run accepted by API");
+      setStatusMessage(
+        agentFirstMessage(
+          mode === "dry_run"
+            ? "agentFirst.statusMessages.climateDryRunAccepted"
+            : "agentFirst.statusMessages.climateLiveRunAccepted",
+        ),
+      );
     } catch {
       const updatedAt = climateTimestamp();
       setStatus((current) => ({
@@ -3898,10 +3932,12 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       }));
       setApiState("offline");
       setRunState(mode === "dry_run" ? "offline" : "failed");
-      setStatusText(
-        mode === "dry_run"
-          ? "Dry-run was not submitted; API offline"
-          : "Live-run API unavailable",
+      setStatusMessage(
+        agentFirstMessage(
+          mode === "dry_run"
+            ? "agentFirst.statusMessages.climateDryRunApiOffline"
+            : "agentFirst.statusMessages.climateLiveRunApiUnavailable",
+        ),
       );
     }
   }
@@ -3911,22 +3947,25 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       <div className="panel-heading">
         <span>
           <Globe2 size={16} />
-          Climate Monitor Ops
+          {t("agentFirst.climate.title")}
         </span>
-        <span className={climateApiStateClass(apiState)}>{climateApiStateLabel(apiState)}</span>
+        <span className={climateApiStateClass(apiState)}>{climateApiStateLabel(apiState, t)}</span>
       </div>
 
       <div className="climate-ops-metrics">
-        <Metric label="Configured" value={status.configured ? "Yes" : "No"} />
-        <Metric label="Run state" value={climateRunStateLabel(runState)} />
-        <Metric label="Updated" value={status.updatedAt} />
-        <Metric label="Warnings" value={String(status.warnings.length)} />
+        <Metric
+          label={t("agentFirst.metrics.configured")}
+          value={status.configured ? t("agentFirst.common.yes") : t("agentFirst.common.no")}
+        />
+        <Metric label={t("agentFirst.metrics.runState")} value={climateRunStateLabel(runState, t)} />
+        <Metric label={t("agentFirst.metrics.updated")} value={status.updatedAt} />
+        <Metric label={t("agentFirst.metrics.warnings")} value={String(status.warnings.length)} />
       </div>
 
       {status.latestReport ? (
         <section className="climate-report-card">
           <div>
-            <span className="soft-label">Latest report</span>
+            <span className="soft-label">{t("agentFirst.climate.latestReport")}</span>
             <h2>{status.latestReport.title}</h2>
             <p>{status.latestReport.summary}</p>
           </div>
@@ -3939,13 +3978,17 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
       ) : (
         <section className="climate-report-card empty-report">
           <div>
-            <span className="soft-label">Latest report</span>
-            <h2>No report yet</h2>
-            <p>The API did not return a current Climate Monitor report.</p>
+            <span className="soft-label">{t("agentFirst.climate.latestReport")}</span>
+            <h2>{t("agentFirst.climate.noReportTitle")}</h2>
+            <p>{t("agentFirst.climate.noReportDescription")}</p>
           </div>
           <div className="climate-report-meta">
             <strong>not_available</strong>
-            <span>{status.configured ? "ready to run" : "not configured"}</span>
+            <span>
+              {status.configured
+                ? t("agentFirst.status.readiness.readyToRun")
+                : t("agentFirst.status.readiness.not_configured")}
+            </span>
             <em>{status.updatedAt}</em>
           </div>
         </section>
@@ -3955,7 +3998,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
         <section className="climate-ops-card">
           <div className="artifact-title">
             <Database size={15} />
-            <span>Scope coverage</span>
+            <span>{t("agentFirst.climate.scopeCoverage")}</span>
           </div>
           <div className="climate-coverage-list">
             {status.scopeCoverage.map((item) => {
@@ -3970,7 +4013,13 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
                   <b>
                     {item.covered} / {item.total}
                   </b>
-                  <div className="climate-progress" aria-label={`${item.label} ${coverage}%`}>
+                  <div
+                    className="climate-progress"
+                    aria-label={t("agentFirst.climate.coverageAria", {
+                      label: item.label,
+                      coverage,
+                    })}
+                  >
                     <i style={{ width: `${coverage}%` }} />
                   </div>
                 </div>
@@ -3982,7 +4031,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
         <section className="climate-ops-card">
           <div className="artifact-title">
             <CircleAlert size={15} />
-            <span>Warnings</span>
+            <span>{t("agentFirst.metrics.warnings")}</span>
           </div>
           <div className="climate-warning-list">
             {status.warnings.map((warning) => (
@@ -3997,24 +4046,24 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
         <section className="climate-ops-card climate-dedup-card">
           <div className="artifact-title">
             <Layers3 size={15} />
-            <span>Dedup placeholders</span>
+            <span>{t("agentFirst.climate.dedupPlaceholders")}</span>
           </div>
           <div className="climate-dedup-grid">
             <span>
               <strong>{status.dedup.candidates}</strong>
-              <em>Candidates</em>
+              <em>{t("agentFirst.climate.candidates")}</em>
             </span>
             <span>
               <strong>{status.dedup.merged}</strong>
-              <em>Merged</em>
+              <em>{t("agentFirst.climate.merged")}</em>
             </span>
             <span>
               <strong>{status.dedup.pending}</strong>
-              <em>Pending</em>
+              <em>{t("agentFirst.climate.pending")}</em>
             </span>
             <span>
               <strong>{status.dedup.lastChecked}</strong>
-              <em>Last checked</em>
+              <em>{t("agentFirst.climate.lastChecked")}</em>
             </span>
           </div>
         </section>
@@ -4025,12 +4074,12 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
           {missingEnv.length > 0 ? (
             missingEnv.map((envName) => <span key={envName}>{envName}</span>)
           ) : (
-            <span>configured</span>
+            <span>{t("agentFirst.status.connection.configured")}</span>
           )}
         </div>
         <div className="climate-run-options">
           <label>
-            <span>Date</span>
+            <span>{t("agentFirst.climate.date")}</span>
             <input
               type="date"
               value={runDate}
@@ -4038,7 +4087,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
             />
           </label>
           <label>
-            <span>Manifest</span>
+            <span>{t("agentFirst.climate.manifest")}</span>
             <input
               type="text"
               value={manifestFixture}
@@ -4047,7 +4096,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
             />
           </label>
           <label>
-            <span>Research</span>
+            <span>{t("agentFirst.climate.research")}</span>
             <input
               type="text"
               value={researchFixture}
@@ -4064,7 +4113,9 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
             onClick={() => void submitClimateRun("dry_run")}
           >
             <Activity size={14} />
-            {runState === "submitting" ? "Submitting" : "Dry-run"}
+            {runState === "submitting"
+              ? t("agentFirst.status.climateRun.submitting")
+              : t("agentFirst.climate.dryRun")}
           </button>
           <button
             type="button"
@@ -4073,7 +4124,7 @@ function ClimateMonitorOpsPanel({ run }: { run?: RuntimeModuleRun }) {
             onClick={() => void submitClimateRun("live_run")}
           >
             <ShieldCheck size={14} />
-            Live run
+            {t("agentFirst.climate.liveRun")}
           </button>
         </div>
       </div>
@@ -4099,19 +4150,20 @@ function RuntimeControl({
   agentRunStatusText: string;
   onSetExecutionMode: (mode: RuntimeExecutionMode) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="runtime-control">
       <div className="panel-heading">
         <span>
           <Activity size={16} />
-          Runtime
+          {t("agentFirst.runtime.title")}
         </span>
         <span className={`agent-run-state ${agentRunState}`}>
-          {agentRunStateLabel(agentRunState)}
+          {agentRunStateLabel(agentRunState, t)}
         </span>
       </div>
       <p className="agent-run-status-text">{agentRunStatusText}</p>
-      <div className="runtime-mode-group" aria-label="Runtime execution mode">
+      <div className="runtime-mode-group" aria-label={t("agentFirst.aria.runtimeExecutionMode")}>
         <button
           type="button"
           className={
@@ -4121,7 +4173,7 @@ function RuntimeControl({
           }
           onClick={() => onSetExecutionMode("plan_only")}
         >
-          Plan only
+          {t("agentFirst.executionMode.plan_only")}
         </button>
         <button
           type="button"
@@ -4132,13 +4184,13 @@ function RuntimeControl({
           }
           onClick={() => onSetExecutionMode("execute_ready")}
         >
-          Execute ready
+          {t("agentFirst.executionMode.execute_ready")}
         </button>
       </div>
       <div className="runtime-status-grid">
-        <Metric label="Resume ready" value={String(resumeReadyCount)} />
-        <Metric label="Approval" value={String(approvalCount)} />
-        <Metric label="Config needed" value={String(configNeededCount)} />
+        <Metric label={t("agentFirst.metrics.resumeReady")} value={String(resumeReadyCount)} />
+        <Metric label={t("agentFirst.metrics.approval")} value={String(approvalCount)} />
+        <Metric label={t("agentFirst.metrics.configNeeded")} value={String(configNeededCount)} />
       </div>
     </div>
   );
@@ -4165,6 +4217,7 @@ function ModulesView({
   onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
   onOpenBackstage: (moduleId: ModuleId, tab?: BackstageTab) => void;
 }) {
+  const { t } = useTranslation();
   const selectedRuntimeRun = runtimeRuns.find((run) => run.moduleId === selectedModule.id);
   const selectedActionState = selectedRuntimeRun
     ? runtimeActionStates[selectedRuntimeRun.id] ?? "idle"
@@ -4177,9 +4230,9 @@ function ModulesView({
         <div className="panel-heading">
           <span>
             <Boxes size={16} />
-            Modules
+            {t("agentFirst.modules.title")}
           </span>
-          <span className="soft-label">{modules.length} registered</span>
+          <span className="soft-label">{t("agentFirst.modules.registeredCount", { count: modules.length })}</span>
         </div>
         {modules.map((module) => (
           <button
@@ -4193,7 +4246,7 @@ function ModulesView({
               <strong>{module.name}</strong>
               <em>{module.description}</em>
             </span>
-            <b>{statusLabel(module.status)}</b>
+            <b>{statusLabel(module.status, t)}</b>
           </button>
         ))}
       </div>
@@ -4204,13 +4257,13 @@ function ModulesView({
             <h1>{selectedModule.name}</h1>
             <p>{selectedModule.description}</p>
           </div>
-          <span className={statusClass(selectedModule.status)}>{statusLabel(selectedModule.status)}</span>
+          <span className={statusClass(selectedModule.status)}>{statusLabel(selectedModule.status, t)}</span>
         </div>
 
         <div className="detail-grid">
-          <Metric label="Stored records" value={String(selectedModule.records)} />
-          <Metric label="Latest result" value={selectedModule.result} />
-          <Metric label="Integration" value="API ingest" />
+          <Metric label={t("agentFirst.metrics.storedRecords")} value={String(selectedModule.records)} />
+          <Metric label={t("agentFirst.metrics.latestResult")} value={selectedModule.result} />
+          <Metric label={t("agentFirst.metrics.integration")} value={t("agentFirst.agentView.apiIngest")} />
         </div>
 
         {selectedRuntimeRun && (
@@ -4218,26 +4271,26 @@ function ModulesView({
             <div className="panel-heading">
               <span>
                 <Activity size={16} />
-                Runtime contract
+                {t("agentFirst.modules.runtimeContract")}
               </span>
               <span className={runtimeStatusClass(selectedRuntimeRun.status)}>
-                {runtimeStatusLabel(selectedRuntimeRun.status)}
+                {runtimeStatusLabel(selectedRuntimeRun.status, t)}
               </span>
             </div>
             <div className="runtime-meta-grid">
-              <Metric label="Adapter" value={selectedRuntimeRun.adapterId} />
-              <Metric label="Kind" value={selectedRuntimeRun.adapterKind.toUpperCase()} />
-              <Metric label="External run" value={selectedRuntimeRun.externalRunId} />
+              <Metric label={t("agentFirst.metrics.adapter")} value={selectedRuntimeRun.adapterId} />
+              <Metric label={t("agentFirst.metrics.kind")} value={selectedRuntimeRun.adapterKind.toUpperCase()} />
+              <Metric label={t("agentFirst.metrics.externalRun")} value={selectedRuntimeRun.externalRunId} />
               <Metric
-                label="Required env"
+                label={t("agentFirst.metrics.requiredEnv")}
                 value={
                   selectedRuntimeRun.missingRequiredEnv.length > 0
                     ? selectedRuntimeRun.missingRequiredEnv.join(", ")
-                    : "Ready"
+                    : t("agentFirst.status.readiness.ready")
                 }
               />
-              <Metric label="Resume" value={supportsResume ? "Yes" : "No"} />
-              <Metric label="Updated" value={selectedRuntimeRun.updatedAt} />
+              <Metric label={t("agentFirst.metrics.resume")} value={supportsResume ? t("agentFirst.common.yes") : t("agentFirst.common.no")} />
+              <Metric label={t("agentFirst.metrics.updated")} value={selectedRuntimeRun.updatedAt} />
             </div>
             {selectedRuntimeRun.interaction && (
               <div className="runtime-interaction">
@@ -4260,18 +4313,20 @@ function ModulesView({
                     disabled={selectedActionState === "submitting"}
                     onClick={() => void onResumeRuntimeRun(selectedRuntimeRun)}
                   >
-                    {selectedActionState === "submitting" ? "Resuming" : "Resume now"}
+                    {selectedActionState === "submitting"
+                      ? t("agentFirst.actions.resuming")
+                      : t("agentFirst.actions.resumeNow")}
                   </button>
                 )}
                 <button type="button" className="small-action" onClick={onOpenData}>
-                  Open data
+                  {t("agentFirst.actions.openData")}
                 </button>
                 <button
                   type="button"
                   className="small-action"
                   onClick={() => onOpenBackstage(selectedModule.id, "io")}
                 >
-                  Backstage
+                  {t("agentFirst.workspace.backstage")}
                 </button>
               </div>
             </div>
@@ -4285,10 +4340,10 @@ function ModulesView({
           <div className="panel-heading">
             <span>
               <FileText size={16} />
-              Result UI
+              {t("agentFirst.modules.resultUi")}
             </span>
             <button type="button" className="small-action" onClick={onOpenData}>
-              Open data
+              {t("agentFirst.actions.openData")}
             </button>
           </div>
           <div className="result-lines">
@@ -4334,6 +4389,7 @@ function ProgressView({
   onOpenBackstage: (moduleId: ModuleId, tab?: BackstageTab) => void;
   onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
 }) {
+  const { t } = useTranslation();
   function runtimeAction(run: RuntimeModuleRun): ReactNode {
     const actionState = runtimeActionStates[run.id] ?? "idle";
 
@@ -4345,7 +4401,9 @@ function ProgressView({
           disabled={actionState === "submitting"}
           onClick={() => void onResumeRuntimeRun(run)}
         >
-          {actionState === "submitting" ? "Resuming" : "Resume"}
+          {actionState === "submitting"
+            ? t("agentFirst.actions.resuming")
+            : t("agentFirst.actions.resume")}
         </button>
       );
     }
@@ -4357,27 +4415,27 @@ function ProgressView({
     ) {
       return (
         <button type="button" className="small-action" onClick={() => onOpenBackstage(run.moduleId, "ui")}>
-          Review
+          {t("agentFirst.actions.review")}
         </button>
       );
     }
     if (run.status === "skipped") {
       return (
         <button type="button" className="small-action" onClick={onOpenConfigure}>
-          Configure
+          {t("agentFirst.nav.configure")}
         </button>
       );
     }
     if (run.status === "succeeded") {
       return (
         <button type="button" className="small-action" onClick={onOpenData}>
-          View data
+          {t("agentFirst.actions.viewData")}
         </button>
       );
     }
     return (
       <button type="button" className="small-action" onClick={() => onOpenBackstage(run.moduleId, "io")}>
-        View run
+        {t("agentFirst.actions.viewRun")}
       </button>
     );
   }
@@ -4386,20 +4444,20 @@ function ProgressView({
     <section className="page-panel">
       <div className="page-header">
         <div>
-          <h1>Pipeline progress</h1>
-          <p>Every module run posts events and artifacts back into the shared database memory.</p>
+          <h1>{t("agentFirst.progress.title")}</h1>
+          <p>{t("agentFirst.progress.description")}</p>
         </div>
         <div className="runtime-action-row">
           <span className="connection-pill">
             <Activity size={14} />
-            {executionMode === "execute_ready" ? "Execute ready" : "Plan only"}
+            {t(`agentFirst.executionMode.${executionMode}`)}
           </span>
           <span className={`agent-run-state ${agentRunState}`}>
-            {agentRunStateLabel(agentRunState)}
+            {agentRunStateLabel(agentRunState, t)}
           </span>
           <button type="button" className="primary-action" onClick={onOpenData}>
             <Database size={15} />
-            Open memory
+            {t("agentFirst.actions.openMemory")}
           </button>
         </div>
       </div>
@@ -4408,7 +4466,7 @@ function ProgressView({
         <div className="queued-card">
           <Clock3 size={16} />
           <span>
-            <strong>Queued instruction</strong>
+            <strong>{t("agentFirst.progress.queuedInstruction")}</strong>
             <em>{queuedPrompt}</em>
           </span>
         </div>
@@ -4417,14 +4475,22 @@ function ProgressView({
       {latestAgentRun ? (
         <div className="api-plan-panel">
           <div className="api-plan-meta">
-            <strong>Pipeline {latestAgentRun.response.pipelineRun.id.slice(0, 8)}</strong>
-            <span>{latestAgentRun.response.plan.steps.length} plan steps</span>
-            <span>{latestAgentRun.response.status.replace("_", " ")}</span>
+            <strong>
+              {t("agentFirst.progress.pipeline", {
+                runId: latestAgentRun.response.pipelineRun.id.slice(0, 8),
+              })}
+            </strong>
+            <span>
+              {t("agentFirst.progress.planSteps", {
+                count: latestAgentRun.response.plan.steps.length,
+              })}
+            </span>
+            <span>{agentRunApiStatusLabel(latestAgentRun.response.status, t)}</span>
             <span>{agentRunStatusText}</span>
           </div>
           <p>{latestAgentRun.response.plan.summary}</p>
           {latestAgentRun.response.plan.warnings.length > 0 && (
-            <div className="warning-chip-row" aria-label="Agent plan warnings">
+            <div className="warning-chip-row" aria-label={t("agentFirst.progress.planWarnings")}>
               {latestAgentRun.response.plan.warnings.map((warning) => (
                 <span key={warning}>{warning}</span>
               ))}
@@ -4440,7 +4506,7 @@ function ProgressView({
         {runtimeRuns.map((run) => (
           <article key={run.id} className="timeline-card runtime-timeline-card">
             <span className={runtimeStatusClass(run.status)}>
-              {runtimeStatusLabel(run.status)}
+              {runtimeStatusLabel(run.status, t)}
             </span>
             <div>
               <h2>{run.title}</h2>
@@ -4449,7 +4515,11 @@ function ProgressView({
                 {run.updatedAt} / {run.moduleId} / {run.adapterId}
               </small>
               <div className="runtime-action-row">
-                <span>{run.resultRecordIds.length} result record</span>
+                <span>
+                  {t("agentFirst.progress.resultRecordCount", {
+                    count: run.resultRecordIds.length,
+                  })}
+                </span>
                 {runtimeAction(run)}
               </div>
             </div>
@@ -4469,18 +4539,19 @@ function DataView({
   selectedRecordKind: string;
   onSelectRecordKind: (kind: string) => void;
 }) {
+  const { t } = useTranslation();
   const kinds = ["all", ...Array.from(new Set(dataRecords.map((record) => record.kind)))];
 
   return (
     <section className="page-panel">
       <div className="page-header">
         <div>
-          <h1>Database memory</h1>
-          <p>Canonical display data from each module is queryable from one Postgres-backed surface.</p>
+          <h1>{t("agentFirst.data.title")}</h1>
+          <p>{t("agentFirst.data.description")}</p>
         </div>
         <div className="search-box">
           <Search size={14} />
-          <span>Search records</span>
+          <span>{t("agentFirst.data.searchRecords")}</span>
         </div>
       </div>
 
@@ -4492,7 +4563,7 @@ function DataView({
             className={selectedRecordKind === kind ? "filter-chip active" : "filter-chip"}
             onClick={() => onSelectRecordKind(kind)}
           >
-            {kind}
+            {kind === "all" ? t("agentFirst.data.all") : kind}
           </button>
         ))}
       </div>
@@ -4546,55 +4617,59 @@ function ConfigureView({
   onSave: () => void;
   onTestConnection: () => void;
 }) {
+  const { t } = useTranslation();
   const enabledBusinessSkills = config.businessSkillSettings.filter(
     (skill) => skill.enabled,
   ).length;
   const enabledGeneralSkills = config.generalSkillSettings.filter(
     (skill) => skill.enabled || skill.installOnDemand,
   ).length;
-  const memoryMode =
+  const memoryModeKey =
     config.memorySettings.shortTermEnabled && config.memorySettings.longTermEnabled
-      ? "short + long"
+      ? "shortLong"
       : config.memorySettings.longTermEnabled
-        ? "long only"
-        : "short only";
+        ? "longOnly"
+        : "shortOnly";
+  const memoryMode = t(`agentFirst.configure.memoryMode.${memoryModeKey}`);
   const activeProvider = connection?.activeProvider ?? config.provider;
   const configuredProvider = connection?.configuredProvider ?? config.provider;
   const providerWarnings = connection?.warnings ?? [];
   const activeProviderText =
     connection && activeProvider !== configuredProvider
-      ? `${plannerProviderLabel(activeProvider)} fallback`
+      ? t("agentFirst.configure.providerFallback", {
+          provider: plannerProviderLabel(activeProvider),
+        })
       : plannerProviderLabel(activeProvider);
 
   return (
     <section className="configure-layout">
       <div className="configure-hero">
         <div>
-          <h1>Configure Agent</h1>
-          <p>Connect the AI runtime, choose model behavior, decide which skills the Agent may use, and see exactly what each capability produces.</p>
+          <h1>{t("agentFirst.configure.title")}</h1>
+          <p>{t("agentFirst.configure.description")}</p>
         </div>
         <div className={`connection-pill ${connectionStatus}`}>
           <Activity size={15} />
-          <span>{connectionLabel(connectionStatus)}</span>
+          <span>{connectionLabel(connectionStatus, t)}</span>
         </div>
       </div>
 
-      <div className="capability-map" aria-label="Capability map">
+      <div className="capability-map" aria-label={t("agentFirst.aria.capabilityMap")}>
         <span>
-          <strong>Agent</strong>
-          <em>Chat, plan, choose tools, and explain progress.</em>
+          <strong>{t("agentFirst.configure.capability.agent.title")}</strong>
+          <em>{t("agentFirst.configure.capability.agent.detail")}</em>
         </span>
         <span>
-          <strong>Business skills</strong>
-          <em>Run your fixed module chain and store canonical outputs.</em>
+          <strong>{t("agentFirst.configure.capability.businessSkills.title")}</strong>
+          <em>{t("agentFirst.configure.capability.businessSkills.detail")}</em>
         </span>
         <span>
-          <strong>General skills</strong>
-          <em>Install or enable common abilities when a conversation needs them.</em>
+          <strong>{t("agentFirst.configure.capability.generalSkills.title")}</strong>
+          <em>{t("agentFirst.configure.capability.generalSkills.detail")}</em>
         </span>
         <span>
-          <strong>Memory</strong>
-          <em>Persist useful context into Postgres for later runs.</em>
+          <strong>{t("agentFirst.configure.capability.memory.title")}</strong>
+          <em>{t("agentFirst.configure.capability.memory.detail")}</em>
         </span>
       </div>
 
@@ -4603,14 +4678,14 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Globe2 size={16} />
-              Provider
+              {t("agentFirst.configure.provider")}
             </span>
             <em>{statusText}</em>
           </div>
-          <p className="config-explainer">{configureGuides.provider}</p>
+          <p className="config-explainer">{t("agentFirst.configure.guides.provider")}</p>
           <div className="config-field">
             <span className="config-field-label" id="agent-provider-label">
-              Provider
+              {t("agentFirst.configure.provider")}
             </span>
             <div
               className="segmented-control"
@@ -4647,7 +4722,7 @@ function ConfigureView({
           {connection && (
             <div className="provider-readiness">
               <span>
-                Active planner: <strong>{activeProviderText}</strong>
+                {t("agentFirst.configure.activePlanner")}: <strong>{activeProviderText}</strong>
               </span>
               {providerWarnings.slice(0, 2).map((warning) => (
                 <em key={warning}>{warning}</em>
@@ -4656,7 +4731,7 @@ function ConfigureView({
           )}
           <div className="config-field">
             <span className="config-field-label" id="agent-endpoint-label">
-              Endpoint
+              {t("agentFirst.configure.endpoint")}
             </span>
             <div
               className="segmented-control"
@@ -4677,10 +4752,10 @@ function ConfigureView({
           </div>
           <div className="config-actions">
             <button type="button" className="small-action" disabled={isBusy} onClick={onTestConnection}>
-              Test
+              {t("agentFirst.actions.test")}
             </button>
             <button type="button" className="primary-action" disabled={isBusy} onClick={onSave}>
-              Save
+              {t("agentFirst.actions.save")}
             </button>
           </div>
         </article>
@@ -4689,13 +4764,13 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Bot size={16} />
-              Model
+              {t("agentFirst.configure.model")}
             </span>
-            <em>{config.reasoningEffort} reasoning</em>
+            <em>{t("agentFirst.configure.reasoningSummary", { effort: config.reasoningEffort })}</em>
           </div>
-          <p className="config-explainer">{configureGuides.model}</p>
+          <p className="config-explainer">{t("agentFirst.configure.guides.model")}</p>
           <div className="config-field">
-            <label htmlFor="agent-model-select">Model</label>
+            <label htmlFor="agent-model-select">{t("agentFirst.configure.model")}</label>
             <select
               id="agent-model-select"
               value={config.modelId}
@@ -4710,7 +4785,7 @@ function ConfigureView({
           </div>
           <div className="config-field">
             <span className="config-field-label" id="agent-reasoning-label">
-              Reasoning
+              {t("agentFirst.configure.reasoning")}
             </span>
             <div
               className="segmented-control"
@@ -4731,7 +4806,7 @@ function ConfigureView({
             </div>
           </div>
           <div className="config-field">
-            <label htmlFor="agent-system-prompt">System prompt</label>
+            <label htmlFor="agent-system-prompt">{t("agentFirst.configure.systemPrompt")}</label>
             <textarea
               id="agent-system-prompt"
               value={config.systemPrompt}
@@ -4745,14 +4820,12 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Layers3 size={16} />
-              Business Skills
+              {t("agentFirst.configure.businessSkills")}
             </span>
-            <em>{enabledBusinessSkills} enabled</em>
+            <em>{t("agentFirst.configure.enabledCount", { count: enabledBusinessSkills })}</em>
           </div>
-          <p className="config-explainer">
-            These are your product modules. The Agent calls them to build the pipeline, and each module writes displayable results back into the database.
-          </p>
-          <SwitchLegend items={businessSwitchGuides} title="Switch guide" />
+          <p className="config-explainer">{t("agentFirst.configure.businessSkillsDescription")}</p>
+          <SwitchLegend items={businessSwitchGuides} title={t("agentFirst.configure.switchGuide")} />
           <div className="skill-settings-grid">
             {config.businessSkillSettings.map((skill) => {
               const module = moduleById(skill.moduleId);
@@ -4772,7 +4845,7 @@ function ConfigureView({
                         onUpdateBusinessSkill(skill.moduleId, { enabled: event.target.checked })
                       }
                     />
-                    Enabled
+                    {t("agentFirst.configure.enabled")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4782,7 +4855,7 @@ function ConfigureView({
                         onUpdateBusinessSkill(skill.moduleId, { approvalRequired: event.target.checked })
                       }
                     />
-                    Approval
+                    {t("agentFirst.configure.approval")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4792,7 +4865,7 @@ function ConfigureView({
                         onUpdateBusinessSkill(skill.moduleId, { canUseNetwork: event.target.checked })
                       }
                     />
-                    Network
+                    {t("agentFirst.configure.network")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4802,9 +4875,14 @@ function ConfigureView({
                         onUpdateBusinessSkill(skill.moduleId, { canWriteDatabase: event.target.checked })
                       }
                     />
-                    DB write
+                    {t("agentFirst.configure.dbWrite")}
                   </label>
-                  <GuideDisclosure guide={guide} label={`${module.name} details`} />
+                  <GuideDisclosure
+                    guide={guide}
+                    label={t("agentFirst.configure.skillDetailsLabel", {
+                      name: module.name,
+                    })}
+                  />
                 </div>
               );
             })}
@@ -4815,14 +4893,12 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <WandSparkles size={16} />
-              General Skills
+              {t("agentFirst.configure.generalSkills")}
             </span>
-            <em>{enabledGeneralSkills} allowed</em>
+            <em>{t("agentFirst.configure.allowedCount", { count: enabledGeneralSkills })}</em>
           </div>
-          <p className="config-explainer">
-            These are common Agent abilities. Keep them available on demand so the Agent can ask to install or use one during a conversation, with approval before sensitive actions.
-          </p>
-          <SwitchLegend items={generalSwitchGuides} title="Switch guide" />
+          <p className="config-explainer">{t("agentFirst.configure.generalSkillsDescription")}</p>
+          <SwitchLegend items={generalSwitchGuides} title={t("agentFirst.configure.switchGuide")} />
           <div className="skill-settings-grid">
             {config.generalSkillSettings.map((skill) => {
               const guide = generalSkillGuides[skill.skillId];
@@ -4833,7 +4909,9 @@ function ConfigureView({
                     <em>{skill.description}</em>
                   </span>
                   <b className={skill.installed ? "skill-state installed" : "skill-state"}>
-                    {skill.installed ? "Installed" : "Available"}
+                    {skill.installed
+                      ? t("agentFirst.configure.installed")
+                      : t("agentFirst.configure.available")}
                   </b>
                   <label className="toggle-row">
                     <input
@@ -4843,7 +4921,7 @@ function ConfigureView({
                         onUpdateGeneralSkill(skill.skillId, { enabled: event.target.checked })
                       }
                     />
-                    Enabled
+                    {t("agentFirst.configure.enabled")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4855,7 +4933,7 @@ function ConfigureView({
                         })
                       }
                     />
-                    On demand
+                    {t("agentFirst.configure.onDemand")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4867,7 +4945,7 @@ function ConfigureView({
                         })
                       }
                     />
-                    Approval
+                    {t("agentFirst.configure.approval")}
                   </label>
                   <label className="toggle-row">
                     <input
@@ -4879,9 +4957,14 @@ function ConfigureView({
                         })
                       }
                     />
-                    Network
+                    {t("agentFirst.configure.network")}
                   </label>
-                  <GuideDisclosure guide={guide} label={`${skill.name} details`} />
+                  <GuideDisclosure
+                    guide={guide}
+                    label={t("agentFirst.configure.skillDetailsLabel", {
+                      name: skill.name,
+                    })}
+                  />
                 </div>
               );
             })}
@@ -4892,18 +4975,18 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Database size={16} />
-              Memory
+              {t("agentFirst.configure.memory")}
             </span>
             <em>{memoryMode}</em>
           </div>
-          <p className="config-explainer">{configureGuides.memory}</p>
+          <p className="config-explainer">{t("agentFirst.configure.guides.memory")}</p>
           <label className="toggle-row large">
             <input
               type="checkbox"
               checked={config.memorySettings.shortTermEnabled}
               onChange={(event) => onUpdateMemory({ shortTermEnabled: event.target.checked })}
             />
-            Short-term thread memory
+            {t("agentFirst.configure.shortTermThreadMemory")}
           </label>
           <label className="toggle-row large">
             <input
@@ -4911,10 +4994,10 @@ function ConfigureView({
               checked={config.memorySettings.longTermEnabled}
               onChange={(event) => onUpdateMemory({ longTermEnabled: event.target.checked })}
             />
-            Long-term Postgres memory
+            {t("agentFirst.configure.longTermPostgresMemory")}
           </label>
           <div className="config-field">
-            <label htmlFor="agent-memory-promotion">Promotion</label>
+            <label htmlFor="agent-memory-promotion">{t("agentFirst.configure.promotion")}</label>
             <select
               id="agent-memory-promotion"
               value={config.memorySettings.promotionMode}
@@ -4928,7 +5011,7 @@ function ConfigureView({
           </div>
           <div className="config-two-column">
             <div className="config-field">
-              <label htmlFor="agent-memory-collection">Collection</label>
+              <label htmlFor="agent-memory-collection">{t("agentFirst.configure.collection")}</label>
               <input
                 id="agent-memory-collection"
                 value={config.memorySettings.ragCollection}
@@ -4936,7 +5019,7 @@ function ConfigureView({
               />
             </div>
             <div className="config-field">
-              <label htmlFor="agent-memory-retention-days">Retention days</label>
+              <label htmlFor="agent-memory-retention-days">{t("agentFirst.configure.retentionDays")}</label>
               <input
                 id="agent-memory-retention-days"
                 type="number"
@@ -4955,11 +5038,11 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <ShieldCheck size={16} />
-              Safety
+              {t("agentFirst.configure.safety")}
             </span>
-            <em>{config.safetySettings.maxToolSteps} tool steps</em>
+            <em>{t("agentFirst.configure.toolSteps", { count: config.safetySettings.maxToolSteps })}</em>
           </div>
-          <p className="config-explainer">{configureGuides.safety}</p>
+          <p className="config-explainer">{t("agentFirst.configure.guides.safety")}</p>
           <label className="toggle-row large">
             <input
               type="checkbox"
@@ -4968,7 +5051,7 @@ function ConfigureView({
                 onUpdateSafety({ requireApprovalForExternalActions: event.target.checked })
               }
             />
-            Approve external actions
+            {t("agentFirst.configure.approveExternalActions")}
           </label>
           <label className="toggle-row large">
             <input
@@ -4978,7 +5061,7 @@ function ConfigureView({
                 onUpdateSafety({ requireApprovalForPublishing: event.target.checked })
               }
             />
-            Approve publishing
+            {t("agentFirst.configure.approvePublishing")}
           </label>
           <label className="toggle-row large">
             <input
@@ -4986,10 +5069,10 @@ function ConfigureView({
               checked={config.safetySettings.allowSelfLearning}
               onChange={(event) => onUpdateSafety({ allowSelfLearning: event.target.checked })}
             />
-            Allow self-learning
+            {t("agentFirst.configure.allowSelfLearning")}
           </label>
           <div className="config-field">
-            <label htmlFor="agent-max-tool-steps">Max tool steps</label>
+            <label htmlFor="agent-max-tool-steps">{t("agentFirst.configure.maxToolSteps")}</label>
             <input
               id="agent-max-tool-steps"
               type="number"
@@ -5007,31 +5090,45 @@ function ConfigureView({
           <div className="config-card-heading">
             <span>
               <Sparkles size={16} />
-              Runtime Preview
+              {t("agentFirst.configure.runtimePreview")}
             </span>
             <em>{config.endpoint}</em>
           </div>
-          <p className="config-explainer">{configureGuides.runtime}</p>
+          <p className="config-explainer">{t("agentFirst.configure.guides.runtime")}</p>
           <div className="runtime-lines">
             <span>
-              <strong>Configured</strong>
+              <strong>{t("agentFirst.metrics.configured")}</strong>
               <em>{plannerProviderLabel(config.provider)} / {config.modelId}</em>
             </span>
             <span>
-              <strong>Active</strong>
+              <strong>{t("agentFirst.configure.active")}</strong>
               <em>{activeProviderText}</em>
             </span>
             <span>
-              <strong>Skills</strong>
-              <em>{enabledBusinessSkills} business / {enabledGeneralSkills} general</em>
+              <strong>{t("agentFirst.configure.skills")}</strong>
+              <em>
+                {t("agentFirst.configure.skillCounts", {
+                  businessCount: enabledBusinessSkills,
+                  generalCount: enabledGeneralSkills,
+                })}
+              </em>
             </span>
             <span>
-              <strong>Memory</strong>
-              <em>{memoryMode} into {config.memorySettings.ragCollection}</em>
+              <strong>{t("agentFirst.configure.memory")}</strong>
+              <em>
+                {t("agentFirst.configure.memoryIntoCollection", {
+                  memoryMode,
+                  collection: config.memorySettings.ragCollection,
+                })}
+              </em>
             </span>
             <span>
-              <strong>Safety</strong>
-              <em>{config.safetySettings.allowSelfLearning ? "self-learning allowed" : "self-learning paused"}</em>
+              <strong>{t("agentFirst.configure.safety")}</strong>
+              <em>
+                {config.safetySettings.allowSelfLearning
+                  ? t("agentFirst.configure.selfLearningAllowed")
+                  : t("agentFirst.configure.selfLearningPaused")}
+              </em>
             </span>
           </div>
         </article>
@@ -5044,17 +5141,19 @@ function SwitchLegend({
   items,
   title,
 }: {
-  items: Array<{ label: string; detail: string }>;
+  items: readonly string[];
   title: string;
 }) {
+  const { t } = useTranslation();
+
   return (
     <details className="switch-legend">
       <summary>{title}</summary>
       <div>
         {items.map((item) => (
-          <span key={item.label}>
-            <strong>{item.label}</strong>
-            <em>{item.detail}</em>
+          <span key={item}>
+            <strong>{t(`agentFirst.configure.switches.${item}.label`)}</strong>
+            <em>{t(`agentFirst.configure.switches.${item}.detail`)}</em>
           </span>
         ))}
       </div>
@@ -5080,52 +5179,42 @@ function GuideDisclosure({
 }
 
 function SkillDetailGrid({ guide }: { guide: CapabilityGuide }) {
+  const { t } = useTranslation();
+
   return (
     <div className="skill-detail-grid">
       <span>
-        <strong>Purpose</strong>
-        <em>{guide.summary}</em>
+        <strong>{t("agentFirst.configure.skillDetail.purpose")}</strong>
+        <em>{t(`${guide.keyPrefix}summary`)}</em>
       </span>
       <span>
-        <strong>When used</strong>
-        <em>{guide.trigger}</em>
+        <strong>{t("agentFirst.configure.skillDetail.whenUsed")}</strong>
+        <em>{t(`${guide.keyPrefix}trigger`)}</em>
       </span>
       <span>
-        <strong>Agent action</strong>
-        <em>{guide.action}</em>
+        <strong>{t("agentFirst.configure.skillDetail.agentAction")}</strong>
+        <em>{t(`${guide.keyPrefix}action`)}</em>
       </span>
       <span>
-        <strong>Result</strong>
-        <em>{guide.output}</em>
+        <strong>{t("agentFirst.configure.skillDetail.result")}</strong>
+        <em>{t(`${guide.keyPrefix}output`)}</em>
       </span>
       <span>
-        <strong>Boundary</strong>
-        <em>{guide.boundary}</em>
+        <strong>{t("agentFirst.configure.skillDetail.boundary")}</strong>
+        <em>{t(`${guide.keyPrefix}boundary`)}</em>
       </span>
     </div>
   );
 }
 
-const portalVisibleViews = [
-  ["Chat", "Ask the published Agent to run or continue work."],
-  ["Steps", "See which module is running, blocked, or complete."],
-  ["Data", "Inspect generated records and artifacts."],
-  ["Sources", "Trace evidence back to source material."],
-  ["Result", "Review final handoff, agent config, and readiness."],
-];
+const portalVisibleViews = ["chat", "steps", "data", "sources", "result"] as const;
 
-function publishStatusLabel(status: PublishStatus): string {
-  if (status === "published") return "Published";
-  if (status === "paused") return "Paused";
-  return "Draft";
+function publishStatusLabel(status: PublishStatus, t: TFunction): string {
+  return t(`agentFirst.status.publish.${status}`);
 }
 
-function publishSaveStateLabel(state: PublishSaveState): string {
-  if (state === "saving") return "Saving";
-  if (state === "saved") return "API saved";
-  if (state === "offline") return "API offline";
-  if (state === "failed") return "Save failed";
-  return "Local";
+function publishSaveStateLabel(state: PublishSaveState, t: TFunction): string {
+  return t(`agentFirst.status.publishSave.${state}`);
 }
 
 function PublishView({
@@ -5145,14 +5234,15 @@ function PublishView({
   onUpdateTokenDraft: (token: string) => void;
   onSavePublishSettings: (status: PublishStatus) => void | Promise<void>;
 }) {
+  const { t } = useTranslation();
   const isSaving = publishSaveState === "saving";
 
   return (
     <section className="page-panel">
       <div className="page-header">
         <div>
-          <h1>Publish agent</h1>
-          <p>The final agent becomes available after the RAG index and validation records are stored.</p>
+          <h1>{t("agentFirst.publish.title")}</h1>
+          <p>{t("agentFirst.publish.description")}</p>
         </div>
         <button
           type="button"
@@ -5162,18 +5252,18 @@ function PublishView({
           }
         >
           <UploadCloud size={15} />
-          Open Portal preview
+          {t("agentFirst.publish.openPortalPreview")}
         </button>
       </div>
 
-      <section className="publish-settings-panel" aria-label="Publish settings">
+      <section className="publish-settings-panel" aria-label={t("agentFirst.aria.publishSettings")}>
         <div className="publish-settings-header">
           <div>
             <span className={`publish-status-badge ${publishSettings.status}`}>
-              {publishStatusLabel(publishSettings.status)}
+              {publishStatusLabel(publishSettings.status, t)}
             </span>
             <span className="publish-save-badge">
-              {publishSaveStateLabel(publishSaveState)}
+              {publishSaveStateLabel(publishSaveState, t)}
             </span>
           </div>
           <p>{publishStatusText}</p>
@@ -5181,7 +5271,7 @@ function PublishView({
 
         <div className="publish-form-grid">
           <label className="publish-field" htmlFor="publish-version-label">
-            <span>Version label</span>
+            <span>{t("agentFirst.publish.versionLabel")}</span>
             <input
               id="publish-version-label"
               value={publishSettings.versionLabel}
@@ -5189,12 +5279,12 @@ function PublishView({
             />
           </label>
           <label className="publish-field" htmlFor="publish-portal-token">
-            <span>Portal token</span>
+            <span>{t("agentFirst.publish.portalToken")}</span>
             <input
               id="publish-portal-token"
               type="password"
               autoComplete="off"
-              placeholder="Enter a new portal token"
+              placeholder={t("agentFirst.publish.portalTokenPlaceholder")}
               value={publishTokenDraft}
               onChange={(event) => onUpdateTokenDraft(event.target.value)}
             />
@@ -5202,13 +5292,17 @@ function PublishView({
           <div className="publish-token-meta">
             <strong>
               {publishSettings.portalTokenLast4
-                ? `Token ending ****${publishSettings.portalTokenLast4}`
-                : "No saved token yet"}
+                ? t("agentFirst.publish.tokenEnding", {
+                    tokenLast4: publishSettings.portalTokenLast4,
+                  })
+                : t("agentFirst.publish.noSavedToken")}
             </strong>
             <em>
               {publishSettings.portalTokenUpdatedAt
-                ? `Updated ${new Date(publishSettings.portalTokenUpdatedAt).toLocaleString()}`
-                : "Plaintext tokens are never returned by the API."}
+                ? t("agentFirst.publish.updatedAt", {
+                    time: new Date(publishSettings.portalTokenUpdatedAt).toLocaleString(),
+                  })
+                : t("agentFirst.publish.noPlaintextTokens")}
             </em>
           </div>
         </div>
@@ -5219,7 +5313,7 @@ function PublishView({
             disabled={isSaving}
             onClick={() => void onSavePublishSettings("draft")}
           >
-            Save draft
+            {t("agentFirst.publish.saveDraft")}
           </button>
           <button
             type="button"
@@ -5228,37 +5322,46 @@ function PublishView({
             onClick={() => void onSavePublishSettings("published")}
           >
             <UploadCloud size={15} />
-            Publish
+            {t("agentFirst.nav.publish")}
           </button>
           <button
             type="button"
             disabled={isSaving}
             onClick={() => void onSavePublishSettings("paused")}
           >
-            Pause
+            {t("agentFirst.publish.pause")}
           </button>
         </div>
       </section>
 
       <div className="publish-grid">
-        <PublishStep label="RAG index" value="96 / 124 chunks" status="running" />
-        <PublishStep label="Agent config" value={publishSettings.versionLabel} status="waiting" />
-        <PublishStep label="Validation" value="Queued" status="queued" />
         <PublishStep
-          label="Endpoint"
-          value={publishStatusLabel(publishSettings.status)}
+          label={t("agentFirst.publish.steps.ragIndex")}
+          value={t("agentFirst.publish.steps.chunkProgress")}
+          status="running"
+        />
+        <PublishStep
+          label={t("agentFirst.publish.steps.agentConfig")}
+          value={publishSettings.versionLabel}
+          status="waiting"
+        />
+        <PublishStep
+          label={t("agentFirst.publish.steps.validation")}
+          value={t("agentFirst.status.run.queued")}
+          status="queued"
+        />
+        <PublishStep
+          label={t("agentFirst.publish.steps.endpoint")}
+          value={publishStatusLabel(publishSettings.status, t)}
           status={publishSettings.status === "published" ? "succeeded" : "waiting"}
         />
       </div>
 
       <div className="publish-access-grid">
         <section className="publish-access-card">
-          <span className="publish-card-kicker">Portal access</span>
-          <h2>Token unlocks the frontstage workspace</h2>
-          <p>
-            Published users enter with a portal token, then work inside Chat, Steps, Data, Sources, and
-            Result.
-          </p>
+          <span className="publish-card-kicker">{t("agentFirst.publish.portalAccess")}</span>
+          <h2>{t("agentFirst.publish.portalAccessTitle")}</h2>
+          <p>{t("agentFirst.publish.portalAccessDescription")}</p>
           <div className="publish-token-row">
             <code>portal-demo-token</code>
             <button
@@ -5267,41 +5370,38 @@ function PublishView({
                 window.location.assign(previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"))
               }
             >
-              View as user
+              {t("agentFirst.publish.viewAsUser")}
             </button>
           </div>
-          <em>Demo token only. Production token validation belongs on the server.</em>
+          <em>{t("agentFirst.publish.demoTokenOnly")}</em>
         </section>
 
         <section className="publish-access-card">
-          <span className="publish-card-kicker">Frontstage visible</span>
-          <h2>Users keep progress and data visibility</h2>
+          <span className="publish-card-kicker">{t("agentFirst.publish.frontstageVisible")}</span>
+          <h2>{t("agentFirst.publish.frontstageVisibleTitle")}</h2>
           <div className="publish-portal-view-list">
-            {portalVisibleViews.map(([label, detail]) => (
-              <span key={label}>
-                <strong>{label}</strong>
-                <em>{detail}</em>
+            {portalVisibleViews.map((view) => (
+              <span key={view}>
+                <strong>{t(`agentFirst.publish.portalViews.${view}.label`)}</strong>
+                <em>{t(`agentFirst.publish.portalViews.${view}.detail`)}</em>
               </span>
             ))}
           </div>
         </section>
 
         <section className="publish-access-card">
-          <span className="publish-card-kicker">Admin-only</span>
-          <h2>Configure stays backstage</h2>
-          <p>
-            Provider, model, business skills, general skills, memory, safety, and publish gates remain admin
-            controls.
-          </p>
+          <span className="publish-card-kicker">{t("agentFirst.publish.adminOnly")}</span>
+          <h2>{t("agentFirst.publish.adminOnlyTitle")}</h2>
+          <p>{t("agentFirst.publish.adminOnlyDescription")}</p>
           <div className="publish-admin-boundary">
             <span>
-              <ShieldCheck size={14} /> Configure runtime
+              <ShieldCheck size={14} /> {t("agentFirst.publish.configureRuntime")}
             </span>
             <span>
-              <Database size={14} /> Manage memory writes
+              <Database size={14} /> {t("agentFirst.publish.manageMemoryWrites")}
             </span>
             <span>
-              <Settings2 size={14} /> Control skill permissions
+              <Settings2 size={14} /> {t("agentFirst.publish.controlSkillPermissions")}
             </span>
           </div>
         </section>
@@ -5327,6 +5427,7 @@ function Composer({
   onOpenConfigure: () => void;
   isSubmitting: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="composer-shell">
       <div className="composer">
@@ -5347,12 +5448,12 @@ function Composer({
               void onSubmit();
             }
           }}
-          placeholder="Ask Agent to run modules, store data, or inspect results..."
+          placeholder={t("agentFirst.composer.placeholder")}
           rows={2}
           disabled={isSubmitting}
         />
         <div className="composer-actions">
-          <button type="button" className="icon-action" aria-label="Attach file">
+          <button type="button" className="icon-action" aria-label={t("agentFirst.composer.attachFile")}>
             <Paperclip size={16} />
           </button>
           <button
@@ -5361,12 +5462,12 @@ function Composer({
             onClick={onTogglePlanMode}
           >
             <WandSparkles size={15} />
-            Plan
+            {t("agentFirst.composer.plan")}
           </button>
           <button
             type="button"
             className="icon-action"
-            aria-label="Agent settings"
+            aria-label={t("agentFirst.composer.agentSettings")}
             onClick={onOpenConfigure}
           >
             <Settings2 size={16} />
@@ -5374,7 +5475,7 @@ function Composer({
           <button
             type="button"
             className="send-action"
-            aria-label="Send"
+            aria-label={t("agentFirst.composer.send")}
             disabled={isSubmitting || !value.trim()}
             onClick={() => void onSubmit()}
           >
@@ -5387,9 +5488,10 @@ function Composer({
 }
 
 function ChatBubble({ role, children }: { role: "user" | "agent"; children: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <div className={role === "user" ? "chat-bubble user" : "chat-bubble agent"}>
-      <span>{role === "user" ? "You" : "Agent"}</span>
+      <span>{role === "user" ? t("agentFirst.chat.you") : t("agentFirst.chat.agent")}</span>
       <p>{children}</p>
     </div>
   );
@@ -5406,9 +5508,10 @@ function RunCard({
   status: RunStatus;
   actions: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="run-card">
-      <span className={statusClass(status)}>{statusLabel(status)}</span>
+      <span className={statusClass(status)}>{statusLabel(status, t)}</span>
       <h2>{title}</h2>
       <p>{detail}</p>
       <div className="run-actions">{actions}</div>
@@ -5434,6 +5537,7 @@ function PublishStep({
   value: string;
   status: RunStatus;
 }) {
+  const { t } = useTranslation();
   const icon =
     status === "succeeded" ? (
       <CheckCircle2 size={16} />
