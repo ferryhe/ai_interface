@@ -32,10 +32,19 @@ export function createAgentsRouter(
 ): IRouter {
   const router: IRouter = Router();
 
-  router.get("/agents", (_req, res) => {
+  router.get("/agents", (req, res) => {
+    let agents = registry.listAgents();
+    const teamId = req.query.teamId as string | undefined;
+    if (teamId) {
+      agents = agents.filter((a) => a.teamId === teamId);
+    }
+    const allReadiness = listAgentReadiness(registry);
+    const readiness = teamId
+      ? allReadiness.filter((r) => agents.some((a) => a.agentId === r.agentId))
+      : allReadiness;
     const data = GetAgentsResponse.parse({
-      agents: registry.listAgents(),
-      readiness: listAgentReadiness(registry),
+      agents,
+      readiness,
     });
     res.json(data);
   });

@@ -102,6 +102,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentListResponse"
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List teams with derived agent members
+      responses:
+        "200":
+          description: Team list with member agents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamListResponse"
   /agents/{agentId}/export/vscode-agent:
     get:
       operationId: exportVscodeAgent
@@ -2713,6 +2725,38 @@ components:
       required:
         - agents
         - readiness
+    TeamDefinition:
+      type: object
+      properties:
+        teamId:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        industries:
+          type: array
+          items:
+            type: string
+        memberAgentIds:
+          type: array
+          items:
+            type: string
+      required:
+        - teamId
+        - displayName
+        - description
+        - industries
+        - memberAgentIds
+    TeamListResponse:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamDefinition"
+      required:
+        - teams
     AgentMcpToolInputSchema:
       type: object
       properties:

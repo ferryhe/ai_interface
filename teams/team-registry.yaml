@@ -1,0 +1,10 @@
+teams:
+  insurance:
+    displayName: 寿险业务
+    description: 寿险精算、核保、理赔、合规
+    industries:
+      - life_insurance
+  knowledge:
+    displayName: 知识工程
+    description: 文档处理、知识库构建
+    industries: []
