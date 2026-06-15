@@ -1327,6 +1327,224 @@ export const enUS = {
         },
       },
     },
+    legacyAi: {
+      dock: {
+        views: {
+          preview: "Preview",
+          agent: "Agent",
+          deploy: "Deploy",
+          tasks: "Tasks",
+        },
+        tools: {
+          git: "Git",
+          console: "Console",
+          secrets: "Secrets",
+          database: "Database",
+          packages: "Packages",
+          search: "Search",
+          debugger: "Debug",
+        },
+        actions: {
+          start: "Start",
+          stop: "Stop",
+          run: "Run",
+          startApp: "Start app",
+          stopApp: "Stop app",
+          switchToolPage: "Switch tool page",
+          switchToolTo: "Switch tool to {{tool}}",
+        },
+      },
+      command: {
+        placeholder: {
+          plan: "Describe the plan you want the agent to prepare...",
+          power: "Tell the agent what outcome to create...",
+        },
+        attachFile: "Attach file",
+        togglePlanMode: "Toggle plan mode",
+        plan: "Plan",
+        agentSettings: "Agent settings",
+        voiceInput: "Voice input",
+        send: "Send",
+        sendMessage: "Send message",
+        meta: {
+          plan: "Plan mode waits for approval before acting.",
+          power: "Power mode can inspect, edit, run, and report back.",
+        },
+        shortcut: "Enter to send / Shift+Enter for newline",
+      },
+      taskRail: {
+        workspaceTitle: "Agent OS",
+        workspaceHandle: "@you",
+        searchTasks: "Search tasks",
+        newObjective: "New objective",
+        activeWork: "Active work",
+        status: {
+          running: "Running",
+          waiting: "Waiting",
+          paused: "Paused",
+          done: "Done",
+        },
+      },
+      context: {
+        livePreview: "Live preview",
+        open: "Open",
+        preview: {
+          title: "Auth API",
+          status: "401 handled / 200 ready",
+        },
+        runtime: "Runtime",
+        changes: "Changes",
+        review: "Review",
+        agentControl: "Agent control",
+        permissions: {
+          writeAccess: "Write access",
+          networkTools: "Network tools",
+          deploy: "Deploy",
+        },
+        permissionState: {
+          on: "On",
+          ask: "Ask",
+          manual: "Manual",
+        },
+        model: "Model",
+        modelDescription:
+          "Full tool use, code review, and approval checkpoints enabled.",
+      },
+      inspector: {
+        eyebrow: "Inspector",
+        title: "Agent implementation details",
+        close: "Close inspector",
+        tabs: {
+          changes: "Changes",
+          code: "Code",
+          logs: "Logs",
+          preview: "Preview",
+        },
+        preview: {
+          title: "Auth API preview",
+          description: "Login, refresh, and logout endpoints are staged.",
+          status: {
+            ready: "ready",
+            waiting: "waiting",
+          },
+        },
+      },
+      timeline: {
+        objective: "objective",
+        reviewChanges: "Review changes",
+        inspectCode: "Inspect code",
+        statusTitle: "Agent is implementing and pausing at approval points.",
+        statusDescription:
+          "The main surface tracks intent, progress, decisions, and outcomes.",
+        progress: "Progress",
+        queuedUserInstruction: "Queued user instruction",
+        approval: {
+          approveSecureCookie: "Approve secure cookie flow",
+          keepJsonTokens: "Keep JSON tokens",
+        },
+      },
+      data: {
+        tasks: {
+          authApi: {
+            title: "Ship JWT auth API",
+            updatedAt: "Now",
+            model: "Power / GPT-4o",
+          },
+          dashboard: {
+            title: "Review admin dashboard",
+            updatedAt: "12m ago",
+            model: "Lite / Claude Haiku",
+          },
+          deploy: {
+            title: "Deploy staging preview",
+            updatedAt: "1h ago",
+            model: "Power / GPT-4o",
+          },
+        },
+        timeline: {
+          authApi: {
+            plan: {
+              title: "Plan approved",
+              detail:
+                "Create Express auth routes, JWT middleware, refresh-token rotation, and request throttling.",
+              artifact: "6 implementation steps",
+            },
+            deps: {
+              title: "Installed runtime dependencies",
+              detail:
+                "Added express-rate-limit, jsonwebtoken, bcrypt, and validation helpers.",
+            },
+            routes: {
+              title: "Writing route handlers",
+              detail:
+                "Login and refresh endpoints are wired. The agent is validating token expiry and response shapes before moving on.",
+            },
+            approval: {
+              title: "Needs approval",
+              detail:
+                "Use httpOnly cookies for refresh tokens instead of returning both tokens in JSON?",
+              artifact: "Security-sensitive decision",
+            },
+            tests: {
+              title: "Run auth contract tests",
+              detail: "Queued after the refresh-token decision is confirmed.",
+              time: "Next",
+            },
+          },
+          dashboard: {
+            audit: {
+              title: "Audit finished",
+              detail:
+                "Checked chart hierarchy, loading states, and keyboard focus order.",
+            },
+            review: {
+              title: "Waiting for review",
+              detail:
+                "Two layout choices are ready for approval before code changes.",
+            },
+          },
+          deploy: {
+            build: {
+              title: "Production build passed",
+              detail: "Static assets compiled and smoke checks passed.",
+            },
+            preview: {
+              title: "Preview deployed",
+              detail: "Staging URL is live with webhook replay enabled.",
+            },
+          },
+        },
+        fileChanges: {
+          authRoutes: {
+            summary: "Login, refresh, and logout endpoints",
+          },
+          jwtMiddleware: {
+            summary: "Bearer token guard and typed request user",
+          },
+          tokenLib: {
+            summary: "Token signing and refresh rotation helpers",
+          },
+        },
+        runtimeSignals: {
+          apiServer: {
+            label: "API server",
+            value: "running :3000",
+          },
+          tests: {
+            label: "Tests",
+            value: "queued",
+          },
+          secrets: {
+            label: "Secrets",
+            value: "2 required",
+          },
+          preview: {
+            label: "Preview",
+            value: "healthy",
+          },
+        },
+      },
+    },
     missionCenter: {
       badge: "Mission Center",
       title: "Mission Control",

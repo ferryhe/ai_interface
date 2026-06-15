@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+
+import { enUS } from "../../../../i18n/locales/en-US";
 import type {
   AgentManifestPreview,
   AgentReadiness,
@@ -11,57 +14,105 @@ import type {
   WorkbenchSkillOption,
 } from "./types";
 
-export const agentTasks: AgentTask[] = [
+type LegacyAiValues = Record<string, string | number>;
+
+type AgentTaskSeed = Omit<AgentTask, "title" | "updatedAt" | "model"> & {
+  titleKey: string;
+  updatedAtKey: string;
+  modelKey: string;
+};
+
+type TimelineEventSeed = Omit<
+  TimelineEvent,
+  "title" | "detail" | "time" | "artifact"
+> & {
+  titleKey: string;
+  detailKey: string;
+  time?: string;
+  timeKey?: string;
+  artifactKey?: string;
+};
+
+type FileChangeSeed = Omit<FileChange, "summary"> & {
+  summaryKey: string;
+};
+
+type RuntimeSignalSeed = Omit<RuntimeSignal, "label" | "value"> & {
+  labelKey: string;
+  valueKey: string;
+};
+
+function lookupEnglishLegacyAi(path: string): string {
+  const value = path.split(".").reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string, unknown>)[segment];
+  }, enUS.translation);
+
+  return typeof value === "string" ? value : path;
+}
+
+function interpolateLegacyAiText(
+  text: string,
+  values: LegacyAiValues = {},
+): string {
+  return text.replace(/{{\s*([^}\s]+)\s*}}/g, (_, key: string) =>
+    String(values[key] ?? ""),
+  );
+}
+
+const defaultLegacyAiT = ((key: string, values?: LegacyAiValues) =>
+  interpolateLegacyAiText(lookupEnglishLegacyAi(key), values)) as TFunction;
+
+const legacyTaskSeeds: AgentTaskSeed[] = [
   {
     id: "auth-api",
-    title: "Ship JWT auth API",
+    titleKey: "legacyAi.data.tasks.authApi.title",
     project: "my-rest-api",
     status: "running",
     progress: 72,
-    updatedAt: "Now",
-    model: "Power / GPT-4o",
+    updatedAtKey: "legacyAi.data.tasks.authApi.updatedAt",
+    modelKey: "legacyAi.data.tasks.authApi.model",
     priority: "high",
   },
   {
     id: "dashboard",
-    title: "Review admin dashboard",
+    titleKey: "legacyAi.data.tasks.dashboard.title",
     project: "react-dashboard",
     status: "waiting",
     progress: 48,
-    updatedAt: "12m ago",
-    model: "Lite / Claude Haiku",
+    updatedAtKey: "legacyAi.data.tasks.dashboard.updatedAt",
+    modelKey: "legacyAi.data.tasks.dashboard.model",
     priority: "normal",
   },
   {
     id: "deploy",
-    title: "Deploy staging preview",
+    titleKey: "legacyAi.data.tasks.deploy.title",
     project: "stripe-webhook-test",
     status: "done",
     progress: 100,
-    updatedAt: "1h ago",
-    model: "Power / GPT-4o",
+    updatedAtKey: "legacyAi.data.tasks.deploy.updatedAt",
+    modelKey: "legacyAi.data.tasks.deploy.model",
     priority: "low",
   },
 ];
 
-export const timelineEvents: Record<string, TimelineEvent[]> = {
+const legacyTimelineEventSeeds: Record<string, TimelineEventSeed[]> = {
   "auth-api": [
     {
       id: "plan",
       kind: "plan",
       status: "done",
-      title: "Plan approved",
-      detail:
-        "Create Express auth routes, JWT middleware, refresh-token rotation, and request throttling.",
+      titleKey: "legacyAi.data.timeline.authApi.plan.title",
+      detailKey: "legacyAi.data.timeline.authApi.plan.detail",
       time: "09:41",
-      artifact: "6 implementation steps",
+      artifactKey: "legacyAi.data.timeline.authApi.plan.artifact",
     },
     {
       id: "deps",
       kind: "tool",
       status: "done",
-      title: "Installed runtime dependencies",
-      detail: "Added express-rate-limit, jsonwebtoken, bcrypt, and validation helpers.",
+      titleKey: "legacyAi.data.timeline.authApi.deps.title",
+      detailKey: "legacyAi.data.timeline.authApi.deps.detail",
       time: "09:44",
       files: ["package.json", "pnpm-lock.yaml"],
     },
@@ -69,9 +120,8 @@ export const timelineEvents: Record<string, TimelineEvent[]> = {
       id: "routes",
       kind: "change",
       status: "active",
-      title: "Writing route handlers",
-      detail:
-        "Login and refresh endpoints are wired. The agent is validating token expiry and response shapes before moving on.",
+      titleKey: "legacyAi.data.timeline.authApi.routes.title",
+      detailKey: "legacyAi.data.timeline.authApi.routes.detail",
       time: "09:47",
       files: ["src/routes/auth.ts", "src/middleware/jwt.ts"],
     },
@@ -79,20 +129,19 @@ export const timelineEvents: Record<string, TimelineEvent[]> = {
       id: "approval",
       kind: "decision",
       status: "waiting",
-      title: "Needs approval",
-      detail:
-        "Use httpOnly cookies for refresh tokens instead of returning both tokens in JSON?",
+      titleKey: "legacyAi.data.timeline.authApi.approval.title",
+      detailKey: "legacyAi.data.timeline.authApi.approval.detail",
       time: "09:49",
       requiresApproval: true,
-      artifact: "Security-sensitive decision",
+      artifactKey: "legacyAi.data.timeline.authApi.approval.artifact",
     },
     {
       id: "tests",
       kind: "test",
       status: "queued",
-      title: "Run auth contract tests",
-      detail: "Queued after the refresh-token decision is confirmed.",
-      time: "Next",
+      titleKey: "legacyAi.data.timeline.authApi.tests.title",
+      detailKey: "legacyAi.data.timeline.authApi.tests.detail",
+      timeKey: "legacyAi.data.timeline.authApi.tests.time",
     },
   ],
   dashboard: [
@@ -100,16 +149,16 @@ export const timelineEvents: Record<string, TimelineEvent[]> = {
       id: "audit",
       kind: "plan",
       status: "done",
-      title: "Audit finished",
-      detail: "Checked chart hierarchy, loading states, and keyboard focus order.",
+      titleKey: "legacyAi.data.timeline.dashboard.audit.title",
+      detailKey: "legacyAi.data.timeline.dashboard.audit.detail",
       time: "08:18",
     },
     {
       id: "review",
       kind: "decision",
       status: "waiting",
-      title: "Waiting for review",
-      detail: "Two layout choices are ready for approval before code changes.",
+      titleKey: "legacyAi.data.timeline.dashboard.review.title",
+      detailKey: "legacyAi.data.timeline.dashboard.review.detail",
       time: "08:25",
       requiresApproval: true,
     },
@@ -119,51 +168,127 @@ export const timelineEvents: Record<string, TimelineEvent[]> = {
       id: "build",
       kind: "test",
       status: "done",
-      title: "Production build passed",
-      detail: "Static assets compiled and smoke checks passed.",
+      titleKey: "legacyAi.data.timeline.deploy.build.title",
+      detailKey: "legacyAi.data.timeline.deploy.build.detail",
       time: "07:12",
     },
     {
       id: "preview",
       kind: "preview",
       status: "done",
-      title: "Preview deployed",
-      detail: "Staging URL is live with webhook replay enabled.",
+      titleKey: "legacyAi.data.timeline.deploy.preview.title",
+      detailKey: "legacyAi.data.timeline.deploy.preview.detail",
       time: "07:16",
     },
   ],
 };
 
-export const fileChanges: FileChange[] = [
+const legacyFileChangeSeeds: FileChangeSeed[] = [
   {
     path: "src/routes/auth.ts",
-    summary: "Login, refresh, and logout endpoints",
+    summaryKey: "legacyAi.data.fileChanges.authRoutes.summary",
     additions: 126,
     deletions: 8,
     status: "modified",
   },
   {
     path: "src/middleware/jwt.ts",
-    summary: "Bearer token guard and typed request user",
+    summaryKey: "legacyAi.data.fileChanges.jwtMiddleware.summary",
     additions: 58,
     deletions: 0,
     status: "created",
   },
   {
     path: "src/lib/tokens.ts",
-    summary: "Token signing and refresh rotation helpers",
+    summaryKey: "legacyAi.data.fileChanges.tokenLib.summary",
     additions: 84,
     deletions: 11,
     status: "review",
   },
 ];
 
-export const runtimeSignals: RuntimeSignal[] = [
-  { label: "API server", value: "running :3000", state: "good" },
-  { label: "Tests", value: "queued", state: "neutral" },
-  { label: "Secrets", value: "2 required", state: "warn" },
-  { label: "Preview", value: "healthy", state: "good" },
+const legacyRuntimeSignalSeeds: RuntimeSignalSeed[] = [
+  {
+    labelKey: "legacyAi.data.runtimeSignals.apiServer.label",
+    valueKey: "legacyAi.data.runtimeSignals.apiServer.value",
+    state: "good",
+  },
+  {
+    labelKey: "legacyAi.data.runtimeSignals.tests.label",
+    valueKey: "legacyAi.data.runtimeSignals.tests.value",
+    state: "neutral",
+  },
+  {
+    labelKey: "legacyAi.data.runtimeSignals.secrets.label",
+    valueKey: "legacyAi.data.runtimeSignals.secrets.value",
+    state: "warn",
+  },
+  {
+    labelKey: "legacyAi.data.runtimeSignals.preview.label",
+    valueKey: "legacyAi.data.runtimeSignals.preview.value",
+    state: "good",
+  },
 ];
+
+export function createLegacyAiAgentTasks(t: TFunction): AgentTask[] {
+  return legacyTaskSeeds.map(
+    ({ titleKey, updatedAtKey, modelKey, ...task }) => ({
+      ...task,
+      title: t(titleKey),
+      updatedAt: t(updatedAtKey),
+      model: t(modelKey),
+    }),
+  );
+}
+
+export function createLegacyAiTimelineEvents(
+  t: TFunction,
+): Record<string, TimelineEvent[]> {
+  return Object.fromEntries(
+    Object.entries(legacyTimelineEventSeeds).map(([taskId, events]) => [
+      taskId,
+      events.map(
+        ({
+          titleKey,
+          detailKey,
+          time,
+          timeKey,
+          artifactKey,
+          ...event
+        }) => ({
+          ...event,
+          title: t(titleKey),
+          detail: t(detailKey),
+          time: timeKey ? t(timeKey) : (time ?? ""),
+          ...(artifactKey ? { artifact: t(artifactKey) } : {}),
+        }),
+      ),
+    ]),
+  );
+}
+
+export function createLegacyAiFileChanges(t: TFunction): FileChange[] {
+  return legacyFileChangeSeeds.map(({ summaryKey, ...change }) => ({
+    ...change,
+    summary: t(summaryKey),
+  }));
+}
+
+export function createLegacyAiRuntimeSignals(t: TFunction): RuntimeSignal[] {
+  return legacyRuntimeSignalSeeds.map(({ labelKey, valueKey, ...signal }) => ({
+    ...signal,
+    label: t(labelKey),
+    value: t(valueKey),
+  }));
+}
+
+export const agentTasks = createLegacyAiAgentTasks(defaultLegacyAiT);
+
+export const timelineEvents = createLegacyAiTimelineEvents(defaultLegacyAiT);
+
+export const fileChanges = createLegacyAiFileChanges(defaultLegacyAiT);
+
+export const runtimeSignals = createLegacyAiRuntimeSignals(defaultLegacyAiT);
 
 export const inspectorFile: InspectorFile = {
   path: "src/routes/auth.ts",

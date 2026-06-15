@@ -6,6 +6,7 @@ import {
   LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { colors, statusColor } from "../_shared/theme";
 import type {
@@ -28,16 +29,18 @@ export function ContextPanel({
   runtimeSignals,
   onOpenInspector,
 }: ContextPanelProps) {
+  const { t } = useTranslation();
+
   return (
     <aside className="context-panel">
       <section className="context-section preview-section">
         <div className="section-heading">
           <span>
             <Eye size={14} />
-            Live preview
+            {t("legacyAi.context.livePreview")}
           </span>
           <button type="button" onClick={() => onOpenInspector("preview")}>
-            Open
+            {t("legacyAi.context.open")}
           </button>
         </div>
         <div className="preview-window">
@@ -47,9 +50,13 @@ export function ContextPanel({
             <span />
           </div>
           <div className="preview-body">
-            <div className="preview-title">Auth API</div>
+            <div className="preview-title">
+              {t("legacyAi.context.preview.title")}
+            </div>
             <div className="preview-route">POST /api/auth/login</div>
-            <div className="preview-status">401 handled / 200 ready</div>
+            <div className="preview-status">
+              {t("legacyAi.context.preview.status")}
+            </div>
           </div>
         </div>
       </section>
@@ -58,7 +65,7 @@ export function ContextPanel({
         <div className="section-heading">
           <span>
             <Activity size={14} />
-            Runtime
+            {t("legacyAi.context.runtime")}
           </span>
         </div>
         <div className="signal-list">
@@ -84,10 +91,10 @@ export function ContextPanel({
         <div className="section-heading">
           <span>
             <FileCode2 size={14} />
-            Changes
+            {t("legacyAi.context.changes")}
           </span>
           <button type="button" onClick={() => onOpenInspector("changes")}>
-            Review
+            {t("legacyAi.context.review")}
           </button>
         </div>
         <div className="change-list">
@@ -112,35 +119,37 @@ export function ContextPanel({
         <div className="section-heading">
           <span>
             <ShieldCheck size={14} />
-            Agent control
+            {t("legacyAi.context.agentControl")}
           </span>
         </div>
         <div className="permission-list">
           <div className="permission-row">
             <LockKeyhole size={14} />
-            <span>Write access</span>
-            <strong>On</strong>
+            <span>{t("legacyAi.context.permissions.writeAccess")}</span>
+            <strong>{t("legacyAi.context.permissionState.on")}</strong>
           </div>
           <div className="permission-row">
             <LockKeyhole size={14} />
-            <span>Network tools</span>
-            <strong>Ask</strong>
+            <span>{t("legacyAi.context.permissions.networkTools")}</span>
+            <strong>{t("legacyAi.context.permissionState.ask")}</strong>
           </div>
           <div className="permission-row">
             <LockKeyhole size={14} />
-            <span>Deploy</span>
-            <strong>Manual</strong>
+            <span>{t("legacyAi.context.permissions.deploy")}</span>
+            <strong>{t("legacyAi.context.permissionState.manual")}</strong>
           </div>
         </div>
       </section>
 
       <section className="context-section model-section">
-        <div style={{ color: colors.muted, fontSize: 11 }}>Model</div>
+        <div style={{ color: colors.muted, fontSize: 11 }}>
+          {t("legacyAi.context.model")}
+        </div>
         <div style={{ color: colors.text, fontWeight: 800, marginTop: 3 }}>
           {task.model}
         </div>
         <div style={{ color: colors.faint, fontSize: 11, marginTop: 6 }}>
-          Full tool use, code review, and approval checkpoints enabled.
+          {t("legacyAi.context.modelDescription")}
         </div>
       </section>
 

@@ -7,6 +7,8 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import { colors, fontFamily } from "../_shared/theme";
 import type { AgentRunStatus, AgentTask } from "../_shared/types";
@@ -17,11 +19,27 @@ interface TaskRailProps {
   onSelectTask: (taskId: string) => void;
 }
 
-function getStatusMeta(status: AgentRunStatus): { label: string; color: string } {
-  if (status === "running") return { label: "Running", color: colors.green };
-  if (status === "waiting") return { label: "Waiting", color: colors.yellow };
-  if (status === "paused") return { label: "Paused", color: colors.blue };
-  return { label: "Done", color: colors.faint };
+const statusLabelKeys: Record<AgentRunStatus, string> = {
+  running: "legacyAi.taskRail.status.running",
+  waiting: "legacyAi.taskRail.status.waiting",
+  paused: "legacyAi.taskRail.status.paused",
+  done: "legacyAi.taskRail.status.done",
+};
+
+function getStatusMeta(
+  status: AgentRunStatus,
+  t: TFunction,
+): { label: string; color: string } {
+  if (status === "running") {
+    return { label: t(statusLabelKeys.running), color: colors.green };
+  }
+  if (status === "waiting") {
+    return { label: t(statusLabelKeys.waiting), color: colors.yellow };
+  }
+  if (status === "paused") {
+    return { label: t(statusLabelKeys.paused), color: colors.blue };
+  }
+  return { label: t(statusLabelKeys.done), color: colors.faint };
 }
 
 function StatusIcon({ status }: { status: AgentRunStatus }) {
@@ -36,6 +54,8 @@ export function TaskRail({
   selectedTaskId,
   onSelectTask,
 }: TaskRailProps) {
+  const { t } = useTranslation();
+
   return (
     <aside className="agent-task-rail">
       <div style={{ padding: 14, borderBottom: `1px solid ${colors.border}` }}>
@@ -56,9 +76,11 @@ export function TaskRail({
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ color: colors.text, fontWeight: 700, fontSize: 13 }}>
-              Agent OS
+              {t("legacyAi.taskRail.workspaceTitle")}
             </div>
-            <div style={{ color: colors.muted, fontSize: 11 }}>@you</div>
+            <div style={{ color: colors.muted, fontSize: 11 }}>
+              {t("legacyAi.taskRail.workspaceHandle")}
+            </div>
           </div>
         </div>
       </div>
@@ -81,7 +103,9 @@ export function TaskRail({
           }}
         >
           <Search size={14} />
-          <span style={{ fontSize: 12 }}>Search tasks</span>
+          <span style={{ fontSize: 12 }}>
+            {t("legacyAi.taskRail.searchTasks")}
+          </span>
         </button>
 
         <button
@@ -102,7 +126,7 @@ export function TaskRail({
           }}
         >
           <Plus size={15} />
-          New objective
+          {t("legacyAi.taskRail.newObjective")}
         </button>
       </div>
 
@@ -116,13 +140,13 @@ export function TaskRail({
           fontWeight: 700,
         }}
       >
-        Active work
+        {t("legacyAi.taskRail.activeWork")}
       </div>
 
       <div style={{ display: "grid", gap: 6, padding: "0 8px" }}>
         {tasks.map((task) => {
           const active = task.id === selectedTaskId;
-          const status = getStatusMeta(task.status);
+          const status = getStatusMeta(task.status, t);
 
           return (
             <button
@@ -142,6 +166,8 @@ export function TaskRail({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
+                  aria-label={status.label}
+                  title={status.label}
                   style={{
                     color: status.color,
                     display: "inline-flex",

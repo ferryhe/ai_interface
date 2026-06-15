@@ -40,6 +40,19 @@ const agentFirstComponentSources = [
   "../components/mockups/ai-os/_components/RunInspector.tsx",
 ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
 const agentFirstComponentSource = agentFirstComponentSources.join("\n");
+const legacyAiComponentSources = [
+  "../components/mockups/ai-os/_components/BottomDock.tsx",
+  "../components/mockups/ai-os/_components/CommandBar.tsx",
+  "../components/mockups/ai-os/_components/TaskRail.tsx",
+  "../components/mockups/ai-os/_components/ContextPanel.tsx",
+  "../components/mockups/ai-os/_components/InspectorDrawer.tsx",
+  "../components/mockups/ai-os/_components/AgentTimeline.tsx",
+].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+const legacyAiComponentSource = legacyAiComponentSources.join("\n");
+const legacyAiDataSource = readFileSync(
+  new URL("../components/mockups/ai-os/_shared/data.ts", import.meta.url),
+  "utf8",
+);
 
 test("normalizes supported English and Chinese locale inputs", () => {
   assert.equal(DEFAULT_LOCALE, "en-US");
@@ -678,6 +691,139 @@ test("agent-first locale resources have matching key and placeholder coverage", 
   }
 });
 
+test("legacy AI OS modular sources use legacyAi-owned translation keys", () => {
+  const literalKeys = legacyAiLiteralTranslationKeys();
+  assert.ok(
+    literalKeys.size > 0,
+    "legacy AI OS modular sources should contain legacyAi.* translation keys",
+  );
+
+  for (const key of [
+    "legacyAi.dock.views.preview",
+    "legacyAi.dock.tools.console",
+    "legacyAi.command.placeholder.power",
+    "legacyAi.taskRail.searchTasks",
+    "legacyAi.context.livePreview",
+    "legacyAi.inspector.title",
+    "legacyAi.timeline.reviewChanges",
+    "legacyAi.data.tasks.authApi.title",
+  ]) {
+    assert.ok(literalKeys.has(key), `legacy AI OS sources missing ${key}`);
+  }
+
+  assert.doesNotMatch(legacyAiComponentSource, />Live preview</);
+  assert.doesNotMatch(legacyAiComponentSource, />Review changes</);
+  assert.doesNotMatch(legacyAiComponentSource, /placeholder=\{\s*"Tell the agent/);
+  assert.doesNotMatch(legacyAiDataSource, /title:\s*"Ship JWT auth API"/);
+});
+
+test("legacy AI OS modular translation keys resolve in both locale resources", () => {
+  for (const key of legacyAiLiteralTranslationKeys()) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("legacy AI OS dynamic translation key families resolve in both locale resources", () => {
+  const dockViews = ["preview", "agent", "deploy", "tasks"];
+  const toolIds = [
+    "git",
+    "console",
+    "secrets",
+    "database",
+    "packages",
+    "search",
+    "debugger",
+  ];
+  const taskStatuses = ["running", "waiting", "paused", "done"];
+  const inspectorViews = ["changes", "code", "logs", "preview"];
+  const previewStatuses = ["ready", "waiting"];
+  const permissionStates = ["on", "ask", "manual"];
+  const taskIds = ["authApi", "dashboard", "deploy"];
+  const timelineEventsByTask = {
+    authApi: ["plan", "deps", "routes", "approval", "tests"],
+    dashboard: ["audit", "review"],
+    deploy: ["build", "preview"],
+  };
+  const fileChangeIds = ["authRoutes", "jwtMiddleware", "tokenLib"];
+  const runtimeSignalIds = ["apiServer", "tests", "secrets", "preview"];
+
+  const requiredKeys = [
+    ...dockViews.map((view) => `legacyAi.dock.views.${view}`),
+    ...toolIds.map((tool) => `legacyAi.dock.tools.${tool}`),
+    ...taskStatuses.map((status) => `legacyAi.taskRail.status.${status}`),
+    ...inspectorViews.map((view) => `legacyAi.inspector.tabs.${view}`),
+    ...previewStatuses.map(
+      (status) => `legacyAi.inspector.preview.status.${status}`,
+    ),
+    ...permissionStates.map(
+      (state) => `legacyAi.context.permissionState.${state}`,
+    ),
+    ...taskIds.flatMap((taskId) => [
+      `legacyAi.data.tasks.${taskId}.title`,
+      `legacyAi.data.tasks.${taskId}.updatedAt`,
+      `legacyAi.data.tasks.${taskId}.model`,
+    ]),
+    ...Object.entries(timelineEventsByTask).flatMap(([taskId, eventIds]) =>
+      eventIds.flatMap((eventId) => [
+        `legacyAi.data.timeline.${taskId}.${eventId}.title`,
+        `legacyAi.data.timeline.${taskId}.${eventId}.detail`,
+      ]),
+    ),
+    ...fileChangeIds.map(
+      (changeId) => `legacyAi.data.fileChanges.${changeId}.summary`,
+    ),
+    ...runtimeSignalIds.flatMap((signalId) => [
+      `legacyAi.data.runtimeSignals.${signalId}.label`,
+      `legacyAi.data.runtimeSignals.${signalId}.value`,
+    ]),
+  ];
+
+  for (const key of requiredKeys) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("legacy AI OS locale resources have matching key and placeholder coverage", () => {
+  const enLegacyAiPaths = flattenStringPaths(
+    enUS.translation.legacyAi,
+    "legacyAi",
+  );
+  const zhLegacyAiPaths = flattenStringPaths(
+    zhCN.translation.legacyAi,
+    "legacyAi",
+  );
+  assert.ok(enLegacyAiPaths.length > 0, "en-US legacyAi namespace is empty");
+  assert.deepEqual(zhLegacyAiPaths, enLegacyAiPaths);
+
+  for (const key of enLegacyAiPaths) {
+    const enValue = lookup(enUS.translation, key);
+    const zhValue = lookup(zhCN.translation, key);
+    assert.deepEqual(
+      placeholders(zhValue),
+      placeholders(enValue),
+      `${key} placeholder mismatch`,
+    );
+  }
+});
+
 test("persists locale choices and lets URL lang override stored locale in browser context", () => {
   const storedValues = new Map<string, string>([[LOCALE_STORAGE_KEY, "en-US"]]);
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -744,6 +890,13 @@ function operatorLiteralTranslationKeys(): Set<string> {
 
 function agentFirstLiteralTranslationKeys(): Set<string> {
   return literalTranslationKeys(agentFirstComponentSource, "agentFirst");
+}
+
+function legacyAiLiteralTranslationKeys(): Set<string> {
+  return literalTranslationKeys(
+    `${legacyAiComponentSource}\n${legacyAiDataSource}`,
+    "legacyAi",
+  );
 }
 
 function literalTranslationKeys(source: string, namespace: string): Set<string> {
