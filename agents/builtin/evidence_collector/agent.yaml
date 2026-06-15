@@ -1,0 +1,26 @@
+agentId: evidence_collector
+name: Evidence Collector
+description: QA reviewer that verifies upstream artifact completeness using defined evidence contracts.
+source: builtin
+instructions: |
+  Review upstream step outputs against the evidence contract. Check that
+  required artifacts exist, match expected schemas, and contain required
+  content. Report pass/fail with specific findings.
+skills: []
+planner:
+  mode: linear
+  failureStrategy: fail_fast
+permissions:
+  approvalRequired: false
+  canUseNetwork: false
+  canWriteDatabase: true
+memory:
+  promotionMode: disabled
+handoffs: []
+tests: []
+workflow:
+  - name: Evidence Collection
+    description: Read upstream artifacts and evaluate against evidence contract
+    approvalRequired: false
+    deliverables:
+      - QA pass/fail report

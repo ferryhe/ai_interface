@@ -1,0 +1,34 @@
+{
+  "missionId": "fixture-qa-demo",
+  "title": "QA Gate Demo",
+  "userGoal": "Test QA reviewer verification",
+  "summary": "Demonstrate QA step with evidence contract",
+  "status": "draft",
+  "riskLevel": "low",
+  "steps": [
+    {
+      "stepId": "collect_data",
+      "title": "Collect Data",
+      "objective": "Gather source documents",
+      "skillId": "web_listening",
+      "role": "executor",
+      "dependsOn": [],
+      "status": "pending"
+    },
+    {
+      "stepId": "qa_review",
+      "title": "QA Review",
+      "objective": "Verify collected artifacts",
+      "role": "qa_reviewer",
+      "evidenceContract": {
+        "requiredArtifacts": ["source_docs.json"],
+        "assertionType": "presence",
+        "assertionConfig": {}
+      },
+      "dependsOn": ["collect_data"],
+      "status": "pending"
+    }
+  ],
+  "warnings": [],
+  "nonGoals": []
+}

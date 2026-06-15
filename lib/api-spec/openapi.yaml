@@ -1286,6 +1286,30 @@ components:
           type: string
         roleId:
           type: string
+        role:
+          type: string
+          enum:
+            - executor
+            - qa_reviewer
+        evidenceContract:
+          type: object
+          properties:
+            requiredArtifacts:
+              type: array
+              items:
+                type: string
+            assertionType:
+              type: string
+              enum:
+                - presence
+                - json_schema
+                - content_contains
+            assertionConfig:
+              $ref: "#/components/schemas/JsonObject"
+          required:
+            - requiredArtifacts
+            - assertionType
+            - assertionConfig
         dependsOn:
           type: array
           items:
