@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Activity,
   Bot,
@@ -28,6 +29,7 @@ import { ArtifactInspector } from "./_components/ArtifactInspector";
 import { RunInspector } from "./_components/RunInspector";
 import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
 import { OperatorBackstage } from "@/components/operator/OperatorBackstage";
+import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import {
   demoAgentManifests,
   demoAgentReadiness,
@@ -2375,6 +2377,7 @@ function normalizeApiArtifacts(
 }
 
 export function AgentFirstInterface() {
+  const { t } = useTranslation();
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("mission");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
@@ -3017,6 +3020,7 @@ export function AgentFirstInterface() {
                 Operator
               </button>
             </div>
+            <LanguageSwitcher className="topbar-mode-switch" variant="ghost" />
             <button
               type="button"
               className="topbar-mode-switch"
@@ -3027,7 +3031,7 @@ export function AgentFirstInterface() {
               }
             >
               <UploadCloud size={14} />
-              View Portal
+              {t("topbar.viewPortal")}
             </button>
             <span className="topbar-pill">
               <ShieldCheck size={14} />

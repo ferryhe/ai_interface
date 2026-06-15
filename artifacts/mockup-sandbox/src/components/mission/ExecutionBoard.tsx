@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ async function readError(response: Response): Promise<string> {
 }
 
 export function ExecutionBoard({ missionId }: { missionId: string | null }) {
+  const { t } = useTranslation();
   const [board, setBoard] = useState<MissionBoardAgent[]>([]);
   const [revisionId, setRevisionId] = useState<string | null>(null);
   const [loadState, setLoadState] = useState<"idle" | "loading">("idle");
@@ -49,11 +51,11 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
       setBoard(data.board ?? []);
       setRevisionId(data.revisionId ?? null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Execution board unavailable");
+      setErrorMessage(error instanceof Error ? error.message : t("executionBoard.unavailableFallback"));
     } finally {
       setLoadState("idle");
     }
-  }, [missionId]);
+  }, [missionId, t]);
 
   useEffect(() => {
     void loadBoard();
@@ -66,11 +68,11 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <LayoutGrid className="h-4 w-4" />
-              Execution Board
+              {t("executionBoard.title")}
             </CardTitle>
             <CardDescription>
-              默认按 Agent / Role 展示执行状态、卡点与最新产物。
-              {revisionId ? ` 当前 revision: ${revisionId}` : ""}
+              {t("executionBoard.description")}
+              {revisionId ? t("executionBoard.revisionSuffix", { revisionId }) : ""}
             </CardDescription>
           </div>
           <Button
@@ -80,33 +82,33 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
             disabled={!missionId || loadState === "loading"}
           >
             <RefreshCcw className="h-4 w-4" />
-            刷新
+            {t("common.refresh")}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {errorMessage ? (
           <Alert className="border-rose-200 bg-rose-50 text-rose-900">
-            <AlertTitle>Execution Board 不可用</AlertTitle>
+            <AlertTitle>{t("executionBoard.unavailableTitle")}</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         ) : null}
 
         {missionId && loadState === "loading" ? (
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            正在同步 Mission execution board；稍后会显示最新角色状态、阻塞点与产物摘要。
+            {t("executionBoard.loading")}
           </div>
         ) : null}
 
         {!missionId ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            先创建并选择一个 Mission，再查看 Execution Board。
+            {t("executionBoard.noMission")}
           </div>
         ) : null}
 
         {missionId && board.length === 0 && loadState !== "loading" && !errorMessage ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            当前还没有可展示的执行记录；approve 只确认计划，只有 execute 后这里才会出现真实运行状态与产物回链。
+            {t("executionBoard.empty")}
           </div>
         ) : null}
 

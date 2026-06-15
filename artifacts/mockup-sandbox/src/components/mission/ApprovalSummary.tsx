@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { i18nRiskLevelKey } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, ShieldAlert, TriangleAlert } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { MissionPlan, MissionRiskLevel } from "./mission-types";
 
@@ -12,27 +14,28 @@ const riskTone: Record<MissionRiskLevel, string> = {
 };
 
 export function ApprovalSummary({ plan }: { plan: MissionPlan }) {
+  const { t } = useTranslation();
   const approvalSteps = plan.steps.filter((step) => step.approval?.required);
 
   return (
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
-          <CardTitle className="text-base">审批摘要</CardTitle>
+          <CardTitle className="text-base">{t("approvalSummary.title")}</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            聚焦必须人工确认的步骤和整体风险暴露。
+            {t("approvalSummary.description")}
           </p>
         </div>
         <Badge variant="outline" className={cn("capitalize", riskTone[plan.riskLevel])}>
           <TriangleAlert className="mr-1 h-3.5 w-3.5" />
-          {plan.riskLevel} risk
+          {t("common.risk", { level: t(i18nRiskLevelKey(plan.riskLevel)) })}
         </Badge>
       </CardHeader>
       <CardContent className="space-y-4">
         {approvalSteps.length === 0 ? (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             <CheckCircle2 className="h-4 w-4" />
-            当前计划没有额外的强制审批步骤。
+            {t("approvalSummary.noRequiredSteps")}
           </div>
         ) : (
           <div className="space-y-3">
@@ -51,7 +54,7 @@ export function ApprovalSummary({ plan }: { plan: MissionPlan }) {
                     )}
                   >
                     <ShieldAlert className="mr-1 h-3.5 w-3.5" />
-                    {step.approval?.riskLevel ?? plan.riskLevel}
+                    {t(i18nRiskLevelKey(step.approval?.riskLevel ?? plan.riskLevel))}
                   </Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{step.approval?.reason}</p>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,18 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
+type ApprovalStatusMessage = {
+  key: "approvalInbox.approved" | "approvalInbox.rejected";
+  action: string;
+};
+
 export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: string }) {
+  const { t } = useTranslation();
   const [approvals, setApprovals] = useState<ApprovalInboxItem[]>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading">("idle");
   const [actionId, setActionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<ApprovalStatusMessage | null>(null);
 
   const loadApprovals = useCallback(async () => {
     setLoadState("loading");
@@ -41,11 +48,11 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
       const data = await readJson<{ approvals: ApprovalInboxItem[] }>(response);
       setApprovals(data.approvals ?? []);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Approval API unavailable");
+      setErrorMessage(error instanceof Error ? error.message : t("approvalInbox.apiUnavailable"));
     } finally {
       setLoadState("idle");
     }
-  }, [endpoint]);
+  }, [endpoint, t]);
 
   useEffect(() => {
     void loadApprovals();
@@ -71,14 +78,13 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
         throw new Error(await readError(response));
       }
       const data = await readJson<{ approval: ApprovalInboxItem }>(response);
-      setStatusMessage(
-        decision === "approve"
-          ? `已批准：${data.approval.action}`
-          : `已拒绝：${data.approval.action}`,
-      );
+      setStatusMessage({
+        key: decision === "approve" ? "approvalInbox.approved" : "approvalInbox.rejected",
+        action: data.approval.action,
+      });
       await loadApprovals();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Approval decision failed");
+      setErrorMessage(error instanceof Error ? error.message : t("approvalInbox.decisionFailed"));
     } finally {
       setActionId(null);
     }
@@ -91,10 +97,10 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="h-4 w-4" />
-              Approval Inbox
+              {t("approvalInbox.title")}
             </CardTitle>
             <CardDescription>
-              聚合等待人工确认的高风险动作，决定后立即刷新列表。
+              {t("approvalInbox.description")}
             </CardDescription>
           </div>
           <Button
@@ -104,34 +110,34 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
             disabled={loadState === "loading" || actionId !== null}
           >
             <RefreshCcw className="h-4 w-4" />
-            刷新
+            {t("common.refresh")}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {statusMessage ? (
           <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
-            <AlertTitle>审批已更新</AlertTitle>
-            <AlertDescription>{statusMessage}</AlertDescription>
+            <AlertTitle>{t("approvalInbox.updatedTitle")}</AlertTitle>
+            <AlertDescription>{t(statusMessage.key, { action: statusMessage.action })}</AlertDescription>
           </Alert>
         ) : null}
 
         {errorMessage ? (
           <Alert className="border-rose-200 bg-rose-50 text-rose-900">
-            <AlertTitle>审批箱不可用</AlertTitle>
+            <AlertTitle>{t("approvalInbox.unavailableTitle")}</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         ) : null}
 
         {loadState === "loading" ? (
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            正在刷新审批列表；如需继续执行，请等待最新待审批动作与 redacted 摘要返回。
+            {t("approvalInbox.loading")}
           </div>
         ) : null}
 
         {approvals.length === 0 && loadState !== "loading" ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            当前没有待审批动作；Mission 已批准不代表已经执行，新的高风险步骤会在这里单独出现。
+            {t("approvalInbox.empty")}
           </div>
         ) : null}
 

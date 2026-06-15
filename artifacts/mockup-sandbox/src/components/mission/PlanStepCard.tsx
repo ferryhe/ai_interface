@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { i18nRiskLevelKey, i18nStatusKey } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ShieldAlert, Sparkles, Workflow } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { MissionPlanStep, MissionRiskLevel, MissionStepStatus } from "./mission-types";
 
@@ -21,11 +23,9 @@ const riskTone: Record<MissionRiskLevel, string> = {
   high: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-function prettify(value: string): string {
-  return value.replace(/_/g, " ");
-}
-
 export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: number }) {
+  const { t } = useTranslation();
+
   return (
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="gap-3 pb-4">
@@ -40,7 +40,7 @@ export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: nu
             <CardTitle className="text-base leading-6">{step.title}</CardTitle>
           </div>
           <Badge variant="outline" className={cn("capitalize", statusTone[step.status])}>
-            {prettify(step.status)}
+            {t(i18nStatusKey(step.status))}
           </Badge>
         </div>
       </CardHeader>
@@ -66,7 +66,7 @@ export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: nu
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-dashed border-border/70 p-3">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Depends on
+              {t("planStep.dependsOn")}
             </div>
             {step.dependsOn.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -78,24 +78,24 @@ export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: nu
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No upstream dependencies.</div>
+              <div className="text-sm text-muted-foreground">{t("common.noUpstreamDependencies")}</div>
             )}
           </div>
 
           <div className="rounded-lg border border-dashed border-border/70 p-3">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Approval
+              {t("planStep.approval")}
             </div>
             {step.approval?.required ? (
               <div className="space-y-2">
                 <Badge variant="outline" className={cn("gap-1", riskTone[step.approval.riskLevel])}>
                   <ShieldAlert className="h-3.5 w-3.5" />
-                  {step.approval.riskLevel} risk approval
+                  {t("common.riskApproval", { level: t(i18nRiskLevelKey(step.approval.riskLevel)) })}
                 </Badge>
                 <p className="text-sm text-muted-foreground">{step.approval.reason}</p>
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No mandatory approval gate.</div>
+              <div className="text-sm text-muted-foreground">{t("common.noMandatoryApproval")}</div>
             )}
           </div>
         </div>
