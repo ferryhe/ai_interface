@@ -42,7 +42,7 @@ test("loads built-in knowledge_builder with normalized defaults", async () => {
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.agentId).sort(),
-    ["evidence_collector", "knowledge_builder"],
+    ["claims_reviewer", "compliance_auditor", "evidence_collector", "knowledge_builder", "life_uw_analyst", "pricing_actuary"],
   );
   const manifest = manifests.find((m) => m.agentId === "knowledge_builder");
   assert.equal(manifest?.name, "Knowledge Builder");
@@ -261,6 +261,6 @@ test("default roots load from an explicit repository root cwd", async () => {
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.agentId).sort(),
-    ["evidence_collector", "knowledge_builder"],
+    ["claims_reviewer", "compliance_auditor", "evidence_collector", "knowledge_builder", "life_uw_analyst", "pricing_actuary"],
   );
 });
