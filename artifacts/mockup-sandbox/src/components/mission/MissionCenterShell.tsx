@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRightLeft, Bot, RefreshCcw, Workflow } from "lucide-react";
+import { i18nRiskLevelKey } from "@/i18n/locale";
+import { ArrowRightLeft, Bot, Workflow } from "lucide-react";
 
 import { ApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import { ExecutionBoard } from "./ExecutionBoard";
@@ -39,6 +41,14 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
+type MissionStatusMessageKey =
+  | "missionCenter.generatedStatus"
+  | "missionCenter.revisedStatus"
+  | "missionCenter.approvedStatus"
+  | "missionCenter.executeReadyStatus"
+  | "missionCenter.planOnlyStatus"
+  | "missionCenter.planOnlySavedStatus";
+
 export function MissionCenterShell({
   onOpenBackstage,
   onOpenOperator,
@@ -46,6 +56,7 @@ export function MissionCenterShell({
   onOpenBackstage?: () => void;
   onOpenOperator?: () => void;
 }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"mission-center" | "backstage">("mission-center");
   const [draft, setDraft] = useState("");
   const [reviewMode, setReviewMode] = useState<MissionReviewMode>("draft_for_review");
@@ -56,7 +67,7 @@ export function MissionCenterShell({
   const [intakeState, setIntakeState] = useState<"idle" | "submitting">("idle");
   const [actionState, setActionState] = useState<"idle" | "submitting">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessageKey, setStatusMessageKey] = useState<MissionStatusMessageKey | null>(null);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const currentRevisionId = bundle?.revision.revisionId ?? null;
@@ -86,7 +97,7 @@ export function MissionCenterShell({
     setIntakeState("submitting");
     setErrorMessage(null);
     setConflictMessage(null);
-    setStatusMessage(null);
+    setStatusMessageKey(null);
     setExecutionReadiness(null);
     setExecuteResult(null);
 
@@ -108,10 +119,10 @@ export function MissionCenterShell({
       }
       const data = await readJson<MissionBundle>(response);
       setBundle(data);
-      setStatusMessage("已生成最新 Mission 计划。请先审阅步骤、依赖与审批点。");
+      setStatusMessageKey("missionCenter.generatedStatus");
       setReviseInstruction("");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Mission API unavailable");
+      setErrorMessage(error instanceof Error ? error.message : t("missionCenter.missionApiUnavailable"));
     } finally {
       setIntakeState("idle");
     }
@@ -121,7 +132,7 @@ export function MissionCenterShell({
     if (!missionId || !currentRevisionId) return;
     setActionState("submitting");
     setConflictMessage(null);
-    setStatusMessage(null);
+    setStatusMessageKey(null);
 
     try {
       const response = await fetch(apiPath(`/api/missions/${encodeURIComponent(missionId)}/revise`), {
@@ -131,7 +142,7 @@ export function MissionCenterShell({
           Accept: "application/json",
         },
         body: JSON.stringify({
-          instruction: reviseInstruction.trim() || "请基于当前任务补充更清晰的分工、依赖和审批说明。",
+          instruction: reviseInstruction.trim() || t("missionCenter.defaultRevisionInstruction"),
           expectedRevisionId: currentRevisionId,
         }),
       });
@@ -146,9 +157,9 @@ export function MissionCenterShell({
       }
       const data = await readJson<MissionBundle>(response);
       setBundle(data);
-      setStatusMessage("计划已更新，请重新确认关键审批步骤。");
+      setStatusMessageKey("missionCenter.revisedStatus");
     } catch (error) {
-      setConflictMessage(error instanceof Error ? error.message : "Revision update failed");
+      setConflictMessage(error instanceof Error ? error.message : t("missionCenter.revisionUpdateFailed"));
     } finally {
       setActionState("idle");
     }
@@ -158,7 +169,7 @@ export function MissionCenterShell({
     if (!missionId || !currentRevisionId) return;
     setActionState("submitting");
     setConflictMessage(null);
-    setStatusMessage(null);
+    setStatusMessageKey(null);
 
     try {
       const response = await fetch(apiPath(`/api/missions/${encodeURIComponent(missionId)}/approve`), {
@@ -185,9 +196,9 @@ export function MissionCenterShell({
       }>(response);
       setBundle({ mission: data.mission, revision: data.approvedRevision, plan: data.approvedRevision.plan });
       setExecutionReadiness(data.executionReadiness);
-      setStatusMessage("计划已确认，可以选择仅保留计划或继续执行。");
+      setStatusMessageKey("missionCenter.approvedStatus");
     } catch (error) {
-      setConflictMessage(error instanceof Error ? error.message : "Approve failed");
+      setConflictMessage(error instanceof Error ? error.message : t("missionCenter.approveFailed"));
     } finally {
       setActionState("idle");
     }
@@ -197,7 +208,7 @@ export function MissionCenterShell({
     if (!missionId || !currentRevisionId) return;
     setActionState("submitting");
     setConflictMessage(null);
-    setStatusMessage(null);
+    setStatusMessageKey(null);
 
     try {
       const response = await fetch(apiPath(`/api/missions/${encodeURIComponent(missionId)}/execute`), {
@@ -220,14 +231,14 @@ export function MissionCenterShell({
       const data = await readJson<MissionExecuteResult>(response);
       setExecuteResult(data);
       setExecutionReadiness(data.executionReadiness);
-      setStatusMessage(
-        mode === "execute_ready" ? "执行请求已发送，可以切到 Backstage 查看运行明细。" : "已保留为计划模式，未启动执行。",
+      setStatusMessageKey(
+        mode === "execute_ready" ? "missionCenter.executeReadyStatus" : "missionCenter.planOnlyStatus",
       );
       if (mode === "execute_ready") {
         setActiveTab("backstage");
       }
     } catch (error) {
-      setConflictMessage(error instanceof Error ? error.message : "Execute failed");
+      setConflictMessage(error instanceof Error ? error.message : t("missionCenter.executeFailed"));
     } finally {
       setActionState("idle");
     }
@@ -239,43 +250,47 @@ export function MissionCenterShell({
         <div className="space-y-2">
           <Badge variant="outline" className="w-fit gap-1">
             <Workflow className="h-3.5 w-3.5" />
-            Mission Center
+            {t("missionCenter.badge")}
           </Badge>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Mission Control</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("missionCenter.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Mission Center 是普通用户默认入口：输入任务 → 生成 Mission plan → 审阅步骤、依赖、审批 → 决定是否执行。
+              {t("missionCenter.description")}
             </p>
           </div>
         </div>
         <div className="grid min-w-[220px] gap-2 rounded-xl border border-border/70 bg-muted/20 p-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">当前计划</span>
-            <span className="font-medium">{bundle?.plan.steps.length ?? 0} steps</span>
+            <span className="text-muted-foreground">{t("missionCenter.currentPlan")}</span>
+            <span className="font-medium text-foreground">
+              {t("missionCenter.steps", { count: bundle?.plan.steps.length ?? 0 })}
+            </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">审批步骤</span>
-            <span className="font-medium">{approvalCount}</span>
+            <span className="text-muted-foreground">{t("missionCenter.approvalSteps")}</span>
+            <span className="font-medium text-foreground">{approvalCount}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">风险级别</span>
-            <span className="font-medium capitalize">{bundle?.plan.riskLevel ?? "-"}</span>
+            <span className="text-muted-foreground">{t("missionCenter.riskLevel")}</span>
+            <span className="font-medium text-foreground">
+              {bundle ? t(i18nRiskLevelKey(bundle.plan.riskLevel)) : "-"}
+            </span>
           </div>
         </div>
       </div>
 
-      {statusMessage ? (
-        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+      {statusMessageKey ? (
+          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
           <Bot className="h-4 w-4" />
-          <AlertTitle>Mission 状态</AlertTitle>
-          <AlertDescription>{statusMessage}</AlertDescription>
+          <AlertTitle>{t("missionCenter.statusTitle")}</AlertTitle>
+          <AlertDescription>{t(statusMessageKey)}</AlertDescription>
         </Alert>
       ) : null}
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "mission-center" | "backstage")}>
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="mission-center">Mission Center</TabsTrigger>
-          <TabsTrigger value="backstage">Backstage</TabsTrigger>
+          <TabsTrigger value="mission-center">{t("missionCenter.tabMissionCenter")}</TabsTrigger>
+          <TabsTrigger value="backstage">{t("missionCenter.tabBackstage")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mission-center" className="space-y-6">
@@ -300,7 +315,7 @@ export function MissionCenterShell({
               onRevise={() => void handleRevise()}
               onExecute={() => void handleExecute("execute_ready")}
               onPlanOnly={() => {
-                setStatusMessage("已保留为计划模式，未启动执行。可随时回来看计划详情。");
+                setStatusMessageKey("missionCenter.planOnlySavedStatus");
               }}
               actionState={actionState}
               executionReadiness={executionReadiness}
@@ -309,9 +324,9 @@ export function MissionCenterShell({
           ) : (
             <Card className="border-dashed border-border/70 shadow-none">
               <CardHeader>
-                <CardTitle>等待 Mission 计划</CardTitle>
+                <CardTitle>{t("missionCenter.waitingTitle")}</CardTitle>
                 <CardDescription>
-                  生成第一版计划后，这里会显示 Mission summary、角色建议、步骤依赖和审批摘要。
+                  {t("missionCenter.waitingDescription")}
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -323,23 +338,23 @@ export function MissionCenterShell({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <ArrowRightLeft className="h-4 w-4" />
-                Backstage handoff
+                {t("missionCenter.handoffTitle")}
               </CardTitle>
               <CardDescription>
-                Backstage 保留 Agents / Skills / Runs / Artifacts；Operator 入口承接高级治理、manifest 审阅与受保护修改。
+                {t("missionCenter.handoffDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
                 {executeResult?.executionReadiness.message ??
                   executionReadiness?.message ??
-                  "当你确认计划后，可切到 Backstage 查看 Runs、Artifacts、Skill UI 与 Approval Inbox。"}
+                  t("missionCenter.handoffFallback")}
               </div>
               <Button onClick={onOpenBackstage} className="w-full sm:w-auto">
-                打开 Backstage 工作台
+                {t("missionCenter.openBackstage")}
               </Button>
               <Button variant="outline" onClick={onOpenOperator} className="w-full sm:w-auto">
-                打开 Operator 入口
+                {t("missionCenter.openOperator")}
               </Button>
             </CardContent>
           </Card>

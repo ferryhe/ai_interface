@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FileStack } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { MissionBoardArtifact } from "./mission-types";
 
@@ -11,10 +12,12 @@ export function ArtifactStrip({
   artifacts: MissionBoardArtifact[];
   className?: string;
 }) {
+  const { t } = useTranslation();
+
   if (artifacts.length === 0) {
     return (
       <div className={cn("rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground", className)}>
-        暂无最新产物。
+        {t("artifactStrip.empty")}
       </div>
     );
   }

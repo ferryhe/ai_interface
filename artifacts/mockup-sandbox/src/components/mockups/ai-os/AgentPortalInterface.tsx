@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bot,
   CheckCircle2,
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 
 type PortalView = "chat" | "steps" | "data" | "sources" | "result";
 type PortalStatus = "complete" | "running" | "waiting" | "blocked";
@@ -1045,6 +1047,7 @@ function toPortalUiState(
 }
 
 export function AgentPortalInterface() {
+  const { t } = useTranslation();
   const initialToken = useMemo(readInitialDemoToken, []);
   const initialAdminToken = useMemo(readInitialDemoAdminToken, []);
   const [token, setToken] = useState(initialToken);
@@ -2020,13 +2023,14 @@ export function AgentPortalInterface() {
               <h1>Onboarding Knowledge Agent</h1>
             </div>
             <div className="portal-topbar-actions">
+              <LanguageSwitcher className="portal-refresh-button" variant="ghost" />
               <button
                 type="button"
                 className="portal-mode-switch"
                 onClick={() => setIsAdminGateOpen(true)}
               >
                 <Settings2 size={15} />
-                Admin Console
+                {t("topbar.adminConsole")}
               </button>
               <div className="portal-status-pill">
                 <ShieldCheck size={15} />

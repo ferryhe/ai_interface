@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEFAULT_LOCALE, formatDateTimeForLocale, i18nStatusKey, normalizeLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Bot, CircleCheckBig, Clock3, ExternalLink, PauseCircle, PlayCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { ArtifactStrip } from "./ArtifactStrip";
 import type { MissionBoardAgent } from "./mission-types";
@@ -23,15 +25,15 @@ function StatusIcon({ status }: { status: MissionBoardAgent["status"] }) {
   return <Clock3 className="h-3.5 w-3.5" />;
 }
 
-function formatTime(value?: string): string | null {
+function formatTime(value: string | undefined, locale: ReturnType<typeof normalizeLocale>): string | null {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return formatDateTimeForLocale(value, locale ?? DEFAULT_LOCALE);
 }
 
 export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
-  const lastEventAt = formatTime(agent.lastEventAt);
+  const { i18n, t } = useTranslation();
+  const locale = normalizeLocale(i18n.resolvedLanguage) ?? DEFAULT_LOCALE;
+  const lastEventAt = formatTime(agent.lastEventAt, locale);
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -43,25 +45,28 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
               {agent.displayName}
             </CardTitle>
             <div className="text-xs text-muted-foreground">
-              {agent.roleId ?? agent.agentId ?? "mission-role"}
-              {agent.moduleRunIds.length > 0 ? ` · ${agent.moduleRunIds.length} runs` : " · no runs yet"}
+              {agent.roleId ?? agent.agentId ?? t("common.missionRole")}
+              {" · "}
+              {agent.moduleRunIds.length > 0
+                ? t("common.runs", { count: agent.moduleRunIds.length })
+                : t("common.noRunsYet")}
             </div>
           </div>
           <Badge variant="outline" className={cn("gap-1 capitalize", statusTone[agent.status])}>
             <StatusIcon status={agent.status} />
-            {agent.status}
+            {t(i18nStatusKey(agent.status))}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Current action</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.currentAction")}</div>
           <p className="mt-1 text-sm leading-6 text-foreground">{agent.currentAction}</p>
         </div>
 
         {agent.blockingReason ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div className="font-medium">Blocking reason</div>
+            <div className="font-medium">{t("common.blockingReason")}</div>
             <p className="mt-1 leading-6">{agent.blockingReason}</p>
           </div>
         ) : null}
@@ -71,18 +76,18 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
             href="#approval-inbox"
             className="inline-flex items-center gap-2 text-sm font-medium text-amber-800 underline-offset-4 hover:underline"
           >
-            去 Approval Inbox 处理
+            {t("agentStatus.approvalLink")}
             <ExternalLink className="h-4 w-4" />
           </a>
         ) : null}
 
         <div className="space-y-2">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Latest artifacts</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.latestArtifacts")}</div>
           <ArtifactStrip artifacts={agent.latestArtifacts} />
         </div>
 
         {lastEventAt ? (
-          <div className="text-xs text-muted-foreground">Last activity: {lastEventAt}</div>
+          <div className="text-xs text-muted-foreground">{t("common.lastActivity", { time: lastEventAt })}</div>
         ) : null}
       </CardContent>
     </Card>

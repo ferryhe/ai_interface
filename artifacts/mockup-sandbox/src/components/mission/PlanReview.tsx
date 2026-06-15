@@ -1,9 +1,11 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { i18nRiskLevelKey } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -25,18 +27,9 @@ const riskTone = {
   high: "bg-rose-50 text-rose-700 border-rose-200",
 } as const;
 
-function roleLabel(skillId: string): string {
+function roleLabel(skillId: string, t: (key: string, options?: { defaultValue?: string }) => string): string {
   const normalized = skillId.replace(/_/g, " ");
-  const presets: Record<string, string> = {
-    web_listening: "情报监听",
-    doc_to_md: "资料整理",
-    md_to_rag: "知识建库",
-    rag_to_agent: "Agent 装配",
-    climate_monitor: "监控巡检",
-    ai_actuary: "风控评估",
-  };
-
-  return presets[skillId] ?? normalized;
+  return t(`planReview.roleLabels.${skillId}`, { defaultValue: normalized });
 }
 
 export function PlanReview({
@@ -66,6 +59,7 @@ export function PlanReview({
   executionReadiness: MissionExecutionReadiness | null;
   conflictMessage: string | null;
 }) {
+  const { t } = useTranslation();
   const roleSuggestions = useMemo(() => {
     return Array.from(
       new Set(plan.steps.map((step) => step.skillId ?? step.moduleId).filter(Boolean) as string[]),
@@ -86,23 +80,23 @@ export function PlanReview({
               </div>
               <Badge variant="outline" className={cn("capitalize", riskTone[plan.riskLevel])}>
                 <TriangleAlert className="mr-1 h-3.5 w-3.5" />
-                {plan.riskLevel} risk
+                {t("common.risk", { level: t(i18nRiskLevelKey(plan.riskLevel)) })}
               </Badge>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Mission summary</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("planReview.missionSummary")}</div>
                 <div className="mt-2 text-sm leading-6 text-foreground">{plan.userGoal}</div>
               </div>
               <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Revision</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("planReview.revision")}</div>
                 <div className="mt-2 text-sm font-medium">v{revision.revisionNumber}</div>
                 <div className="text-xs text-muted-foreground">{revision.revisionId}</div>
               </div>
               <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Execution intent</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("planReview.executionIntent")}</div>
                 <div className="mt-2 text-sm font-medium">
-                  {executionMode === "execute_ready" ? "审批后执行" : "只生成计划"}
+                  {executionMode === "execute_ready" ? t("planReview.executeAfterApproval") : t("planReview.planOnly")}
                 </div>
               </div>
             </div>
@@ -110,7 +104,7 @@ export function PlanReview({
             {conflictMessage ? (
               <Alert className="border-amber-200 bg-amber-50 text-amber-900">
                 <TriangleAlert className="h-4 w-4" />
-                <AlertTitle>检测到版本冲突</AlertTitle>
+                <AlertTitle>{t("planReview.conflictTitle")}</AlertTitle>
                 <AlertDescription>{conflictMessage}</AlertDescription>
               </Alert>
             ) : null}
@@ -121,9 +115,9 @@ export function PlanReview({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <GitBranchPlus className="h-4 w-4" />
-              Step review
+              {t("planReview.stepReview")}
             </CardTitle>
-            <CardDescription>展示步骤、依赖、技能和审批要求。</CardDescription>
+            <CardDescription>{t("planReview.stepReviewDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {plan.steps.map((step, index) => (
@@ -138,15 +132,15 @@ export function PlanReview({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4" />
-              角色建议
+              {t("planReview.roleSuggestions")}
             </CardTitle>
-            <CardDescription>根据计划步骤推导建议角色与技能分工。</CardDescription>
+            <CardDescription>{t("planReview.roleSuggestionsDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {roleSuggestions.length > 0 ? (
               roleSuggestions.map((skillId) => (
                 <div key={skillId} className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2 text-sm">
-                  <span className="font-medium">{roleLabel(skillId)}</span>
+                  <span className="font-medium">{roleLabel(skillId, t)}</span>
                   <Badge variant="outline" className="gap-1">
                     <Sparkles className="h-3.5 w-3.5" />
                     {skillId}
@@ -154,7 +148,7 @@ export function PlanReview({
                 </div>
               ))
             ) : (
-              <div className="text-sm text-muted-foreground">当前计划未声明显式技能。</div>
+              <div className="text-sm text-muted-foreground">{t("planReview.noExplicitSkills")}</div>
             )}
           </CardContent>
         </Card>
@@ -163,31 +157,31 @@ export function PlanReview({
 
         <Card className="border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">计划动作</CardTitle>
-            <CardDescription>你可以直接确认、修改或执行当前计划。</CardDescription>
+            <CardTitle className="text-base">{t("planReview.planActions")}</CardTitle>
+            <CardDescription>{t("planReview.planActionsDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <textarea
               value={reviseInstruction}
               onChange={(event) => onReviseInstructionChange(event.target.value)}
-              placeholder="例如：把高风险步骤拆小，并把审批前置到数据写入前。"
+              placeholder={t("planReview.revisionPlaceholder")}
               className="min-h-[104px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             />
             <div className="grid gap-3 sm:grid-cols-2">
               <Button onClick={onApprove} disabled={actionState === "submitting"}>
                 <ShieldCheck className="h-4 w-4" />
-                确认计划
+                {t("planReview.approve")}
               </Button>
               <Button variant="outline" onClick={onRevise} disabled={actionState === "submitting"}>
                 <GitBranchPlus className="h-4 w-4" />
-                修改计划
+                {t("planReview.revise")}
               </Button>
               <Button variant="secondary" onClick={onPlanOnly} disabled={actionState === "submitting"}>
-                只生成计划
+                {t("planReview.planOnly")}
               </Button>
               <Button variant="outline" onClick={onExecute} disabled={actionState === "submitting"}>
                 <Play className="h-4 w-4" />
-                执行
+                {t("planReview.execute")}
               </Button>
             </div>
 
@@ -195,14 +189,14 @@ export function PlanReview({
               <Alert className={executionReadiness.ready ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}>
                 <ArrowRight className="h-4 w-4" />
                 <AlertTitle>
-                  {executionReadiness.ready ? "执行准备就绪" : "执行仍在计划阶段"}
+                  {executionReadiness.ready ? t("planReview.executionReady") : t("planReview.stillPlanning")}
                 </AlertTitle>
                 <AlertDescription>{executionReadiness.message}</AlertDescription>
               </Alert>
             ) : null}
 
             <details className="rounded-lg border border-border/70 bg-muted/20 p-4 text-sm">
-              <summary className="cursor-pointer font-medium">高级详情</summary>
+              <summary className="cursor-pointer font-medium">{t("planReview.advancedDetails")}</summary>
               <pre className="mt-3 overflow-x-auto rounded-md bg-background p-3 text-xs leading-5 text-muted-foreground">
                 {JSON.stringify({ revision, plan }, null, 2)}
               </pre>
