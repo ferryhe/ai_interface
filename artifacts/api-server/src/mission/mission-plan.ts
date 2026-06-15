@@ -25,6 +25,14 @@ export interface MissionStepApproval {
   riskLevel: MissionRiskLevel;
 }
 
+export type MissionStepRole = "executor" | "qa_reviewer";
+
+export interface EvidenceContract {
+  requiredArtifacts: string[];
+  assertionType: "presence" | "json_schema" | "content_contains";
+  assertionConfig: Record<string, unknown>;
+}
+
 export interface MissionPlanStep {
   stepId: string;
   title: string;
@@ -33,6 +41,8 @@ export interface MissionPlanStep {
   moduleId?: string;
   assignedAgentId?: string;
   roleId?: string;
+  role?: MissionStepRole;
+  evidenceContract?: EvidenceContract;
   dependsOn: string[];
   status: MissionStepStatus;
   approval?: MissionStepApproval;
