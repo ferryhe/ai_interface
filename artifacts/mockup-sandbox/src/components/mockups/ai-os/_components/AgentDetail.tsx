@@ -1,4 +1,5 @@
 import { Braces, Play, Route, ShieldCheck, Workflow } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { workbenchStatusColor } from "../_shared/theme";
 import type {
@@ -10,10 +11,6 @@ import type {
 
 function skillName(skillId: string, skills: WorkbenchSkillOption[]): string {
   return skills.find((skill) => skill.skillId === skillId)?.name ?? skillId;
-}
-
-function permissionValue(value: boolean): string {
-  return value ? "Allowed" : "Off";
 }
 
 export function AgentDetail({
@@ -31,13 +28,16 @@ export function AgentDetail({
   onTestRun: (agentId: string) => void;
   onOpenSkill: (skillId: string) => void;
 }) {
+  const { t } = useTranslation();
   const readinessStatus = readiness?.status ?? "ready";
+  const permissionValue = (value: boolean): string =>
+    value ? t("agentFirst.workbench.allowed") : t("agentFirst.workbench.off");
 
   return (
     <div className="agent-detail-layout">
       <div className="agent-detail-header">
         <div>
-          <span className="soft-label">Agent manifest</span>
+          <span className="soft-label">{t("agentFirst.workbench.agentManifest")}</span>
           <h2>{agent.title ?? agent.name}</h2>
           <p>{agent.description}</p>
         </div>
@@ -47,28 +47,36 @@ export function AgentDetail({
           onClick={() => onTestRun(agent.agentId)}
         >
           <Play size={14} />
-          Test Run
+          {t("agentFirst.actions.testRun")}
         </button>
       </div>
 
       <div className="workbench-metrics">
         <span>
           <strong>{agent.source}</strong>
-          <em>Source</em>
+          <em>{t("agentFirst.workbench.source")}</em>
         </span>
         <span>
           <strong style={{ color: workbenchStatusColor(readinessStatus) }}>
-            {readinessStatus.replace(/_/g, " ")}
+            {t(`agentFirst.status.agentReadiness.${readinessStatus}`, {
+              defaultValue: readinessStatus.replace(/_/g, " "),
+            })}
           </strong>
-          <em>Readiness</em>
+          <em>{t("agentFirst.metrics.readiness")}</em>
         </span>
         <span>
           <strong>{agent.planner.mode}</strong>
-          <em>Planner</em>
+          <em>{t("agentFirst.workbench.planner")}</em>
         </span>
         <span>
-          <strong>{latestRun?.status.replace(/_/g, " ") ?? "No API run"}</strong>
-          <em>Last run</em>
+          <strong>
+            {latestRun
+              ? t(`agentFirst.status.workbenchRun.${latestRun.status}`, {
+                  defaultValue: latestRun.status.replace(/_/g, " "),
+                })
+              : t("agentFirst.workbench.noApiRun")}
+          </strong>
+          <em>{t("agentFirst.workbench.lastRun")}</em>
         </span>
       </div>
 
@@ -77,20 +85,20 @@ export function AgentDetail({
           <section className="workbench-section">
             <span className="workbench-section-title">
               <ShieldCheck size={15} />
-              Identity
+              {t("agentFirst.workbench.identity")}
             </span>
             <div className="workbench-lines">
-              <span><strong>Persona</strong><em>{agent.identity.persona}</em></span>
-              <span><strong>Background</strong><em>{agent.identity.background}</em></span>
+              <span><strong>{t("agentFirst.workbench.persona")}</strong><em>{agent.identity.persona}</em></span>
+              <span><strong>{t("agentFirst.workbench.background")}</strong><em>{agent.identity.background}</em></span>
             </div>
           </section>
-          {agent.teamId && <p className="soft-label">Team: {agent.teamId}</p>}
-          {agent.runtimeStatus && <p className="soft-label">Status: {agent.runtimeStatus}</p>}
+          {agent.teamId && <p className="soft-label">{t("agentFirst.workbench.team", { teamId: agent.teamId })}</p>}
+          {agent.runtimeStatus && <p className="soft-label">{t("agentFirst.workbench.status", { status: agent.runtimeStatus })}</p>}
         </>
       )}
       {agent.criticalRules && agent.criticalRules.length > 0 && (
         <section className="workbench-section">
-          <span className="workbench-section-title">⚠ Critical Rules</span>
+          <span className="workbench-section-title">{t("agentFirst.workbench.criticalRules")}</span>
           <div className="workbench-lines">
             {agent.criticalRules.map((rule) => (
               <span key={rule.id}><strong>{rule.severity}</strong><em>{rule.description}</em></span>
@@ -102,7 +110,7 @@ export function AgentDetail({
       <section className="workbench-section">
         <span className="workbench-section-title">
           <Braces size={15} />
-          Instructions
+          {t("agentFirst.workbench.instructions")}
         </span>
         <p>{agent.instructions}</p>
       </section>
@@ -110,7 +118,7 @@ export function AgentDetail({
       <section className="workbench-section">
         <span className="workbench-section-title">
           <Workflow size={15} />
-          Bound skills
+          {t("agentFirst.workbench.boundSkills")}
         </span>
         <div className="agent-skill-list">
           {agent.skills.map((binding) => (
@@ -121,7 +129,11 @@ export function AgentDetail({
               onClick={() => onOpenSkill(binding.skillId)}
             >
               <strong>{skillName(binding.skillId, skills)}</strong>
-              <em>{binding.required ? "required" : "optional"}</em>
+              <em>
+                {binding.required
+                  ? t("agentFirst.workbench.required")
+                  : t("agentFirst.workbench.optional")}
+              </em>
             </button>
           ))}
         </div>
@@ -131,19 +143,23 @@ export function AgentDetail({
         <section className="workbench-section">
           <span className="workbench-section-title">
             <ShieldCheck size={15} />
-            Permissions
+            {t("agentFirst.workbench.permissions")}
           </span>
           <div className="workbench-lines">
             <span>
-              <strong>Approval</strong>
-              <em>{agent.permissions.approvalRequired ? "Required" : "Optional"}</em>
+              <strong>{t("agentFirst.configure.approval")}</strong>
+              <em>
+                {agent.permissions.approvalRequired
+                  ? t("agentFirst.workbench.required")
+                  : t("agentFirst.workbench.optional")}
+              </em>
             </span>
             <span>
-              <strong>Network</strong>
+              <strong>{t("agentFirst.configure.network")}</strong>
               <em>{permissionValue(agent.permissions.canUseNetwork)}</em>
             </span>
             <span>
-              <strong>Database</strong>
+              <strong>{t("agentFirst.nav.data")}</strong>
               <em>{permissionValue(agent.permissions.canWriteDatabase)}</em>
             </span>
           </div>
@@ -152,7 +168,7 @@ export function AgentDetail({
         <section className="workbench-section">
           <span className="workbench-section-title">
             <Route size={15} />
-            Handoffs
+            {t("agentFirst.workbench.handoffs")}
           </span>
           <div className="workbench-lines">
             {agent.handoffs.length > 0 ? (
@@ -164,8 +180,8 @@ export function AgentDetail({
               ))
             ) : (
               <span>
-                <strong>None</strong>
-                <em>Direct run</em>
+                <strong>{t("agentFirst.workbench.none")}</strong>
+                <em>{t("agentFirst.workbench.directRun")}</em>
               </span>
             )}
           </div>

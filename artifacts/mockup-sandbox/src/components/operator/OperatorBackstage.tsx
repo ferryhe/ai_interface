@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import type { TFunction } from "i18next";
 import { Bot, Boxes, Eye, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,24 +42,33 @@ interface OperatorSkillManifest {
   outputSchema: Record<string, unknown>;
 }
 
-function toAgentManifestItems(agents: AgentManifestPreview[]): ManifestViewerItem[] {
+function toAgentManifestItems(
+  agents: AgentManifestPreview[],
+  t: TFunction,
+): ManifestViewerItem[] {
   return agents.map((agent) => ({
     id: agent.agentId,
     name: agent.title ?? agent.name,
     description: agent.description,
     source: agent.source,
-    subtitle: `${agent.skills.length} skills`,
+    subtitle: t("operator.backstage.skillCount", { count: agent.skills.length }),
     manifest: agent,
   }));
 }
 
-function toSkillManifestItems(skills: OperatorSkillManifest[]): ManifestViewerItem[] {
+function toSkillManifestItems(
+  skills: OperatorSkillManifest[],
+  t: TFunction,
+): ManifestViewerItem[] {
   return skills.map((skill) => ({
     id: skill.id,
     name: skill.name,
     description: skill.description,
     source: inferSkillSource(skill.project.defaultSiblingPath, skill.project.source),
-    subtitle: `${skill.execution.kind} · ${skill.project.readiness}`,
+    subtitle: t("operator.backstage.skillSubtitle", {
+      kind: skill.execution.kind,
+      readiness: t(`operator.backstage.readiness.${skill.project.readiness}`),
+    }),
     // defaultSiblingPath is intentionally omitted — local paths are redacted in operator view
     manifest: skill,
   }));
@@ -70,8 +81,9 @@ export function OperatorBackstage({
   agents: AgentManifestPreview[];
   skills: OperatorSkillManifest[];
 }) {
-  const agentItems = useMemo(() => toAgentManifestItems(agents), [agents]);
-  const skillItems = useMemo(() => toSkillManifestItems(skills), [skills]);
+  const { t } = useTranslation();
+  const agentItems = useMemo(() => toAgentManifestItems(agents, t), [agents, t]);
+  const skillItems = useMemo(() => toSkillManifestItems(skills, t), [skills, t]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(agentItems[0]?.id ?? null);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(skillItems[0]?.id ?? null);
   const [selectedWorkbenchPath, setSelectedWorkbenchPath] = useState<string | null>(null);
@@ -81,31 +93,43 @@ export function OperatorBackstage({
       <Card className="border-border/60 shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Operator</Badge>
-            <Badge variant="outline">guarded writes</Badge>
-            <Badge variant="outline">governance</Badge>
+            <Badge variant="outline">{t("operator.backstage.badges.operator")}</Badge>
+            <Badge variant="outline">{t("operator.backstage.badges.guardedWrites")}</Badge>
+            <Badge variant="outline">{t("operator.backstage.badges.governance")}</Badge>
           </div>
           <CardTitle className="mt-2 flex items-center gap-2 text-lg">
             <ShieldCheck className="h-5 w-5" />
-            Operator Backstage
+            {t("operator.backstage.title")}
           </CardTitle>
           <CardDescription>
-            Operator can inspect all manifests and workbench governance docs. Built-in/community manifests and workbench docs remain read-only; only custom agent manifests can be edited through the guarded localhost manifest API.
+            {t("operator.backstage.description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
-              <div className="font-medium text-foreground">Agent manifests</div>
-              <div className="mt-1 text-xs text-muted-foreground">Source-labelled review plus guarded custom-only editing with redacted responses.</div>
+              <div className="font-medium text-foreground">
+                {t("operator.backstage.cards.agents.title")}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {t("operator.backstage.cards.agents.description")}
+              </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
-              <div className="font-medium text-foreground">Skill manifests</div>
-              <div className="mt-1 text-xs text-muted-foreground">Built-in / community / custom sources normalized for operator review.</div>
+              <div className="font-medium text-foreground">
+                {t("operator.backstage.cards.skills.title")}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {t("operator.backstage.cards.skills.description")}
+              </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
-              <div className="font-medium text-foreground">Workbench docs</div>
-              <div className="mt-1 text-xs text-muted-foreground">Read-only docs/workbench visibility with workbench source badge.</div>
+              <div className="font-medium text-foreground">
+                {t("operator.backstage.cards.workbench.title")}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {t("operator.backstage.cards.workbench.description")}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -115,22 +139,22 @@ export function OperatorBackstage({
         <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="agents" className="gap-2">
             <Bot className="h-4 w-4" />
-            Agent manifests
+            {t("operator.backstage.tabs.agents")}
           </TabsTrigger>
           <TabsTrigger value="skills" className="gap-2">
             <Boxes className="h-4 w-4" />
-            Skill manifests
+            {t("operator.backstage.tabs.skills")}
           </TabsTrigger>
           <TabsTrigger value="workbench" className="gap-2">
             <Eye className="h-4 w-4" />
-            Workbench docs
+            {t("operator.backstage.tabs.workbench")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
           <ManifestViewer
-            title="Agent manifests"
-            description="Read-only review of registered agent manifests via existing GET /api/agents data. Only custom manifests can be mutated below."
+            title={t("operator.backstage.agentManifests.title")}
+            description={t("operator.backstage.agentManifests.description")}
             items={agentItems}
             selectedId={selectedAgentId}
             onSelect={setSelectedAgentId}
@@ -140,8 +164,8 @@ export function OperatorBackstage({
 
         <TabsContent value="skills">
           <ManifestViewer
-            title="Skill manifests"
-            description="Read-only view of registered skill manifests via existing GET /api/skills data."
+            title={t("operator.backstage.skillManifests.title")}
+            description={t("operator.backstage.skillManifests.description")}
             items={skillItems}
             selectedId={selectedSkillId}
             onSelect={setSelectedSkillId}

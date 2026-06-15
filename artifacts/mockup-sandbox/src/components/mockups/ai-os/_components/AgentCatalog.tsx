@@ -1,4 +1,5 @@
 import { Bot, CheckCircle2, CircleAlert, Play, Workflow } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { workbenchStatusColor } from "../_shared/theme";
 import type {
@@ -40,13 +41,17 @@ export function AgentCatalog({
   onSelectAgent: (agentId: string) => void;
   onTestRun: (agentId: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="agent-catalog-grid">
       {agents.map((agent) => {
         const agentReadiness = readinessForAgent(agent.agentId, readiness);
         const latestRun = latestRunForAgent(agent.agentId, runs);
         const isReady = agentReadiness?.status !== "missing_skills";
-        const statusText = isReady ? "Ready" : "Missing skills";
+        const statusText = isReady
+          ? t("agentFirst.status.readiness.ready")
+          : t("agentFirst.workbench.missingSkills");
         const latestRunStatus = latestRun?.status ?? "queued";
 
         return (
@@ -80,10 +85,12 @@ export function AgentCatalog({
               <span className="agent-catalog-meta">
                 <span>
                   <Workflow size={13} />
-                  {agent.skills.length} skills
+                  {t("agentFirst.workbench.skillCount", {
+                    count: agent.skills.length,
+                  })}
                 </span>
                 <span style={{ color: workbenchStatusColor(latestRunStatus) }}>
-                  {latestRunStatus.replace(/_/g, " ")}
+                  {t(`agentFirst.status.workbenchRun.${latestRunStatus}`)}
                 </span>
               </span>
             </button>
@@ -93,7 +100,7 @@ export function AgentCatalog({
               onClick={() => onTestRun(agent.agentId)}
             >
               <Play size={14} />
-              Test Run
+              {t("agentFirst.actions.testRun")}
             </button>
           </div>
         );

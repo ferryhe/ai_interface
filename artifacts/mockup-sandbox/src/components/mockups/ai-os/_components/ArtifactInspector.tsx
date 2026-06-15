@@ -1,4 +1,5 @@
 import { Archive, Boxes, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { WorkbenchArtifactPipelineGroup } from "../_shared/types";
 
@@ -7,14 +8,18 @@ export function ArtifactInspector({
 }: {
   groups: WorkbenchArtifactPipelineGroup[];
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="artifact-inspector-layout">
       <div className="panel-heading">
         <span>
           <Archive size={16} />
-          Artifacts
+          {t("agentFirst.workbench.artifacts")}
         </span>
-        <span className="soft-label">{groups.length} pipeline groups</span>
+        <span className="soft-label">
+          {t("agentFirst.workbench.pipelineGroupCount", { count: groups.length })}
+        </span>
       </div>
 
       {groups.length > 0 ? (
@@ -25,7 +30,11 @@ export function ArtifactInspector({
                 <strong>{pipeline.title}</strong>
                 <em>{pipeline.pipelineRunId}</em>
               </div>
-              <span>{pipeline.moduleGroups.length} modules</span>
+              <span>
+                {t("agentFirst.workbench.moduleCount", {
+                  count: pipeline.moduleGroups.length,
+                })}
+              </span>
             </div>
 
             <div className="artifact-module-grid">
@@ -56,8 +65,8 @@ export function ArtifactInspector({
       ) : (
         <div className="workbench-empty-state">
           <Archive size={18} />
-          <strong>No artifacts</strong>
-          <em>Empty</em>
+          <strong>{t("agentFirst.workbench.noArtifacts")}</strong>
+          <em>{t("agentFirst.workbench.empty")}</em>
         </div>
       )}
     </div>
