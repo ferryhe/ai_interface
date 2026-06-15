@@ -1,0 +1,26 @@
+# 寿险行业 Agent 模板
+
+本目录包含 4 个寿险行业专用 Agent 模板，展示 Agent Manifest 的九段式定义能力。
+
+## Agent 清单
+
+| Agent ID | 名称 | 角色 | 运行时状态 |
+|---|---|---|---|
+| `pricing_actuary` | 精算定价师 | 费率厘定、准备金评估、利润测试 | template |
+| `life_uw_analyst` | 核保决策师 | 健康风险评估、核保结论 | template |
+| `claims_reviewer` | 理赔审核师 | 理赔合规审核、理算金额 | template |
+| `compliance_auditor` | 合规审计师 | 业务流程合规审计 | template |
+
+## 设计说明
+
+- **runtimeStatus: template** — 这些 Agent 是行业模板，定义专业边界和交付标准，不绑定实际可执行 skill
+- **teamId: insurance** — 统一归属寿险业务团队
+- **九段定义** — 每个 Agent 包含完整的 identity、criticalRules、deliverables、workflow、communicationStyle、successMetrics
+- **目录结构** — 单层 `agents/custom/<name>/agent.yaml`，兼容现有 loader 扫描逻辑
+
+## 使用方式
+
+1. 在 API 中查看 Agent 列表：`GET /api/agents`
+2. 按团队过滤：`GET /api/agents?teamId=insurance`
+3. 按运行时状态过滤：`GET /api/agents?runtimeStatus=template`
+4. 基于模板创建可执行 Agent：修改 `runtimeStatus` 为 `runnable` 并绑定实际 skill
