@@ -22,6 +22,47 @@ export interface AgentHandoff {
   description: string;
 }
 
+// ── Nine-segment optional fields ──
+
+export interface AgentIdentity {
+  persona: string;
+  background: string;
+}
+
+export interface AgentCriticalRule {
+  id: string;
+  description: string;
+  severity: "blocker" | "warning";
+}
+
+export interface AgentDeliverable {
+  name: string;
+  format: string;
+  description: string;
+  successCriteria: string;
+}
+
+export interface AgentWorkflowPhase {
+  name: string;
+  description: string;
+  approvalRequired: boolean;
+  deliverables: string[];
+}
+
+export interface AgentCommunicationStyle {
+  tone: string;
+  outputFormat: string;
+  languagePreference: string;
+}
+
+export interface AgentSuccessMetrics {
+  metric: string;
+  target: string;
+  measurement: string;
+}
+
+export type AgentRuntimeStatus = "runnable" | "template";
+
 export interface AgentManifest {
   agentId: AgentId;
   name: string;
@@ -53,6 +94,16 @@ export interface AgentManifest {
     prompt: string;
     expectedSkillIds: SkillId[];
   }>;
+  // Nine-segment optional fields
+  identity?: AgentIdentity;
+  criticalRules?: AgentCriticalRule[];
+  deliverables?: AgentDeliverable[];
+  workflow?: AgentWorkflowPhase[];
+  communicationStyle?: AgentCommunicationStyle;
+  successMetrics?: AgentSuccessMetrics[];
+  // Team / status
+  teamId?: string;
+  runtimeStatus?: AgentRuntimeStatus;
 }
 
 export interface AgentReadiness {
