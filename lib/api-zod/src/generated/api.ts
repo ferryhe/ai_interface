@@ -253,6 +253,59 @@ export const GetAgentsResponse = zod.object({
           expectedSkillIds: zod.array(zod.string().min(1)),
         }),
       ),
+      identity: zod
+        .object({
+          persona: zod.string(),
+          background: zod.string(),
+        })
+        .optional(),
+      criticalRules: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            description: zod.string(),
+            severity: zod.enum(["blocker", "warning"]),
+          }),
+        )
+        .optional(),
+      deliverables: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            format: zod.string(),
+            description: zod.string(),
+            successCriteria: zod.string(),
+          }),
+        )
+        .optional(),
+      workflow: zod
+        .array(
+          zod.object({
+            name: zod.string(),
+            description: zod.string(),
+            approvalRequired: zod.boolean(),
+            deliverables: zod.array(zod.string()),
+          }),
+        )
+        .optional(),
+      communicationStyle: zod
+        .object({
+          tone: zod.string(),
+          outputFormat: zod.string(),
+          languagePreference: zod.string(),
+        })
+        .optional(),
+      successMetrics: zod
+        .array(
+          zod.object({
+            metric: zod.string(),
+            target: zod.string(),
+            measurement: zod.string(),
+          }),
+        )
+        .optional(),
+      teamId: zod.string().optional(),
+      runtimeStatus: zod.enum(["runnable", "template"]).optional(),
     }),
   ),
   readiness: zod.array(
@@ -261,6 +314,21 @@ export const GetAgentsResponse = zod.object({
       status: zod.enum(["ready", "missing_skills"]),
       missingSkillIds: zod.array(zod.string().min(1)),
       enabledSkillIds: zod.array(zod.string().min(1)),
+    }),
+  ),
+});
+
+/**
+ * @summary List teams with derived agent members
+ */
+export const ListTeamsResponse = zod.object({
+  teams: zod.array(
+    zod.object({
+      teamId: zod.string(),
+      displayName: zod.string(),
+      description: zod.string(),
+      industries: zod.array(zod.string()),
+      memberAgentIds: zod.array(zod.string()),
     }),
   ),
 });
@@ -1228,6 +1296,18 @@ export const GetMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
+          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          evidenceContract: zod
+            .object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            })
+            .optional(),
           dependsOn: zod.array(zod.string()),
           status: zod.enum([
             "pending",
@@ -1249,6 +1329,13 @@ export const GetMissionResponse = zod.object({
       ),
       warnings: zod.array(zod.string()),
       nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod.enum(["full", "sprint", "micro"]),
+          maxAgents: zod.number().optional(),
+          reviewIntensity: zod.enum(["high", "medium", "low"]),
+        })
+        .optional(),
     }),
     createdAt: zod.coerce.date(),
   }),
@@ -1275,6 +1362,18 @@ export const GetMissionResponse = zod.object({
         moduleId: zod.string().min(1).optional(),
         assignedAgentId: zod.string().optional(),
         roleId: zod.string().optional(),
+        role: zod.enum(["executor", "qa_reviewer"]).optional(),
+        evidenceContract: zod
+          .object({
+            requiredArtifacts: zod.array(zod.string()),
+            assertionType: zod.enum([
+              "presence",
+              "json_schema",
+              "content_contains",
+            ]),
+            assertionConfig: zod.record(zod.string(), zod.unknown()),
+          })
+          .optional(),
         dependsOn: zod.array(zod.string()),
         status: zod.enum([
           "pending",
@@ -1296,6 +1395,13 @@ export const GetMissionResponse = zod.object({
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
+    activationProfile: zod
+      .object({
+        level: zod.enum(["full", "sprint", "micro"]),
+        maxAgents: zod.number().optional(),
+        reviewIntensity: zod.enum(["high", "medium", "low"]),
+      })
+      .optional(),
   }),
 });
 
@@ -1380,6 +1486,18 @@ export const ReviseMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
+          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          evidenceContract: zod
+            .object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            })
+            .optional(),
           dependsOn: zod.array(zod.string()),
           status: zod.enum([
             "pending",
@@ -1401,6 +1519,13 @@ export const ReviseMissionResponse = zod.object({
       ),
       warnings: zod.array(zod.string()),
       nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod.enum(["full", "sprint", "micro"]),
+          maxAgents: zod.number().optional(),
+          reviewIntensity: zod.enum(["high", "medium", "low"]),
+        })
+        .optional(),
     }),
     createdAt: zod.coerce.date(),
   }),
@@ -1427,6 +1552,18 @@ export const ReviseMissionResponse = zod.object({
         moduleId: zod.string().min(1).optional(),
         assignedAgentId: zod.string().optional(),
         roleId: zod.string().optional(),
+        role: zod.enum(["executor", "qa_reviewer"]).optional(),
+        evidenceContract: zod
+          .object({
+            requiredArtifacts: zod.array(zod.string()),
+            assertionType: zod.enum([
+              "presence",
+              "json_schema",
+              "content_contains",
+            ]),
+            assertionConfig: zod.record(zod.string(), zod.unknown()),
+          })
+          .optional(),
         dependsOn: zod.array(zod.string()),
         status: zod.enum([
           "pending",
@@ -1448,6 +1585,13 @@ export const ReviseMissionResponse = zod.object({
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
+    activationProfile: zod
+      .object({
+        level: zod.enum(["full", "sprint", "micro"]),
+        maxAgents: zod.number().optional(),
+        reviewIntensity: zod.enum(["high", "medium", "low"]),
+      })
+      .optional(),
   }),
 });
 
@@ -1532,6 +1676,18 @@ export const ApproveMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
+          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          evidenceContract: zod
+            .object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            })
+            .optional(),
           dependsOn: zod.array(zod.string()),
           status: zod.enum([
             "pending",
@@ -1553,6 +1709,13 @@ export const ApproveMissionResponse = zod.object({
       ),
       warnings: zod.array(zod.string()),
       nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod.enum(["full", "sprint", "micro"]),
+          maxAgents: zod.number().optional(),
+          reviewIntensity: zod.enum(["high", "medium", "low"]),
+        })
+        .optional(),
     }),
     createdAt: zod.coerce.date(),
   }),

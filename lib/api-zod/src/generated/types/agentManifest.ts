@@ -5,15 +5,22 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentCriticalRule } from "./agentCriticalRule";
+import type { AgentDeliverable } from "./agentDeliverable";
 import type { AgentHandoff } from "./agentHandoff";
 import type { AgentId } from "./agentId";
+import type { AgentManifestCommunicationStyle } from "./agentManifestCommunicationStyle";
+import type { AgentManifestIdentity } from "./agentManifestIdentity";
 import type { AgentManifestMemory } from "./agentManifestMemory";
 import type { AgentManifestPermissions } from "./agentManifestPermissions";
 import type { AgentManifestPlanner } from "./agentManifestPlanner";
 import type { AgentManifestProvider } from "./agentManifestProvider";
+import type { AgentManifestRuntimeStatus } from "./agentManifestRuntimeStatus";
 import type { AgentManifestTest } from "./agentManifestTest";
 import type { AgentSkillBinding } from "./agentSkillBinding";
 import type { AgentSource } from "./agentSource";
+import type { AgentSuccessMetrics } from "./agentSuccessMetrics";
+import type { AgentWorkflowPhase } from "./agentWorkflowPhase";
 
 export interface AgentManifest {
   agentId: AgentId;
@@ -29,4 +36,12 @@ export interface AgentManifest {
   memory: AgentManifestMemory;
   handoffs: AgentHandoff[];
   tests: AgentManifestTest[];
+  identity?: AgentManifestIdentity;
+  criticalRules?: AgentCriticalRule[];
+  deliverables?: AgentDeliverable[];
+  workflow?: AgentWorkflowPhase[];
+  communicationStyle?: AgentManifestCommunicationStyle;
+  successMetrics?: AgentSuccessMetrics[];
+  teamId?: string;
+  runtimeStatus?: AgentManifestRuntimeStatus;
 }

@@ -80,6 +80,33 @@ export interface MissionStepApproval {
   riskLevel: MissionRiskLevel;
 }
 
+export type MissionPlanStepRole =
+  (typeof MissionPlanStepRole)[keyof typeof MissionPlanStepRole];
+
+export const MissionPlanStepRole = {
+  executor: "executor",
+  qa_reviewer: "qa_reviewer",
+} as const;
+
+export type MissionPlanStepEvidenceContractAssertionType =
+  (typeof MissionPlanStepEvidenceContractAssertionType)[keyof typeof MissionPlanStepEvidenceContractAssertionType];
+
+export const MissionPlanStepEvidenceContractAssertionType = {
+  presence: "presence",
+  json_schema: "json_schema",
+  content_contains: "content_contains",
+} as const;
+
+export interface JsonObject {
+  [key: string]: unknown;
+}
+
+export type MissionPlanStepEvidenceContract = {
+  requiredArtifacts: string[];
+  assertionType: MissionPlanStepEvidenceContractAssertionType;
+  assertionConfig: JsonObject;
+};
+
 export interface MissionPlanStep {
   /** @minLength 1 */
   stepId: string;
@@ -92,10 +119,36 @@ export interface MissionPlanStep {
   moduleId?: string;
   assignedAgentId?: string;
   roleId?: string;
+  role?: MissionPlanStepRole;
+  evidenceContract?: MissionPlanStepEvidenceContract;
   dependsOn: string[];
   status: MissionStepStatus;
   approval?: MissionStepApproval;
 }
+
+export type MissionPlanActivationProfileLevel =
+  (typeof MissionPlanActivationProfileLevel)[keyof typeof MissionPlanActivationProfileLevel];
+
+export const MissionPlanActivationProfileLevel = {
+  full: "full",
+  sprint: "sprint",
+  micro: "micro",
+} as const;
+
+export type MissionPlanActivationProfileReviewIntensity =
+  (typeof MissionPlanActivationProfileReviewIntensity)[keyof typeof MissionPlanActivationProfileReviewIntensity];
+
+export const MissionPlanActivationProfileReviewIntensity = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export type MissionPlanActivationProfile = {
+  level: MissionPlanActivationProfileLevel;
+  maxAgents?: number;
+  reviewIntensity: MissionPlanActivationProfileReviewIntensity;
+};
 
 export interface MissionPlan {
   /** @minLength 1 */
@@ -111,6 +164,7 @@ export interface MissionPlan {
   steps: MissionPlanStep[];
   warnings: string[];
   nonGoals: string[];
+  activationProfile?: MissionPlanActivationProfile;
 }
 
 export interface MissionRecord {
@@ -219,10 +273,6 @@ export interface ExecuteMissionResult {
   thread: null;
   moduleRuns: unknown[];
   executionReadiness: MissionExecutionReadiness;
-}
-
-export interface JsonObject {
-  [key: string]: unknown;
 }
 
 export type ActuarialPipelineRunStatus =
@@ -757,6 +807,40 @@ export interface AgentManifestTest {
   expectedSkillIds: SkillId[];
 }
 
+export type AgentCriticalRuleSeverity =
+  (typeof AgentCriticalRuleSeverity)[keyof typeof AgentCriticalRuleSeverity];
+
+export const AgentCriticalRuleSeverity = {
+  blocker: "blocker",
+  warning: "warning",
+} as const;
+
+export interface AgentCriticalRule {
+  id: string;
+  description: string;
+  severity: AgentCriticalRuleSeverity;
+}
+
+export interface AgentDeliverable {
+  name: string;
+  format: string;
+  description: string;
+  successCriteria: string;
+}
+
+export interface AgentWorkflowPhase {
+  name: string;
+  description: string;
+  approvalRequired: boolean;
+  deliverables: string[];
+}
+
+export interface AgentSuccessMetrics {
+  metric: string;
+  target: string;
+  measurement: string;
+}
+
 export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
 
 export const AgentProvider = {
@@ -814,6 +898,25 @@ export type AgentManifestMemory = {
   promotionMode: AgentMemoryPromotionMode;
 };
 
+export type AgentManifestIdentity = {
+  persona: string;
+  background: string;
+};
+
+export type AgentManifestCommunicationStyle = {
+  tone: string;
+  outputFormat: string;
+  languagePreference: string;
+};
+
+export type AgentManifestRuntimeStatus =
+  (typeof AgentManifestRuntimeStatus)[keyof typeof AgentManifestRuntimeStatus];
+
+export const AgentManifestRuntimeStatus = {
+  runnable: "runnable",
+  template: "template",
+} as const;
+
 export interface AgentManifest {
   agentId: AgentId;
   name: string;
@@ -828,6 +931,14 @@ export interface AgentManifest {
   memory: AgentManifestMemory;
   handoffs: AgentHandoff[];
   tests: AgentManifestTest[];
+  identity?: AgentManifestIdentity;
+  criticalRules?: AgentCriticalRule[];
+  deliverables?: AgentDeliverable[];
+  workflow?: AgentWorkflowPhase[];
+  communicationStyle?: AgentManifestCommunicationStyle;
+  successMetrics?: AgentSuccessMetrics[];
+  teamId?: string;
+  runtimeStatus?: AgentManifestRuntimeStatus;
 }
 
 export type AgentReadinessStatus =
@@ -848,6 +959,18 @@ export interface AgentReadiness {
 export interface AgentListResponse {
   agents: AgentManifest[];
   readiness: AgentReadiness[];
+}
+
+export interface TeamDefinition {
+  teamId: string;
+  displayName: string;
+  description: string;
+  industries: string[];
+  memberAgentIds: string[];
+}
+
+export interface TeamListResponse {
+  teams: TeamDefinition[];
 }
 
 export type AgentMcpToolInputSchemaPropertiesMessage = {

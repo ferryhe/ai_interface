@@ -31,6 +31,12 @@ function cloneAgentManifest(manifest: AgentManifest): AgentManifest {
       ...test,
       expectedSkillIds: [...test.expectedSkillIds],
     })),
+    identity: manifest.identity ? { ...manifest.identity } : undefined,
+    criticalRules: manifest.criticalRules ? manifest.criticalRules.map((r) => ({ ...r })) : undefined,
+    deliverables: manifest.deliverables ? manifest.deliverables.map((d) => ({ ...d })) : undefined,
+    workflow: manifest.workflow ? manifest.workflow.map((w) => ({ ...w, deliverables: [...w.deliverables] })) : undefined,
+    communicationStyle: manifest.communicationStyle ? { ...manifest.communicationStyle } : undefined,
+    successMetrics: manifest.successMetrics ? manifest.successMetrics.map((m) => ({ ...m })) : undefined,
   };
 }
 
