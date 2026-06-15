@@ -2489,6 +2489,69 @@ components:
         - name
         - prompt
         - expectedSkillIds
+    AgentCriticalRule:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum:
+            - blocker
+            - warning
+      required:
+        - id
+        - description
+        - severity
+    AgentDeliverable:
+      type: object
+      properties:
+        name:
+          type: string
+        format:
+          type: string
+        description:
+          type: string
+        successCriteria:
+          type: string
+      required:
+        - name
+        - format
+        - description
+        - successCriteria
+    AgentWorkflowPhase:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        approvalRequired:
+          type: boolean
+        deliverables:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - description
+        - approvalRequired
+        - deliverables
+    AgentSuccessMetrics:
+      type: object
+      properties:
+        metric:
+          type: string
+        target:
+          type: string
+        measurement:
+          type: string
+      required:
+        - metric
+        - target
+        - measurement
     AgentManifest:
       type: object
       properties:
@@ -2555,6 +2618,52 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AgentManifestTest"
+        identity:
+          type: object
+          properties:
+            persona:
+              type: string
+            background:
+              type: string
+          required:
+            - persona
+            - background
+        criticalRules:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentCriticalRule"
+        deliverables:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentDeliverable"
+        workflow:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentWorkflowPhase"
+        communicationStyle:
+          type: object
+          properties:
+            tone:
+              type: string
+            outputFormat:
+              type: string
+            languagePreference:
+              type: string
+          required:
+            - tone
+            - outputFormat
+            - languagePreference
+        successMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSuccessMetrics"
+        teamId:
+          type: string
+        runtimeStatus:
+          type: string
+          enum:
+            - runnable
+            - template
       required:
         - agentId
         - name
