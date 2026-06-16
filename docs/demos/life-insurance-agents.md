@@ -2,6 +2,8 @@
 
 本目录包含 4 个寿险行业专用 Agent 模板，展示 Agent Manifest 的九段式定义能力。
 
+完整中英文案例说明见 [`life-insurance-case.md`](life-insurance-case.md)。该案例说明了当前模板与可运行寿险业务方案之间的区别：真实配置需要 Agent + Skill/Tool + Workflow + Approval + Data Contract。
+
 ## Agent 清单
 
 | Agent ID | 名称 | 角色 | 运行时状态 |

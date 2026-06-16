@@ -4,7 +4,8 @@
 
 - [`../README.md`](../README.md) — English: complete Mission Control overview, API/runtime summary, agent manifest, teams, QA gate, and verification.
 - [`../README_zh.md`](../README_zh.md) — 中文版项目说明。
-- `userguide.md` — 中文用户操作指南，覆盖前台、后台、Skill demo 和寿险 Agent 模板。
+- [`userguide.md`](userguide.md) — English user guide for Mission Center, Portal, Backstage, Skills, and demos.
+- [`userguide.zh.md`](userguide.zh.md) — 中文用户操作指南，覆盖前台、后台、Skill demo 和寿险 Agent 模板。
 - `project-overview.html` — Browser-friendly project introduction and usage guide.
 
 ## Contracts & Fixtures
@@ -15,3 +16,4 @@
 
 - `demos/knowledge-builder-mission.md` — Knowledge Builder mission walkthrough.
 - `demos/life-insurance-agents.md` — Life insurance template agents overview.
+- `demos/life-insurance-case.md` — Bilingual life-insurance case explanation covering Agent + Skill/Tool + Workflow configuration.

@@ -745,7 +745,7 @@ const INITIAL_SHELL_HISTORY: ShellHistoryEntry[] = [
   { prompt: true, text: "ls -la" },
   { prompt: false, text: "total 32\ndrwxr-xr-x  5 runner runner 4096 May  3 10:00 .\ndrwxr-xr-x 15 runner runner 4096 May  3 09:55 ..\n-rw-r--r--  1 runner runner  234 May  3 10:00 .env\n-rw-r--r--  1 runner runner 1204 May  3 09:58 package.json\ndrwxr-xr-x  3 runner runner 4096 May  3 09:57 src" },
   { prompt: true, text: "cat .env" },
-  { prompt: false, text: "PORT=3000\nJWT_SECRET=super_secret_key\nREFRESH_SECRET=refresh_key\nDB_URL=postgresql://localhost:5432/mydb" },
+  { prompt: false, text: "PORT=3001\nJWT_SECRET=REDACTED_FOR_DEMO\nREFRESH_SECRET=REDACTED_FOR_DEMO\nDB_URL=postgresql://localhost:5432/demo_db" },
 ];
 
 function ShellPanel() {
@@ -1136,10 +1136,10 @@ function PackagesPanel() {
 }
 
 const INITIAL_SECRETS = [
-  { key: "JWT_SECRET", value: "super_secret_key_xyz", revealed: false },
-  { key: "REFRESH_SECRET", value: "refresh_key_abc_123", revealed: false },
-  { key: "DB_URL", value: "postgresql://localhost:5432/mydb", revealed: false },
-  { key: "PORT", value: "3000", revealed: true },
+  { key: "JWT_SECRET", value: "REDACTED_FOR_DEMO", revealed: false },
+  { key: "REFRESH_SECRET", value: "REDACTED_FOR_DEMO", revealed: false },
+  { key: "DB_URL", value: "postgresql://localhost:5432/demo_db", revealed: false },
+  { key: "PORT", value: "3001", revealed: true },
   { key: "NODE_ENV", value: "development", revealed: true },
 ];
 
@@ -1238,7 +1238,7 @@ function DatabasePanel() {
         ))}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "#3fb950", gap: 4 }}>
-          <span>●</span> postgresql://localhost:5432/mydb
+          <span>●</span> postgresql://localhost:5432/demo_db
         </div>
       </div>
 

@@ -48,7 +48,7 @@ The demo fixture lives at [`docs/contracts/fixtures/knowledge-builder-mission.js
 Submit a mission request to the API:
 
 ```bash
-curl -X POST http://127.0.0.1:3000/api/missions \
+curl -X POST http://127.0.0.1:3001/api/missions \
   -H 'Content-Type: application/json' \
   -d '{
     "message": "把我批准的网页和文档资料做成一个可问答的知识库 Agent。",
