@@ -4,11 +4,20 @@ export function createLazyRepository<TRepository extends object>(
   loadRepository: () => Promise<TRepository>,
 ): TRepository {
   let repository: TRepository | null = null;
+  let repositoryPromise: Promise<TRepository> | null = null;
 
   async function getRepository(): Promise<TRepository> {
     if (repository) return repository;
-    repository = await loadRepository();
-    return repository;
+    repositoryPromise ??= loadRepository()
+      .then((instance) => {
+        repository = instance;
+        return instance;
+      })
+      .catch((error: unknown) => {
+        repositoryPromise = null;
+        throw error;
+      });
+    return repositoryPromise;
   }
 
   return new Proxy({} as TRepository, {

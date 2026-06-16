@@ -4,6 +4,10 @@ This document explains how the life-insurance templates should be interpreted an
 
 本文说明当前寿险 Agent 模板的定位，以及要把它们变成可运行寿险业务方案还缺什么。
 
+Detailed runnable workflow requirements: [`../requirements/life-insurance-runnable-workflow.md`](../requirements/life-insurance-runnable-workflow.md)
+
+详细可运行 workflow 需求：[`../requirements/life-insurance-runnable-workflow.md`](../requirements/life-insurance-runnable-workflow.md)
+
 ## English
 
 ### Current State

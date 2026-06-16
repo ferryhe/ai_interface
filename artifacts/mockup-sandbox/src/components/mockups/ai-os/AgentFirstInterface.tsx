@@ -1358,10 +1358,15 @@ function previewUrl(componentPath: string, search = ""): string {
   return `${basePath}/preview/${componentPath}${search}`;
 }
 
-const PORTAL_DEMO_PREVIEW_URL = previewUrl(
-  "ai-os/AgentPortalInterface",
-  "?token=portal-demo-token",
-);
+const PORTAL_DEMO_TOKEN = "portal-demo-token";
+
+function portalPreviewUrl(token: string): string {
+  const trimmed = token.trim();
+  const search = trimmed
+    ? `?token=${encodeURIComponent(trimmed)}`
+    : `?token=${encodeURIComponent(PORTAL_DEMO_TOKEN)}`;
+  return previewUrl("ai-os/AgentPortalInterface", search);
+}
 
 function agentFirstMessage(
   key: string,
@@ -2514,6 +2519,8 @@ export function AgentFirstInterface() {
     ...defaultPublishSettings,
   }));
   const [publishTokenDraft, setPublishTokenDraft] = useState("");
+  const [publishPreviewToken, setPublishPreviewToken] =
+    useState(PORTAL_DEMO_TOKEN);
   const [publishSaveState, setPublishSaveState] =
     useState<PublishSaveState>("local");
   const [publishStatusMessage, setPublishStatusMessage] = useState(
@@ -2954,6 +2961,9 @@ export function AgentFirstInterface() {
       setAgentConfig(toConfigDraft(data.config));
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
+      if (token) {
+        setPublishPreviewToken(token);
+      }
       setPublishTokenDraft("");
       setPublishSaveState("saved");
       setPublishStatusMessage(
@@ -3364,7 +3374,13 @@ export function AgentFirstInterface() {
               className="topbar-mode-switch portal-mode-switch"
               aria-label={t("topbar.viewPortal")}
               title={t("topbar.viewPortal")}
-              onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
+              onClick={() =>
+                window.location.assign(
+                  portalPreviewUrl(
+                    publishTokenDraft.trim() || publishPreviewToken,
+                  ),
+                )
+              }
             >
               <UploadCloud size={14} />
               {t("topbar.viewPortal")}
@@ -3507,6 +3523,7 @@ export function AgentFirstInterface() {
             <PublishView
               publishSettings={publishSettings}
               publishTokenDraft={publishTokenDraft}
+              publishPreviewToken={publishPreviewToken}
               publishSaveState={publishSaveState}
               publishStatusText={publishStatusText}
               onUpdateVersionLabel={updatePublishVersionLabel}
@@ -5589,6 +5606,7 @@ function publishSaveStateLabel(state: PublishSaveState, t: TFunction): string {
 function PublishView({
   publishSettings,
   publishTokenDraft,
+  publishPreviewToken,
   publishSaveState,
   publishStatusText,
   onUpdateVersionLabel,
@@ -5597,6 +5615,7 @@ function PublishView({
 }: {
   publishSettings: PublishSettingsApi;
   publishTokenDraft: string;
+  publishPreviewToken: string;
   publishSaveState: PublishSaveState;
   publishStatusText: string;
   onUpdateVersionLabel: (versionLabel: string) => void;
@@ -5605,6 +5624,12 @@ function PublishView({
 }) {
   const { t } = useTranslation();
   const isSaving = publishSaveState === "saving";
+  const previewToken =
+    publishTokenDraft.trim() || publishPreviewToken.trim() || PORTAL_DEMO_TOKEN;
+  const previewTokenLabel = publishTokenDraft.trim()
+    ? publishTokenDraft.trim()
+    : publishPreviewToken.trim() || PORTAL_DEMO_TOKEN;
+  const currentPortalPreviewUrl = portalPreviewUrl(previewToken);
 
   return (
     <section className="page-panel">
@@ -5616,7 +5641,7 @@ function PublishView({
         <button
           type="button"
           className="primary-action"
-          onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
+          onClick={() => window.location.assign(currentPortalPreviewUrl)}
         >
           <UploadCloud size={15} />
           {t("agentFirst.publish.openPortalPreview")}
@@ -5730,10 +5755,10 @@ function PublishView({
           <h2>{t("agentFirst.publish.portalAccessTitle")}</h2>
           <p>{t("agentFirst.publish.portalAccessDescription")}</p>
           <div className="publish-token-row">
-            <code>portal-demo-token</code>
+            <code>{previewTokenLabel}</code>
             <button
               type="button"
-              onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
+              onClick={() => window.location.assign(currentPortalPreviewUrl)}
             >
               {t("agentFirst.publish.viewAsUser")}
             </button>

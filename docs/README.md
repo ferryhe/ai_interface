@@ -17,3 +17,8 @@
 - `demos/knowledge-builder-mission.md` — Knowledge Builder mission walkthrough.
 - `demos/life-insurance-agents.md` — Life insurance template agents overview.
 - `demos/life-insurance-case.md` — Bilingual life-insurance case explanation covering Agent + Skill/Tool + Workflow configuration.
+
+## E2E & Requirements
+
+- `e2e/2026-06-16-agent-config-frontstage-run.md` — Bilingual record of the backend configuration and frontstage Portal run E2E.
+- `requirements/life-insurance-runnable-workflow.md` — Bilingual requirements for turning the life-insurance templates into runnable Agent + Skill/Tool + Workflow configurations.
