@@ -77,13 +77,15 @@ export function createAgentConfigRouter(
   return router;
 }
 
+async function loadDbAgentConfigRepository(): Promise<AgentConfigRepository> {
+  const { DbAgentConfigRepository } = await import(
+    "../agent-config/db-repository"
+  );
+  return new DbAgentConfigRepository();
+}
+
 const router = createAgentConfigRouter(
-  createLazyRepository<AgentConfigRepository>(async () => {
-    const { DbAgentConfigRepository } = await import(
-      "../agent-config/db-repository"
-    );
-    return new DbAgentConfigRepository();
-  }),
+  createLazyRepository(loadDbAgentConfigRepository),
 );
 
 export default router;
