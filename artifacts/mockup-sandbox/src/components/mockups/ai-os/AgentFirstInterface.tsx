@@ -3165,10 +3165,10 @@ export function AgentFirstInterface() {
                 {t("agentFirst.workspace.operator")}
               </button>
             </div>
-            <LanguageSwitcher className="topbar-mode-switch" variant="ghost" />
+            <LanguageSwitcher className="topbar-mode-switch language-mode-switch" variant="ghost" />
             <button
               type="button"
-              className="topbar-mode-switch"
+              className="topbar-mode-switch portal-mode-switch"
               onClick={() =>
                 window.location.assign(
                   previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"),
@@ -8675,14 +8675,42 @@ const styles = `
 
     .topbar {
       padding: 0 12px;
+      overflow: visible;
+    }
+
+    .topbar-title {
+      display: none;
     }
 
     .topbar-actions {
       display: flex;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .workspace-switch {
+      flex: 1 1 auto;
+      max-width: calc(100vw - 112px);
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .workspace-switch::-webkit-scrollbar {
+      display: none;
     }
 
     .workspace-switch button {
+      flex: 0 0 auto;
       padding: 0 8px;
+    }
+
+    .language-mode-switch {
+      flex: 0 0 auto;
+    }
+
+    .portal-mode-switch {
+      display: none;
     }
 
     .topbar-actions .topbar-pill {
