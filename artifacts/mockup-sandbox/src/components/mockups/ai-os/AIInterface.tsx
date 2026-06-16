@@ -2986,7 +2986,7 @@ export function AIInterface() {
             position: fixed;
             top: 54px;
             right: 8px;
-            z-index: 2000;
+            z-index: 90;
             background: #161b22 !important;
             box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
           }
