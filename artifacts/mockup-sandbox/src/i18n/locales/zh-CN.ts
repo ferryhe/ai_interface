@@ -1422,6 +1422,973 @@ export const zhCN = {
           },
         },
       },
+      monolith: {
+        common: {
+          user: "用户",
+          you: "你",
+        },
+        topbar: {
+          userHandle: "@你",
+          searchCommands: "搜索文件和命令...",
+          checkpointsTitle: "12 个检查点 - 点击查看历史",
+          checkpoints: "检查点",
+          cyclesTitle: "1,247 cycles 可用 - 点击充值",
+          previewOnPhone: "在手机上预览",
+          fork: "Fork",
+          share: "分享",
+          collaborator: "用户 {{initial}}",
+          run: "运行",
+          stop: "停止",
+          panels: "面板",
+          taskChips: {
+            restApi: "构建带认证的 REST API",
+            reactDashboard: "创建 React 仪表盘",
+            postgresDatabase: "设置 PostgreSQL 数据库",
+            deployProduction: "部署到生产环境",
+            unitTests: "编写单元测试",
+            darkMode: "添加深色模式",
+          },
+        },
+        replSwitcher: {
+          searchPlaceholder: "搜索 Repls 和模板...",
+          tabs: {
+            recent: "最近",
+            templates: "模板",
+          },
+          recentTitle: "最近",
+          featuredTitle: "精选",
+          newRepl: "+ 新建 Repl",
+          importGitHub: "从 GitHub 导入",
+          recent: {
+            restApi: { desc: "带 JWT 认证的 REST API", time: "现在" },
+            dashboard: { desc: "带图表的管理仪表盘", time: "2 小时前" },
+            discord: { desc: "Slash command bot", time: "昨天" },
+            stripe: { desc: "Webhook receiver + replay", time: "3 天前" },
+            classifier: { desc: "scikit-learn pipeline", time: "1 周前" },
+          },
+          templates: {
+            next: {
+              name: "Next.js + Postgres",
+              desc: "带 Drizzle 的全栈 starter",
+            },
+            fastapi: {
+              name: "FastAPI + React",
+              desc: "Python 后端 + Vite 前端",
+            },
+            discord: {
+              name: "Discord Bot (TS)",
+              desc: "Slash commands + Drizzle",
+            },
+            telegram: {
+              name: "Telegram Mini App",
+              desc: "Vue 3 + WebApp SDK",
+            },
+            agent: {
+              name: "AI Agent (LangChain)",
+              desc: "工具、记忆、流式输出",
+            },
+            stripe: {
+              name: "Stripe Checkout",
+              desc: "订阅 + webhooks",
+            },
+            blog: {
+              name: "Static blog (Astro)",
+              desc: "Markdown + RSS + sitemap",
+            },
+          },
+        },
+        panels: {
+          names: {
+            console: "控制台",
+            shell: "Shell",
+            webview: "Webview",
+            git: "Git",
+            packages: "包",
+            secrets: "密钥",
+            database: "数据库",
+            search: "搜索",
+            debugger: "调试器",
+            deploy: "部署",
+          },
+          togglePanels: "切换面板：",
+          console: {
+            fixErrorTitle: "让 Agent 修复此错误",
+            fixWithAgent: "用 Agent 修复",
+            runCommand: "运行命令...",
+          },
+          shell: {
+            welcome: "欢迎使用 Shell。请在下方输入命令。",
+          },
+          webview: {
+            open: "打开",
+            loading: "加载中...",
+            serverRunning: "服务器运行中",
+          },
+          git: {
+            tabs: {
+              changes: "变更",
+              log: "日志",
+              diff: "Diff",
+              branches: "分支",
+            },
+            changedFiles: "已变更文件（{{count}}）",
+            commitMessage: "提交信息",
+            staged: "{{count}} 个已暂存",
+            commitPlaceholder: "描述你的变更...",
+            committed: "✓ 已提交！",
+            commitFiles: "提交 {{count}} 个文件",
+            current: "当前",
+            newBranch: "+ 新建分支",
+            branches: {
+              mainUpdated: "2 小时前",
+              rateLimitingUpdated: "昨天",
+              refreshTokensUpdated: "3 天前",
+            },
+            log: {
+              0: { message: "添加认证中间件", time: "2 小时前" },
+              1: { message: "设置 Express 服务器", time: "4 小时前" },
+              2: { message: "添加限流", time: "昨天" },
+              3: { message: "初始化项目", time: "2 天前" },
+            },
+          },
+          packages: {
+            searchPlaceholder: "搜索包...",
+            addPlaceholder: "添加包...",
+            install: "+ 安装",
+            installing: "正在安装 {{packageName}}...",
+            headers: {
+              package: "包",
+              version: "版本",
+              type: "类型",
+              size: "大小",
+            },
+            new: "新",
+          },
+          secrets: {
+            keyPlaceholder: "KEY",
+            valuePlaceholder: "值",
+            add: "+ 添加",
+            reveal: "显示密钥",
+            hide: "隐藏密钥",
+            copy: "复制密钥名称",
+            remove: "移除密钥",
+          },
+          database: {
+            tabs: {
+              query: "查询",
+              tables: "表",
+            },
+            zeroRows: "查询已执行 - 返回 0 行",
+            oneRowAffected: "影响 1 行",
+            syntaxError: "ERROR: syntax error at or near \"{{token}}\"",
+            running: "⟳ 运行中...",
+            run: "▶ 运行 (⌘↵)",
+            shortcut: "Ctrl+Enter 运行",
+            runEmpty: "运行查询以查看结果",
+            rows: "{{count}} 行",
+          },
+          search: {
+            searchPlaceholder: "在文件中搜索... (Enter)",
+            caseSensitive: "区分大小写",
+            regex: "正则",
+            toggleReplace: "切换替换",
+            replacePlaceholder: "替换为...",
+            replace: "替换",
+            replaceAll: "全部替换",
+            searching: "搜索中...",
+            noResults: "未找到“{{query}}”",
+            empty: "输入内容以搜索所有文件",
+            results: "{{count}} 个结果",
+          },
+          debugger: {
+            controls: {
+              continue: "继续",
+              pause: "暂停",
+              stepOver: "单步跳过",
+              stepInto: "单步进入",
+              stepOut: "单步跳出",
+              restart: "重启",
+              stop: "停止",
+            },
+            pausedAt: "暂停于 {{location}}",
+            running: "运行中",
+            tabs: {
+              vars: "变量",
+              stack: "调用栈",
+              breakpoints: "断点",
+            },
+            condition: "if: {{condition}}",
+            addBreakpoint: "+ 添加断点",
+          },
+          deploy: {
+            tabs: {
+              overview: "概览",
+              logs: "日志",
+              settings: "设置",
+            },
+            production: "生产环境",
+            deployedAgo: "2 小时前已部署",
+            labels: {
+              url: "URL",
+              region: "区域",
+              instance: "实例",
+              uptime: "可用性",
+            },
+            values: {
+              region: "美国东部（Virginia）",
+            },
+            traffic: "流量（最近 24 小时）",
+            deploying: "⟳ 部署中...",
+            deploy: "↑ 部署",
+            rollback: "回滚",
+            logs: {
+              buildComplete: "✓ 构建已在 3.2s 内完成",
+              testsPassed: "✓ 测试通过 (47/47)",
+              imagePushed: "✓ Docker image 已推送",
+              successful: "✓ 部署成功",
+              building: "⟳ 构建中...",
+              installing: "✓ 正在安装依赖",
+              runningTests: "✓ 正在运行测试",
+              buildingImage: "✓ 正在构建 Docker image",
+              pushing: "✓ 正在推送到 registry",
+              updating: "✓ 正在更新部署",
+              healthPassed: "✓ 健康检查通过 - 已上线！",
+            },
+            settings: {
+              autoDeploy: "push 时自动部署",
+              runTests: "部署前运行测试",
+              rollback: "失败时回滚",
+              alwaysOn: "Always-on（防止休眠）",
+            },
+          },
+        },
+        account: {
+          signOut: "退出登录",
+          nav: {
+            profile: "个人资料",
+            settings: "设置",
+            billing: "计费",
+            aiApis: "AI APIs",
+            apiKeys: "API Keys",
+            agentConfig: "Agent 配置",
+          },
+          aiApis: {
+            title: "AI 模型 API",
+            description:
+              "连接 API keys 以启用模型。已连接 {{providers}} 个 provider · 已启用 {{models}} 个模型。",
+            activeLabel: "当前：",
+            searchPlaceholder: "搜索模型或 provider...",
+            connected: "已连接",
+            activeCount: "{{count}} 个已启用",
+            modelCount: "{{count}} 个模型",
+            remove: "移除",
+            connect: "+ 连接",
+            enterKey: "输入 {{provider}} API key 以解锁全部 {{count}} 个模型。",
+            localOnly: "Keys 只会保存在本地，不会共享。",
+            keyPlaceholder: "粘贴你的 {{provider}} API key...",
+            saving: "保存中...",
+            saved: "✓ 已保存！",
+            saveKey: "保存 Key",
+            featured: "精选",
+            context: "ctx {{context}}",
+            active: "当前",
+            setActive: "设为当前",
+            on: "✓ 开",
+            off: "关",
+            requiresKey: "需要 API key",
+          },
+          profile: {
+            title: "个人资料",
+            memberSince: "2024 年 1 月加入",
+            displayName: "显示名称",
+            email: "邮箱",
+            username: "用户名",
+            saveChanges: "保存变更",
+          },
+          settings: {
+            title: "设置",
+            darkMode: "深色模式",
+            darkModeDesc: "整个界面使用深色主题",
+            usageData: "发送匿名使用数据",
+            usageDataDesc: "帮助改进产品",
+            autoSave: "自动保存文件",
+            autoSaveDesc: "文件变更时自动保存",
+            inlineAi: "显示内联 AI 建议",
+            inlineAiDesc: "在编辑器中显示模型建议",
+          },
+          billing: {
+            title: "计费",
+            proPlan: "Pro 计划",
+            renewal: "$20 / 月 · 2026 年 6 月 3 日续费",
+            active: "有效",
+            usageThisMonth: "本月用量",
+            aiTokens: "AI tokens",
+            storage: "存储",
+            deployments: "部署",
+          },
+          apiKeys: {
+            title: "API Keys",
+            description: "使用这些 keys 以编程方式访问 AI OS。",
+            generate: "+ 生成新 key",
+            productionKey: "生产 key",
+            devKey: "开发 key",
+            createdProd: "2024 年 1 月 15 日",
+            createdDev: "2024 年 2 月 8 日",
+            lastProd: "2 小时前",
+            lastDev: "昨天",
+            keyMeta: "创建于 {{created}} · 上次使用 {{last}}",
+            revoke: "撤销",
+          },
+        },
+        agentConfig: {
+          title: "Agent = Package",
+          description:
+            "Agent 不只是 prompt，而是一个软件包：包含编排循环、工具注册、记忆管理和错误处理。LLM API 只是其中一层。请选择适合技术栈的框架包。",
+          architecture: {
+            title: "Agent 架构栈",
+            taskInput: {
+              label: "任务输入",
+              sub: "user prompt + context + history",
+            },
+            framework: {
+              label: "Agent 框架",
+              sub: "{{packageName}} - 编排循环、记忆、工具",
+            },
+            protocol: { label: "工具调用协议" },
+            provider: { label: "LLM Provider API" },
+            executor: { label: "工具执行器" },
+          },
+          selectedPackage: "已选择：{{packageName}}",
+          frameworkPackages: "框架包",
+          default: "默认",
+          completeImplementation: "完整 Agent 实现",
+          packageLayers: "包层级",
+          npmPackages: "npm packages",
+          capabilities: "能力",
+          setDefault: "★ 设为默认框架",
+          defaultFramework: "默认框架",
+          perTaskConfiguration: "按任务配置",
+          frameworkPackage: "框架包",
+          model: "模型",
+        },
+        chat: {
+          messages: {
+            userBuildAuth: "使用 Express 和 JWT 构建带认证的 REST API",
+            agentBuildAuth:
+              "我会构建一个完整的 JWT 认证 REST API。先来设置项目结构。",
+            userAddRateLimiting: "同时添加限流和 refresh tokens",
+          },
+          steps: {
+            setupExpress: "设置 Express 服务器",
+            installDependencies: "安装依赖",
+            createMiddleware: "创建认证中间件",
+            writeRoutes: "编写路由处理器",
+          },
+          composer: {
+            placeholder: {
+              plan: "描述需要规划的内容...",
+              power: "下一步要我构建什么？",
+            },
+            attachFile: "附加文件",
+            planModeTitle: "计划模式 - Agent 会先提出计划再行动",
+            plan: "计划",
+            voiceInput: "语音输入",
+            send: "发送",
+            sendPlan: "发送（计划模式）",
+            planHint: "计划模式：Agent 会提出逐步计划，并在执行前等待批准。",
+            shortcut: "⏎ 发送 · ⇧⏎ 换行",
+          },
+          tiers: {
+            power: {
+              name: "Power",
+              description: "最智能，完整 agentic loop",
+              hint: "最高质量 · ~$0.04/任务",
+            },
+            lite: {
+              name: "Lite",
+              description: "更快，成本更低",
+              hint: "均衡 · ~$0.008/任务",
+            },
+            eco: {
+              name: "Eco",
+              description: "最便宜，适合基础任务",
+              hint: "最低成本 · ~$0.001/任务",
+            },
+          },
+        },
+        commandPalette: {
+          placeholder: "输入命令或搜索文件...",
+          groups: {
+            files: "文件",
+            commands: "命令",
+            agent: "Agent",
+            settings: "设置",
+          },
+          items: {
+            runProject: "运行项目",
+            stopProject: "停止项目",
+            openShell: "打开 Shell",
+            formatFile: "格式化文件",
+            toggleTerminal: "切换终端",
+            restartLanguageServer: "重启 language server",
+            findInFiles: "在文件中查找",
+            gitCommitAll: "Git: commit all",
+            newChat: "新对话",
+            togglePlanMode: "计划模式：切换",
+            switchPower: "切换到 Power 档",
+            switchLite: "切换到 Lite 档",
+            openAgentSettings: "打开 Agent 设置",
+            openSettings: "打开设置",
+            switchTheme: "切换主题",
+            keyboardShortcuts: "键盘快捷键",
+            accountBilling: "账户与计费",
+          },
+          noResults: "未找到“{{query}}”",
+          navigate: "导航",
+          open: "打开",
+          close: "关闭",
+          results: "{{count}} 个结果",
+        },
+        overlays: {
+          qr: {
+            title: "在手机上预览",
+            scanLine1: "用手机摄像头扫描",
+            scanLine2: "或在 Replit Mobile app 中打开",
+          },
+        },
+        notifications: {
+          title: "通知",
+          routeHandlers: "Agent 已完成路由处理器编写",
+          packageUpdate: "express@4.19.2 可用（更新）",
+          branchPushed: "main 分支已推送 - 领先 3 个 commits",
+          twoMinutesAgo: "2 分钟前",
+          fifteenMinutesAgo: "15 分钟前",
+          oneHourAgo: "1 小时前",
+        },
+        files: {
+          title: "文件",
+          newFile: "新建文件",
+          newFolder: "新建文件夹",
+          collapseAll: "全部折叠",
+        },
+        sidebar: {
+          agent: "Agent",
+          outline: "大纲",
+          threads: "线程",
+          storage: "存储",
+          bounties: "悬赏",
+        },
+        rail: {
+          files: "文件",
+          sourceControl: "源代码管理",
+        },
+        editor: {
+          newTab: "新标签页",
+          splitRight: "向右拆分编辑器",
+          aiAccept: "✦ AI · Tab 接受",
+          commentThread: "{{count}} 条评论线程",
+        },
+        bottomNav: {
+          tasks: "任务",
+          workspace: "工作区",
+          account: "账户",
+        },
+        help: {
+          title: "帮助与键盘快捷键",
+          keyboardShortcuts: "键盘快捷键",
+          shortcuts: {
+            commandPalette: "命令面板",
+            quickFile: "快速打开文件",
+            inlineAi: "内联 AI 编辑",
+            saveFile: "保存文件",
+            runSend: "运行 / 发送",
+            toggleComment: "切换注释",
+            toggleSidebar: "切换侧边栏",
+            togglePanels: "切换底部面板",
+            commandAlt: "命令（备用）",
+          },
+          docs: "文档",
+          support: "支持",
+          tour: "导览",
+        },
+        settings: {
+          workspaceSettings: "工作区设置",
+          workspace: "工作区",
+          alwaysOn: "Always-On",
+          alwaysOnDesc: "保持 Repl 24/7 运行 · 5 cycles/day",
+          boost: "Boost",
+          themeLabel: "主题",
+          theme: {
+            dark: "深色",
+            midnight: "午夜",
+            highContrast: "高对比",
+          },
+          layoutLabel: "布局",
+          layout: {
+            default: "默认",
+            minimal: "极简",
+            focus: "专注",
+          },
+          links: {
+            accountBilling: "账户与计费",
+            editorPreferences: "编辑器偏好",
+            connectedServices: "已连接服务",
+            privacyData: "隐私与数据",
+          },
+        },
+        status: {
+          githubSync: "GitHub: 领先 3 · 落后 1",
+          running: "运行中",
+          stopped: "已停止",
+          portTitle: "Port 3000 → my-rest-api.you.repl.co",
+          live: "在线",
+          cpuUsage: "CPU 使用率",
+          memoryUsage: "内存使用率",
+          networkIo: "网络 I/O",
+          diskUsage: "磁盘使用率",
+          connectionStatus: "连接状态",
+          cursor: "第 {{line}} 行，第 {{column}} 列",
+          indentation: "空格：{{count}}",
+        },
+        history: {
+          title: "任务历史",
+          configure: "配置",
+          tasks: {
+            landing: {
+              title: "为 SaaS 构建落地页",
+              time: "2 小时前",
+            },
+            stripe: {
+              title: "添加 Stripe 支付集成",
+              time: "昨天",
+            },
+            authBug: {
+              title: "修复 Express 中的认证 bug",
+              time: "2 天前",
+            },
+            adminDashboard: {
+              title: "创建带图表的管理仪表盘",
+              time: "3 天前",
+            },
+            ci: {
+              title: "使用 GitHub Actions 设置 CI/CD",
+              time: "5 天前",
+            },
+          },
+        },
+        frameworks: {
+          replit: {
+            tagline: "编排式规划循环",
+            description:
+              "Replit 自有 Agent 框架。使用结构化规划循环，让 Agent 推理任务、通过自定义解析步骤使用工具、验证结果并创建检查点。",
+            loop: {
+              plan: "规划任务",
+              callTools: "调用工具",
+              parse: "解析响应",
+              execute: "执行工具",
+              feedBack: "回填结果",
+              verify: "验证 + 检查点",
+            },
+            pros: {
+              integration: "深度 Replit 集成",
+              checkpoints: "自动检查点",
+              filesystem: "文件系统访问",
+              streaming: "流式输出",
+            },
+          },
+          hermes: {
+            tagline: "原生 <tool_call> tokens",
+            description:
+              "Nous Research Hermes 模型原生训练了带特殊 XML tokens 的工具调用。无需 prompt engineering，模型内在理解函数调用格式。",
+            loop: {
+              schema: "发送 <tools> schema",
+              output: "模型输出 <tool_call>",
+              parse: "解析 XML token",
+              execute: "执行函数",
+              inject: "注入 <tool_response>",
+              continue: "模型继续",
+            },
+            pros: {
+              native: "原生训练格式",
+              parallel: "并行工具调用",
+              lowHallucination: "低幻觉率",
+              openWeights: "开放权重",
+            },
+          },
+          openaiFn: {
+            tagline: "tools[] + finish_reason",
+            description:
+              "OpenAI 通过 Chat Completions API 提供结构化工具调用。传入 JSON Schema 工具定义，模型返回结构化 tool_calls，执行后以 role: tool 消息回填。",
+            loop: {
+              schema: "发送 tools[] schema",
+              receive: "接收 tool_calls",
+              parse: "解析 JSON args",
+              execute: "执行函数",
+              post: "发送 role:tool message",
+              done: "循环直到完成",
+            },
+            pros: {
+              standard: "行业标准",
+              parallel: "并行调用",
+              structuredArgs: "结构化参数",
+              models: "适用于所有 OpenAI models",
+            },
+          },
+          anthropicTools: {
+            tagline: "tool_use content blocks",
+            description:
+              "Anthropic Claude 通过 content blocks 使用工具。工具以 input_schema 定义，模型需要调用函数时会在 content array 中返回 tool_use blocks。",
+            loop: {
+              schema: "发送 tools + input_schema",
+              receive: "接收 tool_use block",
+              extract: "提取 input JSON",
+              execute: "执行函数",
+              post: "发送 tool_result block",
+              continue: "继续直到文本输出",
+            },
+            pros: {
+              blocks: "清晰的 content blocks",
+              thinking: "内置 thinking",
+              context: "扩展上下文",
+              vision: "视觉 + 工具结合",
+            },
+          },
+          custom: {
+            tagline: "自定义框架",
+            description: "使用你自己的编排循环和工具协议。",
+          },
+        },
+        models: {
+          hermes405: {
+            description:
+              "最强 Hermes 模型。擅长复杂推理、agentic tasks 和长上下文理解。",
+          },
+          hermes70: {
+            description: "快速且能力强。适合生产负载中的速度与智能平衡。",
+          },
+          hermes2Pro: {
+            description: "针对函数调用和结构化 JSON 输出优化。",
+          },
+          hermesMixtral: {
+            description: "MoE 架构，针对指令遵循和代码生成调优。",
+          },
+          gpt4o: {
+            description: "最强多模态模型。原生处理文本、图像和音频。",
+          },
+          gpt4oMini: {
+            description: "快速且成本高效。适合高吞吐任务和实时应用。",
+          },
+          gpt4Turbo: {
+            description: "高智能模型，具备更新的知识截止时间和视觉支持。",
+          },
+          o1Preview: {
+            description: "面向复杂多步推理和科学任务的前沿模型。",
+          },
+          o1Mini: {
+            description: "更小更快的推理模型，针对 STEM 任务优化。",
+          },
+          claudeSonnet: {
+            description: "速度与智能的最佳组合。擅长编码和分析。",
+          },
+          claudeHaiku: {
+            description: "最快、最紧凑的 Claude 模型，响应近乎即时。",
+          },
+          claudeOpus: {
+            description: "面向高度复杂任务的顶级智能模型。",
+          },
+          geminiPro: {
+            description: "长上下文多模态模型，可处理文本、图像、视频和音频。",
+          },
+          geminiFlash: {
+            description: "在多样任务上表现快速且灵活。",
+          },
+          geminiFlash8b: {
+            description: "面向高量低智能任务，针对成本效率优化。",
+          },
+          llama405: {
+            description: "最强开放权重模型，接近前沿闭源模型。",
+          },
+          llama70: {
+            description: "多数任务中能力与速度的优秀平衡。",
+          },
+          llama8: {
+            description: "适合端侧和边缘部署的轻量模型。",
+          },
+          llamaVision: {
+            description: "支持图像理解任务的多模态模型。",
+          },
+          mistralLarge: {
+            description:
+              "复杂任务的顶级推理模型。流利支持 English、French、Spanish、German、Italian。",
+          },
+          mistralSmall: {
+            description: "面向低延迟负载的先进小模型。",
+          },
+          mixtral: {
+            description: "高能力 sparse MoE 模型，擅长代码和数学。",
+          },
+          codestral: {
+            description: "专为代码生成、补全和 fill-in-the-middle 任务构建。",
+          },
+          deepseekV3: {
+            description: "最新旗舰模型，擅长编码、数学和推理任务。",
+          },
+          deepseekR1: {
+            description: "在数学和编码 benchmark 上匹配 OpenAI o1 的推理模型。",
+          },
+          deepseekCoder: {
+            description: "专注代码补全，支持 338 种编程语言。",
+          },
+          grok2: {
+            description: "通过 X/Twitter 集成具备实时知识的先进模型。",
+          },
+          grokVision: {
+            description: "具备图像理解能力的多模态版本。",
+          },
+          commandRPlus: {
+            description: "针对 RAG 和工具使用优化，检索增强生成表现优秀。",
+          },
+          commandR: {
+            description: "面向企业生产用例的高性能生成模型。",
+          },
+          qwen: {
+            description: "Alibaba 最新前沿模型，多语言和编码表现强。",
+          },
+          yi: {
+            description: "01.AI 顶级模型，在推理和知识任务中表现强。",
+          },
+          dbrx: {
+            description: "Databricks 的 mixture-of-experts 企业 AI 模型。",
+          },
+        },
+        modelTags: {
+          agentic: "Agentic",
+          reasoning: "推理",
+          fast: "快速",
+          balanced: "均衡",
+          functionCalling: "函数调用",
+          json: "JSON",
+          code: "代码",
+          coding: "编码",
+          moe: "MoE",
+          multimodal: "多模态",
+          vision: "视觉",
+          cheap: "低成本",
+          science: "科学",
+          stem: "STEM",
+          analysis: "分析",
+          creative: "创意",
+          longContext: "长上下文",
+          highVolume: "高吞吐",
+          openSource: "开源",
+          multilingual: "多语言",
+          math: "数学",
+          realTime: "实时",
+          rag: "RAG",
+          toolUse: "工具使用",
+          enterprise: "企业",
+        },
+        agentPackages: {
+          langchain: {
+            tagline: "Provider 无关的 chains 与 agents",
+            description:
+              "使用最广泛的 Agent 框架。提供工具抽象、记忆后端、RAG chains 和庞大的集成生态。",
+            capabilities: {
+              0: "记忆",
+              1: "RAG chains",
+              2: "多 Agent",
+              3: "流式输出",
+              4: "LangSmith tracing",
+              5: "工具调用",
+              6: "结构化输出",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail: "AgentExecutor 运行 plan-act-observe loop",
+              },
+              1: {
+                name: "工具注册",
+                detail: "DynamicTool / StructuredTool with JSON schema",
+              },
+              2: {
+                name: "记忆",
+                detail:
+                  "BufferMemory / ConversationSummaryMemory / VectorStoreMemory",
+              },
+              3: {
+                name: "LLM 接口",
+                detail:
+                  "ChatOpenAI / ChatAnthropic / ChatGoogleGenerativeAI",
+              },
+            },
+          },
+          "vercel-ai": {
+            tagline: "面向 TypeScript 的类型安全流式 Agent",
+            description:
+              "Vercel 现代 AI SDK。提供 RSC 流式输出、Zod 类型工具参数、多步 Agent loop 和开箱即用的 React hooks。",
+            capabilities: {
+              0: "Streaming RSC",
+              1: "类型安全 Zod tools",
+              2: "多步 loop",
+              3: "React hooks (useChat)",
+              4: "Edge runtime",
+              5: "结构化输出",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail: "generateText/streamText with maxSteps auto-loops",
+              },
+              1: {
+                name: "工具注册",
+                detail: "tool() with Zod schemas - 完全类型安全",
+              },
+              2: {
+                name: "流式输出",
+                detail:
+                  "Server-sent events, RSC, useChat / useCompletion hooks",
+              },
+              3: {
+                name: "LLM 接口",
+                detail:
+                  "@ai-sdk/openai | @ai-sdk/anthropic | @ai-sdk/google",
+              },
+            },
+          },
+          "hermes-native": {
+            tagline: "Raw loop + <tool_call> tokens - 无框架",
+            description:
+              "完全不使用框架。Hermes 模型原生训练了工具调用 tokens。你可以用约 50 行代码自己编写编排循环，完全控制、零开销。",
+            capabilities: {
+              0: "原生 token 格式",
+              1: "零开销",
+              2: "完整 loop 控制",
+              3: "开放权重",
+              4: "可自托管",
+              5: "并行工具调用",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail: "自己的 while-loop - 完全控制",
+              },
+              1: {
+                name: "工具注册",
+                detail: "system prompt 中的 JSON Schema 对象数组",
+              },
+              2: {
+                name: "协议",
+                detail: "原生 <tool_call> / <tool_response> XML tokens",
+              },
+              3: {
+                name: "LLM 接口",
+                detail:
+                  "OpenAI-compatible client -> Together AI / vLLM / Ollama",
+              },
+            },
+          },
+          "openai-assistants": {
+            tagline: "托管 threads、runs 与内置工具",
+            description:
+              "OpenAI 托管 Agent 基础设施。Persistent threads 自动处理上下文。内置 code interpreter、file search 和 function calling，无需管理 loop。",
+            capabilities: {
+              0: "托管 threads",
+              1: "自动上下文",
+              2: "Code interpreter",
+              3: "File search",
+              4: "持久状态",
+              5: "流式 runs",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail: "OpenAI-managed run loop - 无需 while-loop",
+              },
+              1: {
+                name: "工具注册",
+                detail:
+                  "functions[] + built-in code_interpreter + file_search",
+              },
+              2: {
+                name: "记忆",
+                detail: "Threads = persistent conversation，自动管理",
+              },
+              3: {
+                name: "LLM 接口",
+                detail: "仅 OpenAI models (gpt-4o, o1, etc.)",
+              },
+            },
+          },
+          crewai: {
+            tagline: "基于角色委派的多 Agent crews",
+            description:
+              "多个专门 Agent 在 crews 中协作的多 Agent 框架。定义 Coder、Reviewer、Tester，每个都有自己的 LLM、工具和目标。",
+            capabilities: {
+              0: "多 Agent",
+              1: "基于角色",
+              2: "任务上下文传递",
+              3: "Process.sequential/hierarchical",
+              4: "记忆",
+              5: "委派",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail:
+                  "Crew.kickoff() - sequential or hierarchical process",
+              },
+              1: {
+                name: "Agent 层",
+                detail: "每个 Agent 有自己的 LLM、工具、目标和记忆",
+              },
+              2: {
+                name: "任务图",
+                detail: "Tasks with context[] - outputs flow between agents",
+              },
+              3: {
+                name: "LLM 接口",
+                detail: "每个 Agent 可使用任何 LangChain-supported LLM",
+              },
+            },
+          },
+          autogen: {
+            tagline: "Microsoft: conversational multi-agent + code exec",
+            description:
+              "Microsoft 用于构建多 Agent 对话的框架。支持 human-in-the-loop、自动代码执行，以及专门 Agent 之间的嵌套对话。",
+            capabilities: {
+              0: "多 Agent 对话",
+              1: "代码执行器",
+              2: "Human-in-loop",
+              3: "群组编排",
+              4: "流式输出",
+              5: "嵌套对话",
+            },
+            layers: {
+              0: {
+                name: "编排",
+                detail:
+                  "RoundRobinGroupChat / SelectorGroupChat team loop",
+              },
+              1: {
+                name: "Agent 层",
+                detail:
+                  "AssistantAgent + CodeExecutorAgent + UserProxyAgent",
+              },
+              2: {
+                name: "代码执行",
+                detail:
+                  "LocalCommandLineCodeExecutor / DockerCommandLineExecutor",
+              },
+              3: {
+                name: "LLM 接口",
+                detail:
+                  "OpenAIChatCompletionClient / AnthropicChatCompletionClient",
+              },
+            },
+          },
+        },
+      },
     },
     missionCenter: {
       badge: "Mission Center",
