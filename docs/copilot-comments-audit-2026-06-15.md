@@ -22,7 +22,9 @@ This branch resolves or reclassifies all 81:
 - Reclassified as stale/already-centralized: 1 (`C041`)
 - Deferred with rationale: none
 
-The remaining 70 items from the original audit were already fixed, stale, or no longer applicable before this branch. They are not reopened by this remediation.
+The remaining 70 items from the original audit were already fixed, stale, or no longer applicable before this branch. They are not reopened by this remediation:
+
+`C001`, `C002`, `C003`, `C004`, `C005`, `C007`, `C008`, `C012`, `C014`, `C015`, `C017`, `C018`, `C022`, `C027`, `C028`, `C029`, `C030`, `C035`, `C036`, `C037`, `C038`, `C039`, `C042`, `C043`, `C047`, `C048`, `C050`, `C052`, `C053`, `C054`, `C056`, `C057`, `C058`, `C059`, `C065`, `C067`, `C074`, `C077`, `C078`, `C079`, `C080`, `C082`, `C083`, `C084`, `C085`, `C086`, `C087`, `C088`, `C089`, `C090`, `C093`, `C094`, `C106`, `C109`, `C110`, `C120`, `C132`, `C133`, `C134`, `C135`, `C136`, `C137`, `C138`, `C139`, `C140`, `C142`, `C143`, `C146`, `C147`, `C151`.
 
 ## Resolution Commits
 
@@ -36,6 +38,10 @@ The remaining 70 items from the original audit were already fixed, stale, or no 
 | `9c5a527` | `fix(ui): complete shared i18n and detail rendering` | `C061`, `C062`, `C063`, `C064`, `C066`, `C116`, `C117`, `C118`, `C119`, `C121`, `C122` |
 | `032dfbc` | `fix(i18n): polish locale fallbacks and api contracts` | `C006`, `C013`, `C019`, `C020`, `C021`, `C023`, `C024`, `C049`, `C055`, `C123`, `C124`, `C126`, `C127`, `C141`, `C144`, `C145` |
 | `e833eab` | `fix(i18n): close residual audit labels` | `C010`, `C125`, `C128`, `C129` |
+
+## Post-Review Follow-Up
+
+- `ceb8d26` (`fix(portal): accept registered runtime modules`) resolves a final reviewer finding with no original Copilot C-ID: Portal runtime payload validation now accepts non-empty registered module IDs beyond the four demo pipeline IDs, while preserving known-module labels and localized fallback text for other registered modules.
 
 ## Backend, Runtime, and API
 
@@ -123,7 +129,7 @@ The remaining 70 items from the original audit were already fixed, stale, or no 
 
 ## Verification
 
-Final verification after `e833eab`:
+Full verification after `e833eab`, with focused follow-up verification after `ceb8d26`:
 
 ```powershell
 corepack pnpm --filter @workspace/api-server run test
@@ -132,6 +138,7 @@ corepack pnpm run typecheck:libs
 corepack pnpm --filter @workspace/api-server run typecheck
 corepack pnpm --dir artifacts/mockup-sandbox run typecheck
 corepack pnpm --dir artifacts/mockup-sandbox run test:i18n
+corepack pnpm --dir artifacts/mockup-sandbox run test:portal
 git diff --check
 ```
 
@@ -143,6 +150,7 @@ Results:
 - API server typecheck: passed.
 - Mockup sandbox typecheck: passed.
 - i18n test suite: 31 tests passed.
+- Portal module-ID regression test suite: 2 tests passed.
 - `git diff --check`: passed; only CRLF warnings from Git autocrlf.
 
 Browser smoke was run with Python Playwright against `http://127.0.0.1:5175/preview/ai-os/AgentFirstInterface`:
@@ -159,3 +167,5 @@ Result: passed.
 ## Reviewer Status
 
 Each implementation commit was reviewed by a separate reviewer agent before moving to the next task. Critical and Important findings were fixed before continuing. The residual cleanup commit `e833eab` was re-reviewed after two Important findings and is Ready, with one Minor note about explicit test coverage for a placeholder already covered by the broader locale placeholder parity test.
+
+Final branch review then found one Important Portal/OpenAPI contract regression. Commit `ceb8d26` fixed it, and reviewer `Nash` marked that follow-up Ready with no Critical, Important, or Minor findings.

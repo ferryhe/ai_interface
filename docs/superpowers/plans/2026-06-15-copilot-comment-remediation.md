@@ -22,12 +22,14 @@ Status as of 2026-06-16 on branch `fix/copilot-comment-remediation`: complete.
 | Commit 6: Legacy AI Interface and Shared UI i18n Cleanup | `9c5a527` | Ready after follow-up fixes |
 | Commit 7: Locale Fallback and OpenAPI Naming Polish | `032dfbc` | Ready |
 | Residual audit label cleanup | `e833eab` | Ready after reviewer-requested fixes |
+| Commit 8: Final Docs, Full Verification, and Audit Closure | `0316a5c` | Final branch review found one Portal module-ID contract gap |
+| Final reviewer follow-up: Portal registered runtime modules | `ceb8d26` | Ready after reviewer `Nash` review |
 
-Commit 8 is implemented by the final docs closure commit that updates this plan and `docs/copilot-comments-audit-2026-06-15.md`.
+Commit 8 was implemented by `0316a5c`, the docs closure commit that updated this plan and `docs/copilot-comments-audit-2026-06-15.md`. Final branch review then found one valid Portal/OpenAPI contract gap; `ceb8d26` fixes that follow-up.
 
 The detailed checklist below is preserved as the original execution contract; the status table above records the completed implementation state.
 
-Final verification after `e833eab`:
+Full verification after `e833eab`, plus focused verification after `ceb8d26`:
 
 ```powershell
 corepack pnpm --filter @workspace/api-server run test
@@ -36,6 +38,7 @@ corepack pnpm run typecheck:libs
 corepack pnpm --filter @workspace/api-server run typecheck
 corepack pnpm --dir artifacts/mockup-sandbox run typecheck
 corepack pnpm --dir artifacts/mockup-sandbox run test:i18n
+corepack pnpm --dir artifacts/mockup-sandbox run test:portal
 git diff --check
 ```
 
