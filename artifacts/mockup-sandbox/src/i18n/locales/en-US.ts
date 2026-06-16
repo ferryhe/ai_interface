@@ -478,6 +478,17 @@ export const enUS = {
           longOnly: "long only",
           shortOnly: "short only",
         },
+        memoryPromotion: {
+          agent_suggested: "Agent suggested",
+          manual: "Manual",
+        },
+        reasoningEffort: {
+          none: "None",
+          low: "Low",
+          medium: "Medium",
+          high: "High",
+          xhigh: "Extra high",
+        },
         shortTermThreadMemory: "Short-term thread memory",
         longTermPostgresMemory: "Long-term Postgres memory",
         promotion: "Promotion",
@@ -843,6 +854,118 @@ export const enUS = {
         pipelineGroupCount: "{{count}} pipeline groups",
         moduleCount: "{{count}} modules",
         noArtifacts: "No artifacts",
+      },
+      workbenchDemo: {
+        common: {
+          now: "Now",
+        },
+        skills: {
+          web_listening: {
+            description:
+              "Monitor URLs, create snapshots, extract text, and detect changes.",
+          },
+          doc_to_md: {
+            description:
+              "Convert source documents into Markdown with warnings and assets.",
+          },
+          md_to_rag: {
+            description: "Chunk Markdown and prepare RAG index records.",
+          },
+          rag_to_agent: {
+            description:
+              "Generate agent configuration, prompts, and validation output.",
+          },
+          climate_monitor: {
+            description:
+              "Track climate and actuarial monitor reports and source coverage.",
+          },
+          ai_actuary: {
+            description:
+              "Invoke the reserving pipeline through the safe CLI executor.",
+          },
+          example_reporter: {
+            description:
+              "Community manifest example for custom skill validation.",
+          },
+        },
+        agents: {
+          knowledgeBuilder: {
+            name: "Knowledge Builder",
+            description:
+              "Turn approved web and document sources into a RAG-backed agent configuration.",
+            instructions:
+              "Build an inspectable knowledge pipeline from approved sources. Plan with the smallest set of enabled skills that can monitor sources, convert documents, prepare RAG records, and generate an agent configuration. Preserve intermediate artifacts for review.",
+            tests: {
+              buildFromMarkdown:
+                "Build an agent from approved Markdown source material.",
+            },
+          },
+          climateBriefing: {
+            name: "Climate Briefing Agent",
+            description:
+              "Summarize climate monitor outputs and prepare review-ready briefings.",
+            instructions:
+              "Use climate monitor artifacts as the source of truth, preserve source coverage notes, and hand draft briefings to the publishing agent only after validation.",
+            handoffs: {
+              refreshSources: "Refresh source material when coverage changes.",
+            },
+          },
+        },
+        runs: {
+          knowledgeBuilder: {
+            title: "Knowledge Builder demo run",
+          },
+        },
+        runSteps: {
+          collectSources: {
+            title: "Collect approved sources",
+            summary: "18 snapshots and 3 change events stored.",
+          },
+          convertDocuments: {
+            title: "Convert documents",
+            summary: "6 Markdown documents with one warning.",
+          },
+          prepareRag: {
+            title: "Prepare RAG records",
+            summary: "96 of 124 chunks indexed.",
+          },
+          draftAgent: {
+            title: "Draft agent config",
+            summary: "Waiting for the RAG index artifact.",
+          },
+        },
+        events: {
+          plan: {
+            title: "Plan created",
+            detail: "DAG plan selected four bound skills.",
+          },
+          artifacts: {
+            title: "Markdown artifacts stored",
+            detail: "doc_to_md wrote 6 displayable Markdown artifacts.",
+          },
+          active: {
+            title: "md_to_rag running",
+            detail: "Chunk metadata is being normalized for retrieval.",
+          },
+        },
+        artifacts: {
+          snapshot: {
+            title: "Latest page snapshot",
+            summary:
+              "Approved source page snapshot with extracted text metadata.",
+          },
+          markdown: {
+            summary: "Markdown conversion output with provenance retained.",
+          },
+        },
+        localRun: {
+          title: "{{agentName}} local test",
+          updatedAt: "Local",
+          firstStepSummary: "Local demo fallback queued.",
+          waitingSummary: "Waiting for prior step.",
+          eventTitle: "Local fallback",
+          eventDetail: "Agent run API unavailable.",
+        },
       },
     },
     portal: {

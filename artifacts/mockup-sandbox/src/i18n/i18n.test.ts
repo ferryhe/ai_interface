@@ -536,8 +536,111 @@ test("agent-first admin components use agentFirst-owned translation keys", () =>
   assert.doesNotMatch(agentFirstComponentSource, />Pipeline progress</);
 });
 
+test("agent-first admin components localize visible enum labels", () => {
+  const requiredKeys = [
+    "agentFirst.configure.reasoningEffort.none",
+    "agentFirst.configure.reasoningEffort.low",
+    "agentFirst.configure.reasoningEffort.medium",
+    "agentFirst.configure.reasoningEffort.high",
+    "agentFirst.configure.reasoningEffort.xhigh",
+    "agentFirst.configure.memoryPromotion.agent_suggested",
+    "agentFirst.configure.memoryPromotion.manual",
+  ];
+
+  for (const key of requiredKeys) {
+    assert.ok(
+      agentFirstLiteralTranslationKeys().has(key),
+      `agent-first components missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+
+  assert.doesNotMatch(agentFirstComponentSource, />\s*\{effort\}\s*</);
+  assert.doesNotMatch(agentFirstComponentSource, />agent_suggested</);
+  assert.doesNotMatch(agentFirstComponentSource, />manual</);
+});
+
 test("agent-first component translation keys resolve in both locale resources", () => {
   for (const key of agentFirstLiteralTranslationKeys()) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("agent-first shared demo workbench data uses translation keys for visible copy", () => {
+  assert.match(legacyAiDataSource, /createAgentFirstWorkbenchDemoData/);
+  assert.doesNotMatch(agentFirstComponentSource, /usesDemoWorkbenchData/);
+  for (const flag of [
+    "usesDemoAgents",
+    "usesDemoAgentReadiness",
+    "usesDemoRuns",
+    "usesDemoArtifacts",
+  ]) {
+    assert.match(agentFirstComponentSource, new RegExp(flag));
+  }
+  for (const stateName of [
+    "localAgents",
+    "localAgentReadiness",
+    "localWorkbenchRuns",
+  ]) {
+    assert.match(agentFirstComponentSource, new RegExp(stateName));
+  }
+  assert.match(
+    agentFirstComponentSource,
+    /function rememberWorkbenchRun[\s\S]*setLocalWorkbenchRuns/,
+  );
+  assert.match(
+    agentFirstComponentSource,
+    /function rememberCreatedAgent[\s\S]*setLocalAgents[\s\S]*setLocalAgentReadiness/,
+  );
+  assert.doesNotMatch(
+    agentFirstComponentSource,
+    /catch \{[\s\S]*setAgents\(demoWorkbenchData\.demoAgentManifests\)/,
+  );
+  assert.match(
+    legacyAiDataSource,
+    /agentFirst\.workbenchDemo\.agents\.knowledgeBuilder\.description/,
+  );
+  assert.match(
+    legacyAiDataSource,
+    /agentFirst\.workbenchDemo\.runs\.knowledgeBuilder\.title/,
+  );
+  assert.match(
+    legacyAiDataSource,
+    /agentFirst\.workbenchDemo\.artifacts\.snapshot\.summary/,
+  );
+
+  assert.doesNotMatch(
+    legacyAiDataSource,
+    /description:\s*"Turn approved web and document sources into a RAG-backed agent configuration\."/,
+  );
+  assert.doesNotMatch(
+    legacyAiDataSource,
+    /title:\s*"Knowledge Builder demo run"/,
+  );
+  assert.doesNotMatch(
+    legacyAiDataSource,
+    /summary:\s*"18 snapshots and 3 change events stored\."/,
+  );
+
+  for (const key of literalTranslationKeys(legacyAiDataSource, "agentFirst")) {
     assert.equal(
       typeof lookup(enUS.translation, key),
       "string",
@@ -591,6 +694,8 @@ test("agent-first dynamic translation key families resolve in both locale resour
     "skipped",
   ];
   const memoryModes = ["shortLong", "longOnly", "shortOnly"];
+  const memoryPromotionModes = ["agent_suggested", "manual"];
+  const reasoningEfforts = ["none", "low", "medium", "high", "xhigh"];
   const switches = ["enabled", "approval", "network", "dbWrite", "onDemand"];
   const portalViews = ["chat", "steps", "data", "sources", "result"];
   const executionModes = ["plan_only", "execute_ready"];
@@ -638,6 +743,12 @@ test("agent-first dynamic translation key families resolve in both locale resour
       (status) => `agentFirst.status.workbenchRun.${status}`,
     ),
     ...memoryModes.map((mode) => `agentFirst.configure.memoryMode.${mode}`),
+    ...memoryPromotionModes.map(
+      (mode) => `agentFirst.configure.memoryPromotion.${mode}`,
+    ),
+    ...reasoningEfforts.map(
+      (effort) => `agentFirst.configure.reasoningEffort.${effort}`,
+    ),
     ...switches.flatMap((item) => [
       `agentFirst.configure.switches.${item}.label`,
       `agentFirst.configure.switches.${item}.detail`,
@@ -1000,8 +1111,10 @@ test("legacy AI OS monolith model tags all have translation mappings", () => {
     ),
   ).sort();
   const mappedTags = Array.from(
-    legacyAiMonolithSource.matchAll(/^\s{2}"?([^":\n]+)"?:\s*"legacyAi\.monolith\.modelTags\.[^"]+",/gm),
-    (match) => match[1],
+    legacyAiMonolithSource.matchAll(
+      /^\s{2}(?:"([^"]+)"|([A-Za-z0-9_-]+)):\s*"legacyAi\.monolith\.modelTags\.[^"]+",/gm,
+    ),
+    (match) => match[1] ?? match[2],
   ).sort();
 
   assert.ok(modelTags.length > 0, "AIInterface.tsx model tags were not found");

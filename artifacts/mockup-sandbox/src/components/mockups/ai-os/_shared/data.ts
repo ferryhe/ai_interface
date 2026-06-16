@@ -321,249 +321,300 @@ export const inspectorLogs = [
   "09:49 paused before auth contract tests",
 ];
 
-export const workbenchSkillOptions: WorkbenchSkillOption[] = [
-  {
-    skillId: "web_listening",
-    name: "web_listening",
-    description: "Monitor URLs, create snapshots, extract text, and detect changes.",
-  },
-  {
-    skillId: "doc_to_md",
-    name: "doc_to_md",
-    description: "Convert source documents into Markdown with warnings and assets.",
-  },
-  {
-    skillId: "md_to_rag",
-    name: "md_to_rag",
-    description: "Chunk Markdown and prepare RAG index records.",
-  },
-  {
-    skillId: "rag_to_agent",
-    name: "rag_to_agent",
-    description: "Generate agent configuration, prompts, and validation output.",
-  },
-  {
-    skillId: "climate_monitor",
-    name: "climate_monitor",
-    description: "Track climate and actuarial monitor reports and source coverage.",
-  },
-  {
-    skillId: "ai_actuary",
-    name: "ai_actuary",
-    description: "Invoke the reserving pipeline through the safe CLI executor.",
-  },
-  {
-    skillId: "example_reporter",
-    name: "example_reporter",
-    description: "Community manifest example for custom skill validation.",
-  },
-];
+interface AgentFirstWorkbenchDemoData {
+  workbenchSkillOptions: WorkbenchSkillOption[];
+  demoAgentReadiness: AgentReadiness[];
+  demoAgentManifests: AgentManifestPreview[];
+  demoRunInspections: WorkbenchRunInspection[];
+  demoArtifactGroups: WorkbenchArtifactPipelineGroup[];
+}
 
-export const demoAgentReadiness: AgentReadiness[] = [
-  {
-    agentId: "knowledge_builder",
-    status: "ready",
-    missingSkillIds: [],
-    enabledSkillIds: ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
-  },
-  {
-    agentId: "climate_briefing_agent",
-    status: "ready",
-    missingSkillIds: [],
-    enabledSkillIds: ["climate_monitor", "rag_to_agent"],
-  },
-];
+export function createAgentFirstWorkbenchDemoData(
+  t: TFunction,
+): AgentFirstWorkbenchDemoData {
+  const demoRunTitle = t("agentFirst.workbenchDemo.runs.knowledgeBuilder.title");
 
-export const demoAgentManifests: AgentManifestPreview[] = [
-  {
-    agentId: "knowledge_builder",
-    name: "Knowledge Builder",
-    description: "Turn approved web and document sources into a RAG-backed agent configuration.",
-    source: "builtin",
-    instructions:
-      "Build an inspectable knowledge pipeline from approved sources. Plan with the smallest set of enabled skills that can monitor sources, convert documents, prepare RAG records, and generate an agent configuration. Preserve intermediate artifacts for review.",
-    skills: [
-      { skillId: "web_listening", required: false },
-      { skillId: "doc_to_md", required: false },
-      { skillId: "md_to_rag", required: true },
-      { skillId: "rag_to_agent", required: true },
-    ],
-    planner: {
-      mode: "dag",
-      failureStrategy: "fail_fast",
-    },
-    permissions: {
-      approvalRequired: true,
-      canUseNetwork: true,
-      canWriteDatabase: true,
-    },
-    memory: {
-      promotionMode: "run_summary",
-    },
-    handoffs: [],
-    tests: [
+  return {
+    workbenchSkillOptions: [
       {
-        name: "build_from_markdown",
-        prompt: "Build an agent from approved Markdown source material.",
-        expectedSkillIds: ["md_to_rag", "rag_to_agent"],
+        skillId: "web_listening",
+        name: "web_listening",
+        description: t(
+          "agentFirst.workbenchDemo.skills.web_listening.description",
+        ),
+      },
+      {
+        skillId: "doc_to_md",
+        name: "doc_to_md",
+        description: t("agentFirst.workbenchDemo.skills.doc_to_md.description"),
+      },
+      {
+        skillId: "md_to_rag",
+        name: "md_to_rag",
+        description: t("agentFirst.workbenchDemo.skills.md_to_rag.description"),
+      },
+      {
+        skillId: "rag_to_agent",
+        name: "rag_to_agent",
+        description: t(
+          "agentFirst.workbenchDemo.skills.rag_to_agent.description",
+        ),
+      },
+      {
+        skillId: "climate_monitor",
+        name: "climate_monitor",
+        description: t(
+          "agentFirst.workbenchDemo.skills.climate_monitor.description",
+        ),
+      },
+      {
+        skillId: "ai_actuary",
+        name: "ai_actuary",
+        description: t("agentFirst.workbenchDemo.skills.ai_actuary.description"),
+      },
+      {
+        skillId: "example_reporter",
+        name: "example_reporter",
+        description: t(
+          "agentFirst.workbenchDemo.skills.example_reporter.description",
+        ),
       },
     ],
-  },
-  {
-    agentId: "climate_briefing_agent",
-    name: "Climate Briefing Agent",
-    description: "Summarize climate monitor outputs and prepare review-ready briefings.",
-    source: "custom",
-    instructions:
-      "Use climate monitor artifacts as the source of truth, preserve source coverage notes, and hand draft briefings to the publishing agent only after validation.",
-    skills: [
-      { skillId: "climate_monitor", required: true },
-      { skillId: "rag_to_agent", required: false },
-    ],
-    planner: {
-      mode: "linear",
-      failureStrategy: "fail_fast",
-    },
-    permissions: {
-      approvalRequired: true,
-      canUseNetwork: false,
-      canWriteDatabase: true,
-    },
-    memory: {
-      promotionMode: "run_summary",
-    },
-    handoffs: [
+    demoAgentReadiness: [
       {
-        targetAgentId: "knowledge_builder",
-        description: "Refresh source material when coverage changes.",
+        agentId: "knowledge_builder",
+        status: "ready",
+        missingSkillIds: [],
+        enabledSkillIds: [
+          "web_listening",
+          "doc_to_md",
+          "md_to_rag",
+          "rag_to_agent",
+        ],
+      },
+      {
+        agentId: "climate_briefing_agent",
+        status: "ready",
+        missingSkillIds: [],
+        enabledSkillIds: ["climate_monitor", "rag_to_agent"],
       },
     ],
-    tests: [],
-  },
-];
-
-export const demoRunInspections: WorkbenchRunInspection[] = [
-  {
-    pipelineRunId: "pipe_demo_knowledge_001",
-    title: "Knowledge Builder demo run",
-    agentId: "knowledge_builder",
-    status: "running",
-    activeSkillId: "md_to_rag",
-    updatedAt: "Now",
-    moduleSteps: [
+    demoAgentManifests: [
       {
-        id: "run_web_listening_demo",
-        order: 1,
-        moduleId: "web_listening",
-        title: "Collect approved sources",
-        status: "succeeded",
-        summary: "18 snapshots and 3 change events stored.",
-        completedAt: "09:42",
-      },
-      {
-        id: "run_doc_to_md_demo",
-        order: 2,
-        moduleId: "doc_to_md",
-        title: "Convert documents",
-        status: "succeeded",
-        summary: "6 Markdown documents with one warning.",
-        completedAt: "09:45",
-      },
-      {
-        id: "run_md_to_rag_demo",
-        order: 3,
-        moduleId: "md_to_rag",
-        title: "Prepare RAG records",
-        status: "running",
-        summary: "96 of 124 chunks indexed.",
-        activeSkillId: "md_to_rag",
-        startedAt: "09:46",
-      },
-      {
-        id: "run_rag_to_agent_demo",
-        order: 4,
-        moduleId: "rag_to_agent",
-        title: "Draft agent config",
-        status: "queued",
-        summary: "Waiting for the RAG index artifact.",
-      },
-    ],
-    events: [
-      {
-        id: "event_plan",
-        time: "09:40",
-        type: "plan",
-        status: "succeeded",
-        title: "Plan created",
-        detail: "DAG plan selected four bound skills.",
-      },
-      {
-        id: "event_artifacts",
-        time: "09:45",
-        type: "artifact",
-        status: "succeeded",
-        title: "Markdown artifacts stored",
-        detail: "doc_to_md wrote 6 displayable Markdown artifacts.",
-      },
-      {
-        id: "event_active",
-        time: "Now",
-        type: "module",
-        status: "running",
-        title: "md_to_rag running",
-        detail: "Chunk metadata is being normalized for retrieval.",
-      },
-    ],
-    raw: {
-      source: "demo",
-      pipelineRunId: "pipe_demo_knowledge_001",
-      metadata: { agentId: "knowledge_builder" },
-    },
-  },
-];
-
-export const demoArtifactGroups: WorkbenchArtifactPipelineGroup[] = [
-  {
-    pipelineRunId: "pipe_demo_knowledge_001",
-    title: "Knowledge Builder demo run",
-    moduleGroups: [
-      {
-        moduleRunId: "run_web_listening_demo",
-        moduleId: "web_listening",
-        artifacts: [
+        agentId: "knowledge_builder",
+        name: t("agentFirst.workbenchDemo.agents.knowledgeBuilder.name"),
+        description: t(
+          "agentFirst.workbenchDemo.agents.knowledgeBuilder.description",
+        ),
+        source: "builtin",
+        instructions: t(
+          "agentFirst.workbenchDemo.agents.knowledgeBuilder.instructions",
+        ),
+        skills: [
+          { skillId: "web_listening", required: false },
+          { skillId: "doc_to_md", required: false },
+          { skillId: "md_to_rag", required: true },
+          { skillId: "rag_to_agent", required: true },
+        ],
+        planner: {
+          mode: "dag",
+          failureStrategy: "fail_fast",
+        },
+        permissions: {
+          approvalRequired: true,
+          canUseNetwork: true,
+          canWriteDatabase: true,
+        },
+        memory: {
+          promotionMode: "run_summary",
+        },
+        handoffs: [],
+        tests: [
           {
-            id: "snap_018",
-            title: "Latest page snapshot",
-            kind: "web_snapshot",
-            summary: "Approved source page snapshot with extracted text metadata.",
+            name: "build_from_markdown",
+            prompt: t(
+              "agentFirst.workbenchDemo.agents.knowledgeBuilder.tests.buildFromMarkdown",
+            ),
+            expectedSkillIds: ["md_to_rag", "rag_to_agent"],
+          },
+        ],
+      },
+      {
+        agentId: "climate_briefing_agent",
+        name: t("agentFirst.workbenchDemo.agents.climateBriefing.name"),
+        description: t(
+          "agentFirst.workbenchDemo.agents.climateBriefing.description",
+        ),
+        source: "custom",
+        instructions: t(
+          "agentFirst.workbenchDemo.agents.climateBriefing.instructions",
+        ),
+        skills: [
+          { skillId: "climate_monitor", required: true },
+          { skillId: "rag_to_agent", required: false },
+        ],
+        planner: {
+          mode: "linear",
+          failureStrategy: "fail_fast",
+        },
+        permissions: {
+          approvalRequired: true,
+          canUseNetwork: false,
+          canWriteDatabase: true,
+        },
+        memory: {
+          promotionMode: "run_summary",
+        },
+        handoffs: [
+          {
+            targetAgentId: "knowledge_builder",
+            description: t(
+              "agentFirst.workbenchDemo.agents.climateBriefing.handoffs.refreshSources",
+            ),
+          },
+        ],
+        tests: [],
+      },
+    ],
+    demoRunInspections: [
+      {
+        pipelineRunId: "pipe_demo_knowledge_001",
+        title: demoRunTitle,
+        agentId: "knowledge_builder",
+        status: "running",
+        activeSkillId: "md_to_rag",
+        updatedAt: t("agentFirst.workbenchDemo.common.now"),
+        moduleSteps: [
+          {
+            id: "run_web_listening_demo",
+            order: 1,
+            moduleId: "web_listening",
+            title: t("agentFirst.workbenchDemo.runSteps.collectSources.title"),
+            status: "succeeded",
+            summary: t(
+              "agentFirst.workbenchDemo.runSteps.collectSources.summary",
+            ),
+            completedAt: "09:42",
+          },
+          {
+            id: "run_doc_to_md_demo",
+            order: 2,
+            moduleId: "doc_to_md",
+            title: t("agentFirst.workbenchDemo.runSteps.convertDocuments.title"),
+            status: "succeeded",
+            summary: t(
+              "agentFirst.workbenchDemo.runSteps.convertDocuments.summary",
+            ),
+            completedAt: "09:45",
+          },
+          {
+            id: "run_md_to_rag_demo",
+            order: 3,
+            moduleId: "md_to_rag",
+            title: t("agentFirst.workbenchDemo.runSteps.prepareRag.title"),
+            status: "running",
+            summary: t("agentFirst.workbenchDemo.runSteps.prepareRag.summary"),
+            activeSkillId: "md_to_rag",
+            startedAt: "09:46",
+          },
+          {
+            id: "run_rag_to_agent_demo",
+            order: 4,
+            moduleId: "rag_to_agent",
+            title: t("agentFirst.workbenchDemo.runSteps.draftAgent.title"),
+            status: "queued",
+            summary: t("agentFirst.workbenchDemo.runSteps.draftAgent.summary"),
+          },
+        ],
+        events: [
+          {
+            id: "event_plan",
+            time: "09:40",
+            type: "plan",
+            status: "succeeded",
+            title: t("agentFirst.workbenchDemo.events.plan.title"),
+            detail: t("agentFirst.workbenchDemo.events.plan.detail"),
+          },
+          {
+            id: "event_artifacts",
+            time: "09:45",
+            type: "artifact",
+            status: "succeeded",
+            title: t("agentFirst.workbenchDemo.events.artifacts.title"),
+            detail: t("agentFirst.workbenchDemo.events.artifacts.detail"),
+          },
+          {
+            id: "event_active",
+            time: t("agentFirst.workbenchDemo.common.now"),
+            type: "module",
+            status: "running",
+            title: t("agentFirst.workbenchDemo.events.active.title"),
+            detail: t("agentFirst.workbenchDemo.events.active.detail"),
+          },
+        ],
+        raw: {
+          source: "demo",
+          pipelineRunId: "pipe_demo_knowledge_001",
+          metadata: { agentId: "knowledge_builder" },
+        },
+      },
+    ],
+    demoArtifactGroups: [
+      {
+        pipelineRunId: "pipe_demo_knowledge_001",
+        title: demoRunTitle,
+        moduleGroups: [
+          {
             moduleRunId: "run_web_listening_demo",
             moduleId: "web_listening",
-            createdAt: "09:42",
-            content: {
-              url: "https://docs.example.com/getting-started",
-              status: 200,
-              extractedTextBytes: 18442,
-            },
+            artifacts: [
+              {
+                id: "snap_018",
+                title: t("agentFirst.workbenchDemo.artifacts.snapshot.title"),
+                kind: "web_snapshot",
+                summary: t(
+                  "agentFirst.workbenchDemo.artifacts.snapshot.summary",
+                ),
+                moduleRunId: "run_web_listening_demo",
+                moduleId: "web_listening",
+                createdAt: "09:42",
+                content: {
+                  url: "https://docs.example.com/getting-started",
+                  status: 200,
+                  extractedTextBytes: 18442,
+                },
+              },
+            ],
           },
-        ],
-      },
-      {
-        moduleRunId: "run_doc_to_md_demo",
-        moduleId: "doc_to_md",
-        artifacts: [
           {
-            id: "md_006",
-            title: "onboarding.md",
-            kind: "markdown_document",
-            summary: "Markdown conversion output with provenance retained.",
             moduleRunId: "run_doc_to_md_demo",
             moduleId: "doc_to_md",
-            createdAt: "09:45",
-            content:
-              "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.",
+            artifacts: [
+              {
+                id: "md_006",
+                title: "onboarding.md",
+                kind: "markdown_document",
+                summary: t(
+                  "agentFirst.workbenchDemo.artifacts.markdown.summary",
+                ),
+                moduleRunId: "run_doc_to_md_demo",
+                moduleId: "doc_to_md",
+                createdAt: "09:45",
+                content:
+                  "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.",
+              },
+            ],
           },
         ],
       },
     ],
-  },
-];
+  };
+}
+
+export const {
+  workbenchSkillOptions,
+  demoAgentReadiness,
+  demoAgentManifests,
+  demoRunInspections,
+  demoArtifactGroups,
+} = createAgentFirstWorkbenchDemoData(defaultLegacyAiT);

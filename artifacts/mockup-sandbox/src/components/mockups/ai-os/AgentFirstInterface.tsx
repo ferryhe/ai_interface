@@ -32,11 +32,7 @@ import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
 import { OperatorBackstage } from "@/components/operator/OperatorBackstage";
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import {
-  demoAgentManifests,
-  demoAgentReadiness,
-  demoArtifactGroups,
-  demoRunInspections,
-  workbenchSkillOptions,
+  createAgentFirstWorkbenchDemoData,
 } from "./_shared/data";
 import type {
   AgentManifestPreview,
@@ -1358,6 +1354,33 @@ function runtimeStatusLabel(status: RuntimeRunStatus, t: TFunction): string {
   return t(`agentFirst.status.runtime.${status}`);
 }
 
+const reasoningEffortLabelKeys: Record<AgentReasoningEffort, string> = {
+  none: "agentFirst.configure.reasoningEffort.none",
+  low: "agentFirst.configure.reasoningEffort.low",
+  medium: "agentFirst.configure.reasoningEffort.medium",
+  high: "agentFirst.configure.reasoningEffort.high",
+  xhigh: "agentFirst.configure.reasoningEffort.xhigh",
+};
+
+function reasoningEffortLabel(
+  effort: AgentReasoningEffort,
+  t: TFunction,
+): string {
+  return t(reasoningEffortLabelKeys[effort]);
+}
+
+const memoryPromotionLabelKeys: Record<MemoryPromotionMode, string> = {
+  agent_suggested: "agentFirst.configure.memoryPromotion.agent_suggested",
+  manual: "agentFirst.configure.memoryPromotion.manual",
+};
+
+function memoryPromotionLabel(
+  mode: MemoryPromotionMode,
+  t: TFunction,
+): string {
+  return t(memoryPromotionLabelKeys[mode]);
+}
+
 function runtimeStatusClass(status: RuntimeRunStatus): string {
   return `runtime-status ${status}`;
 }
@@ -2112,8 +2135,13 @@ function toWorkbenchRunFromAgentRun(
   };
 }
 
-function createLocalWorkbenchRun(agentId: string, title: string): WorkbenchRunInspection {
-  const agent = demoAgentManifests.find((item) => item.agentId === agentId);
+function createLocalWorkbenchRun(
+  agentId: string,
+  title: string,
+  agents: AgentManifestPreview[],
+  t: TFunction,
+): WorkbenchRunInspection {
+  const agent = agents.find((item) => item.agentId === agentId);
   const skillIds = agent?.skills.map((skill) => skill.skillId) ?? ["md_to_rag", "rag_to_agent"];
   const pipelineRunId = `local_${agentId}_${Date.now()}`;
 
@@ -2123,24 +2151,27 @@ function createLocalWorkbenchRun(agentId: string, title: string): WorkbenchRunIn
     agentId,
     status: "queued",
     activeSkillId: skillIds[0],
-    updatedAt: "Local",
+    updatedAt: t("agentFirst.workbenchDemo.localRun.updatedAt"),
     moduleSteps: skillIds.map((skillId, index) => ({
       id: `${pipelineRunId}_${skillId}`,
       order: index + 1,
       moduleId: skillId,
       title: skillId,
       status: index === 0 ? "queued" : "pending",
-      summary: index === 0 ? "Local demo fallback queued." : "Waiting for prior step.",
+      summary:
+        index === 0
+          ? t("agentFirst.workbenchDemo.localRun.firstStepSummary")
+          : t("agentFirst.workbenchDemo.localRun.waitingSummary"),
       activeSkillId: index === 0 ? skillId : undefined,
     })),
     events: [
       {
         id: `${pipelineRunId}_queued`,
-        time: "Local",
+        time: t("agentFirst.workbenchDemo.localRun.updatedAt"),
         type: "agent-run",
         status: "queued",
-        title: "Local fallback",
-        detail: "Agent run API unavailable.",
+        title: t("agentFirst.workbenchDemo.localRun.eventTitle"),
+        detail: t("agentFirst.workbenchDemo.localRun.eventDetail"),
       },
     ],
     raw: {
@@ -2302,6 +2333,10 @@ function normalizeApiArtifacts(
 
 export function AgentFirstInterface() {
   const { t } = useTranslation();
+  const demoWorkbenchData = useMemo(
+    () => createAgentFirstWorkbenchDemoData(t),
+    [t],
+  );
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("mission");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
@@ -2309,16 +2344,33 @@ export function AgentFirstInterface() {
   const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>("agents");
   const [selectedAgentId, setSelectedAgentId] = useState("knowledge_builder");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(
-    demoRunInspections[0]?.pipelineRunId ?? null,
+    demoWorkbenchData.demoRunInspections[0]?.pipelineRunId ?? null,
   );
   const [backstageTab, setBackstageTab] = useState<BackstageTab>("ui");
-  const [agents, setAgents] = useState<AgentManifestPreview[]>(demoAgentManifests);
+  const [usesDemoAgents, setUsesDemoAgents] = useState(true);
+  const [usesDemoAgentReadiness, setUsesDemoAgentReadiness] = useState(true);
+  const [usesDemoRuns, setUsesDemoRuns] = useState(true);
+  const [usesDemoArtifacts, setUsesDemoArtifacts] = useState(true);
+  const [localAgents, setLocalAgents] = useState<AgentManifestPreview[]>([]);
+  const [localAgentReadiness, setLocalAgentReadiness] = useState<
+    AgentReadiness[]
+  >([]);
+  const [localWorkbenchRuns, setLocalWorkbenchRuns] = useState<
+    WorkbenchRunInspection[]
+  >([]);
+  const [agents, setAgents] = useState<AgentManifestPreview[]>(
+    () => demoWorkbenchData.demoAgentManifests,
+  );
   const [agentReadiness, setAgentReadiness] =
-    useState<AgentReadiness[]>(demoAgentReadiness);
+    useState<AgentReadiness[]>(() => demoWorkbenchData.demoAgentReadiness);
   const [workbenchRuns, setWorkbenchRuns] =
-    useState<WorkbenchRunInspection[]>(demoRunInspections);
+    useState<WorkbenchRunInspection[]>(
+      () => demoWorkbenchData.demoRunInspections,
+    );
   const [artifactGroups, setArtifactGroups] =
-    useState<WorkbenchArtifactPipelineGroup[]>(demoArtifactGroups);
+    useState<WorkbenchArtifactPipelineGroup[]>(
+      () => demoWorkbenchData.demoArtifactGroups,
+    );
   const [skillCatalog, setSkillCatalog] =
     useState<SkillManifestPreview[]>(skillManifestPreviews);
   const [command, setCommand] = useState("");
@@ -2386,6 +2438,58 @@ export function AgentFirstInterface() {
   );
 
   useEffect(() => {
+    if (usesDemoAgents) {
+      const localAgentIds = new Set(localAgents.map((agent) => agent.agentId));
+      setAgents([
+        ...localAgents,
+        ...demoWorkbenchData.demoAgentManifests.filter(
+          (agent) => !localAgentIds.has(agent.agentId),
+        ),
+      ]);
+    }
+    if (usesDemoAgentReadiness) {
+      const localReadinessIds = new Set(
+        localAgentReadiness.map((item) => item.agentId),
+      );
+      setAgentReadiness([
+        ...localAgentReadiness,
+        ...demoWorkbenchData.demoAgentReadiness.filter(
+          (item) => !localReadinessIds.has(item.agentId),
+        ),
+      ]);
+    }
+    if (usesDemoRuns) {
+      const localRunIds = new Set(
+        localWorkbenchRuns.map((run) => run.pipelineRunId),
+      );
+      const nextRuns = [
+        ...localWorkbenchRuns,
+        ...demoWorkbenchData.demoRunInspections.filter(
+          (run) => !localRunIds.has(run.pipelineRunId),
+        ),
+      ];
+      setWorkbenchRuns(nextRuns);
+      setSelectedRunId((current) =>
+        nextRuns.some((run) => run.pipelineRunId === current)
+          ? current
+          : nextRuns[0]?.pipelineRunId ?? null,
+      );
+    }
+    if (usesDemoArtifacts) {
+      setArtifactGroups(demoWorkbenchData.demoArtifactGroups);
+    }
+  }, [
+    demoWorkbenchData,
+    localAgentReadiness,
+    localAgents,
+    localWorkbenchRuns,
+    usesDemoAgentReadiness,
+    usesDemoAgents,
+    usesDemoArtifacts,
+    usesDemoRuns,
+  ]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadWorkbenchIndexes(): Promise<void> {
@@ -2401,15 +2505,22 @@ export function AgentFirstInterface() {
             agents?: AgentManifestPreview[];
             readiness?: AgentReadiness[];
           };
-          if (Array.isArray(data.agents) && data.agents.length > 0) {
-            setAgents(data.agents);
+          const apiAgents = Array.isArray(data.agents) ? data.agents : [];
+          const hasApiAgents = apiAgents.length > 0;
+          if (hasApiAgents) {
+            setUsesDemoAgents(false);
+            setAgents(apiAgents);
             setSelectedAgentId((current) =>
-              data.agents?.some((agent) => agent.agentId === current)
+              apiAgents.some((agent) => agent.agentId === current)
                 ? current
-                : data.agents?.[0]?.agentId ?? current,
+                : apiAgents[0]?.agentId ?? current,
             );
           }
-          if (Array.isArray(data.readiness)) {
+          if (
+            Array.isArray(data.readiness) &&
+            (hasApiAgents || data.readiness.length > 0)
+          ) {
+            setUsesDemoAgentReadiness(false);
             setAgentReadiness(data.readiness);
           }
         }
@@ -2430,6 +2541,7 @@ export function AgentFirstInterface() {
         if (!cancelled && runsResponse.ok) {
           loadedRuns = normalizeApiRuns(await runsResponse.json());
           if (loadedRuns.length > 0) {
+            setUsesDemoRuns(false);
             setWorkbenchRuns(loadedRuns);
             setSelectedRunId(loadedRuns[0]?.pipelineRunId ?? null);
           }
@@ -2449,15 +2561,12 @@ export function AgentFirstInterface() {
             }),
           );
           if (!cancelled) {
+            setUsesDemoArtifacts(false);
             setArtifactGroups(artifactGroupsByRun.flat());
           }
         }
       } catch {
         if (cancelled) return;
-        setAgents(demoAgentManifests);
-        setAgentReadiness(demoAgentReadiness);
-        setWorkbenchRuns(demoRunInspections);
-        setArtifactGroups(demoArtifactGroups);
         setSkillCatalog(skillManifestPreviews);
       }
     }
@@ -2802,27 +2911,49 @@ export function AgentFirstInterface() {
   }
 
   function rememberWorkbenchRun(run: WorkbenchRunInspection): void {
-    setWorkbenchRuns((current) => [
-      run,
-      ...current.filter((item) => item.pipelineRunId !== run.pipelineRunId),
-    ]);
+    if (usesDemoRuns) {
+      setLocalWorkbenchRuns((current) => [
+        run,
+        ...current.filter((item) => item.pipelineRunId !== run.pipelineRunId),
+      ]);
+    } else {
+      setWorkbenchRuns((current) => [
+        run,
+        ...current.filter((item) => item.pipelineRunId !== run.pipelineRunId),
+      ]);
+    }
     setSelectedRunId(run.pipelineRunId);
   }
 
   function rememberCreatedAgent(agent: AgentManifestPreview): void {
-    setAgents((current) => [
-      agent,
-      ...current.filter((item) => item.agentId !== agent.agentId),
-    ]);
-    setAgentReadiness((current) => [
-      {
-        agentId: agent.agentId,
-        status: "ready",
-        missingSkillIds: [],
-        enabledSkillIds: agent.skills.map((skill) => skill.skillId),
-      },
-      ...current.filter((item) => item.agentId !== agent.agentId),
-    ]);
+    const readiness: AgentReadiness = {
+      agentId: agent.agentId,
+      status: "ready",
+      missingSkillIds: [],
+      enabledSkillIds: agent.skills.map((skill) => skill.skillId),
+    };
+    if (usesDemoAgents) {
+      setLocalAgents((current) => [
+        agent,
+        ...current.filter((item) => item.agentId !== agent.agentId),
+      ]);
+    } else {
+      setAgents((current) => [
+        agent,
+        ...current.filter((item) => item.agentId !== agent.agentId),
+      ]);
+    }
+    if (usesDemoAgentReadiness) {
+      setLocalAgentReadiness((current) => [
+        readiness,
+        ...current.filter((item) => item.agentId !== agent.agentId),
+      ]);
+    } else {
+      setAgentReadiness((current) => [
+        readiness,
+        ...current.filter((item) => item.agentId !== agent.agentId),
+      ]);
+    }
     setSelectedAgentId(agent.agentId);
   }
 
@@ -2855,7 +2986,14 @@ export function AgentFirstInterface() {
       });
 
       if (!response.ok) {
-        const localRun = createLocalWorkbenchRun(agentId, `${agent?.name ?? agentId} local test`);
+        const localRun = createLocalWorkbenchRun(
+          agentId,
+          t("agentFirst.workbenchDemo.localRun.title", {
+            agentName: agent?.name ?? agentId,
+          }),
+          agents,
+          t,
+        );
         rememberWorkbenchRun(localRun);
         setLatestAgentRun(null);
         setLocalFallbackRuntimeRuns(toLocalRuntimeRuns(localRun));
@@ -2894,7 +3032,14 @@ export function AgentFirstInterface() {
         agentFirstMessage("agentFirst.statusMessages.runtimeActionsConnected"),
       );
     } catch {
-      const localRun = createLocalWorkbenchRun(agentId, `${agent?.name ?? agentId} local test`);
+      const localRun = createLocalWorkbenchRun(
+        agentId,
+        t("agentFirst.workbenchDemo.localRun.title", {
+          agentName: agent?.name ?? agentId,
+        }),
+        agents,
+        t,
+      );
       rememberWorkbenchRun(localRun);
       setLatestAgentRun(null);
       setLocalFallbackRuntimeRuns(toLocalRuntimeRuns(localRun));
@@ -3424,6 +3569,10 @@ function BackstageView({
   onOpenSkillFromAgent: (skillId: string) => void;
 }) {
   const { t } = useTranslation();
+  const demoWorkbenchData = useMemo(
+    () => createAgentFirstWorkbenchDemoData(t),
+    [t],
+  );
   const selectedRun = runtimeRuns.find((run) => run.moduleId === selectedSkill.id);
   const selectedRecords = dataRecords.filter((record) => record.moduleId === selectedSkill.id);
   const workbenchTabs: Array<{ id: WorkbenchTab; labelKey: string }> = [
@@ -3485,12 +3634,15 @@ function BackstageView({
             <AgentDetail
               agent={selectedAgent}
               readiness={selectedReadiness}
-              skills={workbenchSkillOptions}
+              skills={demoWorkbenchData.workbenchSkillOptions}
               latestRun={selectedAgentRun}
               onTestRun={onTestAgent}
               onOpenSkill={onOpenSkillFromAgent}
             />
-            <AgentManifestWizard skills={workbenchSkillOptions} onCreated={onCreateAgent} />
+            <AgentManifestWizard
+              skills={demoWorkbenchData.workbenchSkillOptions}
+              onCreated={onCreateAgent}
+            />
           </div>
         </section>
       )}
@@ -4766,7 +4918,11 @@ function ConfigureView({
               <Bot size={16} />
               {t("agentFirst.configure.model")}
             </span>
-            <em>{t("agentFirst.configure.reasoningSummary", { effort: config.reasoningEffort })}</em>
+            <em>
+              {t("agentFirst.configure.reasoningSummary", {
+                effort: reasoningEffortLabel(config.reasoningEffort, t),
+              })}
+            </em>
           </div>
           <p className="config-explainer">{t("agentFirst.configure.guides.model")}</p>
           <div className="config-field">
@@ -4800,7 +4956,7 @@ function ConfigureView({
                   disabled={config.provider !== "openai" && effort !== "none"}
                   onClick={() => onUpdateConfig({ reasoningEffort: effort })}
                 >
-                  {effort}
+                  {reasoningEffortLabel(effort, t)}
                 </button>
               ))}
             </div>
@@ -5005,8 +5161,13 @@ function ConfigureView({
                 onUpdateMemory({ promotionMode: event.target.value as MemoryPromotionMode })
               }
             >
-              <option value="agent_suggested">agent_suggested</option>
-              <option value="manual">manual</option>
+              {(["agent_suggested", "manual"] as MemoryPromotionMode[]).map(
+                (mode) => (
+                  <option key={mode} value={mode}>
+                    {memoryPromotionLabel(mode, t)}
+                  </option>
+                ),
+              )}
             </select>
           </div>
           <div className="config-two-column">
