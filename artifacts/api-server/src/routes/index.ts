@@ -24,7 +24,7 @@ import skillsRouter from "./skills";
 import teamsRouter from "./teams";
 import toolAdaptersRouter from "./tool-adapters";
 
-function createDatabaseRouter(): IRouter {
+export function createDatabaseRouter(): IRouter {
   const router: IRouter = Router();
 
   router.use(agentManifestsRouter);
@@ -46,7 +46,7 @@ function createDatabaseRouter(): IRouter {
   return router;
 }
 
-function createMemoryRouter(): IRouter {
+export function createMemoryRouter(): IRouter {
   const router: IRouter = Router();
   const configRepository = new InMemoryAgentConfigRepository();
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
@@ -77,9 +77,14 @@ function createMemoryRouter(): IRouter {
   return router;
 }
 
-const router =
-  process.env["AI_INTERFACE_REPOSITORY_MODE"] === "memory"
+export function createApiRouter(
+  env: Record<string, string | undefined> = process.env,
+): IRouter {
+  return env["AI_INTERFACE_REPOSITORY_MODE"] === "memory"
     ? createMemoryRouter()
     : createDatabaseRouter();
+}
+
+const router = createApiRouter();
 
 export default router;

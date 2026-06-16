@@ -3374,7 +3374,13 @@ export function AgentFirstInterface() {
               className="topbar-mode-switch portal-mode-switch"
               aria-label={t("topbar.viewPortal")}
               title={t("topbar.viewPortal")}
-              onClick={() => window.location.assign(portalPreviewUrl(publishPreviewToken))}
+              onClick={() =>
+                window.location.assign(
+                  portalPreviewUrl(
+                    publishTokenDraft.trim() || publishPreviewToken,
+                  ),
+                )
+              }
             >
               <UploadCloud size={14} />
               {t("topbar.viewPortal")}

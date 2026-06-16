@@ -44,8 +44,8 @@ Why memory mode was used:
 
 API key note:
 
-- `OPENAI_API_KEY` was borrowed from `C:\Project\canada_pension\.env` as requested.
-- The provider request returned HTTP 401, so the E2E run used the deterministic provider.
+- A local `OPENAI_API_KEY` was tried from the developer's private environment.
+- The provider request returned HTTP 401, so the final E2E run used the deterministic provider.
 - No API key value was printed or written to this document.
 
 ### Fixes Made During E2E
@@ -238,8 +238,8 @@ corepack pnpm --dir artifacts/mockup-sandbox run dev -- --host 127.0.0.1
 
 API key 说明：
 
-- 按要求从 `C:\Project\canada_pension\.env` 借用了 `OPENAI_API_KEY`。
-- OpenAI provider 请求返回 HTTP 401，因此 E2E 改用 deterministic provider。
+- 测试时尝试使用开发者本地私有环境中的 `OPENAI_API_KEY`。
+- OpenAI provider 请求返回 HTTP 401，因此最终 E2E 改用 deterministic provider。
 - 没有打印或写入任何 API key 值。
 
 ### E2E 过程中修复的问题
