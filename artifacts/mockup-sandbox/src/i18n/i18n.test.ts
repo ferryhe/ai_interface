@@ -53,6 +53,10 @@ const legacyAiDataSource = readFileSync(
   new URL("../components/mockups/ai-os/_shared/data.ts", import.meta.url),
   "utf8",
 );
+const legacyAiMonolithSource = readFileSync(
+  new URL("../components/mockups/ai-os/AIInterface.tsx", import.meta.url),
+  "utf8",
+);
 
 test("normalizes supported English and Chinese locale inputs", () => {
   assert.equal(DEFAULT_LOCALE, "en-US");
@@ -824,6 +828,231 @@ test("legacy AI OS locale resources have matching key and placeholder coverage",
   }
 });
 
+test("legacy AI OS monolith uses monolith-owned translation keys", () => {
+  const literalKeys = legacyAiMonolithLiteralTranslationKeys();
+  assert.ok(
+    literalKeys.size >= 40,
+    "AIInterface.tsx should contain legacyAi.monolith.* translation keys",
+  );
+
+  for (const key of [
+    "legacyAi.monolith.topbar.searchCommands",
+    "legacyAi.monolith.topbar.taskChips.restApi",
+    "legacyAi.monolith.panels.console.fixWithAgent",
+    "legacyAi.monolith.panels.git.changedFiles",
+    "legacyAi.monolith.panels.database.runEmpty",
+    "legacyAi.monolith.panels.deploy.deploy",
+    "legacyAi.monolith.account.aiApis.title",
+    "legacyAi.monolith.agentConfig.title",
+    "legacyAi.monolith.chat.composer.placeholder.power",
+    "legacyAi.monolith.commandPalette.placeholder",
+    "legacyAi.monolith.overlays.qr.title",
+  ]) {
+    assert.ok(literalKeys.has(key), `AIInterface.tsx missing ${key}`);
+  }
+
+  assert.doesNotMatch(legacyAiMonolithSource, />Fix with Agent</);
+  assert.doesNotMatch(legacyAiMonolithSource, /placeholder="Run a command/);
+  assert.doesNotMatch(legacyAiMonolithSource, />Task History</);
+  assert.doesNotMatch(legacyAiMonolithSource, />Notifications/);
+});
+
+test("legacy AI OS monolith translation keys resolve in both locale resources", () => {
+  for (const key of legacyAiMonolithLiteralTranslationKeys()) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("legacy AI OS monolith dynamic translation key families resolve in both locale resources", () => {
+  const panels = [
+    "console",
+    "shell",
+    "webview",
+    "git",
+    "packages",
+    "secrets",
+    "database",
+    "search",
+    "debugger",
+    "deploy",
+  ];
+  const gitTabs = ["changes", "log", "diff", "branches"];
+  const databaseTabs = ["query", "tables"];
+  const debuggerTabs = ["vars", "stack", "breakpoints"];
+  const deployTabs = ["overview", "logs", "settings"];
+  const accountPages = [
+    "profile",
+    "settings",
+    "billing",
+    "aiApis",
+    "apiKeys",
+    "agentConfig",
+  ];
+  const chatTiers = ["power", "lite", "eco"];
+  const themes = ["dark", "midnight", "highContrast"];
+  const layouts = ["default", "minimal", "focus"];
+  const replTemplates = [
+    "next",
+    "fastapi",
+    "discord",
+    "telegram",
+    "agent",
+    "stripe",
+    "blog",
+  ];
+  const gitLogIndexes = [0, 1, 2, 3];
+  const agentPackages = [
+    "langchain",
+    "vercel-ai",
+    "hermes-native",
+    "openai-assistants",
+    "crewai",
+    "autogen",
+  ];
+  const packageCapabilities: Record<string, number> = {
+    langchain: 7,
+    "vercel-ai": 6,
+    "hermes-native": 6,
+    "openai-assistants": 6,
+    crewai: 6,
+    autogen: 6,
+  };
+  const packageLayerCounts: Record<string, number> = {
+    langchain: 4,
+    "vercel-ai": 4,
+    "hermes-native": 4,
+    "openai-assistants": 4,
+    crewai: 4,
+    autogen: 4,
+  };
+
+  const requiredKeys = [
+    ...panels.map((panel) => `legacyAi.monolith.panels.names.${panel}`),
+    ...gitTabs.map((tab) => `legacyAi.monolith.panels.git.tabs.${tab}`),
+    ...databaseTabs.map(
+      (tab) => `legacyAi.monolith.panels.database.tabs.${tab}`,
+    ),
+    ...debuggerTabs.map(
+      (tab) => `legacyAi.monolith.panels.debugger.tabs.${tab}`,
+    ),
+    ...deployTabs.map((tab) => `legacyAi.monolith.panels.deploy.tabs.${tab}`),
+    ...accountPages.map((page) => `legacyAi.monolith.account.nav.${page}`),
+    ...chatTiers.flatMap((tier) => [
+      `legacyAi.monolith.chat.tiers.${tier}.name`,
+      `legacyAi.monolith.chat.tiers.${tier}.description`,
+      `legacyAi.monolith.chat.tiers.${tier}.hint`,
+    ]),
+    ...themes.map((theme) => `legacyAi.monolith.settings.theme.${theme}`),
+    ...layouts.map((layout) => `legacyAi.monolith.settings.layout.${layout}`),
+    ...replTemplates.flatMap((template) => [
+      `legacyAi.monolith.replSwitcher.templates.${template}.name`,
+      `legacyAi.monolith.replSwitcher.templates.${template}.desc`,
+    ]),
+    ...gitLogIndexes.flatMap((index) => [
+      `legacyAi.monolith.panels.git.log.${index}.message`,
+      `legacyAi.monolith.panels.git.log.${index}.time`,
+    ]),
+    ...agentPackages.flatMap((packageId) => [
+      `legacyAi.monolith.agentPackages.${packageId}.tagline`,
+      `legacyAi.monolith.agentPackages.${packageId}.description`,
+      ...Array.from({ length: packageCapabilities[packageId] }, (_, index) =>
+        `legacyAi.monolith.agentPackages.${packageId}.capabilities.${index}`,
+      ),
+      ...Array.from({ length: packageLayerCounts[packageId] }, (_, index) => [
+        `legacyAi.monolith.agentPackages.${packageId}.layers.${index}.name`,
+        `legacyAi.monolith.agentPackages.${packageId}.layers.${index}.detail`,
+      ]).flat(),
+    ]),
+  ];
+
+  for (const key of requiredKeys) {
+    assert.equal(
+      typeof lookup(enUS.translation, key),
+      "string",
+      `en-US missing ${key}`,
+    );
+    assert.equal(
+      typeof lookup(zhCN.translation, key),
+      "string",
+      `zh-CN missing ${key}`,
+    );
+  }
+});
+
+test("legacy AI OS monolith model tags all have translation mappings", () => {
+  const modelTags = Array.from(
+    new Set(
+      Array.from(
+        legacyAiMonolithSource.matchAll(/tags:\s*\[([^\]]+)\]/g),
+        (match) => match[1],
+      ).flatMap((tags) =>
+        Array.from(tags.matchAll(/"([^"]+)"/g), (tagMatch) => tagMatch[1]),
+      ),
+    ),
+  ).sort();
+  const mappedTags = Array.from(
+    legacyAiMonolithSource.matchAll(/^\s{2}"?([^":\n]+)"?:\s*"legacyAi\.monolith\.modelTags\.[^"]+",/gm),
+    (match) => match[1],
+  ).sort();
+
+  assert.ok(modelTags.length > 0, "AIInterface.tsx model tags were not found");
+  assert.deepEqual(mappedTags, modelTags);
+});
+
+test("legacy AI OS monolith model descriptions all have translation mappings", () => {
+  const modelIds = Array.from(
+    new Set(
+      Array.from(
+        legacyAiMonolithSource.matchAll(
+          /\{\s*id:\s*"([^"]+)",\s*name:\s*"[^"]+",\s*description:\s*"[^"]+",\s*context:\s*"[^"]+",\s*tags:\s*\[/g,
+        ),
+        (match) => match[1],
+      ),
+    ),
+  ).sort();
+  const mappedModelIds = Array.from(
+    legacyAiMonolithSource.matchAll(
+      /^\s{2}"([^"]+)":\s*"legacyAi\.monolith\.models\.[^"]+\.description",/gm,
+    ),
+    (match) => match[1],
+  ).sort();
+
+  assert.ok(modelIds.length > 0, "AIInterface.tsx model ids were not found");
+  assert.deepEqual(mappedModelIds, modelIds);
+});
+
+test("legacy AI OS monolith locale resources have matching key and placeholder coverage", () => {
+  const enMonolithPaths = flattenStringPaths(
+    enUS.translation.legacyAi.monolith,
+    "legacyAi.monolith",
+  );
+  const zhMonolithPaths = flattenStringPaths(
+    zhCN.translation.legacyAi.monolith,
+    "legacyAi.monolith",
+  );
+  assert.ok(enMonolithPaths.length > 0, "en-US legacyAi.monolith is empty");
+  assert.deepEqual(zhMonolithPaths, enMonolithPaths);
+
+  for (const key of enMonolithPaths) {
+    const enValue = lookup(enUS.translation, key);
+    const zhValue = lookup(zhCN.translation, key);
+    assert.deepEqual(
+      placeholders(zhValue),
+      placeholders(enValue),
+      `${key} placeholder mismatch`,
+    );
+  }
+});
+
 test("persists locale choices and lets URL lang override stored locale in browser context", () => {
   const storedValues = new Map<string, string>([[LOCALE_STORAGE_KEY, "en-US"]]);
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -897,6 +1126,10 @@ function legacyAiLiteralTranslationKeys(): Set<string> {
     `${legacyAiComponentSource}\n${legacyAiDataSource}`,
     "legacyAi",
   );
+}
+
+function legacyAiMonolithLiteralTranslationKeys(): Set<string> {
+  return literalTranslationKeys(legacyAiMonolithSource, "legacyAi.monolith");
 }
 
 function literalTranslationKeys(source: string, namespace: string): Set<string> {

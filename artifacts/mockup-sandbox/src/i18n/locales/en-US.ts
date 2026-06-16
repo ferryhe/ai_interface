@@ -1544,6 +1544,1009 @@ export const enUS = {
           },
         },
       },
+      monolith: {
+        common: {
+          user: "User",
+          you: "You",
+        },
+        topbar: {
+          userHandle: "@you",
+          searchCommands: "Search files & commands...",
+          checkpointsTitle: "12 checkpoints - click to view history",
+          checkpoints: "checkpoints",
+          cyclesTitle: "1,247 cycles available - click to top up",
+          previewOnPhone: "Preview on phone",
+          fork: "Fork",
+          share: "Share",
+          collaborator: "User {{initial}}",
+          run: "Run",
+          stop: "Stop",
+          panels: "Panels",
+          taskChips: {
+            restApi: "Build a REST API with auth",
+            reactDashboard: "Create a React dashboard",
+            postgresDatabase: "Set up a PostgreSQL database",
+            deployProduction: "Deploy to production",
+            unitTests: "Write unit tests",
+            darkMode: "Add dark mode",
+          },
+        },
+        replSwitcher: {
+          searchPlaceholder: "Search Repls & templates...",
+          tabs: {
+            recent: "Recent",
+            templates: "Templates",
+          },
+          recentTitle: "Recent",
+          featuredTitle: "Featured",
+          newRepl: "+ New Repl",
+          importGitHub: "Import from GitHub",
+          recent: {
+            restApi: { desc: "REST API with JWT auth", time: "now" },
+            dashboard: { desc: "Admin dashboard with charts", time: "2h ago" },
+            discord: { desc: "Slash command bot", time: "yesterday" },
+            stripe: { desc: "Webhook receiver + replay", time: "3d ago" },
+            classifier: { desc: "scikit-learn pipeline", time: "1w ago" },
+          },
+          templates: {
+            next: {
+              name: "Next.js + Postgres",
+              desc: "Full-stack starter with Drizzle",
+            },
+            fastapi: {
+              name: "FastAPI + React",
+              desc: "Python backend + Vite frontend",
+            },
+            discord: {
+              name: "Discord Bot (TS)",
+              desc: "Slash commands + Drizzle",
+            },
+            telegram: {
+              name: "Telegram Mini App",
+              desc: "Vue 3 + WebApp SDK",
+            },
+            agent: {
+              name: "AI Agent (LangChain)",
+              desc: "Tools, memory, streaming",
+            },
+            stripe: {
+              name: "Stripe Checkout",
+              desc: "Subscriptions + webhooks",
+            },
+            blog: {
+              name: "Static blog (Astro)",
+              desc: "Markdown + RSS + sitemap",
+            },
+          },
+        },
+        panels: {
+          names: {
+            console: "Console",
+            shell: "Shell",
+            webview: "Webview",
+            git: "Git",
+            packages: "Packages",
+            secrets: "Secrets",
+            database: "Database",
+            search: "Search",
+            debugger: "Debugger",
+            deploy: "Deploy",
+          },
+          togglePanels: "Toggle panels:",
+          console: {
+            fixErrorTitle: "Ask Agent to fix this error",
+            fixWithAgent: "Fix with Agent",
+            runCommand: "Run a command...",
+          },
+          shell: {
+            welcome: "Welcome to the Shell. Type commands below.",
+          },
+          webview: {
+            open: "Open",
+            loading: "Loading...",
+            serverRunning: "Server running",
+          },
+          git: {
+            tabs: {
+              changes: "Changes",
+              log: "Log",
+              diff: "Diff",
+              branches: "Branches",
+            },
+            changedFiles: "Changed files ({{count}})",
+            commitMessage: "Commit message",
+            staged: "{{count}} staged",
+            commitPlaceholder: "Describe your changes...",
+            committed: "✓ Committed!",
+            commitFiles: "Commit {{count}} file(s)",
+            current: "current",
+            newBranch: "+ New branch",
+            branches: {
+              mainUpdated: "2h ago",
+              rateLimitingUpdated: "Yesterday",
+              refreshTokensUpdated: "3 days ago",
+            },
+            log: {
+              0: { message: "Add auth middleware", time: "2h ago" },
+              1: { message: "Setup Express server", time: "4h ago" },
+              2: { message: "Add rate limiting", time: "Yesterday" },
+              3: { message: "Initial project setup", time: "2 days ago" },
+            },
+          },
+          packages: {
+            searchPlaceholder: "Search packages...",
+            addPlaceholder: "Add package...",
+            install: "+ Install",
+            installing: "Installing {{packageName}}...",
+            headers: {
+              package: "Package",
+              version: "Version",
+              type: "Type",
+              size: "Size",
+            },
+            new: "new",
+          },
+          secrets: {
+            keyPlaceholder: "KEY",
+            valuePlaceholder: "value",
+            add: "+ Add",
+            reveal: "Reveal secret",
+            hide: "Hide secret",
+            copy: "Copy secret name",
+            remove: "Remove secret",
+          },
+          database: {
+            tabs: {
+              query: "Query",
+              tables: "Tables",
+            },
+            zeroRows: "Query executed - 0 rows returned",
+            oneRowAffected: "1 row affected",
+            syntaxError: "ERROR: syntax error at or near \"{{token}}\"",
+            running: "⟳ Running...",
+            run: "▶ Run (⌘↵)",
+            shortcut: "Ctrl+Enter to run",
+            runEmpty: "Run a query to see results",
+            rows: "{{count}} rows",
+          },
+          search: {
+            searchPlaceholder: "Search in files... (Enter)",
+            caseSensitive: "Case sensitive",
+            regex: "Regex",
+            toggleReplace: "Toggle replace",
+            replacePlaceholder: "Replace with...",
+            replace: "Replace",
+            replaceAll: "Replace All",
+            searching: "Searching...",
+            noResults: "No results for \"{{query}}\"",
+            empty: "Type to search across all files",
+            results: "{{count}} result(s)",
+          },
+          debugger: {
+            controls: {
+              continue: "Continue",
+              pause: "Pause",
+              stepOver: "Step over",
+              stepInto: "Step into",
+              stepOut: "Step out",
+              restart: "Restart",
+              stop: "Stop",
+            },
+            pausedAt: "Paused at {{location}}",
+            running: "Running",
+            tabs: {
+              vars: "Vars",
+              stack: "Stack",
+              breakpoints: "Breakpoints",
+            },
+            condition: "if: {{condition}}",
+            addBreakpoint: "+ Add breakpoint",
+          },
+          deploy: {
+            tabs: {
+              overview: "Overview",
+              logs: "Logs",
+              settings: "Settings",
+            },
+            production: "Production",
+            deployedAgo: "Deployed 2h ago",
+            labels: {
+              url: "URL",
+              region: "Region",
+              instance: "Instance",
+              uptime: "Uptime",
+            },
+            values: {
+              region: "US East (Virginia)",
+            },
+            traffic: "Traffic (last 24h)",
+            deploying: "⟳ Deploying...",
+            deploy: "↑ Deploy",
+            rollback: "Rollback",
+            logs: {
+              buildComplete: "✓ Build completed in 3.2s",
+              testsPassed: "✓ Tests passed (47/47)",
+              imagePushed: "✓ Docker image pushed",
+              successful: "✓ Deployment successful",
+              building: "⟳ Building...",
+              installing: "✓ Installing dependencies",
+              runningTests: "✓ Running tests",
+              buildingImage: "✓ Building Docker image",
+              pushing: "✓ Pushing to registry",
+              updating: "✓ Updating deployment",
+              healthPassed: "✓ Health check passed - live!",
+            },
+            settings: {
+              autoDeploy: "Auto-deploy on push",
+              runTests: "Run tests before deploy",
+              rollback: "Rollback on failure",
+              alwaysOn: "Always-on (prevent sleep)",
+            },
+          },
+        },
+        account: {
+          signOut: "Sign out",
+          nav: {
+            profile: "Profile",
+            settings: "Settings",
+            billing: "Billing",
+            aiApis: "AI APIs",
+            apiKeys: "API Keys",
+            agentConfig: "Agent Config",
+          },
+          aiApis: {
+            title: "AI Model APIs",
+            description:
+              "Connect your API keys to enable models. {{providers}} provider(s) connected · {{models}} models active.",
+            activeLabel: "Active:",
+            searchPlaceholder: "Search models or providers...",
+            connected: "Connected",
+            activeCount: "{{count}} active",
+            modelCount: "{{count}} model(s)",
+            remove: "Remove",
+            connect: "+ Connect",
+            enterKey:
+              "Enter your {{provider}} API key to unlock all {{count}} models.",
+            localOnly: "Keys are stored locally and never shared.",
+            keyPlaceholder: "Paste your {{provider}} API key...",
+            saving: "Saving...",
+            saved: "✓ Saved!",
+            saveKey: "Save Key",
+            featured: "Featured",
+            context: "ctx {{context}}",
+            active: "Active",
+            setActive: "Set active",
+            on: "✓ On",
+            off: "Off",
+            requiresKey: "Requires API key",
+          },
+          profile: {
+            title: "Profile",
+            memberSince: "Member since January 2024",
+            displayName: "Display name",
+            email: "Email",
+            username: "Username",
+            saveChanges: "Save changes",
+          },
+          settings: {
+            title: "Settings",
+            darkMode: "Dark mode",
+            darkModeDesc: "Use dark theme across the interface",
+            usageData: "Send anonymous usage data",
+            usageDataDesc: "Help improve the product",
+            autoSave: "Auto-save files",
+            autoSaveDesc: "Save files automatically on change",
+            inlineAi: "Show inline AI suggestions",
+            inlineAiDesc: "Display model suggestions in the editor",
+          },
+          billing: {
+            title: "Billing",
+            proPlan: "Pro Plan",
+            renewal: "$20 / month · Renews June 3, 2026",
+            active: "Active",
+            usageThisMonth: "Usage this month",
+            aiTokens: "AI tokens",
+            storage: "Storage",
+            deployments: "Deployments",
+          },
+          apiKeys: {
+            title: "API Keys",
+            description: "Use these keys to access AI OS programmatically.",
+            generate: "+ Generate new key",
+            productionKey: "Production key",
+            devKey: "Dev key",
+            createdProd: "Jan 15, 2024",
+            createdDev: "Feb 8, 2024",
+            lastProd: "2h ago",
+            lastDev: "Yesterday",
+            keyMeta: "Created {{created}} · Last used {{last}}",
+            revoke: "Revoke",
+          },
+        },
+        agentConfig: {
+          title: "Agent = Package",
+          description:
+            "An agent is not just a prompt - it's a software package: an orchestration loop, tool registry, memory management, and error handling. The LLM API is just one layer. Pick the framework package that fits your stack.",
+          architecture: {
+            title: "Agent Architecture Stack",
+            taskInput: {
+              label: "Task Input",
+              sub: "user prompt + context + history",
+            },
+            framework: {
+              label: "Agent Framework",
+              sub: "{{packageName}} - orchestration loop, memory, tools",
+            },
+            protocol: { label: "Tool Calling Protocol" },
+            provider: { label: "LLM Provider API" },
+            executor: { label: "Tool Executor" },
+          },
+          selectedPackage: "selected: {{packageName}}",
+          frameworkPackages: "Framework Packages",
+          default: "default",
+          completeImplementation: "complete agent implementation",
+          packageLayers: "Package Layers",
+          npmPackages: "npm packages",
+          capabilities: "Capabilities",
+          setDefault: "★ Set as default framework",
+          defaultFramework: "Default framework",
+          perTaskConfiguration: "Per-task Configuration",
+          frameworkPackage: "Framework Package",
+          model: "Model",
+        },
+        chat: {
+          messages: {
+            userBuildAuth:
+              "Build a REST API with authentication using Express and JWT",
+            agentBuildAuth:
+              "I'll build a complete REST API with JWT authentication. Let me set up the project structure.",
+            userAddRateLimiting: "Also add rate limiting and refresh tokens",
+          },
+          steps: {
+            setupExpress: "Setting up Express server",
+            installDependencies: "Installing dependencies",
+            createMiddleware: "Creating auth middleware",
+            writeRoutes: "Writing route handlers",
+          },
+          composer: {
+            placeholder: {
+              plan: "Describe what to plan...",
+              power: "What should I build next?",
+            },
+            attachFile: "Attach file",
+            planModeTitle:
+              "Plan mode - agent proposes a plan before acting",
+            plan: "Plan",
+            voiceInput: "Voice input",
+            send: "Send",
+            sendPlan: "Send (Plan mode)",
+            planHint:
+              "Plan mode: agent will propose a step-by-step plan and wait for approval before executing.",
+            shortcut: "⏎ send · ⇧⏎ newline",
+          },
+          tiers: {
+            power: {
+              name: "Power",
+              description: "Smartest, full agentic loop",
+              hint: "Best quality · ~$0.04/task",
+            },
+            lite: {
+              name: "Lite",
+              description: "Faster, lower cost",
+              hint: "Balanced · ~$0.008/task",
+            },
+            eco: {
+              name: "Eco",
+              description: "Cheapest, basic tasks",
+              hint: "Lowest cost · ~$0.001/task",
+            },
+          },
+        },
+        commandPalette: {
+          placeholder: "Type a command or search files...",
+          groups: {
+            files: "Files",
+            commands: "Commands",
+            agent: "Agent",
+            settings: "Settings",
+          },
+          items: {
+            runProject: "Run project",
+            stopProject: "Stop project",
+            openShell: "Open shell",
+            formatFile: "Format file",
+            toggleTerminal: "Toggle terminal",
+            restartLanguageServer: "Restart language server",
+            findInFiles: "Find in files",
+            gitCommitAll: "Git: commit all",
+            newChat: "New chat",
+            togglePlanMode: "Plan mode: Toggle",
+            switchPower: "Switch to Power tier",
+            switchLite: "Switch to Lite tier",
+            openAgentSettings: "Open agent settings",
+            openSettings: "Open settings",
+            switchTheme: "Switch theme",
+            keyboardShortcuts: "Keyboard shortcuts",
+            accountBilling: "Account & billing",
+          },
+          noResults: "No results for \"{{query}}\"",
+          navigate: "navigate",
+          open: "open",
+          close: "close",
+          results: "{{count}} results",
+        },
+        overlays: {
+          qr: {
+            title: "Preview on your phone",
+            scanLine1: "Scan with your phone camera",
+            scanLine2: "or open in Replit Mobile app",
+          },
+        },
+        notifications: {
+          title: "Notifications",
+          routeHandlers: "Agent finished writing route handlers",
+          packageUpdate: "express@4.19.2 available (update)",
+          branchPushed: "main branch pushed - 3 commits ahead",
+          twoMinutesAgo: "2m ago",
+          fifteenMinutesAgo: "15m ago",
+          oneHourAgo: "1h ago",
+        },
+        files: {
+          title: "Files",
+          newFile: "New File",
+          newFolder: "New Folder",
+          collapseAll: "Collapse All",
+        },
+        sidebar: {
+          agent: "Agent",
+          outline: "Outline",
+          threads: "Threads",
+          storage: "Storage",
+          bounties: "Bounties",
+        },
+        rail: {
+          files: "Files",
+          sourceControl: "Source Control",
+        },
+        editor: {
+          newTab: "New tab",
+          splitRight: "Split editor right",
+          aiAccept: "✦ AI · Tab to accept",
+          commentThread: "{{count}} comment thread",
+        },
+        bottomNav: {
+          tasks: "Tasks",
+          workspace: "Workspace",
+          account: "Account",
+        },
+        help: {
+          title: "Help & keyboard shortcuts",
+          keyboardShortcuts: "Keyboard shortcuts",
+          shortcuts: {
+            commandPalette: "Command palette",
+            quickFile: "Quick file open",
+            inlineAi: "Inline AI edit",
+            saveFile: "Save file",
+            runSend: "Run / send",
+            toggleComment: "Toggle comment",
+            toggleSidebar: "Toggle sidebar",
+            togglePanels: "Toggle bottom panels",
+            commandAlt: "Command (alt)",
+          },
+          docs: "Docs",
+          support: "Support",
+          tour: "Tour",
+        },
+        settings: {
+          workspaceSettings: "Workspace settings",
+          workspace: "Workspace",
+          alwaysOn: "Always-On",
+          alwaysOnDesc: "Keep Repl running 24/7 · 5 cycles/day",
+          boost: "Boost",
+          themeLabel: "Theme",
+          theme: {
+            dark: "Dark",
+            midnight: "Midnight",
+            highContrast: "Contrast",
+          },
+          layoutLabel: "Layout",
+          layout: {
+            default: "Default",
+            minimal: "Minimal",
+            focus: "Focus",
+          },
+          links: {
+            accountBilling: "Account & Billing",
+            editorPreferences: "Editor preferences",
+            connectedServices: "Connected services",
+            privacyData: "Privacy & data",
+          },
+        },
+        status: {
+          githubSync: "GitHub: 3 ahead · 1 behind",
+          running: "Running",
+          stopped: "Stopped",
+          portTitle: "Port 3000 → my-rest-api.you.repl.co",
+          live: "Live",
+          cpuUsage: "CPU usage",
+          memoryUsage: "Memory usage",
+          networkIo: "Network I/O",
+          diskUsage: "Disk usage",
+          connectionStatus: "Connection status",
+          cursor: "Ln {{line}}, Col {{column}}",
+          indentation: "Spaces: {{count}}",
+        },
+        history: {
+          title: "Task History",
+          configure: "Configure",
+          tasks: {
+            landing: {
+              title: "Build a landing page for SaaS",
+              time: "2h ago",
+            },
+            stripe: {
+              title: "Add Stripe payment integration",
+              time: "Yesterday",
+            },
+            authBug: {
+              title: "Fix authentication bug in Express",
+              time: "2 days ago",
+            },
+            adminDashboard: {
+              title: "Create admin dashboard with charts",
+              time: "3 days ago",
+            },
+            ci: {
+              title: "Set up CI/CD with GitHub Actions",
+              time: "5 days ago",
+            },
+          },
+        },
+        frameworks: {
+          replit: {
+            tagline: "Orchestrated planning loop",
+            description:
+              "Replit's own agent framework. Uses a structured planning loop where the agent reasons about the task, uses tools via a custom parse step, verifies the result, and checkpoints progress.",
+            loop: {
+              plan: "Plan task",
+              callTools: "Call tools",
+              parse: "Parse response",
+              execute: "Execute tool",
+              feedBack: "Feed result back",
+              verify: "Verify + checkpoint",
+            },
+            pros: {
+              integration: "Deep Replit integration",
+              checkpoints: "Automatic checkpoints",
+              filesystem: "File system access",
+              streaming: "Streaming output",
+            },
+          },
+          hermes: {
+            tagline: "Native <tool_call> tokens",
+            description:
+              "Nous Research Hermes models are trained natively on tool calling with special XML tokens. No prompt engineering needed - the model intrinsically understands function calling format.",
+            loop: {
+              schema: "Send <tools> schema",
+              output: "Model outputs <tool_call>",
+              parse: "Parse XML token",
+              execute: "Execute function",
+              inject: "Inject <tool_response>",
+              continue: "Model continues",
+            },
+            pros: {
+              native: "Natively trained format",
+              parallel: "Parallel tool calls",
+              lowHallucination: "Low hallucination rate",
+              openWeights: "Open weights",
+            },
+          },
+          openaiFn: {
+            tagline: "tools[] + finish_reason",
+            description:
+              "OpenAI's structured tool calling via the Chat Completions API. Pass tool definitions as JSON Schema - the model returns structured tool_calls that you execute and feed back as role: tool messages.",
+            loop: {
+              schema: "Send tools[] schema",
+              receive: "Receive tool_calls",
+              parse: "Parse JSON args",
+              execute: "Execute function",
+              post: "Post role:tool message",
+              done: "Loop until done",
+            },
+            pros: {
+              standard: "Industry standard",
+              parallel: "Parallel calls",
+              structuredArgs: "Structured args",
+              models: "Works with all OpenAI models",
+            },
+          },
+          anthropicTools: {
+            tagline: "tool_use content blocks",
+            description:
+              "Anthropic Claude's tool use via content blocks. Tools are defined with input_schema, and the model returns tool_use blocks in the content array when it wants to call a function.",
+            loop: {
+              schema: "Send tools + input_schema",
+              receive: "Receive tool_use block",
+              extract: "Extract input JSON",
+              execute: "Execute function",
+              post: "Post tool_result block",
+              continue: "Continue until text",
+            },
+            pros: {
+              blocks: "Clean content blocks",
+              thinking: "Built-in thinking",
+              context: "Extended context",
+              vision: "Vision + tools combined",
+            },
+          },
+          custom: {
+            tagline: "Custom framework",
+            description: "Bring your own orchestration loop and tool protocol.",
+          },
+        },
+        models: {
+          hermes405: {
+            description:
+              "Most capable Hermes model. Excels at complex reasoning, agentic tasks, and long-context understanding.",
+          },
+          hermes70: {
+            description:
+              "Fast and capable. Great balance of speed and intelligence for production workloads.",
+          },
+          hermes2Pro: {
+            description:
+              "Optimized for function calling and structured JSON output.",
+          },
+          hermesMixtral: {
+            description:
+              "MoE architecture tuned for instruction following and code generation.",
+          },
+          gpt4o: {
+            description:
+              "Most capable multimodal model. Handles text, images, and audio natively.",
+          },
+          gpt4oMini: {
+            description:
+              "Fast and cost-efficient. Ideal for high-throughput tasks and real-time applications.",
+          },
+          gpt4Turbo: {
+            description:
+              "High intelligence with an updated knowledge cutoff and vision support.",
+          },
+          o1Preview: {
+            description:
+              "Frontier model designed for complex multi-step reasoning and science.",
+          },
+          o1Mini: {
+            description:
+              "Smaller, faster reasoning model optimized for STEM tasks.",
+          },
+          claudeSonnet: {
+            description:
+              "Best combination of speed and intelligence. Excellent at coding and analysis.",
+          },
+          claudeHaiku: {
+            description:
+              "Fastest and most compact Claude model for near-instant responsiveness.",
+          },
+          claudeOpus: {
+            description:
+              "Top-level intelligence for highly complex tasks requiring deep understanding.",
+          },
+          geminiPro: {
+            description:
+              "Multimodal model with the longest context window. Processes text, images, video, and audio.",
+          },
+          geminiFlash: {
+            description:
+              "Fast and versatile performance across a diverse variety of tasks.",
+          },
+          geminiFlash8b: {
+            description:
+              "High volume, lower intelligence tasks. Optimized for cost efficiency.",
+          },
+          llama405: {
+            description:
+              "Most capable open-weight model. Approaches frontier closed-source models.",
+          },
+          llama70: {
+            description:
+              "Great balance of capability and speed for most tasks.",
+          },
+          llama8: {
+            description:
+              "Lightweight model for on-device and edge deployments.",
+          },
+          llamaVision: {
+            description:
+              "Multimodal model supporting image understanding tasks.",
+          },
+          mistralLarge: {
+            description:
+              "Top-tier reasoning for complex tasks. Fluent in English, French, Spanish, German, Italian.",
+          },
+          mistralSmall: {
+            description:
+              "State-of-the-art small model optimized for low-latency workloads.",
+          },
+          mixtral: {
+            description:
+              "High-capability sparse MoE model. Excels at code and math.",
+          },
+          codestral: {
+            description:
+              "Purpose-built for code generation, completion, and fill-in-the-middle tasks.",
+          },
+          deepseekV3: {
+            description:
+              "Latest flagship model excelling at coding, math, and reasoning tasks.",
+          },
+          deepseekR1: {
+            description:
+              "Reasoning model matching OpenAI o1 performance on math and coding benchmarks.",
+          },
+          deepseekCoder: {
+            description:
+              "Specialized for code completion with support for 338 programming languages.",
+          },
+          grok2: {
+            description:
+              "State-of-the-art model with real-time knowledge via X/Twitter integration.",
+          },
+          grokVision: {
+            description:
+              "Multimodal version with image understanding capabilities.",
+          },
+          commandRPlus: {
+            description:
+              "Optimized for RAG and tool use. Best-in-class retrieval augmented generation.",
+          },
+          commandR: {
+            description:
+              "Highly performant generative model for enterprise production use cases.",
+          },
+          qwen: {
+            description:
+              "Alibaba's latest frontier model. Strong multilingual and coding performance.",
+          },
+          yi: {
+            description:
+              "01.AI's top model with strong performance across reasoning and knowledge tasks.",
+          },
+          dbrx: {
+            description:
+              "Databricks' mixture-of-experts model for enterprise AI applications.",
+          },
+        },
+        modelTags: {
+          agentic: "Agentic",
+          reasoning: "Reasoning",
+          fast: "Fast",
+          balanced: "Balanced",
+          functionCalling: "Function Calling",
+          json: "JSON",
+          code: "Code",
+          coding: "Coding",
+          moe: "MoE",
+          multimodal: "Multimodal",
+          vision: "Vision",
+          cheap: "Cheap",
+          science: "Science",
+          stem: "STEM",
+          analysis: "Analysis",
+          creative: "Creative",
+          longContext: "Long Context",
+          highVolume: "High Volume",
+          openSource: "Open Source",
+          multilingual: "Multilingual",
+          math: "Math",
+          realTime: "Real-time",
+          rag: "RAG",
+          toolUse: "Tool Use",
+          enterprise: "Enterprise",
+        },
+        agentPackages: {
+          langchain: {
+            tagline: "Provider-agnostic chains & agents",
+            description:
+              "The most widely-used agent framework. Ships with tool abstractions, memory backends, RAG chains, and a massive ecosystem of integrations.",
+            capabilities: {
+              0: "Memory",
+              1: "RAG chains",
+              2: "Multi-agent",
+              3: "Streaming",
+              4: "LangSmith tracing",
+              5: "Tool calling",
+              6: "Structured output",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail: "AgentExecutor runs the plan-act-observe loop",
+              },
+              1: {
+                name: "Tool Registry",
+                detail: "DynamicTool / StructuredTool with JSON schema",
+              },
+              2: {
+                name: "Memory",
+                detail:
+                  "BufferMemory / ConversationSummaryMemory / VectorStoreMemory",
+              },
+              3: {
+                name: "LLM Interface",
+                detail:
+                  "ChatOpenAI / ChatAnthropic / ChatGoogleGenerativeAI",
+              },
+            },
+          },
+          "vercel-ai": {
+            tagline: "Type-safe streaming agents for TypeScript",
+            description:
+              "Vercel's modern AI SDK. Best-in-class streaming with RSC, Zod-typed tool parameters, multi-step agent loops, and React hooks out of the box.",
+            capabilities: {
+              0: "Streaming RSC",
+              1: "Type-safe Zod tools",
+              2: "Multi-step loop",
+              3: "React hooks (useChat)",
+              4: "Edge runtime",
+              5: "Structured output",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail: "generateText/streamText with maxSteps auto-loops",
+              },
+              1: {
+                name: "Tool Registry",
+                detail: "tool() with Zod schemas - fully type-safe",
+              },
+              2: {
+                name: "Streaming",
+                detail:
+                  "Server-sent events, RSC, useChat / useCompletion hooks",
+              },
+              3: {
+                name: "LLM Interface",
+                detail:
+                  "@ai-sdk/openai | @ai-sdk/anthropic | @ai-sdk/google",
+              },
+            },
+          },
+          "hermes-native": {
+            tagline: "Raw loop + <tool_call> tokens - no framework",
+            description:
+              "No framework at all. Hermes models are natively trained on tool calling tokens. Write the orchestration loop yourself in ~50 lines. Full control, zero overhead.",
+            capabilities: {
+              0: "Native token format",
+              1: "Zero overhead",
+              2: "Full loop control",
+              3: "Open weights",
+              4: "Self-hostable",
+              5: "Parallel tool calls",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail: "Your own while-loop - full control",
+              },
+              1: {
+                name: "Tool Registry",
+                detail: "Plain array of JSON Schema objects in system prompt",
+              },
+              2: {
+                name: "Protocol",
+                detail: "Native <tool_call> / <tool_response> XML tokens",
+              },
+              3: {
+                name: "LLM Interface",
+                detail:
+                  "OpenAI-compatible client -> Together AI / vLLM / Ollama",
+              },
+            },
+          },
+          "openai-assistants": {
+            tagline: "Managed threads, runs & built-in tools",
+            description:
+              "OpenAI's managed agent infrastructure. Persistent threads handle context automatically. Built-in code interpreter, file search, and function calling with no loop to manage.",
+            capabilities: {
+              0: "Managed threads",
+              1: "Auto context",
+              2: "Code interpreter",
+              3: "File search",
+              4: "Persistent state",
+              5: "Streaming runs",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail: "OpenAI-managed run loop - no while-loop needed",
+              },
+              1: {
+                name: "Tool Registry",
+                detail:
+                  "functions[] + built-in code_interpreter + file_search",
+              },
+              2: {
+                name: "Memory",
+                detail:
+                  "Threads = persistent conversation, managed automatically",
+              },
+              3: {
+                name: "LLM Interface",
+                detail: "OpenAI models only (gpt-4o, o1, etc.)",
+              },
+            },
+          },
+          crewai: {
+            tagline: "Multi-agent crews with role-based delegation",
+            description:
+              "Multi-agent framework where specialized agents collaborate in crews. Define a Coder, Reviewer, and Tester - each with their own LLM, tools, and goal.",
+            capabilities: {
+              0: "Multi-agent",
+              1: "Role-based",
+              2: "Task context passing",
+              3: "Process.sequential/hierarchical",
+              4: "Memory",
+              5: "Delegation",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail:
+                  "Crew.kickoff() - sequential or hierarchical process",
+              },
+              1: {
+                name: "Agent Layer",
+                detail: "Each Agent has its own LLM, tools, goal, memory",
+              },
+              2: {
+                name: "Task Graph",
+                detail: "Tasks with context[] - outputs flow between agents",
+              },
+              3: {
+                name: "LLM Interface",
+                detail: "Any LangChain-supported LLM per agent",
+              },
+            },
+          },
+          autogen: {
+            tagline: "Microsoft: conversational multi-agent + code exec",
+            description:
+              "Microsoft's framework for building multi-agent conversations. Human-in-the-loop, automated code execution, and nested conversations between specialized agents.",
+            capabilities: {
+              0: "Multi-agent chat",
+              1: "Code executor",
+              2: "Human-in-loop",
+              3: "Group orchestration",
+              4: "Streaming",
+              5: "Nested conversations",
+            },
+            layers: {
+              0: {
+                name: "Orchestration",
+                detail:
+                  "RoundRobinGroupChat / SelectorGroupChat team loop",
+              },
+              1: {
+                name: "Agent Layer",
+                detail:
+                  "AssistantAgent + CodeExecutorAgent + UserProxyAgent",
+              },
+              2: {
+                name: "Code Execution",
+                detail:
+                  "LocalCommandLineCodeExecutor / DockerCommandLineExecutor",
+              },
+              3: {
+                name: "LLM Interface",
+                detail:
+                  "OpenAIChatCompletionClient / AnthropicChatCompletionClient",
+              },
+            },
+          },
+        },
+      },
     },
     missionCenter: {
       badge: "Mission Center",

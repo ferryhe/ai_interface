@@ -1,27 +1,119 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+
+type TranslationValues = Record<string, string | number>;
+
+function monolithText(
+  t: TFunction,
+  key: string,
+  values?: TranslationValues,
+): string {
+  return t(`legacyAi.monolith.${key}`, values);
+}
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 
 const PREDEFINED_TASKS = [
-  "Build a REST API with auth",
-  "Create a React dashboard",
-  "Set up a PostgreSQL database",
-  "Deploy to production",
-  "Write unit tests",
-  "Add dark mode",
+  "legacyAi.monolith.topbar.taskChips.restApi",
+  "legacyAi.monolith.topbar.taskChips.reactDashboard",
+  "legacyAi.monolith.topbar.taskChips.postgresDatabase",
+  "legacyAi.monolith.topbar.taskChips.deployProduction",
+  "legacyAi.monolith.topbar.taskChips.unitTests",
+  "legacyAi.monolith.topbar.taskChips.darkMode",
 ];
 
 type AgentFrameworkId = "replit" | "hermes" | "openai-fn" | "anthropic-tools" | "custom";
 
+const FRAMEWORK_TAGLINE_KEYS: Record<AgentFrameworkId, string> = {
+  replit: "legacyAi.monolith.frameworks.replit.tagline",
+  hermes: "legacyAi.monolith.frameworks.hermes.tagline",
+  "openai-fn": "legacyAi.monolith.frameworks.openaiFn.tagline",
+  "anthropic-tools": "legacyAi.monolith.frameworks.anthropicTools.tagline",
+  custom: "legacyAi.monolith.frameworks.custom.tagline",
+};
+
+const FRAMEWORK_DESCRIPTION_KEYS: Record<AgentFrameworkId, string> = {
+  replit: "legacyAi.monolith.frameworks.replit.description",
+  hermes: "legacyAi.monolith.frameworks.hermes.description",
+  "openai-fn": "legacyAi.monolith.frameworks.openaiFn.description",
+  "anthropic-tools": "legacyAi.monolith.frameworks.anthropicTools.description",
+  custom: "legacyAi.monolith.frameworks.custom.description",
+};
+
+const FRAMEWORK_LOOP_STEP_KEYS: Record<AgentFrameworkId, string[]> = {
+  replit: [
+    "legacyAi.monolith.frameworks.replit.loop.plan",
+    "legacyAi.monolith.frameworks.replit.loop.callTools",
+    "legacyAi.monolith.frameworks.replit.loop.parse",
+    "legacyAi.monolith.frameworks.replit.loop.execute",
+    "legacyAi.monolith.frameworks.replit.loop.feedBack",
+    "legacyAi.monolith.frameworks.replit.loop.verify",
+  ],
+  hermes: [
+    "legacyAi.monolith.frameworks.hermes.loop.schema",
+    "legacyAi.monolith.frameworks.hermes.loop.output",
+    "legacyAi.monolith.frameworks.hermes.loop.parse",
+    "legacyAi.monolith.frameworks.hermes.loop.execute",
+    "legacyAi.monolith.frameworks.hermes.loop.inject",
+    "legacyAi.monolith.frameworks.hermes.loop.continue",
+  ],
+  "openai-fn": [
+    "legacyAi.monolith.frameworks.openaiFn.loop.schema",
+    "legacyAi.monolith.frameworks.openaiFn.loop.receive",
+    "legacyAi.monolith.frameworks.openaiFn.loop.parse",
+    "legacyAi.monolith.frameworks.openaiFn.loop.execute",
+    "legacyAi.monolith.frameworks.openaiFn.loop.post",
+    "legacyAi.monolith.frameworks.openaiFn.loop.done",
+  ],
+  "anthropic-tools": [
+    "legacyAi.monolith.frameworks.anthropicTools.loop.schema",
+    "legacyAi.monolith.frameworks.anthropicTools.loop.receive",
+    "legacyAi.monolith.frameworks.anthropicTools.loop.extract",
+    "legacyAi.monolith.frameworks.anthropicTools.loop.execute",
+    "legacyAi.monolith.frameworks.anthropicTools.loop.post",
+    "legacyAi.monolith.frameworks.anthropicTools.loop.continue",
+  ],
+  custom: [],
+};
+
+const FRAMEWORK_PRO_KEYS: Record<AgentFrameworkId, string[]> = {
+  replit: [
+    "legacyAi.monolith.frameworks.replit.pros.integration",
+    "legacyAi.monolith.frameworks.replit.pros.checkpoints",
+    "legacyAi.monolith.frameworks.replit.pros.filesystem",
+    "legacyAi.monolith.frameworks.replit.pros.streaming",
+  ],
+  hermes: [
+    "legacyAi.monolith.frameworks.hermes.pros.native",
+    "legacyAi.monolith.frameworks.hermes.pros.parallel",
+    "legacyAi.monolith.frameworks.hermes.pros.lowHallucination",
+    "legacyAi.monolith.frameworks.hermes.pros.openWeights",
+  ],
+  "openai-fn": [
+    "legacyAi.monolith.frameworks.openaiFn.pros.standard",
+    "legacyAi.monolith.frameworks.openaiFn.pros.parallel",
+    "legacyAi.monolith.frameworks.openaiFn.pros.structuredArgs",
+    "legacyAi.monolith.frameworks.openaiFn.pros.models",
+  ],
+  "anthropic-tools": [
+    "legacyAi.monolith.frameworks.anthropicTools.pros.blocks",
+    "legacyAi.monolith.frameworks.anthropicTools.pros.thinking",
+    "legacyAi.monolith.frameworks.anthropicTools.pros.context",
+    "legacyAi.monolith.frameworks.anthropicTools.pros.vision",
+  ],
+  custom: [],
+};
+
 const PAST_TASKS: {
-  id: number; title: string; time: string; status: "done" | "running" | "failed";
+  id: number; titleKey: string; timeKey: string; status: "done" | "running" | "failed";
   aiConfig: { providerId: string; modelId: string; modelName: string; framework: AgentFrameworkId };
 }[] = [
-  { id: 1, title: "Build a landing page for SaaS", time: "2h ago", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-405b", modelName: "Hermes 3 405B", framework: "hermes" } },
-  { id: 2, title: "Add Stripe payment integration", time: "Yesterday", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o", modelName: "GPT-4o", framework: "openai-fn" } },
-  { id: 3, title: "Fix authentication bug in Express", time: "2 days ago", status: "done", aiConfig: { providerId: "anthropic", modelId: "claude-3-5-sonnet", modelName: "Claude 3.5 Sonnet", framework: "anthropic-tools" } },
-  { id: 4, title: "Create admin dashboard with charts", time: "3 days ago", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-70b", modelName: "Hermes 3 70B", framework: "hermes" } },
-  { id: 5, title: "Set up CI/CD with GitHub Actions", time: "5 days ago", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o-mini", modelName: "GPT-4o mini", framework: "replit" } },
+  { id: 1, titleKey: "legacyAi.monolith.history.tasks.landing.title", timeKey: "legacyAi.monolith.history.tasks.landing.time", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-405b", modelName: "Hermes 3 405B", framework: "hermes" } },
+  { id: 2, titleKey: "legacyAi.monolith.history.tasks.stripe.title", timeKey: "legacyAi.monolith.history.tasks.stripe.time", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o", modelName: "GPT-4o", framework: "openai-fn" } },
+  { id: 3, titleKey: "legacyAi.monolith.history.tasks.authBug.title", timeKey: "legacyAi.monolith.history.tasks.authBug.time", status: "done", aiConfig: { providerId: "anthropic", modelId: "claude-3-5-sonnet", modelName: "Claude 3.5 Sonnet", framework: "anthropic-tools" } },
+  { id: 4, titleKey: "legacyAi.monolith.history.tasks.adminDashboard.title", timeKey: "legacyAi.monolith.history.tasks.adminDashboard.time", status: "done", aiConfig: { providerId: "nous", modelId: "hermes-3-llama-3.1-70b", modelName: "Hermes 3 70B", framework: "hermes" } },
+  { id: 5, titleKey: "legacyAi.monolith.history.tasks.ci.title", timeKey: "legacyAi.monolith.history.tasks.ci.time", status: "done", aiConfig: { providerId: "openai", modelId: "gpt-4o-mini", modelName: "GPT-4o mini", framework: "replit" } },
 ];
 
 type AgentFramework = {
@@ -199,18 +291,18 @@ You are a helpful coding assistant.`,
 ];
 
 const CHAT_MESSAGES = [
-  { id: 1, role: "user", content: "Build a REST API with authentication using Express and JWT" },
+  { id: 1, role: "user", contentKey: "legacyAi.monolith.chat.messages.userBuildAuth" },
   {
     id: 2, role: "agent",
-    content: "I'll build a complete REST API with JWT authentication. Let me set up the project structure.",
+    contentKey: "legacyAi.monolith.chat.messages.agentBuildAuth",
     steps: [
-      { label: "Setting up Express server", done: true },
-      { label: "Installing dependencies", done: true },
-      { label: "Creating auth middleware", done: true },
-      { label: "Writing route handlers", done: false, active: true },
+      { labelKey: "legacyAi.monolith.chat.steps.setupExpress", done: true },
+      { labelKey: "legacyAi.monolith.chat.steps.installDependencies", done: true },
+      { labelKey: "legacyAi.monolith.chat.steps.createMiddleware", done: true },
+      { labelKey: "legacyAi.monolith.chat.steps.writeRoutes", done: false, active: true },
     ],
   },
-  { id: 3, role: "user", content: "Also add rate limiting and refresh tokens" },
+  { id: 3, role: "user", contentKey: "legacyAi.monolith.chat.messages.userAddRateLimiting" },
 ];
 
 const FILE_TREE: { name: string; type: "folder" | "file"; depth: number; open?: boolean; ext?: string; active?: boolean }[] = [
@@ -278,6 +370,70 @@ type ModelProvider = {
     tags: string[];
     featured?: boolean;
   }[];
+};
+
+const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
+  "hermes-3-llama-3.1-405b": "legacyAi.monolith.models.hermes405.description",
+  "hermes-3-llama-3.1-70b": "legacyAi.monolith.models.hermes70.description",
+  "hermes-2-pro-llama-3-8b": "legacyAi.monolith.models.hermes2Pro.description",
+  "hermes-2-mixtral-8x7b": "legacyAi.monolith.models.hermesMixtral.description",
+  "gpt-4o": "legacyAi.monolith.models.gpt4o.description",
+  "gpt-4o-mini": "legacyAi.monolith.models.gpt4oMini.description",
+  "gpt-4-turbo": "legacyAi.monolith.models.gpt4Turbo.description",
+  "o1-preview": "legacyAi.monolith.models.o1Preview.description",
+  "o1-mini": "legacyAi.monolith.models.o1Mini.description",
+  "claude-3-5-sonnet": "legacyAi.monolith.models.claudeSonnet.description",
+  "claude-3-5-haiku": "legacyAi.monolith.models.claudeHaiku.description",
+  "claude-3-opus": "legacyAi.monolith.models.claudeOpus.description",
+  "gemini-1.5-pro": "legacyAi.monolith.models.geminiPro.description",
+  "gemini-1.5-flash": "legacyAi.monolith.models.geminiFlash.description",
+  "gemini-1.5-flash-8b": "legacyAi.monolith.models.geminiFlash8b.description",
+  "llama-3.1-405b": "legacyAi.monolith.models.llama405.description",
+  "llama-3.1-70b": "legacyAi.monolith.models.llama70.description",
+  "llama-3.1-8b": "legacyAi.monolith.models.llama8.description",
+  "llama-3.2-vision-11b": "legacyAi.monolith.models.llamaVision.description",
+  "mistral-large": "legacyAi.monolith.models.mistralLarge.description",
+  "mistral-small": "legacyAi.monolith.models.mistralSmall.description",
+  "mixtral-8x22b": "legacyAi.monolith.models.mixtral.description",
+  "codestral": "legacyAi.monolith.models.codestral.description",
+  "deepseek-v3": "legacyAi.monolith.models.deepseekV3.description",
+  "deepseek-r1": "legacyAi.monolith.models.deepseekR1.description",
+  "deepseek-coder-v2": "legacyAi.monolith.models.deepseekCoder.description",
+  "grok-2": "legacyAi.monolith.models.grok2.description",
+  "grok-2-vision": "legacyAi.monolith.models.grokVision.description",
+  "command-r-plus": "legacyAi.monolith.models.commandRPlus.description",
+  "command-r": "legacyAi.monolith.models.commandR.description",
+  "qwen-2.5-72b": "legacyAi.monolith.models.qwen.description",
+  "yi-large": "legacyAi.monolith.models.yi.description",
+  "dbrx-instruct": "legacyAi.monolith.models.dbrx.description",
+};
+
+const MODEL_TAG_KEYS: Record<string, string> = {
+  Agentic: "legacyAi.monolith.modelTags.agentic",
+  Reasoning: "legacyAi.monolith.modelTags.reasoning",
+  Fast: "legacyAi.monolith.modelTags.fast",
+  Balanced: "legacyAi.monolith.modelTags.balanced",
+  "Function Calling": "legacyAi.monolith.modelTags.functionCalling",
+  JSON: "legacyAi.monolith.modelTags.json",
+  Code: "legacyAi.monolith.modelTags.code",
+  Coding: "legacyAi.monolith.modelTags.coding",
+  MoE: "legacyAi.monolith.modelTags.moe",
+  Multimodal: "legacyAi.monolith.modelTags.multimodal",
+  Vision: "legacyAi.monolith.modelTags.vision",
+  Cheap: "legacyAi.monolith.modelTags.cheap",
+  Science: "legacyAi.monolith.modelTags.science",
+  STEM: "legacyAi.monolith.modelTags.stem",
+  Analysis: "legacyAi.monolith.modelTags.analysis",
+  Creative: "legacyAi.monolith.modelTags.creative",
+  "Long Context": "legacyAi.monolith.modelTags.longContext",
+  "High Volume": "legacyAi.monolith.modelTags.highVolume",
+  "Open Source": "legacyAi.monolith.modelTags.openSource",
+  Multilingual: "legacyAi.monolith.modelTags.multilingual",
+  Math: "legacyAi.monolith.modelTags.math",
+  "Real-time": "legacyAi.monolith.modelTags.realTime",
+  RAG: "legacyAi.monolith.modelTags.rag",
+  "Tool Use": "legacyAi.monolith.modelTags.toolUse",
+  Enterprise: "legacyAi.monolith.modelTags.enterprise",
 };
 
 const AI_PROVIDERS: ModelProvider[] = [
@@ -417,6 +573,87 @@ const PANEL_ICONS: Record<PanelId, string> = {
   secrets: "🔑", database: "◫", search: "⌕", debugger: "⬤", deploy: "↑",
 };
 
+const PANEL_NAME_KEYS: Record<PanelId, string> = {
+  console: "legacyAi.monolith.panels.names.console",
+  shell: "legacyAi.monolith.panels.names.shell",
+  webview: "legacyAi.monolith.panels.names.webview",
+  git: "legacyAi.monolith.panels.names.git",
+  packages: "legacyAi.monolith.panels.names.packages",
+  secrets: "legacyAi.monolith.panels.names.secrets",
+  database: "legacyAi.monolith.panels.names.database",
+  search: "legacyAi.monolith.panels.names.search",
+  debugger: "legacyAi.monolith.panels.names.debugger",
+  deploy: "legacyAi.monolith.panels.names.deploy",
+};
+
+const GIT_TAB_KEYS = {
+  changes: "legacyAi.monolith.panels.git.tabs.changes",
+  log: "legacyAi.monolith.panels.git.tabs.log",
+  diff: "legacyAi.monolith.panels.git.tabs.diff",
+  branches: "legacyAi.monolith.panels.git.tabs.branches",
+} as const;
+
+const DATABASE_TAB_KEYS = {
+  query: "legacyAi.monolith.panels.database.tabs.query",
+  tables: "legacyAi.monolith.panels.database.tabs.tables",
+} as const;
+
+const DEBUGGER_TAB_KEYS = {
+  vars: "legacyAi.monolith.panels.debugger.tabs.vars",
+  stack: "legacyAi.monolith.panels.debugger.tabs.stack",
+  breakpoints: "legacyAi.monolith.panels.debugger.tabs.breakpoints",
+} as const;
+
+const DEPLOY_TAB_KEYS = {
+  overview: "legacyAi.monolith.panels.deploy.tabs.overview",
+  logs: "legacyAi.monolith.panels.deploy.tabs.logs",
+  settings: "legacyAi.monolith.panels.deploy.tabs.settings",
+} as const;
+
+const ACCOUNT_NAV_KEYS = {
+  profile: "legacyAi.monolith.account.nav.profile",
+  settings: "legacyAi.monolith.account.nav.settings",
+  billing: "legacyAi.monolith.account.nav.billing",
+  "ai-apis": "legacyAi.monolith.account.nav.aiApis",
+  "api-keys": "legacyAi.monolith.account.nav.apiKeys",
+  "agent-config": "legacyAi.monolith.account.nav.agentConfig",
+} as const;
+
+const THEME_KEYS = {
+  dark: "legacyAi.monolith.settings.theme.dark",
+  midnight: "legacyAi.monolith.settings.theme.midnight",
+  "high-contrast": "legacyAi.monolith.settings.theme.highContrast",
+} as const;
+
+const LAYOUT_KEYS = {
+  default: "legacyAi.monolith.settings.layout.default",
+  minimal: "legacyAi.monolith.settings.layout.minimal",
+  focus: "legacyAi.monolith.settings.layout.focus",
+} as const;
+
+const REPL_SWITCHER_TAB_KEYS = {
+  recent: "legacyAi.monolith.replSwitcher.tabs.recent",
+  templates: "legacyAi.monolith.replSwitcher.tabs.templates",
+} as const;
+
+const CHAT_TIER_KEYS = {
+  power: {
+    name: "legacyAi.monolith.chat.tiers.power.name",
+    description: "legacyAi.monolith.chat.tiers.power.description",
+    hint: "legacyAi.monolith.chat.tiers.power.hint",
+  },
+  lite: {
+    name: "legacyAi.monolith.chat.tiers.lite.name",
+    description: "legacyAi.monolith.chat.tiers.lite.description",
+    hint: "legacyAi.monolith.chat.tiers.lite.hint",
+  },
+  eco: {
+    name: "legacyAi.monolith.chat.tiers.eco.name",
+    description: "legacyAi.monolith.chat.tiers.eco.description",
+    hint: "legacyAi.monolith.chat.tiers.eco.hint",
+  },
+} as const;
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function FileIcon({ ext }: { ext?: string }) {
@@ -444,6 +681,7 @@ function syntaxHighlight(line: string): string {
 // ─── PANEL COMPONENTS ─────────────────────────────────────────────────────────
 
 function ConsolePanel() {
+  const { t } = useTranslation();
   const [lines, setLines] = useState([
     { type: "info", text: "> pnpm install" },
     { type: "success", text: "Packages: +124" },
@@ -482,11 +720,11 @@ function ConsolePanel() {
             <span style={{ color: "#484f58" }}>{String(i + 1).padStart(2, "0")}</span>
             <span style={{ flex: 1 }}>{l.text}</span>
             {l.type === "error" && (
-              <button title="Ask Agent to fix this error"
+              <button title={t("legacyAi.monolith.panels.console.fixErrorTitle")}
                 style={{ background: "#f2652222", border: "1px solid #f2652266", borderRadius: 4, padding: "1px 8px", color: "#f26522", fontSize: 10, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#f2652244"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#f2652222"; }}>
-                <span>✦</span> Fix with Agent
+                <span>✦</span> {t("legacyAi.monolith.panels.console.fixWithAgent")}
               </button>
             )}
           </div>
@@ -498,7 +736,7 @@ function ConsolePanel() {
         <input
           value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && run()}
-          placeholder="Run a command…"
+          placeholder={t("legacyAi.monolith.panels.console.runCommand")}
           style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}
         />
       </div>
@@ -507,9 +745,10 @@ function ConsolePanel() {
 }
 
 function ShellPanel() {
+  const { t } = useTranslation();
   const [history, setHistory] = useState([
     { prompt: true, text: "" },
-    { prompt: false, text: "Welcome to the Shell. Type commands below." },
+    { prompt: false, text: t("legacyAi.monolith.panels.shell.welcome") },
     { prompt: true, text: "ls -la" },
     { prompt: false, text: "total 32\ndrwxr-xr-x  5 runner runner 4096 May  3 10:00 .\ndrwxr-xr-x 15 runner runner 4096 May  3 09:55 ..\n-rw-r--r--  1 runner runner  234 May  3 10:00 .env\n-rw-r--r--  1 runner runner 1204 May  3 09:58 package.json\ndrwxr-xr-x  3 runner runner 4096 May  3 09:57 src" },
     { prompt: true, text: "cat .env" },
@@ -591,6 +830,7 @@ function ShellPanel() {
 }
 
 function WebviewPanel() {
+  const { t } = useTranslation();
   const [url, setUrl] = useState("http://localhost:3000");
   const [editingUrl, setEditingUrl] = useState(url);
   const [loading, setLoading] = useState(false);
@@ -616,18 +856,18 @@ function WebviewPanel() {
             style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}
           />
         </div>
-        <button style={btnStyle("#1f6feb22", "#58a6ff", "#1f6feb")}>Open ↗</button>
+        <button style={btnStyle("#1f6feb22", "#58a6ff", "#1f6feb")}>{t("legacyAi.monolith.panels.webview.open")} ↗</button>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0d11" }}>
         {loading ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ color: "#f26522", fontSize: 20, marginBottom: 8 }}>◌</div>
-            <div style={{ color: "#8b949e", fontSize: 12 }}>Loading…</div>
+            <div style={{ color: "#8b949e", fontSize: 12 }}>{t("legacyAi.monolith.panels.webview.loading")}</div>
           </div>
         ) : (
           <div style={{ textAlign: "center" }}>
             <div style={{ color: "#3fb950", fontSize: 32, marginBottom: 12 }}>◉</div>
-            <div style={{ color: "#e1e4e8", fontWeight: 600, marginBottom: 4 }}>Server running</div>
+            <div style={{ color: "#e1e4e8", fontWeight: 600, marginBottom: 4 }}>{t("legacyAi.monolith.panels.webview.serverRunning")}</div>
             <div style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{url}</div>
             <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
               {["/api/health → 200", "/api/users → 200", "/api/auth/login → 401"].map(r => (
@@ -671,10 +911,22 @@ const DIFF_CONTENT = `@@ -1,8 +1,12 @@
 +router.post('/login', limiter, async (req, res) => {`;
 
 function GitPanel() {
+  const { t } = useTranslation();
   const [view, setView] = useState<"changes" | "log" | "diff" | "branches">("changes");
   const [staged, setStaged] = useState<string[]>([]);
   const [commitMsg, setCommitMsg] = useState("");
   const [committed, setCommitted] = useState(false);
+  const gitLog = GIT_LOG.map((entry, index) => ({
+    ...entry,
+    msg: t(`legacyAi.monolith.panels.git.log.${index}.message`),
+    author: t("legacyAi.monolith.common.you"),
+    time: t(`legacyAi.monolith.panels.git.log.${index}.time`),
+  }));
+  const branches = [
+    { name: "main", current: true, updated: t("legacyAi.monolith.panels.git.branches.mainUpdated") },
+    { name: "feature/rate-limiting", current: false, updated: t("legacyAi.monolith.panels.git.branches.rateLimitingUpdated") },
+    { name: "feature/refresh-tokens", current: false, updated: t("legacyAi.monolith.panels.git.branches.refreshTokensUpdated") },
+  ];
 
   const toggleStage = (path: string) =>
     setStaged(s => s.includes(path) ? s.filter(p => p !== path) : [...s, path]);
@@ -697,7 +949,7 @@ function GitPanel() {
             borderBottom: view === v ? "2px solid #f26522" : "2px solid transparent",
             color: view === v ? "#e1e4e8" : "#8b949e", cursor: "pointer",
             fontSize: 12, fontFamily: "inherit", textTransform: "capitalize",
-          }}>{v}</button>
+          }}>{t(GIT_TAB_KEYS[v])}</button>
         ))}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#8b949e" }}>
@@ -709,7 +961,7 @@ function GitPanel() {
         {view === "changes" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>
-              Changed files ({GIT_FILES.length})
+              {t("legacyAi.monolith.panels.git.changedFiles", { count: GIT_FILES.length })}
             </div>
             {GIT_FILES.map(f => (
               <div key={f.path} onClick={() => toggleStage(f.path)} style={{
@@ -728,12 +980,12 @@ function GitPanel() {
             ))}
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
-                <span>Commit message</span>
-                <span style={{ color: staged.length > 0 ? "#3fb950" : "#484f58" }}>{staged.length} staged</span>
+                <span>{t("legacyAi.monolith.panels.git.commitMessage")}</span>
+                <span style={{ color: staged.length > 0 ? "#3fb950" : "#484f58" }}>{t("legacyAi.monolith.panels.git.staged", { count: staged.length })}</span>
               </div>
               <textarea
                 value={commitMsg} onChange={e => setCommitMsg(e.target.value)}
-                placeholder="Describe your changes…"
+                placeholder={t("legacyAi.monolith.panels.git.commitPlaceholder")}
                 style={{ width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: 8, resize: "none", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
                 rows={2}
               />
@@ -742,7 +994,7 @@ function GitPanel() {
                 disabled={!commitMsg.trim() || staged.length === 0}
                 style={{ marginTop: 6, width: "100%", background: committed ? "#238636" : (staged.length > 0 && commitMsg.trim() ? "#1f6feb" : "#21262d"), border: "none", borderRadius: 6, color: committed ? "#fff" : (staged.length > 0 && commitMsg.trim() ? "#fff" : "#484f58"), padding: "7px 0", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
               >
-                {committed ? "✓ Committed!" : `Commit ${staged.length > 0 ? staged.length + " file" + (staged.length > 1 ? "s" : "") : ""}`}
+                {committed ? t("legacyAi.monolith.panels.git.committed") : t("legacyAi.monolith.panels.git.commitFiles", { count: staged.length })}
               </button>
             </div>
           </div>
@@ -750,7 +1002,7 @@ function GitPanel() {
 
         {view === "log" && (
           <div>
-            {GIT_LOG.map((c, i) => (
+            {gitLog.map((c, i) => (
               <div key={c.hash} style={{ padding: "8px 0", borderBottom: "1px solid #21262d22", display: "flex", gap: 10, alignItems: "flex-start" }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? "#3fb950" : "#30363d", marginTop: 5, flexShrink: 0, border: i === 0 ? "2px solid #3fb95055" : "none" }} />
                 <div style={{ flex: 1 }}>
@@ -782,20 +1034,16 @@ function GitPanel() {
 
         {view === "branches" && (
           <div>
-            {[
-              { name: "main", current: true, updated: "2h ago" },
-              { name: "feature/rate-limiting", current: false, updated: "Yesterday" },
-              { name: "feature/refresh-tokens", current: false, updated: "3 days ago" },
-            ].map(b => (
+            {branches.map(b => (
               <div key={b.name} style={{ padding: "8px", borderRadius: 6, marginBottom: 4, background: b.current ? "#1f6feb11" : "transparent", border: b.current ? "1px solid #1f6feb33" : "1px solid transparent", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: b.current ? "#3fb950" : "#8b949e" }}>⎇</span>
                 <span style={{ flex: 1, color: b.current ? "#e1e4e8" : "#8b949e", fontSize: 12 }}>{b.name}</span>
-                {b.current && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 10, padding: "1px 6px", borderRadius: 4, border: "1px solid #3fb95044" }}>current</span>}
+                {b.current && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 10, padding: "1px 6px", borderRadius: 4, border: "1px solid #3fb95044" }}>{t("legacyAi.monolith.panels.git.current")}</span>}
                 <span style={{ color: "#484f58", fontSize: 11 }}>{b.updated}</span>
               </div>
             ))}
             <button style={{ marginTop: 8, width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#8b949e", padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
-              + New branch
+              {t("legacyAi.monolith.panels.git.newBranch")}
             </button>
           </div>
         )}
@@ -823,6 +1071,7 @@ const PACKAGES: PackageRow[] = [
 ];
 
 function PackagesPanel() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [installing, setInstalling] = useState<string | null>(null);
   const [installed, setInstalled] = useState<string[]>([]);
@@ -845,26 +1094,26 @@ function PackagesPanel() {
       <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", display: "flex", gap: 8 }}>
         <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
           <span style={{ color: "#484f58" }}>⌕</span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search packages…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("legacyAi.monolith.panels.packages.searchPlaceholder")}
             style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <input value={addPkg} onChange={e => setAddPkg(e.target.value)} onKeyDown={e => e.key === "Enter" && addPackage()} placeholder="Add package…"
+          <input value={addPkg} onChange={e => setAddPkg(e.target.value)} onKeyDown={e => e.key === "Enter" && addPackage()} placeholder={t("legacyAi.monolith.panels.packages.addPlaceholder")}
             style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "inherit", width: 130 }} />
           <button onClick={addPackage} style={btnStyle(addPkg ? "#1f6feb" : "#21262d", addPkg ? "#fff" : "#484f58")}>
-            {installing ? "…" : "+ Install"}
+            {installing ? "…" : t("legacyAi.monolith.panels.packages.install")}
           </button>
         </div>
       </div>
       {installing && (
         <div style={{ padding: "6px 12px", background: "#1f6feb11", borderBottom: "1px solid #1f6feb33", fontSize: 11, color: "#58a6ff", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>◌</span>
-          Installing {installing}…
+          {t("legacyAi.monolith.panels.packages.installing", { packageName: installing })}
         </div>
       )}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ padding: "4px 12px 2px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, fontSize: 10, color: "#484f58", textTransform: "uppercase", letterSpacing: 1 }}>
-          <span>Package</span><span>Version</span><span>Type</span><span>Size</span>
+          <span>{t("legacyAi.monolith.panels.packages.headers.package")}</span><span>{t("legacyAi.monolith.panels.packages.headers.version")}</span><span>{t("legacyAi.monolith.panels.packages.headers.type")}</span><span>{t("legacyAi.monolith.panels.packages.headers.size")}</span>
         </div>
         {packageRows.map(pkg => (
           <div key={pkg.name} style={{ padding: "5px 12px", display: "grid", gridTemplateColumns: "1fr 100px 60px 80px", gap: 8, alignItems: "center", borderBottom: "1px solid #21262d22" }}
@@ -873,7 +1122,7 @@ function PackagesPanel() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "#e1e4e8", fontSize: 12 }}>{pkg.name}</span>
-              {pkg.isNew && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>new</span>}
+              {pkg.isNew && <span style={{ background: "#3fb95022", color: "#3fb950", fontSize: 9, padding: "1px 5px", borderRadius: 4, border: "1px solid #3fb95044" }}>{t("legacyAi.monolith.panels.packages.new")}</span>}
             </div>
             <span style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace" }}>{pkg.version}</span>
             <span style={{ fontSize: 10, color: pkg.type === "dev" ? "#d2a8ff" : "#58a6ff", background: pkg.type === "dev" ? "#d2a8ff11" : "#58a6ff11", borderRadius: 3, padding: "1px 5px", textAlign: "center" }}>{pkg.type}</span>
@@ -894,6 +1143,7 @@ const INITIAL_SECRETS = [
 ];
 
 function SecretsPanel() {
+  const { t } = useTranslation();
   const [secrets, setSecrets] = useState(INITIAL_SECRETS);
   const [newKey, setNewKey] = useState("");
   const [newVal, setNewVal] = useState("");
@@ -911,12 +1161,12 @@ function SecretsPanel() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", display: "flex", gap: 6 }}>
-        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="KEY"
+        <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder={t("legacyAi.monolith.panels.secrets.keyPlaceholder")}
           style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "monospace", width: 130 }} />
-        <input value={newVal} onChange={e => setNewVal(e.target.value)} placeholder="value"
+        <input value={newVal} onChange={e => setNewVal(e.target.value)} placeholder={t("legacyAi.monolith.panels.secrets.valuePlaceholder")}
           onKeyDown={e => e.key === "Enter" && add()}
           style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 12, padding: "4px 10px", outline: "none", fontFamily: "monospace" }} />
-        <button onClick={add} style={btnStyle(newKey && newVal ? "#1f6feb" : "#21262d", newKey && newVal ? "#fff" : "#484f58")}>+ Add</button>
+        <button onClick={add} style={btnStyle(newKey && newVal ? "#1f6feb" : "#21262d", newKey && newVal ? "#fff" : "#484f58")}>{t("legacyAi.monolith.panels.secrets.add")}</button>
       </div>
       <div style={{ flex: 1, overflowY: "auto" }}>
         {secrets.map(s => (
@@ -929,9 +1179,9 @@ function SecretsPanel() {
             <div style={{ flex: 1, background: "#0e1117", borderRadius: 4, padding: "3px 8px", fontFamily: "monospace", fontSize: 12, color: s.revealed ? "#a5d6ff" : "#484f58" }}>
               {s.revealed ? s.value : "●".repeat(Math.min(s.value.length, 20))}
             </div>
-            <button onClick={() => toggle(s.key)} style={iconBtn}>{s.revealed ? "👁" : "🔒"}</button>
-            <button onClick={() => copy(s.key)} style={iconBtn}>{copied === s.key ? "✓" : "⎘"}</button>
-            <button onClick={() => remove(s.key)} style={{ ...iconBtn, color: "#f85149" }}>✕</button>
+            <button title={s.revealed ? t("legacyAi.monolith.panels.secrets.hide") : t("legacyAi.monolith.panels.secrets.reveal")} onClick={() => toggle(s.key)} style={iconBtn}>{s.revealed ? "👁" : "🔒"}</button>
+            <button title={t("legacyAi.monolith.panels.secrets.copy")} onClick={() => copy(s.key)} style={iconBtn}>{copied === s.key ? "✓" : "⎘"}</button>
+            <button title={t("legacyAi.monolith.panels.secrets.remove")} onClick={() => remove(s.key)} style={{ ...iconBtn, color: "#f85149" }}>✕</button>
           </div>
         ))}
       </div>
@@ -940,6 +1190,7 @@ function SecretsPanel() {
 }
 
 function DatabasePanel() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("SELECT id, email, created_at FROM users LIMIT 10;");
   const [results, setResults] = useState<null | { cols: string[]; rows: (string | number)[][] }>(null);
   const [running, setRunning] = useState(false);
@@ -965,9 +1216,9 @@ function DatabasePanel() {
     setTimeout(() => {
       const q = query.trim();
       if (MOCK_RESULTS[q]) setResults(MOCK_RESULTS[q]);
-      else if (q.toLowerCase().startsWith("select")) setResults({ cols: ["result"], rows: [["Query executed — 0 rows returned"]] });
-      else if (q.toLowerCase().startsWith("insert") || q.toLowerCase().startsWith("update") || q.toLowerCase().startsWith("delete")) setResults({ cols: ["result"], rows: [["1 row affected"]] });
-      else setError("ERROR: syntax error at or near \"" + q.split(" ")[0] + "\"");
+      else if (q.toLowerCase().startsWith("select")) setResults({ cols: ["result"], rows: [[t("legacyAi.monolith.panels.database.zeroRows")]] });
+      else if (q.toLowerCase().startsWith("insert") || q.toLowerCase().startsWith("update") || q.toLowerCase().startsWith("delete")) setResults({ cols: ["result"], rows: [[t("legacyAi.monolith.panels.database.oneRowAffected")]] });
+      else setError(t("legacyAi.monolith.panels.database.syntaxError", { token: q.split(" ")[0] }));
       setRunning(false);
     }, 600);
   };
@@ -981,8 +1232,8 @@ function DatabasePanel() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
-        {(["query", "tables"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        {(["query", "tables"] as const).map(tabId => (
+          <button key={tabId} onClick={() => setTab(tabId)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === tabId ? "2px solid #f26522" : "2px solid transparent", color: tab === tabId ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>{t(DATABASE_TAB_KEYS[tabId])}</button>
         ))}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "#3fb950", gap: 4 }}>
@@ -1000,9 +1251,9 @@ function DatabasePanel() {
             />
             <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
               <button onClick={run} disabled={running} style={btnStyle("#1f6feb", "#fff")}>
-                {running ? "⟳ Running…" : "▶ Run (⌘↵)"}
+                {running ? t("legacyAi.monolith.panels.database.running") : t("legacyAi.monolith.panels.database.run")}
               </button>
-              <span style={{ fontSize: 11, color: "#484f58" }}>Ctrl+Enter to run</span>
+              <span style={{ fontSize: 11, color: "#484f58" }}>{t("legacyAi.monolith.panels.database.shortcut")}</span>
             </div>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
@@ -1021,22 +1272,22 @@ function DatabasePanel() {
                 </tbody>
               </table>
             )}
-            {!results && !error && !running && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", marginTop: 20 }}>Run a query to see results</div>}
+            {!results && !error && !running && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", marginTop: 20 }}>{t("legacyAi.monolith.panels.database.runEmpty")}</div>}
           </div>
         </>
       )}
 
       {tab === "tables" && (
         <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-          {TABLES.map(t => (
-            <div key={t.name} style={{ marginBottom: 12, border: "1px solid #21262d", borderRadius: 6, overflow: "hidden" }}>
+          {TABLES.map(table => (
+            <div key={table.name} style={{ marginBottom: 12, border: "1px solid #21262d", borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "6px 10px", background: "#21262d", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: "#e3b341" }}>◫</span>
-                <span style={{ color: "#e1e4e8", fontSize: 12, fontWeight: 500 }}>{t.name}</span>
-                <span style={{ color: "#484f58", fontSize: 11, marginLeft: "auto" }}>{t.rows} rows</span>
+                <span style={{ color: "#e1e4e8", fontSize: 12, fontWeight: 500 }}>{table.name}</span>
+                <span style={{ color: "#484f58", fontSize: 11, marginLeft: "auto" }}>{t("legacyAi.monolith.panels.database.rows", { count: table.rows })}</span>
               </div>
               <div style={{ padding: "6px 10px" }}>
-                {t.cols.map(c => <span key={c} style={{ display: "inline-block", background: "#0e1117", border: "1px solid #30363d", borderRadius: 3, padding: "1px 6px", fontSize: 11, color: "#8b949e", fontFamily: "monospace", margin: "2px" }}>{c}</span>)}
+                {table.cols.map(c => <span key={c} style={{ display: "inline-block", background: "#0e1117", border: "1px solid #30363d", borderRadius: 3, padding: "1px 6px", fontSize: 11, color: "#8b949e", fontFamily: "monospace", margin: "2px" }}>{c}</span>)}
               </div>
             </div>
           ))}
@@ -1047,6 +1298,7 @@ function DatabasePanel() {
 }
 
 function SearchPanel() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ file: string; line: number; text: string; match: string }[]>([]);
   const [searching, setSearching] = useState(false);
@@ -1082,29 +1334,29 @@ function SearchPanel() {
           <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
             <span style={{ color: "#484f58", fontSize: 13 }}>⌕</span>
             <input value={query} onChange={e => { setQuery(e.target.value); }} onKeyDown={e => e.key === "Enter" && search()}
-              placeholder="Search in files… (Enter)"
+              placeholder={t("legacyAi.monolith.panels.search.searchPlaceholder")}
               style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
           </div>
-          <button onClick={() => setCaseSensitive(c => !c)} style={btnStyle(caseSensitive ? "#1f6feb22" : "#21262d", caseSensitive ? "#58a6ff" : "#8b949e", caseSensitive ? "#1f6feb" : "#30363d")} title="Case sensitive">Aa</button>
-          <button onClick={() => setRegex(r => !r)} style={btnStyle(regex ? "#1f6feb22" : "#21262d", regex ? "#58a6ff" : "#8b949e", regex ? "#1f6feb" : "#30363d")} title="Regex">.*</button>
-          <button onClick={() => setShowReplace(s => !s)} style={btnStyle(showReplace ? "#1f6feb22" : "#21262d", showReplace ? "#58a6ff" : "#8b949e", showReplace ? "#1f6feb" : "#30363d")}>⇄</button>
+          <button onClick={() => setCaseSensitive(c => !c)} style={btnStyle(caseSensitive ? "#1f6feb22" : "#21262d", caseSensitive ? "#58a6ff" : "#8b949e", caseSensitive ? "#1f6feb" : "#30363d")} title={t("legacyAi.monolith.panels.search.caseSensitive")}>Aa</button>
+          <button onClick={() => setRegex(r => !r)} style={btnStyle(regex ? "#1f6feb22" : "#21262d", regex ? "#58a6ff" : "#8b949e", regex ? "#1f6feb" : "#30363d")} title={t("legacyAi.monolith.panels.search.regex")}>.*</button>
+          <button onClick={() => setShowReplace(s => !s)} style={btnStyle(showReplace ? "#1f6feb22" : "#21262d", showReplace ? "#58a6ff" : "#8b949e", showReplace ? "#1f6feb" : "#30363d")} title={t("legacyAi.monolith.panels.search.toggleReplace")}>⇄</button>
         </div>
         {showReplace && (
           <div style={{ display: "flex", gap: 6 }}>
             <div style={{ flex: 1, background: "#21262d", border: "1px solid #30363d", borderRadius: 6, display: "flex", alignItems: "center", gap: 6, padding: "4px 10px" }}>
               <span style={{ color: "#484f58", fontSize: 11 }}>→</span>
-              <input value={replaceVal} onChange={e => setReplaceVal(e.target.value)} placeholder="Replace with…"
+              <input value={replaceVal} onChange={e => setReplaceVal(e.target.value)} placeholder={t("legacyAi.monolith.panels.search.replacePlaceholder")}
                 style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
             </div>
-            <button style={btnStyle("#21262d")}>Replace</button>
-            <button style={btnStyle("#21262d")}>Replace All</button>
+            <button style={btnStyle("#21262d")}>{t("legacyAi.monolith.panels.search.replace")}</button>
+            <button style={btnStyle("#21262d")}>{t("legacyAi.monolith.panels.search.replaceAll")}</button>
           </div>
         )}
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-        {searching && <div style={{ color: "#8b949e", fontSize: 12, textAlign: "center", padding: 12 }}>Searching…</div>}
-        {!searching && results.length === 0 && query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>No results for "{query}"</div>}
-        {!searching && !query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>Type to search across all files</div>}
+        {searching && <div style={{ color: "#8b949e", fontSize: 12, textAlign: "center", padding: 12 }}>{t("legacyAi.monolith.panels.search.searching")}</div>}
+        {!searching && results.length === 0 && query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>{t("legacyAi.monolith.panels.search.noResults", { query })}</div>}
+        {!searching && !query && <div style={{ color: "#484f58", fontSize: 12, textAlign: "center", padding: 12 }}>{t("legacyAi.monolith.panels.search.empty")}</div>}
         {results.map((r, i) => (
           <div key={i} style={{ padding: "4px 12px", cursor: "pointer" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#21262d22")}
@@ -1121,7 +1373,7 @@ function SearchPanel() {
             </div>
           </div>
         ))}
-        {results.length > 0 && <div style={{ color: "#484f58", fontSize: 11, padding: "8px 12px" }}>{results.length} result{results.length !== 1 ? "s" : ""}</div>}
+        {results.length > 0 && <div style={{ color: "#484f58", fontSize: 11, padding: "8px 12px" }}>{t("legacyAi.monolith.panels.search.results", { count: results.length })}</div>}
       </div>
     </div>
   );
@@ -1146,6 +1398,7 @@ const VARIABLES = [
 ];
 
 function DebuggerPanel() {
+  const { t } = useTranslation();
   const [paused, setPaused] = useState(true);
   const [bps, setBps] = useState(BREAKPOINTS);
   const [tab, setTab] = useState<"vars" | "stack" | "breakpoints">("vars");
@@ -1157,13 +1410,13 @@ function DebuggerPanel() {
       <div style={{ padding: "6px 12px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 4 }}>
           {[
-            { icon: "▶", label: "Continue", color: paused ? "#3fb950" : "#484f58", action: () => setPaused(false) },
-            { icon: "⬤", label: "Pause", color: !paused ? "#f2cc60" : "#484f58", action: () => setPaused(true) },
-            { icon: "↷", label: "Step over", color: "#8b949e", action: () => {} },
-            { icon: "↳", label: "Step into", color: "#8b949e", action: () => {} },
-            { icon: "↑", label: "Step out", color: "#8b949e", action: () => {} },
-            { icon: "↺", label: "Restart", color: "#8b949e", action: () => setPaused(true) },
-            { icon: "■", label: "Stop", color: "#f85149", action: () => setPaused(false) },
+            { icon: "▶", label: t("legacyAi.monolith.panels.debugger.controls.continue"), color: paused ? "#3fb950" : "#484f58", action: () => setPaused(false) },
+            { icon: "⬤", label: t("legacyAi.monolith.panels.debugger.controls.pause"), color: !paused ? "#f2cc60" : "#484f58", action: () => setPaused(true) },
+            { icon: "↷", label: t("legacyAi.monolith.panels.debugger.controls.stepOver"), color: "#8b949e", action: () => {} },
+            { icon: "↳", label: t("legacyAi.monolith.panels.debugger.controls.stepInto"), color: "#8b949e", action: () => {} },
+            { icon: "↑", label: t("legacyAi.monolith.panels.debugger.controls.stepOut"), color: "#8b949e", action: () => {} },
+            { icon: "↺", label: t("legacyAi.monolith.panels.debugger.controls.restart"), color: "#8b949e", action: () => setPaused(true) },
+            { icon: "■", label: t("legacyAi.monolith.panels.debugger.controls.stop"), color: "#f85149", action: () => setPaused(false) },
           ].map(({ icon, label, color, action }) => (
             <button key={label} onClick={action} title={label}
               style={{ background: "none", border: "none", color, cursor: "pointer", fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
@@ -1173,13 +1426,13 @@ function DebuggerPanel() {
           ))}
         </div>
         <div style={{ marginLeft: "auto", fontSize: 11, color: paused ? "#f2cc60" : "#3fb950", display: "flex", gap: 4, alignItems: "center" }}>
-          <span>●</span>{paused ? "Paused at auth.ts:13" : "Running"}
+          <span>●</span>{paused ? t("legacyAi.monolith.panels.debugger.pausedAt", { location: "auth.ts:13" }) : t("legacyAi.monolith.panels.debugger.running")}
         </div>
       </div>
 
       <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
-        {(["vars", "stack", "breakpoints"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "5px 10px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 11, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        {(["vars", "stack", "breakpoints"] as const).map(tabId => (
+          <button key={tabId} onClick={() => setTab(tabId)} style={{ padding: "5px 10px", background: "none", border: "none", borderBottom: tab === tabId ? "2px solid #f26522" : "2px solid transparent", color: tab === tabId ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{t(DEBUGGER_TAB_KEYS[tabId])}</button>
         ))}
       </div>
 
@@ -1219,12 +1472,12 @@ function DebuggerPanel() {
                 <button onClick={() => toggleBp(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: bp.active ? "#f85149" : "#484f58", padding: 0 }}>⬤</button>
                 <div style={{ flex: 1 }}>
                   <div style={{ color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}>{bp.file}:{bp.line}</div>
-                  {bp.condition && <div style={{ color: "#8b949e", fontSize: 11 }}>if: {bp.condition}</div>}
+                  {bp.condition && <div style={{ color: "#8b949e", fontSize: 11 }}>{t("legacyAi.monolith.panels.debugger.condition", { condition: bp.condition })}</div>}
                 </div>
                 <button onClick={() => setBps(b => b.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer", fontSize: 12 }}>✕</button>
               </div>
             ))}
-            <button style={{ margin: "8px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#8b949e", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>+ Add breakpoint</button>
+            <button style={{ margin: "8px", background: "#21262d", border: "1px solid #30363d", borderRadius: 4, color: "#8b949e", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>{t("legacyAi.monolith.panels.debugger.addBreakpoint")}</button>
           </div>
         )}
       </div>
@@ -1233,20 +1486,28 @@ function DebuggerPanel() {
 }
 
 function DeployPanel() {
+  const { t } = useTranslation();
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(true);
   const [logs, setLogs] = useState([
-    "✓ Build completed in 3.2s",
-    "✓ Tests passed (47/47)",
-    "✓ Docker image pushed",
-    "✓ Deployment successful",
+    t("legacyAi.monolith.panels.deploy.logs.buildComplete"),
+    t("legacyAi.monolith.panels.deploy.logs.testsPassed"),
+    t("legacyAi.monolith.panels.deploy.logs.imagePushed"),
+    t("legacyAi.monolith.panels.deploy.logs.successful"),
   ]);
   const [tab, setTab] = useState<"overview" | "logs" | "settings">("overview");
 
   const deploy = () => {
     setDeploying(true);
-    setLogs(["⟳ Building…"]);
-    const steps = ["✓ Installing dependencies", "✓ Running tests", "✓ Building Docker image", "✓ Pushing to registry", "✓ Updating deployment", "✓ Health check passed — live!"];
+    setLogs([t("legacyAi.monolith.panels.deploy.logs.building")]);
+    const steps = [
+      t("legacyAi.monolith.panels.deploy.logs.installing"),
+      t("legacyAi.monolith.panels.deploy.logs.runningTests"),
+      t("legacyAi.monolith.panels.deploy.logs.buildingImage"),
+      t("legacyAi.monolith.panels.deploy.logs.pushing"),
+      t("legacyAi.monolith.panels.deploy.logs.updating"),
+      t("legacyAi.monolith.panels.deploy.logs.healthPassed"),
+    ];
     steps.forEach((s, i) => setTimeout(() => {
       setLogs(prev => [...prev, s]);
       if (i === steps.length - 1) { setDeploying(false); setDeployed(true); }
@@ -1256,8 +1517,8 @@ function DeployPanel() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", borderBottom: "1px solid #21262d", padding: "0 12px" }}>
-        {(["overview", "logs", "settings"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === t ? "2px solid #f26522" : "2px solid transparent", color: tab === t ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+        {(["overview", "logs", "settings"] as const).map(tabId => (
+          <button key={tabId} onClick={() => setTab(tabId)} style={{ padding: "6px 12px", background: "none", border: "none", borderBottom: tab === tabId ? "2px solid #f26522" : "2px solid transparent", color: tab === tabId ? "#e1e4e8" : "#8b949e", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>{t(DEPLOY_TAB_KEYS[tabId])}</button>
         ))}
       </div>
 
@@ -1267,26 +1528,26 @@ function DeployPanel() {
             <div style={{ background: deployed ? "#3fb95011" : "#21262d", border: `1px solid ${deployed ? "#3fb95044" : "#30363d"}`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: deployed ? "#3fb950" : "#8b949e", boxShadow: deployed ? "0 0 8px #3fb95066" : "none" }} />
-                <span style={{ color: "#e1e4e8", fontWeight: 600 }}>Production</span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "#484f58" }}>Deployed 2h ago</span>
+                <span style={{ color: "#e1e4e8", fontWeight: 600 }}>{t("legacyAi.monolith.panels.deploy.production")}</span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "#484f58" }}>{t("legacyAi.monolith.panels.deploy.deployedAgo")}</span>
               </div>
               <div style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
                 {[
-                  ["URL", "https://my-api.replit.app"],
-                  ["Region", "US East (Virginia)"],
-                  ["Instance", "512 MB RAM · 0.5 vCPU"],
-                  ["Uptime", "99.9% (30d)"],
+                  [t("legacyAi.monolith.panels.deploy.labels.url"), "https://my-api.replit.app"],
+                  [t("legacyAi.monolith.panels.deploy.labels.region"), t("legacyAi.monolith.panels.deploy.values.region")],
+                  [t("legacyAi.monolith.panels.deploy.labels.instance"), "512 MB RAM · 0.5 vCPU"],
+                  [t("legacyAi.monolith.panels.deploy.labels.uptime"), "99.9% (30d)"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", gap: 8 }}>
                     <span style={{ color: "#484f58", width: 70 }}>{k}</span>
-                    <span style={{ color: k === "URL" ? "#58a6ff" : "#8b949e" }}>{v}</span>
+                    <span style={{ color: v === "https://my-api.replit.app" ? "#58a6ff" : "#8b949e" }}>{v}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Traffic (last 24h)</div>
+              <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>{t("legacyAi.monolith.panels.deploy.traffic")}</div>
               <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 40 }}>
                 {[30, 45, 60, 35, 80, 55, 90, 70, 65, 85, 95, 75, 60, 50, 70, 88, 92, 78, 65, 82, 90, 95, 88, 72].map((h, i) => (
                   <div key={i} style={{ flex: 1, background: `rgba(31, 111, 235, ${0.3 + h / 200})`, borderRadius: "2px 2px 0 0", height: `${h}%` }} />
@@ -1296,9 +1557,9 @@ function DeployPanel() {
 
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={deploy} disabled={deploying} style={{ flex: 1, background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "8px 0", fontSize: 13, cursor: deploying ? "default" : "pointer", fontFamily: "inherit", fontWeight: 500 }}>
-                {deploying ? "⟳ Deploying…" : "↑ Deploy"}
+                {deploying ? t("legacyAi.monolith.panels.deploy.deploying") : t("legacyAi.monolith.panels.deploy.deploy")}
               </button>
-              <button style={btnStyle("#21262d")}>Rollback</button>
+              <button style={btnStyle("#21262d")}>{t("legacyAi.monolith.panels.deploy.rollback")}</button>
             </div>
           </div>
         )}
@@ -1315,10 +1576,10 @@ function DeployPanel() {
         {tab === "settings" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
-              { label: "Auto-deploy on push", value: true },
-              { label: "Run tests before deploy", value: true },
-              { label: "Rollback on failure", value: true },
-              { label: "Always-on (prevent sleep)", value: false },
+              { label: t("legacyAi.monolith.panels.deploy.settings.autoDeploy"), value: true },
+              { label: t("legacyAi.monolith.panels.deploy.settings.runTests"), value: true },
+              { label: t("legacyAi.monolith.panels.deploy.settings.rollback"), value: true },
+              { label: t("legacyAi.monolith.panels.deploy.settings.alwaysOn"), value: false },
             ].map(s => (
               <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, color: "#e1e4e8" }}>{s.label}</span>
@@ -1339,6 +1600,7 @@ function DeployPanel() {
 type AccountPage = "profile" | "settings" | "billing" | "ai-apis" | "api-keys" | "agent-config";
 
 function AccountPanel() {
+  const { t } = useTranslation();
   const [page, setPage] = useState<AccountPage>("ai-apis");
   const [search, setSearch] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
@@ -1392,12 +1654,12 @@ function AccountPanel() {
   })).filter(p => p.models.length > 0);
 
   const NAV: { id: AccountPage; label: string; icon: string }[] = [
-    { id: "profile", label: "Profile", icon: "○" },
-    { id: "settings", label: "Settings", icon: "⚙" },
-    { id: "billing", label: "Billing", icon: "◫" },
-    { id: "ai-apis", label: "AI APIs", icon: "✦" },
-    { id: "api-keys", label: "API Keys", icon: "🔑" },
-    { id: "agent-config", label: "Agent Config", icon: "⬡" },
+    { id: "profile", label: t(ACCOUNT_NAV_KEYS.profile), icon: "○" },
+    { id: "settings", label: t(ACCOUNT_NAV_KEYS.settings), icon: "⚙" },
+    { id: "billing", label: t(ACCOUNT_NAV_KEYS.billing), icon: "◫" },
+    { id: "ai-apis", label: t(ACCOUNT_NAV_KEYS["ai-apis"]), icon: "✦" },
+    { id: "api-keys", label: t(ACCOUNT_NAV_KEYS["api-keys"]), icon: "🔑" },
+    { id: "agent-config", label: t(ACCOUNT_NAV_KEYS["agent-config"]), icon: "⬡" },
   ];
 
   return (
@@ -1408,7 +1670,7 @@ function AccountPanel() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff" }}>U</div>
             <div>
-              <div style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 13 }}>User</div>
+              <div style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 13 }}>{t("legacyAi.monolith.common.user")}</div>
               <div style={{ fontSize: 11, color: "#8b949e" }}>user@example.com</div>
             </div>
           </div>
@@ -1435,7 +1697,7 @@ function AccountPanel() {
             onMouseEnter={e => (e.currentTarget.style.background = "#f8514911")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
-            <span>↪</span> Sign out
+            <span>↪</span> {t("legacyAi.monolith.account.signOut")}
           </div>
         </div>
       </div>
@@ -1449,13 +1711,13 @@ function AccountPanel() {
             <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 14 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>AI Model APIs</div>
-                  <div style={{ fontSize: 12, color: "#8b949e" }}>Connect your API keys to enable models. {Object.keys(connectedKeys).length} provider{Object.keys(connectedKeys).length !== 1 ? "s" : ""} connected · {enabledModels.size} models active.</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>{t("legacyAi.monolith.account.aiApis.title")}</div>
+                  <div style={{ fontSize: 12, color: "#8b949e" }}>{t("legacyAi.monolith.account.aiApis.description", { providers: Object.keys(connectedKeys).length, models: enabledModels.size })}</div>
                 </div>
                 {activeModel && (
                   <div style={{ background: "#1f6feb11", border: "1px solid #1f6feb44", borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", boxShadow: "0 0 6px #3fb95077" }} />
-                    <span style={{ fontSize: 11, color: "#8b949e" }}>Active:</span>
+                    <span style={{ fontSize: 11, color: "#8b949e" }}>{t("legacyAi.monolith.account.aiApis.activeLabel")}</span>
                     <span style={{ fontSize: 12, color: "#58a6ff", fontWeight: 500 }}>{AI_PROVIDERS.flatMap(p => p.models).find(m => m.id === activeModel)?.name || activeModel}</span>
                   </div>
                 )}
@@ -1464,7 +1726,7 @@ function AccountPanel() {
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const }}>
                 <div style={{ flex: 1, minWidth: 200, background: "#21262d", border: "1px solid #30363d", borderRadius: 7, display: "flex", alignItems: "center", gap: 7, padding: "6px 12px" }}>
                   <span style={{ color: "#484f58" }}>⌕</span>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search models or providers…"
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("legacyAi.monolith.account.aiApis.searchPlaceholder")}
                     style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 13, fontFamily: "inherit" }} />
                   {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer" }}>✕</button>}
                 </div>
@@ -1472,7 +1734,7 @@ function AccountPanel() {
                   {["Agentic", "Coding", "Reasoning", "Vision", "Fast", "Open Source", "RAG"].map(tag => (
                     <button key={tag} onClick={() => setFilterTag(filterTag === tag ? null : tag)}
                       style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, cursor: "pointer", fontFamily: "inherit", background: filterTag === tag ? "#1f6feb22" : "#21262d", border: filterTag === tag ? "1px solid #1f6feb" : "1px solid #30363d", color: filterTag === tag ? "#58a6ff" : "#8b949e" }}>
-                      {tag}
+                      {t(MODEL_TAG_KEYS[tag] ?? tag)}
                     </button>
                   ))}
                 </div>
@@ -1503,13 +1765,13 @@ function AccountPanel() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontWeight: 600, color: "#e1e4e8", fontSize: 14 }}>{provider.name}</span>
                           {isConnected && (
-                            <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 10, color: "#3fb950", padding: "1px 7px" }}>● Connected</span>
+                            <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 10, color: "#3fb950", padding: "1px 7px" }}>● {t("legacyAi.monolith.account.aiApis.connected")}</span>
                           )}
                           {providerEnabledCount > 0 && (
-                            <span style={{ background: "#1f6feb22", border: "1px solid #1f6feb44", borderRadius: 10, fontSize: 10, color: "#58a6ff", padding: "1px 7px" }}>{providerEnabledCount} active</span>
+                            <span style={{ background: "#1f6feb22", border: "1px solid #1f6feb44", borderRadius: 10, fontSize: 10, color: "#58a6ff", padding: "1px 7px" }}>{t("legacyAi.monolith.account.aiApis.activeCount", { count: providerEnabledCount })}</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 11, color: "#484f58", marginTop: 2 }}>{provider.models.length} model{provider.models.length !== 1 ? "s" : ""}</div>
+                        <div style={{ fontSize: 11, color: "#484f58", marginTop: 2 }}>{t("legacyAi.monolith.account.aiApis.modelCount", { count: provider.models.length })}</div>
                       </div>
                       {/* Connect / key status */}
                       {isConnected ? (
@@ -1518,12 +1780,12 @@ function AccountPanel() {
                             {connectedKeys[provider.id]}
                           </div>
                           <button onClick={e => { e.stopPropagation(); removeKey(provider.id); }}
-                            style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 8px", fontSize: 11 }}>Remove</button>
+                            style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 8px", fontSize: 11 }}>{t("legacyAi.monolith.account.aiApis.remove")}</button>
                         </div>
                       ) : (
                         <button onClick={e => { e.stopPropagation(); setExpandedProvider(provider.id); }}
                           style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "5px 14px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
-                          + Connect
+                          {t("legacyAi.monolith.account.aiApis.connect")}
                         </button>
                       )}
                       <span style={{ color: "#484f58", marginLeft: 6, fontSize: 14 }}>{isExpanded ? "▾" : "▸"}</span>
@@ -1536,8 +1798,8 @@ function AccountPanel() {
                         {!isConnected && (
                           <div style={{ marginBottom: 14, padding: 14, background: provider.bg, border: `1px solid ${provider.color}22`, borderRadius: 8 }}>
                             <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 8 }}>
-                              Enter your <span style={{ color: provider.color }}>{provider.name}</span> API key to unlock all {provider.models.length} models.
-                              <span style={{ color: "#484f58" }}> Keys are stored locally and never shared.</span>
+                              {t("legacyAi.monolith.account.aiApis.enterKey", { provider: provider.name, count: provider.models.length })}
+                              <span style={{ color: "#484f58" }}> {t("legacyAi.monolith.account.aiApis.localOnly")}</span>
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>
                               <div style={{ flex: 1, background: "#0e1117", border: `1px solid ${provider.color}44`, borderRadius: 6, display: "flex", alignItems: "center", padding: "6px 10px", gap: 7 }}>
@@ -1546,7 +1808,7 @@ function AccountPanel() {
                                   value={keyInputs[provider.id] || ""}
                                   onChange={e => setKeyInputs(prev => ({ ...prev, [provider.id]: e.target.value }))}
                                   onKeyDown={e => e.key === "Enter" && saveKey(provider.id)}
-                                  placeholder={`Paste your ${provider.name} API key…`}
+                                  placeholder={t("legacyAi.monolith.account.aiApis.keyPlaceholder", { provider: provider.name })}
                                   type="password"
                                   style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "monospace" }}
                                 />
@@ -1554,7 +1816,7 @@ function AccountPanel() {
                               <button onClick={() => saveKey(provider.id)}
                                 disabled={!keyInputs[provider.id]?.trim() || saving === provider.id}
                                 style={{ background: provider.color, border: "none", borderRadius: 6, color: "#fff", padding: "6px 16px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, minWidth: 90 }}>
-                                {saving === provider.id ? "Saving…" : saved === provider.id ? "✓ Saved!" : "Save Key"}
+                                {saving === provider.id ? t("legacyAi.monolith.account.aiApis.saving") : saved === provider.id ? t("legacyAi.monolith.account.aiApis.saved") : t("legacyAi.monolith.account.aiApis.saveKey")}
                               </button>
                             </div>
                           </div>
@@ -1569,34 +1831,34 @@ function AccountPanel() {
                               <div key={model.id}
                                 style={{ padding: 12, borderRadius: 8, border: isActive ? `1px solid ${provider.color}88` : isEnabled ? "1px solid #30363d" : "1px solid #21262d", background: isActive ? provider.bg : isEnabled ? "#1a1f2a" : "#0e1117", position: "relative" as const, opacity: isConnected ? 1 : 0.55 }}>
                                 {model.featured && (
-                                  <div style={{ position: "absolute" as const, top: 8, right: 8, background: "#f2cc6022", border: "1px solid #f2cc6044", borderRadius: 10, fontSize: 9, color: "#f2cc60", padding: "1px 6px" }}>★ Featured</div>
+                                  <div style={{ position: "absolute" as const, top: 8, right: 8, background: "#f2cc6022", border: "1px solid #f2cc6044", borderRadius: 10, fontSize: 9, color: "#f2cc60", padding: "1px 6px" }}>★ {t("legacyAi.monolith.account.aiApis.featured")}</div>
                                 )}
                                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6, paddingRight: model.featured ? 52 : 0 }}>
                                   <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? provider.color : "#e1e4e8", lineHeight: 1.3 }}>{model.name}</div>
                                 </div>
-                                <div style={{ fontSize: 11, color: "#8b949e", lineHeight: 1.5, marginBottom: 8 }}>{model.description}</div>
+                                <div style={{ fontSize: 11, color: "#8b949e", lineHeight: 1.5, marginBottom: 8 }}>{t(MODEL_DESCRIPTION_KEYS[model.id])}</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" as const }}>
-                                  <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#58a6ff", padding: "1px 6px", fontFamily: "monospace" }}>ctx {model.context}</span>
+                                  <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#58a6ff", padding: "1px 6px", fontFamily: "monospace" }}>{t("legacyAi.monolith.account.aiApis.context", { context: model.context })}</span>
                                   {model.tags.map(tag => (
-                                    <span key={tag} style={{ background: "#21262d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "1px 6px" }}>{tag}</span>
+                                    <span key={tag} style={{ background: "#21262d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "1px 6px" }}>{t(MODEL_TAG_KEYS[tag] ?? tag)}</span>
                                   ))}
                                   <div style={{ flex: 1 }} />
                                   {isConnected && (
                                     <div style={{ display: "flex", gap: 5 }}>
                                       {isActive ? (
-                                        <span style={{ background: `${provider.color}22`, border: `1px solid ${provider.color}55`, borderRadius: 10, fontSize: 10, color: provider.color, padding: "2px 8px" }}>● Active</span>
+                                        <span style={{ background: `${provider.color}22`, border: `1px solid ${provider.color}55`, borderRadius: 10, fontSize: 10, color: provider.color, padding: "2px 8px" }}>● {t("legacyAi.monolith.account.aiApis.active")}</span>
                                       ) : (
                                         <button onClick={() => { setActiveModel(model.id); setEnabledModels(prev => new Set([...prev, model.id])); }}
-                                          style={{ background: "none", border: `1px solid ${provider.color}44`, borderRadius: 5, color: provider.color, fontSize: 10, cursor: "pointer", padding: "2px 8px" }}>Set active</button>
+                                          style={{ background: "none", border: `1px solid ${provider.color}44`, borderRadius: 5, color: provider.color, fontSize: 10, cursor: "pointer", padding: "2px 8px" }}>{t("legacyAi.monolith.account.aiApis.setActive")}</button>
                                       )}
                                       <button onClick={() => toggleModel(model.id)}
                                         style={{ background: isEnabled ? "#3fb95022" : "#21262d", border: isEnabled ? "1px solid #3fb95055" : "1px solid #30363d", borderRadius: 5, color: isEnabled ? "#3fb950" : "#484f58", fontSize: 10, cursor: "pointer", padding: "2px 8px" }}>
-                                        {isEnabled ? "✓ On" : "Off"}
+                                        {isEnabled ? t("legacyAi.monolith.account.aiApis.on") : t("legacyAi.monolith.account.aiApis.off")}
                                       </button>
                                     </div>
                                   )}
                                   {!isConnected && (
-                                    <span style={{ fontSize: 10, color: "#484f58" }}>Requires API key</span>
+                                    <span style={{ fontSize: 10, color: "#484f58" }}>{t("legacyAi.monolith.account.aiApis.requiresKey")}</span>
                                   )}
                                 </div>
                               </div>
@@ -1615,34 +1877,38 @@ function AccountPanel() {
         {/* ── Profile page ── */}
         {page === "profile" && (
           <div style={{ padding: 28, maxWidth: 560 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Profile</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>{t("legacyAi.monolith.account.profile.title")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, padding: 16, background: "#161b22", border: "1px solid #21262d", borderRadius: 10 }}>
               <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg,#6e40c9,#1f6feb)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>U</div>
               <div>
-                <div style={{ fontWeight: 600, color: "#e1e4e8", marginBottom: 4 }}>User</div>
+                <div style={{ fontWeight: 600, color: "#e1e4e8", marginBottom: 4 }}>{t("legacyAi.monolith.common.user")}</div>
                 <div style={{ fontSize: 12, color: "#8b949e" }}>user@example.com</div>
-                <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>Member since January 2024</div>
+                <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>{t("legacyAi.monolith.account.profile.memberSince")}</div>
               </div>
             </div>
-            {[["Display name", "User"], ["Email", "user@example.com"], ["Username", "user"]].map(([label, val]) => (
+            {[
+              [t("legacyAi.monolith.account.profile.displayName"), t("legacyAi.monolith.common.user")],
+              [t("legacyAi.monolith.account.profile.email"), "user@example.com"],
+              [t("legacyAi.monolith.account.profile.username"), "user"],
+            ].map(([label, val]) => (
               <div key={label} style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 5 }}>{label}</div>
                 <input defaultValue={val} style={{ width: "100%", background: "#21262d", border: "1px solid #30363d", borderRadius: 6, color: "#e1e4e8", fontSize: 13, padding: "8px 12px", outline: "none", boxSizing: "border-box" as const }} />
               </div>
             ))}
-            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "8px 20px", fontSize: 13, cursor: "pointer" }}>Save changes</button>
+            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "8px 20px", fontSize: 13, cursor: "pointer" }}>{t("legacyAi.monolith.account.profile.saveChanges")}</button>
           </div>
         )}
 
         {/* ── Settings page ── */}
         {page === "settings" && (
           <div style={{ padding: 28, maxWidth: 560 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Settings</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>{t("legacyAi.monolith.account.settings.title")}</div>
             {[
-              { label: "Dark mode", desc: "Use dark theme across the interface", on: true },
-              { label: "Send anonymous usage data", desc: "Help improve the product", on: false },
-              { label: "Auto-save files", desc: "Save files automatically on change", on: true },
-              { label: "Show inline AI suggestions", desc: "Display model suggestions in the editor", on: true },
+              { label: t("legacyAi.monolith.account.settings.darkMode"), desc: t("legacyAi.monolith.account.settings.darkModeDesc"), on: true },
+              { label: t("legacyAi.monolith.account.settings.usageData"), desc: t("legacyAi.monolith.account.settings.usageDataDesc"), on: false },
+              { label: t("legacyAi.monolith.account.settings.autoSave"), desc: t("legacyAi.monolith.account.settings.autoSaveDesc"), on: true },
+              { label: t("legacyAi.monolith.account.settings.inlineAi"), desc: t("legacyAi.monolith.account.settings.inlineAiDesc"), on: true },
             ].map(s => (
               <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid #21262d" }}>
                 <div>
@@ -1660,18 +1926,18 @@ function AccountPanel() {
         {/* ── Billing page ── */}
         {page === "billing" && (
           <div style={{ padding: 28, maxWidth: 560 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>Billing</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 20 }}>{t("legacyAi.monolith.account.billing.title")}</div>
             <div style={{ padding: 16, background: "#161b22", border: "1px solid #1f6feb44", borderRadius: 10, marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#58a6ff" }}>Pro Plan</div>
-                  <div style={{ fontSize: 12, color: "#8b949e", marginTop: 4 }}>$20 / month · Renews June 3, 2026</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#58a6ff" }}>{t("legacyAi.monolith.account.billing.proPlan")}</div>
+                  <div style={{ fontSize: 12, color: "#8b949e", marginTop: 4 }}>{t("legacyAi.monolith.account.billing.renewal")}</div>
                 </div>
-                <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 11, color: "#3fb950", padding: "2px 10px" }}>Active</span>
+                <span style={{ background: "#3fb95022", border: "1px solid #3fb95055", borderRadius: 10, fontSize: 11, color: "#3fb950", padding: "2px 10px" }}>{t("legacyAi.monolith.account.billing.active")}</span>
               </div>
             </div>
-            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 10 }}>Usage this month</div>
-            {[["AI tokens", "1.2M / 5M", 24], ["Storage", "2.3 GB / 10 GB", 23], ["Deployments", "4 / 10", 40]].map(([label, val, pct]) => (
+            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 10 }}>{t("legacyAi.monolith.account.billing.usageThisMonth")}</div>
+            {[[t("legacyAi.monolith.account.billing.aiTokens"), "1.2M / 5M", 24], [t("legacyAi.monolith.account.billing.storage"), "2.3 GB / 10 GB", 23], [t("legacyAi.monolith.account.billing.deployments"), "4 / 10", 40]].map(([label, val, pct]) => (
               <div key={label as string} style={{ marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                   <span style={{ fontSize: 12, color: "#e1e4e8" }}>{label}</span>
@@ -1688,20 +1954,20 @@ function AccountPanel() {
         {/* ── API Keys page ── */}
         {page === "api-keys" && (
           <div style={{ padding: 28, maxWidth: 600 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 6 }}>API Keys</div>
-            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 20 }}>Use these keys to access AI OS programmatically.</div>
-            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "7px 16px", fontSize: 12, cursor: "pointer", marginBottom: 16 }}>+ Generate new key</button>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e1e4e8", marginBottom: 6 }}>{t("legacyAi.monolith.account.apiKeys.title")}</div>
+            <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 20 }}>{t("legacyAi.monolith.account.apiKeys.description")}</div>
+            <button style={{ background: "#1f6feb", border: "none", borderRadius: 6, color: "#fff", padding: "7px 16px", fontSize: 12, cursor: "pointer", marginBottom: 16 }}>{t("legacyAi.monolith.account.apiKeys.generate")}</button>
             {[
-              { name: "Production key", key: "aios-sk-prod-••••••••••••••••••••••••••••XKp9", created: "Jan 15, 2024", last: "2h ago" },
-              { name: "Dev key", key: "aios-sk-dev-••••••••••••••••••••••••••••3Wr1", created: "Feb 8, 2024", last: "Yesterday" },
+              { name: t("legacyAi.monolith.account.apiKeys.productionKey"), key: "aios-sk-prod-••••••••••••••••••••••••••••XKp9", created: t("legacyAi.monolith.account.apiKeys.createdProd"), last: t("legacyAi.monolith.account.apiKeys.lastProd") },
+              { name: t("legacyAi.monolith.account.apiKeys.devKey"), key: "aios-sk-dev-••••••••••••••••••••••••••••3Wr1", created: t("legacyAi.monolith.account.apiKeys.createdDev"), last: t("legacyAi.monolith.account.apiKeys.lastDev") },
             ].map(k => (
               <div key={k.name} style={{ padding: 14, background: "#161b22", border: "1px solid #21262d", borderRadius: 8, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: "#e1e4e8", marginBottom: 4 }}>{k.name}</div>
                   <div style={{ fontFamily: "monospace", fontSize: 12, color: "#8b949e" }}>{k.key}</div>
-                  <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>Created {k.created} · Last used {k.last}</div>
+                  <div style={{ fontSize: 11, color: "#484f58", marginTop: 4 }}>{t("legacyAi.monolith.account.apiKeys.keyMeta", { created: k.created, last: k.last })}</div>
                 </div>
-                <button style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 10px", fontSize: 11 }}>Revoke</button>
+                <button style={{ background: "none", border: "1px solid #f8514933", borderRadius: 5, color: "#f85149", cursor: "pointer", padding: "4px 10px", fontSize: 11 }}>{t("legacyAi.monolith.account.apiKeys.revoke")}</button>
               </div>
             ))}
           </div>
@@ -1718,24 +1984,37 @@ function AccountPanel() {
 // ─── AGENT CONFIG PAGE ─────────────────────────────────────────────────────────
 
 function AgentConfigPage() {
+  const { t } = useTranslation();
   const [activePkg, setActivePkg] = useState("langchain");
   const [editingTask, setEditingTask] = useState<number | null>(null);
   const [taskConfigs, setTaskConfigs] = useState<Record<number, { pkg: string; model: string; protocol: AgentFrameworkId }>>(() =>
-    Object.fromEntries(PAST_TASKS.map(t => [t.id, {
-      pkg: t.aiConfig.framework === "hermes" ? "hermes-native" : t.aiConfig.framework === "openai-fn" ? "langchain" : t.aiConfig.framework === "anthropic-tools" ? "langchain" : "langchain",
-      model: t.aiConfig.modelName,
-      protocol: t.aiConfig.framework,
+    Object.fromEntries(PAST_TASKS.map(task => [task.id, {
+      pkg: task.aiConfig.framework === "hermes" ? "hermes-native" : task.aiConfig.framework === "openai-fn" ? "langchain" : task.aiConfig.framework === "anthropic-tools" ? "langchain" : "langchain",
+      model: task.aiConfig.modelName,
+      protocol: task.aiConfig.framework,
     }]))
   );
   const [defaultPkg, setDefaultPkg] = useState("langchain");
-  const pkg = AGENT_PACKAGES.find(p => p.id === activePkg)!;
+  const agentPackages = AGENT_PACKAGES.map((p) => ({
+    ...p,
+    tagline: t(`legacyAi.monolith.agentPackages.${p.id}.tagline`),
+    description: t(`legacyAi.monolith.agentPackages.${p.id}.description`),
+    capabilities: p.capabilities.map((_, i) =>
+      t(`legacyAi.monolith.agentPackages.${p.id}.capabilities.${i}`),
+    ),
+    layers: p.layers.map((_, i) => ({
+      name: t(`legacyAi.monolith.agentPackages.${p.id}.layers.${i}.name`),
+      detail: t(`legacyAi.monolith.agentPackages.${p.id}.layers.${i}.detail`),
+    })),
+  }));
+  const pkg = agentPackages.find(p => p.id === activePkg)!;
 
   const ARCH_LAYERS = [
-    { label: "Task Input", sub: "user prompt + context + history", color: "#8b949e", icon: "💬" },
-    { label: "Agent Framework", sub: pkg.name + " — orchestration loop, memory, tools", color: pkg.color, icon: pkg.logo },
-    { label: "Tool Calling Protocol", sub: pkg.protocols.map(p => AGENT_FRAMEWORKS.find(f => f.id === p)?.name).join(" / "), color: "#e3b341", icon: "⬡" },
-    { label: "LLM Provider API", sub: "OpenAI / Anthropic / Together AI / Ollama", color: "#58a6ff", icon: "◈" },
-    { label: "Tool Executor", sub: "shell · file_read · file_write · browser · deploy", color: "#3fb950", icon: "▶" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.taskInput.label"), sub: t("legacyAi.monolith.agentConfig.architecture.taskInput.sub"), color: "#8b949e", icon: "💬" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.framework.label"), sub: t("legacyAi.monolith.agentConfig.architecture.framework.sub", { packageName: pkg.name }), color: pkg.color, icon: pkg.logo },
+    { label: t("legacyAi.monolith.agentConfig.architecture.protocol.label"), sub: pkg.protocols.map(p => AGENT_FRAMEWORKS.find(f => f.id === p)?.name).join(" / "), color: "#e3b341", icon: "⬡" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.provider.label"), sub: "OpenAI / Anthropic / Together AI / Ollama", color: "#58a6ff", icon: "◈" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.executor.label"), sub: "shell · file_read · file_write · browser · deploy", color: "#3fb950", icon: "▶" },
   ];
 
   const PKG_MODELS: Record<string, string[]> = {
@@ -1761,10 +2040,9 @@ function AgentConfigPage() {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
       {/* Header */}
       <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #21262d", flexShrink: 0 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>Agent = Package</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#e1e4e8", marginBottom: 4 }}>{t("legacyAi.monolith.agentConfig.title")}</div>
         <div style={{ fontSize: 12, color: "#8b949e", lineHeight: 1.6 }}>
-          An agent is not just a prompt — it's a software package: an orchestration loop, tool registry, memory management, and error handling.
-          The LLM API is just one layer. Pick the framework package that fits your stack.
+          {t("legacyAi.monolith.agentConfig.description")}
         </div>
       </div>
 
@@ -1773,7 +2051,7 @@ function AgentConfigPage() {
         {/* ── Architecture Stack ── */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
-            Agent Architecture Stack
+            {t("legacyAi.monolith.agentConfig.architecture.title")}
           </div>
           <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: 10, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 0 }}>
             {ARCH_LAYERS.map((layer, i) => (
@@ -1788,7 +2066,7 @@ function AgentConfigPage() {
                   </div>
                   {i === 1 && (
                     <span style={{ background: `${pkg.color}18`, border: `1px solid ${pkg.color}44`, borderRadius: 6, fontSize: 10, color: pkg.color, padding: "2px 8px" }}>
-                      selected: {pkg.name}
+                      {t("legacyAi.monolith.agentConfig.selectedPackage", { packageName: pkg.name })}
                     </span>
                   )}
                 </div>
@@ -1806,10 +2084,10 @@ function AgentConfigPage() {
         {/* ── Package cards ── */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
-            Framework Packages
+            {t("legacyAi.monolith.agentConfig.frameworkPackages")}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            {AGENT_PACKAGES.map(p => (
+            {agentPackages.map(p => (
               <div key={p.id} onClick={() => setActivePkg(p.id)}
                 style={{ background: activePkg === p.id ? p.bg : "#161b22", border: `1.5px solid ${activePkg === p.id ? p.color : "#21262d"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer" }}
                 onMouseEnter={e => { if (activePkg !== p.id) (e.currentTarget as HTMLElement).style.borderColor = `${p.color}44`; }}
@@ -1823,7 +2101,7 @@ function AgentConfigPage() {
                     <div style={{ fontSize: 12, fontWeight: 600, color: activePkg === p.id ? "#e1e4e8" : "#c9d1d9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{p.name}</div>
                     <div style={{ fontSize: 9, color: "#484f58" }}>{p.stars} · {p.language === "ts" ? "TypeScript" : p.language === "py" ? "Python" : "TS + Python"}</div>
                   </div>
-                  {defaultPkg === p.id && <span style={{ fontSize: 8, color: p.color }}>● default</span>}
+                  {defaultPkg === p.id && <span style={{ fontSize: 8, color: p.color }}>● {t("legacyAi.monolith.agentConfig.default")}</span>}
                 </div>
                 <div style={{ fontSize: 10, color: "#484f58", lineHeight: 1.4 }}>{p.tagline}</div>
               </div>
@@ -1861,7 +2139,7 @@ function AgentConfigPage() {
             <div style={{ borderRight: "1px solid #21262d" }}>
               <div style={{ padding: "8px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 500 }}>agent.{pkg.language === "py" ? "py" : "ts"}</span>
-                <span style={{ marginLeft: "auto", fontSize: 10, color: "#484f58" }}>complete agent implementation</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "#484f58" }}>{t("legacyAi.monolith.agentConfig.completeImplementation")}</span>
               </div>
               <div style={{ position: "relative" as const, maxHeight: 360, overflow: "auto" }}>
                 <pre style={{ margin: 0, padding: "14px 16px", fontFamily: "'Fira Code', monospace", fontSize: 10.5, color: "#8b949e", lineHeight: 1.65, background: "#0a0d11" }}>
@@ -1874,7 +2152,7 @@ function AgentConfigPage() {
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Internal layers */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Package Layers</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>{t("legacyAi.monolith.agentConfig.packageLayers")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {pkg.layers.map((layer, i) => (
                     <div key={i} style={{ display: "flex", gap: 8 }}>
@@ -1890,7 +2168,7 @@ function AgentConfigPage() {
 
               {/* npm packages */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>npm packages</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>{t("legacyAi.monolith.agentConfig.npmPackages")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {pkg.pkgs.map(p => (
                     <code key={p} style={{ fontSize: 10, color: pkg.color, background: `${pkg.color}0d`, border: `1px solid ${pkg.color}22`, borderRadius: 4, padding: "2px 7px", fontFamily: "'Fira Code', monospace", display: "block" }}>{p}</code>
@@ -1900,7 +2178,7 @@ function AgentConfigPage() {
 
               {/* Capabilities */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Capabilities</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>{t("legacyAi.monolith.agentConfig.capabilities")}</div>
                 <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 5 }}>
                   {pkg.capabilities.map(c => (
                     <span key={c} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, fontSize: 10, color: "#8b949e", padding: "2px 7px" }}>✓ {c}</span>
@@ -1912,12 +2190,12 @@ function AgentConfigPage() {
               {defaultPkg !== pkg.id ? (
                 <button onClick={() => setDefaultPkg(pkg.id)}
                   style={{ background: `${pkg.color}18`, border: `1px solid ${pkg.color}44`, borderRadius: 6, color: pkg.color, fontSize: 11, padding: "6px 0", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
-                  ★ Set as default framework
+                  {t("legacyAi.monolith.agentConfig.setDefault")}
                 </button>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: `${pkg.color}11`, border: `1px solid ${pkg.color}33`, borderRadius: 6 }}>
                   <span style={{ fontSize: 8, color: pkg.color }}>●</span>
-                  <span style={{ fontSize: 11, color: pkg.color, fontWeight: 500 }}>Default framework</span>
+                  <span style={{ fontSize: 11, color: pkg.color, fontWeight: 500 }}>{t("legacyAi.monolith.agentConfig.defaultFramework")}</span>
                 </div>
               )}
             </div>
@@ -1927,19 +2205,19 @@ function AgentConfigPage() {
         {/* ── Per-task configuration ── */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 12 }}>
-            Per-task Configuration
+            {t("legacyAi.monolith.agentConfig.perTaskConfiguration")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {PAST_TASKS.map(task => {
               const cfg = taskConfigs[task.id];
-              const taskPkg = AGENT_PACKAGES.find(p => p.id === cfg.pkg) || AGENT_PACKAGES[0];
+              const taskPkg = agentPackages.find(p => p.id === cfg.pkg) || agentPackages[0];
               const isEditing = editingTask === task.id;
               return (
                 <div key={task.id} style={{ background: "#161b22", border: `1px solid ${isEditing ? taskPkg.color + "55" : "#21262d"}`, borderRadius: 8, overflow: "hidden" }}>
                   <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
                     onClick={() => setEditingTask(isEditing ? null : task.id)}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fb950", flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, color: "#e1e4e8" }}>{task.title}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: "#e1e4e8" }}>{t(task.titleKey)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <span style={{ background: `${taskPkg.color}18`, border: `1px solid ${taskPkg.color}44`, borderRadius: 10, fontSize: 10, color: taskPkg.color, padding: "1px 7px" }}>
                         {taskPkg.logo} {taskPkg.name}
@@ -1955,9 +2233,9 @@ function AgentConfigPage() {
                     <div style={{ padding: "14px 14px", borderTop: "1px solid #21262d", background: "#0e1117" }}>
                       {/* Package row */}
                       <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>Framework Package</div>
+                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>{t("legacyAi.monolith.agentConfig.frameworkPackage")}</div>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-                          {AGENT_PACKAGES.map(p => (
+                          {agentPackages.map(p => (
                             <button key={p.id} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], pkg: p.id, model: PKG_MODELS[p.id]?.[0] || cfg.model } }))}
                               style={{ background: cfg.pkg === p.id ? `${p.color}22` : "#161b22", border: `1px solid ${cfg.pkg === p.id ? p.color : "#30363d"}`, borderRadius: 6, padding: "5px 11px", fontSize: 11, color: cfg.pkg === p.id ? p.color : "#8b949e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
                               <span>{p.logo}</span> {p.name}
@@ -1967,7 +2245,7 @@ function AgentConfigPage() {
                       </div>
                       {/* Model row */}
                       <div>
-                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>Model</div>
+                        <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 7 }}>{t("legacyAi.monolith.agentConfig.model")}</div>
                         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
                           {(PKG_MODELS[cfg.pkg] || PKG_MODELS["langchain"]).map(m => (
                             <button key={m} onClick={() => setTaskConfigs(prev => ({ ...prev, [task.id]: { ...prev[task.id], model: m } }))}
@@ -2398,6 +2676,7 @@ function MiniSparkline({ value, color }: { value: number; color: string }) {
 function StatusBar({ metrics, running, errors, warnings, activePanel, setActivePanel, visiblePanels }:
   { metrics: Metrics; running: boolean; errors: number; warnings: number; activePanel: PanelId; setActivePanel: (p: PanelId) => void; visiblePanels: PanelId[] }
 ) {
+  const { t } = useTranslation();
   const s: React.CSSProperties = { display: "flex", alignItems: "center", gap: 2, padding: "0 8px", height: "100%", cursor: "pointer", borderRadius: 2, fontSize: 11, color: "#8b949e", whiteSpace: "nowrap" as const };
   const sep = <span style={{ color: "#21262d", margin: "0 2px" }}>│</span>;
 
@@ -2406,7 +2685,7 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
       {/* Left cluster */}
       <div style={{ display: "flex", alignItems: "center", height: "100%", borderRight: "1px solid #21262d", paddingRight: 4 }}>
         {/* Git branch + GitHub sync */}
-        <div style={s} onClick={() => setActivePanel("git")} title="GitHub: 3 ahead · 1 behind" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={s} onClick={() => setActivePanel("git")} title={t("legacyAi.monolith.status.githubSync")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span style={{ color: "#3fb950" }}>⎇</span>&nbsp;main
           &nbsp;<span style={{ color: "#3fb950" }}>↑3</span>
           &nbsp;<span style={{ color: "#f2cc60" }}>↓1</span>
@@ -2430,19 +2709,19 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
         {/* Run status */}
         <div style={{ ...s, color: running ? "#3fb950" : "#484f58", paddingLeft: 10 }}>
           <span style={{ fontSize: 8, marginRight: 4, color: running ? "#3fb950" : "#484f58" }}>●</span>
-          {running ? "Running" : "Stopped"}
+          {running ? t("legacyAi.monolith.status.running") : t("legacyAi.monolith.status.stopped")}
         </div>
         {sep}
 
         {/* Port + Live URL */}
-        <div style={{ ...s, color: "#58a6ff" }} title="Port 3000 → my-rest-api.you.repl.co">
+        <div style={{ ...s, color: "#58a6ff" }} title={t("legacyAi.monolith.status.portTitle")}>
           <span style={{ fontSize: 9 }}>◉</span>&nbsp;PORT&nbsp;3000
-          &nbsp;<span style={{ color: "#3fb950", fontSize: 9 }}>● Live</span>
+          &nbsp;<span style={{ color: "#3fb950", fontSize: 9 }}>● {t("legacyAi.monolith.status.live")}</span>
         </div>
         {sep}
 
         {/* CPU */}
-        <div style={s} title="CPU usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={s} title={t("legacyAi.monolith.status.cpuUsage")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span title="CPU">⬡</span>&nbsp;
           <span style={{ color: metrics.cpu > 70 ? "#f85149" : metrics.cpu > 40 ? "#f2cc60" : "#8b949e" }}>{metrics.cpu.toFixed(0)}%</span>
           &nbsp;<MiniSparkline value={metrics.cpu} color={metrics.cpu > 70 ? "#f85149" : metrics.cpu > 40 ? "#f2cc60" : "#3fb950"} />
@@ -2450,7 +2729,7 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
         {sep}
 
         {/* RAM */}
-        <div style={s} title="Memory usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={s} title={t("legacyAi.monolith.status.memoryUsage")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span>▣</span>&nbsp;
           <span style={{ color: metrics.ram > 80 ? "#f85149" : "#8b949e" }}>{(metrics.ram * 5.12).toFixed(0)} MB</span>
           &nbsp;<MiniSparkline value={metrics.ram} color="#58a6ff" />
@@ -2458,26 +2737,26 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
         {sep}
 
         {/* Network */}
-        <div style={s} title="Network I/O" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={s} title={t("legacyAi.monolith.status.networkIo")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span style={{ color: "#3fb950" }}>↑</span>&nbsp;<span>{metrics.netUp.toFixed(1)}&nbsp;KB/s</span>
           &nbsp;<span style={{ color: "#58a6ff" }}>↓</span>&nbsp;<span>{metrics.netDown.toFixed(1)}&nbsp;KB/s</span>
         </div>
         {sep}
 
         {/* Disk */}
-        <div style={s} title="Disk usage" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={s} title={t("legacyAi.monolith.status.diskUsage")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span>◫</span>&nbsp;2.3&nbsp;GB
         </div>
         {sep}
 
         {/* Connection / ping */}
-        <div style={{ ...s, color: "#3fb950" }} title="Connection status" onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+        <div style={{ ...s, color: "#3fb950" }} title={t("legacyAi.monolith.status.connectionStatus")} onMouseEnter={e => (e.currentTarget.style.background = "#21262d")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
           <span style={{ fontSize: 8 }}>●</span>&nbsp;{metrics.ping}&nbsp;ms
         </div>
         {sep}
 
         {/* Cursor pos */}
-        <div style={s}>Ln&nbsp;13,&nbsp;Col&nbsp;8</div>
+        <div style={s}>{t("legacyAi.monolith.status.cursor", { line: 13, column: 8 })}</div>
         {sep}
 
         {/* Encoding */}
@@ -2485,7 +2764,7 @@ function StatusBar({ metrics, running, errors, warnings, activePanel, setActiveP
         {sep}
 
         {/* Indentation */}
-        <div style={s}>Spaces:&nbsp;2</div>
+        <div style={s}>{t("legacyAi.monolith.status.indentation", { count: 2 })}</div>
         {sep}
 
         {/* Line endings */}
@@ -2544,12 +2823,25 @@ const RAIL_BOTTOM: RailItem[] = [
   { icon: "↑", label: "Deploy", panel: "deploy" },
 ];
 
+const RAIL_LABEL_KEYS: Record<string, string> = {
+  Files: "legacyAi.monolith.rail.files",
+  Search: "legacyAi.monolith.panels.names.search",
+  "Source Control": "legacyAi.monolith.rail.sourceControl",
+  Debugger: "legacyAi.monolith.panels.names.debugger",
+  Packages: "legacyAi.monolith.panels.names.packages",
+  Database: "legacyAi.monolith.panels.names.database",
+  Secrets: "legacyAi.monolith.panels.names.secrets",
+  Deploy: "legacyAi.monolith.panels.names.deploy",
+};
+
 function LeftRail({ activePanel, setActivePanel, visiblePanels }:
   { activePanel: PanelId; setActivePanel: (p: PanelId) => void; visiblePanels: PanelId[] }
 ) {
+  const { t } = useTranslation();
   const [tooltip, setTooltip] = useState<string | null>(null);
   const railBtn = (item: RailItem) => {
     const isActive = item.panel && item.panel === activePanel && visiblePanels.includes(item.panel);
+    const label = t(RAIL_LABEL_KEYS[item.label] ?? item.label);
     return (
       <div key={item.label} style={{ position: "relative" as const }}>
         <div
@@ -2569,7 +2861,7 @@ function LeftRail({ activePanel, setActivePanel, visiblePanels }:
         </div>
         {tooltip === item.label && (
           <div style={{ position: "absolute" as const, left: 44, top: "50%", transform: "translateY(-50%)", background: "#30363d", border: "1px solid #444c56", borderRadius: 4, padding: "3px 8px", fontSize: 11, color: "#e1e4e8", whiteSpace: "nowrap" as const, zIndex: 100, pointerEvents: "none" }}>
-            {item.label}
+            {label}
           </div>
         )}
       </div>
@@ -2590,6 +2882,7 @@ function LeftRail({ activePanel, setActivePanel, visiblePanels }:
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export function AIInterface() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("new");
   const [activePanel, setActivePanel] = useState<PanelId>("console");
   const [panelHeight, setPanelHeight] = useState(240);
@@ -2696,7 +2989,7 @@ export function AIInterface() {
             onMouseEnter={e => { if (!replSwitcherOpen) e.currentTarget.style.background = "#21262d"; }}
             onMouseLeave={e => { if (!replSwitcherOpen) e.currentTarget.style.background = "transparent"; }}>
             <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.1 }}>
-              <span style={{ fontSize: 9, color: "#8b949e", fontWeight: 400 }}>@you</span>
+              <span style={{ fontSize: 9, color: "#8b949e", fontWeight: 400 }}>{t("legacyAi.monolith.topbar.userHandle")}</span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>my-rest-api</span>
             </span>
             <span style={{ fontSize: 9, color: "#8b949e" }}>▾</span>
@@ -2707,26 +3000,26 @@ export function AIInterface() {
               <div style={{ position: "absolute" as const, top: "calc(100% + 6px)", left: 0, width: 320, background: "#161b22", border: "1px solid #30363d", borderRadius: 10, zIndex: 101, boxShadow: "0 12px 28px rgba(0,0,0,0.6)", overflow: "hidden" }}>
                 <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 11, color: "#8b949e" }}>⌕</span>
-                  <input placeholder="Search Repls & templates…" style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
+                  <input placeholder={t("legacyAi.monolith.replSwitcher.searchPlaceholder")} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, fontFamily: "inherit" }} />
                 </div>
                 {/* Tab switcher: Recent / Templates */}
                 <div style={{ display: "flex", borderBottom: "1px solid #21262d" }}>
-                  {(["recent", "templates"] as const).map(t => (
-                    <button key={t} onClick={() => setReplSwitcherTab(t)} style={{ flex: 1, background: "transparent", border: "none", borderBottom: replSwitcherTab === t ? "2px solid #f26522" : "2px solid transparent", padding: "8px 0", color: replSwitcherTab === t ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const, fontWeight: replSwitcherTab === t ? 600 : 400 }}>
-                      {t}
+                  {(["recent", "templates"] as const).map(tabId => (
+                    <button key={tabId} onClick={() => setReplSwitcherTab(tabId)} style={{ flex: 1, background: "transparent", border: "none", borderBottom: replSwitcherTab === tabId ? "2px solid #f26522" : "2px solid transparent", padding: "8px 0", color: replSwitcherTab === tabId ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const, fontWeight: replSwitcherTab === tabId ? 600 : 400 }}>
+                      {t(REPL_SWITCHER_TAB_KEYS[tabId])}
                     </button>
                   ))}
                 </div>
                 <div style={{ padding: "6px 0", maxHeight: 280, overflowY: "auto" }}>
                   {replSwitcherTab === "recent" ? (
                     <>
-                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Recent</div>
+                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>{t("legacyAi.monolith.replSwitcher.recentTitle")}</div>
                       {[
-                        { name: "my-rest-api", lang: "ts", desc: "REST API with JWT auth", time: "now", active: true },
-                        { name: "react-dashboard", lang: "tsx", desc: "Admin dashboard with charts", time: "2h ago" },
-                        { name: "discord-bot", lang: "py", desc: "Slash command bot", time: "yesterday" },
-                        { name: "stripe-webhook-test", lang: "ts", desc: "Webhook receiver + replay", time: "3d ago" },
-                        { name: "ml-classifier", lang: "py", desc: "scikit-learn pipeline", time: "1w ago" },
+                        { name: "my-rest-api", lang: "ts", desc: t("legacyAi.monolith.replSwitcher.recent.restApi.desc"), time: t("legacyAi.monolith.replSwitcher.recent.restApi.time"), active: true },
+                        { name: "react-dashboard", lang: "tsx", desc: t("legacyAi.monolith.replSwitcher.recent.dashboard.desc"), time: t("legacyAi.monolith.replSwitcher.recent.dashboard.time") },
+                        { name: "discord-bot", lang: "py", desc: t("legacyAi.monolith.replSwitcher.recent.discord.desc"), time: t("legacyAi.monolith.replSwitcher.recent.discord.time") },
+                        { name: "stripe-webhook-test", lang: "ts", desc: t("legacyAi.monolith.replSwitcher.recent.stripe.desc"), time: t("legacyAi.monolith.replSwitcher.recent.stripe.time") },
+                        { name: "ml-classifier", lang: "py", desc: t("legacyAi.monolith.replSwitcher.recent.classifier.desc"), time: t("legacyAi.monolith.replSwitcher.recent.classifier.time") },
                       ].map((r) => (
                         <div key={r.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: r.active ? "#1f6feb14" : "transparent", borderLeft: r.active ? "2px solid #1f6feb" : "2px solid transparent" }}
                           onMouseEnter={e => { if (!r.active) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
@@ -2742,17 +3035,17 @@ export function AIInterface() {
                     </>
                   ) : (
                     <>
-                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>Featured</div>
+                      <div style={{ padding: "4px 14px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8 }}>{t("legacyAi.monolith.replSwitcher.featuredTitle")}</div>
                       {[
-                        { name: "Next.js + Postgres", icon: "▲", color: "#fff", desc: "Full-stack starter with Drizzle", uses: "12.4k" },
-                        { name: "FastAPI + React", icon: "🐍", color: "#3fb950", desc: "Python backend + Vite frontend", uses: "8.7k" },
-                        { name: "Discord Bot (TS)", icon: "🤖", color: "#5865F2", desc: "Slash commands + Drizzle", uses: "5.2k" },
-                        { name: "Telegram Mini App", icon: "✈", color: "#0088cc", desc: "Vue 3 + WebApp SDK", uses: "3.1k" },
-                        { name: "AI Agent (LangChain)", icon: "🦜", color: "#bc8cff", desc: "Tools, memory, streaming", uses: "9.8k" },
-                        { name: "Stripe Checkout", icon: "💳", color: "#635bff", desc: "Subscriptions + webhooks", uses: "4.6k" },
-                        { name: "Static blog (Astro)", icon: "🚀", color: "#f26522", desc: "Markdown + RSS + sitemap", uses: "2.9k" },
+                        { key: "next", name: t("legacyAi.monolith.replSwitcher.templates.next.name"), icon: "▲", color: "#fff", desc: t("legacyAi.monolith.replSwitcher.templates.next.desc"), uses: "12.4k" },
+                        { key: "fastapi", name: t("legacyAi.monolith.replSwitcher.templates.fastapi.name"), icon: "🐍", color: "#3fb950", desc: t("legacyAi.monolith.replSwitcher.templates.fastapi.desc"), uses: "8.7k" },
+                        { key: "discord", name: t("legacyAi.monolith.replSwitcher.templates.discord.name"), icon: "🤖", color: "#5865F2", desc: t("legacyAi.monolith.replSwitcher.templates.discord.desc"), uses: "5.2k" },
+                        { key: "telegram", name: t("legacyAi.monolith.replSwitcher.templates.telegram.name"), icon: "✈", color: "#0088cc", desc: t("legacyAi.monolith.replSwitcher.templates.telegram.desc"), uses: "3.1k" },
+                        { key: "agent", name: t("legacyAi.monolith.replSwitcher.templates.agent.name"), icon: "🦜", color: "#bc8cff", desc: t("legacyAi.monolith.replSwitcher.templates.agent.desc"), uses: "9.8k" },
+                        { key: "stripe", name: t("legacyAi.monolith.replSwitcher.templates.stripe.name"), icon: "💳", color: "#635bff", desc: t("legacyAi.monolith.replSwitcher.templates.stripe.desc"), uses: "4.6k" },
+                        { key: "blog", name: t("legacyAi.monolith.replSwitcher.templates.blog.name"), icon: "🚀", color: "#f26522", desc: t("legacyAi.monolith.replSwitcher.templates.blog.desc"), uses: "2.9k" },
                       ].map((tpl) => (
-                        <div key={tpl.name} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                        <div key={tpl.key} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
                           onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#21262d")}
                           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}>
                           <span style={{ width: 24, height: 24, borderRadius: 5, background: "#21262d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: tpl.color, flexShrink: 0 }}>{tpl.icon}</span>
@@ -2767,8 +3060,8 @@ export function AIInterface() {
                   )}
                 </div>
                 <div style={{ borderTop: "1px solid #21262d", padding: 6, display: "flex", gap: 4 }}>
-                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>+ New Repl</button>
-                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Import from GitHub</button>
+                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{t("legacyAi.monolith.replSwitcher.newRepl")}</button>
+                  <button style={{ flex: 1, background: "transparent", border: "1px solid #30363d", borderRadius: 5, padding: "5px 8px", color: "#8b949e", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>{t("legacyAi.monolith.replSwitcher.importGitHub")}</button>
                 </div>
               </div>
             </>
@@ -2781,7 +3074,7 @@ export function AIInterface() {
           onMouseEnter={e => (e.currentTarget.style.borderColor = "#58a6ff")}
           onMouseLeave={e => (e.currentTarget.style.borderColor = "#30363d")}>
           <span style={{ fontSize: 11 }}>⌕</span>
-          <span style={{ flex: 1, textAlign: "left" as const }}>Search files & commands…</span>
+          <span style={{ flex: 1, textAlign: "left" as const }}>{t("legacyAi.monolith.topbar.searchCommands")}</span>
           <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 10, color: "#8b949e", fontFamily: "monospace" }}>⌘K</span>
         </button>
         <div style={{ width: 1, height: 20, background: "#21262d", flexShrink: 0 }} />
@@ -2792,7 +3085,7 @@ export function AIInterface() {
             <button key={i} style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 20, padding: "4px 12px", color: "#8b949e", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" as const }}
               onMouseEnter={e => { (e.target as HTMLElement).style.cssText += ";color:#e1e4e8;border-color:#f26522"; }}
               onMouseLeave={e => { (e.target as HTMLElement).style.cssText += ";color:#8b949e;border-color:#30363d"; }}
-            >{task}</button>
+            >{t(task)}</button>
           ))}
         </div>
 
@@ -2800,17 +3093,17 @@ export function AIInterface() {
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
 
           {/* Checkpoints chip */}
-          <button title="12 checkpoints — click to view history"
+          <button title={t("legacyAi.monolith.topbar.checkpointsTitle")}
             style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 9px", color: "#8b949e", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#3fb950"; e.currentTarget.style.color = "#3fb950"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
             <span style={{ color: "#3fb950" }}>✓</span>
             <span>12</span>
-            <span style={{ color: "#484f58", fontSize: 10 }}>checkpoints</span>
+            <span style={{ color: "#484f58", fontSize: 10 }}>{t("legacyAi.monolith.topbar.checkpoints")}</span>
           </button>
 
           {/* Cycles chip */}
-          <button title="1,247 cycles available · click to top up"
+          <button title={t("legacyAi.monolith.topbar.cyclesTitle")}
             style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 9px", color: "#8b949e", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#e3b341"; e.currentTarget.style.color = "#e3b341"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
@@ -2819,7 +3112,7 @@ export function AIInterface() {
           </button>
 
           {/* Mobile QR button */}
-          <button onClick={() => setShowQR(true)} title="Preview on phone"
+          <button onClick={() => setShowQR(true)} title={t("legacyAi.monolith.topbar.previewOnPhone")}
             style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, width: 28, height: 28, color: "#8b949e", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#bc8cff"; e.currentTarget.style.color = "#bc8cff"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#30363d"; e.currentTarget.style.color = "#8b949e"; }}>
@@ -2832,21 +3125,21 @@ export function AIInterface() {
           <button style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", color: "#8b949e", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
             onMouseEnter={e => { (e.currentTarget.style.borderColor = "#58a6ff"); (e.currentTarget.style.color = "#58a6ff"); }}
             onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}>
-            <span style={{ fontSize: 11 }}>⑂</span> Fork
+            <span style={{ fontSize: 11 }}>⑂</span> {t("legacyAi.monolith.topbar.fork")}
           </button>
 
           {/* Share / Invite */}
           <button style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 6, padding: "4px 10px", color: "#8b949e", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
             onMouseEnter={e => { (e.currentTarget.style.borderColor = "#3fb950"); (e.currentTarget.style.color = "#3fb950"); }}
             onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}>
-            <span>⤡</span> Share
+            <span>⤡</span> {t("legacyAi.monolith.topbar.share")}
           </button>
 
           {/* Multiplayer avatars */}
           <div style={{ display: "flex", alignItems: "center" }}>
             {[["#1f6feb","J"],["#3fb950","S"],["#bc8cff","M"]].map(([bg, initl], i) => (
               <div key={i} style={{ width: 24, height: 24, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", cursor: "pointer", border: "2px solid #161b22", marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i, boxShadow: "0 0 0 1px #30363d" }}
-                title={`User ${initl}`}>{initl}</div>
+                title={t("legacyAi.monolith.topbar.collaborator", { initial: initl })}>{initl}</div>
             ))}
           </div>
 
@@ -2859,17 +3152,17 @@ export function AIInterface() {
             onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
             onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
           >
-            {running ? <><span style={{ fontSize: 10 }}>■</span> Stop</> : <><span style={{ fontSize: 10 }}>▶</span> Run</>}
+            {running ? <><span style={{ fontSize: 10 }}>■</span> {t("legacyAi.monolith.topbar.stop")}</> : <><span style={{ fontSize: 10 }}>▶</span> {t("legacyAi.monolith.topbar.run")}</>}
           </button>
 
           <div style={{ width: 1, height: 20, background: "#21262d" }} />
 
           {/* Panels toggle */}
-          <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ Panels</button>
+          <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ {t("legacyAi.monolith.topbar.panels")}</button>
 
           {/* Settings ⚙ */}
           <div style={{ position: "relative" as const }}>
-            <button onClick={() => setSettingsOpen(o => !o)} title="Workspace settings"
+            <button onClick={() => setSettingsOpen(o => !o)} title={t("legacyAi.monolith.settings.workspaceSettings")}
               style={{ background: settingsOpen ? "#21262d" : "transparent", border: settingsOpen ? "1px solid #30363d" : "1px solid transparent", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b949e", fontSize: 14, cursor: "pointer" }}
               onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
               onMouseLeave={e => { if (!settingsOpen) e.currentTarget.style.background = "transparent"; }}>
@@ -2879,14 +3172,14 @@ export function AIInterface() {
               <>
                 <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 100 }} />
                 <div style={{ position: "absolute" as const, right: 0, top: 36, width: 300, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 101, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Workspace</div>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>{t("legacyAi.monolith.settings.workspace")}</div>
 
                   {/* Always-On */}
                   <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #1a1f26" }}>
                     <span style={{ fontSize: 14 }}>⏻</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>Always-On</div>
-                      <div style={{ fontSize: 10, color: "#484f58" }}>Keep Repl running 24/7 · 5 cycles/day</div>
+                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>{t("legacyAi.monolith.settings.alwaysOn")}</div>
+                      <div style={{ fontSize: 10, color: "#484f58" }}>{t("legacyAi.monolith.settings.alwaysOnDesc")}</div>
                     </div>
                     <button onClick={() => setAlwaysOn(a => !a)} style={{ width: 32, height: 18, background: alwaysOn ? "#3fb950" : "#30363d", border: "none", borderRadius: 9, cursor: "pointer", position: "relative" as const, padding: 0 }}>
                       <span style={{ position: "absolute" as const, top: 2, left: alwaysOn ? 16 : 2, width: 14, height: 14, background: "#fff", borderRadius: "50%", transition: "left 0.15s" }} />
@@ -2897,7 +3190,7 @@ export function AIInterface() {
                   <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #1a1f26" }}>
                     <span style={{ fontSize: 14, color: boost ? "#f26522" : "#8b949e" }}>⚡</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>Boost</div>
+                      <div style={{ fontSize: 12, color: "#e1e4e8" }}>{t("legacyAi.monolith.settings.boost")}</div>
                       <div style={{ fontSize: 10, color: "#484f58" }}>4 vCPU · 8 GB RAM · 20 cycles/hr</div>
                     </div>
                     <button onClick={() => setBoost(b => !b)} style={{ width: 32, height: 18, background: boost ? "#f26522" : "#30363d", border: "none", borderRadius: 9, cursor: "pointer", position: "relative" as const, padding: 0 }}>
@@ -2907,11 +3200,11 @@ export function AIInterface() {
 
                   {/* Theme */}
                   <div style={{ padding: "9px 14px", borderBottom: "1px solid #1a1f26" }}>
-                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>Theme</div>
+                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>{t("legacyAi.monolith.settings.themeLabel")}</div>
                     <div style={{ display: "flex", gap: 4 }}>
-                      {(["dark", "midnight", "high-contrast"] as const).map(t => (
-                        <button key={t} onClick={() => setTheme(t)} style={{ flex: 1, background: theme === t ? "#1f6feb22" : "#21262d", border: theme === t ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 5, padding: "5px 6px", color: theme === t ? "#58a6ff" : "#8b949e", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const }}>
-                          {t === "high-contrast" ? "Contrast" : t}
+                      {(["dark", "midnight", "high-contrast"] as const).map(themeId => (
+                        <button key={themeId} onClick={() => setTheme(themeId)} style={{ flex: 1, background: theme === themeId ? "#1f6feb22" : "#21262d", border: theme === themeId ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 5, padding: "5px 6px", color: theme === themeId ? "#58a6ff" : "#8b949e", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const }}>
+                          {t(THEME_KEYS[themeId])}
                         </button>
                       ))}
                     </div>
@@ -2919,22 +3212,28 @@ export function AIInterface() {
 
                   {/* Layout */}
                   <div style={{ padding: "9px 14px", borderBottom: "1px solid #1a1f26" }}>
-                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>Layout</div>
+                    <div style={{ fontSize: 12, color: "#e1e4e8", marginBottom: 6 }}>{t("legacyAi.monolith.settings.layoutLabel")}</div>
                     <div style={{ display: "flex", gap: 4 }}>
                       {(["default", "minimal", "focus"] as const).map(l => (
                         <button key={l} onClick={() => setLayout(l)} style={{ flex: 1, background: layout === l ? "#1f6feb22" : "#21262d", border: layout === l ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 5, padding: "5px 6px", color: layout === l ? "#58a6ff" : "#8b949e", fontSize: 10, cursor: "pointer", fontFamily: "inherit", textTransform: "capitalize" as const }}>
-                          {l}
+                          {t(LAYOUT_KEYS[l])}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div style={{ padding: "8px 14px", display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                    {["Account & Billing", "Editor preferences", "Connected services", "Privacy & data", "Sign out"].map(it => (
-                      <div key={it} style={{ fontSize: 12, color: it === "Sign out" ? "#f85149" : "#c9d1d9", padding: "4px 0", cursor: "pointer" }}
+                    {[
+                      { label: t("legacyAi.monolith.settings.links.accountBilling"), danger: false },
+                      { label: t("legacyAi.monolith.settings.links.editorPreferences"), danger: false },
+                      { label: t("legacyAi.monolith.settings.links.connectedServices"), danger: false },
+                      { label: t("legacyAi.monolith.settings.links.privacyData"), danger: false },
+                      { label: t("legacyAi.monolith.account.signOut"), danger: true },
+                    ].map(({ label, danger }) => (
+                      <div key={label} style={{ fontSize: 12, color: danger ? "#f85149" : "#c9d1d9", padding: "4px 0", cursor: "pointer" }}
                         onMouseEnter={e => (e.currentTarget.style.color = "#58a6ff")}
-                        onMouseLeave={e => (e.currentTarget.style.color = it === "Sign out" ? "#f85149" : "#c9d1d9")}>
-                        {it}
+                        onMouseLeave={e => (e.currentTarget.style.color = danger ? "#f85149" : "#c9d1d9")}>
+                        {label}
                       </div>
                     ))}
                   </div>
@@ -2945,7 +3244,7 @@ export function AIInterface() {
 
           {/* Help / Shortcuts */}
           <div style={{ position: "relative" as const }}>
-            <button onClick={() => setHelpOpen(o => !o)} title="Help & keyboard shortcuts"
+            <button onClick={() => setHelpOpen(o => !o)} title={t("legacyAi.monolith.help.title")}
               style={{ background: helpOpen ? "#21262d" : "transparent", border: helpOpen ? "1px solid #30363d" : "1px solid transparent", borderRadius: 6, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b949e", fontSize: 14, cursor: "pointer", fontWeight: 600 }}
               onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
               onMouseLeave={e => { if (!helpOpen) e.currentTarget.style.background = "transparent"; }}>
@@ -2955,17 +3254,17 @@ export function AIInterface() {
               <>
                 <div onClick={() => setHelpOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 100 }} />
                 <div style={{ position: "absolute" as const, right: 0, top: 36, width: 280, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 101, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Keyboard shortcuts</div>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>{t("legacyAi.monolith.help.keyboardShortcuts")}</div>
                   {[
-                    { keys: ["⌘", "K"], label: "Command palette" },
-                    { keys: ["⌘", "P"], label: "Quick file open" },
-                    { keys: ["⌘", "I"], label: "Inline AI edit" },
-                    { keys: ["⌘", "S"], label: "Save file" },
-                    { keys: ["⌘", "↵"], label: "Run / send" },
-                    { keys: ["⌘", "/"], label: "Toggle comment" },
-                    { keys: ["⌘", "B"], label: "Toggle sidebar" },
-                    { keys: ["⌘", "J"], label: "Toggle bottom panels" },
-                    { keys: ["⇧", "⌘", "P"], label: "Command (alt)" },
+                    { keys: ["⌘", "K"], label: t("legacyAi.monolith.help.shortcuts.commandPalette") },
+                    { keys: ["⌘", "P"], label: t("legacyAi.monolith.help.shortcuts.quickFile") },
+                    { keys: ["⌘", "I"], label: t("legacyAi.monolith.help.shortcuts.inlineAi") },
+                    { keys: ["⌘", "S"], label: t("legacyAi.monolith.help.shortcuts.saveFile") },
+                    { keys: ["⌘", "↵"], label: t("legacyAi.monolith.help.shortcuts.runSend") },
+                    { keys: ["⌘", "/"], label: t("legacyAi.monolith.help.shortcuts.toggleComment") },
+                    { keys: ["⌘", "B"], label: t("legacyAi.monolith.help.shortcuts.toggleSidebar") },
+                    { keys: ["⌘", "J"], label: t("legacyAi.monolith.help.shortcuts.togglePanels") },
+                    { keys: ["⇧", "⌘", "P"], label: t("legacyAi.monolith.help.shortcuts.commandAlt") },
                   ].map(s => (
                     <div key={s.label} style={{ padding: "7px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #1a1f26" }}>
                       <span style={{ fontSize: 12, color: "#c9d1d9" }}>{s.label}</span>
@@ -2977,9 +3276,9 @@ export function AIInterface() {
                     </div>
                   ))}
                   <div style={{ padding: "8px 14px", display: "flex", gap: 12, borderTop: "1px solid #21262d" }}>
-                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>📖 Docs</a>
-                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>💬 Support</a>
-                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>↻ Tour</a>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>📖 {t("legacyAi.monolith.help.docs")}</a>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>💬 {t("legacyAi.monolith.help.support")}</a>
+                    <a style={{ fontSize: 11, color: "#58a6ff", cursor: "pointer", textDecoration: "none" }}>↻ {t("legacyAi.monolith.help.tour")}</a>
                   </div>
                 </div>
               </>
@@ -2999,12 +3298,12 @@ export function AIInterface() {
             {showNotifs && (
               <div style={{ position: "absolute" as const, right: 0, top: 36, width: 280, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, zIndex: 200, boxShadow: "0 8px 24px #00000066", overflow: "hidden" }}>
                 <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", fontSize: 12, fontWeight: 600, color: "#e1e4e8", display: "flex", justifyContent: "space-between" }}>
-                  Notifications <span style={{ color: "#8b949e", fontWeight: 400, cursor: "pointer" }} onClick={() => setShowNotifs(false)}>✕</span>
+                  {t("legacyAi.monolith.notifications.title")} <span style={{ color: "#8b949e", fontWeight: 400, cursor: "pointer" }} onClick={() => setShowNotifs(false)}>✕</span>
                 </div>
                 {[
-                  { icon: "✦", text: "Agent finished writing route handlers", time: "2m ago", color: "#f26522" },
-                  { icon: "⬡", text: "express@4.19.2 available (update)", time: "15m ago", color: "#58a6ff" },
-                  { icon: "⎇", text: "main branch pushed — 3 commits ahead", time: "1h ago", color: "#3fb950" },
+                  { icon: "✦", text: t("legacyAi.monolith.notifications.routeHandlers"), time: t("legacyAi.monolith.notifications.twoMinutesAgo"), color: "#f26522" },
+                  { icon: "⬡", text: t("legacyAi.monolith.notifications.packageUpdate"), time: t("legacyAi.monolith.notifications.fifteenMinutesAgo"), color: "#58a6ff" },
+                  { icon: "⎇", text: t("legacyAi.monolith.notifications.branchPushed"), time: t("legacyAi.monolith.notifications.oneHourAgo"), color: "#3fb950" },
                 ].map((n, i) => (
                   <div key={i} style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", gap: 10, cursor: "pointer" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
@@ -3028,10 +3327,10 @@ export function AIInterface() {
       {/* PANEL CUSTOMIZER */}
       {customizingPanels && (
         <div style={{ background: "#161b22", borderBottom: "1px solid #21262d", padding: "8px 16px", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" as const, flexShrink: 0 }}>
-          <span style={{ color: "#8b949e", fontSize: 11, marginRight: 4 }}>Toggle panels:</span>
+          <span style={{ color: "#8b949e", fontSize: 11, marginRight: 4 }}>{t("legacyAi.monolith.panels.togglePanels")}</span>
           {ALL_PANELS.map(p => (
             <button key={p} onClick={() => togglePanel(p)} style={{ background: visiblePanels.includes(p) ? "#1f6feb22" : "#21262d", border: visiblePanels.includes(p) ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 4, padding: "3px 10px", color: visiblePanels.includes(p) ? "#58a6ff" : "#8b949e", fontSize: 11, cursor: "pointer", textTransform: "capitalize" as const, display: "flex", alignItems: "center", gap: 4 }}>
-              <span>{PANEL_ICONS[p]}</span> {p}
+              <span>{PANEL_ICONS[p]}</span> {t(PANEL_NAME_KEYS[p])}
             </button>
           ))}
         </div>
@@ -3045,29 +3344,29 @@ export function AIInterface() {
           <div style={{ flex: 1, background: "#0e1117", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Header */}
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>Task History</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1 }}>{t("legacyAi.monolith.history.title")}</span>
               <button
                 onClick={() => setActiveTab("account")}
                 style={{ background: "transparent", border: "1px solid #30363d", borderRadius: 5, color: "#8b949e", fontSize: 11, padding: "3px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                 onMouseEnter={e => { (e.currentTarget.style.borderColor = "#bc8cff"); (e.currentTarget.style.color = "#bc8cff"); }}
                 onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#8b949e"); }}
               >
-                <span>⬡</span> Agent Config
+                <span>⬡</span> {t("legacyAi.monolith.account.nav.agentConfig")}
               </button>
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>
-              {PAST_TASKS.map(t => {
-                const fw = AGENT_FRAMEWORKS.find(f => f.id === t.aiConfig.framework)!;
+              {PAST_TASKS.map(task => {
+                const fw = AGENT_FRAMEWORKS.find(f => f.id === task.aiConfig.framework)!;
                 return (
-                  <div key={t.id} style={{ padding: "11px 16px", borderBottom: "1px solid #21262d" }}>
+                  <div key={task.id} style={{ padding: "11px 16px", borderBottom: "1px solid #21262d" }}>
                     {/* Title row */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}
                       onClick={() => setActiveTab("new")}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.cursor = "pointer"}
                     >
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: t.status === "done" ? "#3fb950" : t.status === "running" ? "#f26522" : "#f85149", flexShrink: 0 }} />
-                      <span style={{ color: "#e1e4e8", fontSize: 13, flex: 1 }}>{t.title}</span>
-                      <span style={{ color: "#484f58", fontSize: 11, flexShrink: 0 }}>{t.time}</span>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: task.status === "done" ? "#3fb950" : task.status === "running" ? "#f26522" : "#f85149", flexShrink: 0 }} />
+                      <span style={{ color: "#e1e4e8", fontSize: 13, flex: 1 }}>{t(task.titleKey)}</span>
+                      <span style={{ color: "#484f58", fontSize: 11, flexShrink: 0 }}>{t(task.timeKey)}</span>
                     </div>
                     {/* AI config badges */}
                     <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 14 }}>
@@ -3077,7 +3376,7 @@ export function AIInterface() {
                       </span>
                       {/* Model badge */}
                       <span style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 10, fontSize: 10, color: "#8b949e", padding: "1px 7px" }}>
-                        {t.aiConfig.modelName}
+                        {task.aiConfig.modelName}
                       </span>
                       {/* Configure button */}
                       <button
@@ -3086,7 +3385,7 @@ export function AIInterface() {
                         onMouseEnter={e => { (e.currentTarget.style.borderColor = fw.color); (e.currentTarget.style.color = fw.color); }}
                         onMouseLeave={e => { (e.currentTarget.style.borderColor = "#30363d"); (e.currentTarget.style.color = "#484f58"); }}
                       >
-                        ⚙ Configure
+                        ⚙ {t("legacyAi.monolith.history.configure")}
                       </button>
                     </div>
                   </div>
@@ -3109,11 +3408,11 @@ export function AIInterface() {
             {/* FILE SIDEBAR */}
             <div style={{ width: sidebarWidth, background: "#161b22", borderRight: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
               <div style={{ padding: "8px 12px", borderBottom: "1px solid #21262d", fontSize: 11, fontWeight: 600, color: "#8b949e", textTransform: "uppercase" as const, letterSpacing: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                Files
+                {t("legacyAi.monolith.files.title")}
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="New File">+</button>
-                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="New Folder">⊞</button>
-                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "0 2px" }} title="Collapse All">⊟</button>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title={t("legacyAi.monolith.files.newFile")}>+</button>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title={t("legacyAi.monolith.files.newFolder")}>⊞</button>
+                  <button style={{ background: "none", border: "none", color: "#8b949e", cursor: "pointer", fontSize: 12, lineHeight: 1, padding: "0 2px" }} title={t("legacyAi.monolith.files.collapseAll")}>⊟</button>
                 </div>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
@@ -3129,24 +3428,24 @@ export function AIInterface() {
               </div>
               <div style={{ borderTop: "1px solid #21262d", padding: "6px 0" }}>
                 {[
-                  ["✦", "Agent", null, null],
-                  ["⌕", "Search", null, null],
-                  ["⎇", "Git", null, "3↑"],
-                  ["↑", "Deploy", null, "Live"],
-                  ["⬡", "Packages", null, null],
-                  ["≡", "Outline", null, "12"],
-                  ["💬", "Threads", null, "2"],
-                  ["▣", "Storage", null, null],
-                  ["☆", "Bounties", null, "$$"],
-                ].map(([icon, label, _, badge]) => (
-                  <div key={label as string} style={{ padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: 12 }}
+                  ["✦", "Agent", t("legacyAi.monolith.sidebar.agent"), null],
+                  ["⌕", "Search", t("legacyAi.monolith.panels.names.search"), null],
+                  ["⎇", "Git", t("legacyAi.monolith.panels.names.git"), "3↑"],
+                  ["↑", "Deploy", t("legacyAi.monolith.panels.names.deploy"), t("legacyAi.monolith.status.live")],
+                  ["⬡", "Packages", t("legacyAi.monolith.panels.names.packages"), null],
+                  ["≡", "Outline", t("legacyAi.monolith.sidebar.outline"), "12"],
+                  ["💬", "Threads", t("legacyAi.monolith.sidebar.threads"), "2"],
+                  ["▣", "Storage", t("legacyAi.monolith.sidebar.storage"), null],
+                  ["☆", "Bounties", t("legacyAi.monolith.sidebar.bounties"), "$$"],
+                ].map(([icon, rawLabel, label, badge]) => (
+                  <div key={rawLabel as string} style={{ padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: 12 }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#21262d"; (e.currentTarget as HTMLElement).style.color = "#e1e4e8"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#8b949e"; }}
-                    onClick={() => { const map: Record<string, PanelId> = { Search: "search", Git: "git", Deploy: "deploy", Packages: "packages" }; if (map[label as string]) setActivePanel(map[label as string]); }}
+                    onClick={() => { const map: Record<string, PanelId> = { Search: "search", Git: "git", Deploy: "deploy", Packages: "packages" }; if (map[rawLabel as string]) setActivePanel(map[rawLabel as string]); }}
                   >
                     <span style={{ fontSize: 13, width: 14, textAlign: "center" as const }}>{icon}</span>
                     <span style={{ flex: 1 }}>{label}</span>
-                    {badge && <span style={{ fontSize: 9, color: label === "Git" ? "#3fb950" : label === "Deploy" ? "#3fb950" : label === "Bounties" ? "#e3b341" : "#58a6ff", background: "#21262d", border: "1px solid #30363d", borderRadius: 8, padding: "0 5px" }}>{badge as string}</span>}
+                    {badge && <span style={{ fontSize: 9, color: rawLabel === "Git" ? "#3fb950" : rawLabel === "Deploy" ? "#3fb950" : rawLabel === "Bounties" ? "#e3b341" : "#58a6ff", background: "#21262d", border: "1px solid #30363d", borderRadius: 8, padding: "0 5px" }}>{badge as string}</span>}
                   </div>
                 ))}
               </div>
@@ -3168,10 +3467,10 @@ export function AIInterface() {
                   </div>
                 ))}
                 {/* New tab + Split editor */}
-                <button title="New tab" style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                <button title={t("legacyAi.monolith.editor.newTab")} style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>+</button>
-                <button title="Split editor right" style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                <button title={t("legacyAi.monolith.editor.splitRight")} style={{ width: 30, background: "transparent", border: "none", borderRight: "1px solid #21262d", color: "#8b949e", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#21262d")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>⬒</button>
                 {/* Running pill */}
@@ -3216,7 +3515,7 @@ export function AIInterface() {
                           {ghostText && (
                             <span style={{ color: "#484f58", fontStyle: "italic" as const, opacity: 0.75 }}>
                               {ghostText}
-                              <span style={{ marginLeft: 10, fontSize: 9, padding: "1px 5px", border: "1px solid #30363d", borderRadius: 3, color: "#8b949e", fontStyle: "normal" as const, background: "#161b22" }}>✦ AI · Tab to accept</span>
+                              <span style={{ marginLeft: 10, fontSize: 9, padding: "1px 5px", border: "1px solid #30363d", borderRadius: 3, color: "#8b949e", fontStyle: "normal" as const, background: "#161b22" }}>{t("legacyAi.monolith.editor.aiAccept")}</span>
                             </span>
                           )}
                           {collab && (
@@ -3226,7 +3525,7 @@ export function AIInterface() {
                             </span>
                           )}
                           {hasThread && (
-                            <span title="1 comment thread" style={{ position: "absolute" as const, right: 8, top: 0, fontSize: 11, color: "#e3b341", cursor: "pointer", pointerEvents: "auto" as const }}>💬 1</span>
+                            <span title={t("legacyAi.monolith.editor.commentThread", { count: 1 })} style={{ position: "absolute" as const, right: 8, top: 0, fontSize: 11, color: "#e3b341", cursor: "pointer", pointerEvents: "auto" as const }}>💬 1</span>
                           )}
                         </span>
                       </div>
@@ -3243,7 +3542,7 @@ export function AIInterface() {
                 <div style={{ width: 320, background: "#161b22", borderLeft: "1px solid #21262d", display: "flex", flexDirection: "column", flexShrink: 0 }}>
                   <div style={{ padding: "10px 14px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 20, height: 20, background: "linear-gradient(135deg,#f26522,#f5a623)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>✦</div>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>Agent</span>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{t("legacyAi.monolith.sidebar.agent")}</span>
                     <div style={{ marginLeft: "auto", width: 8, height: 8, borderRadius: "50%", background: "#3fb950", boxShadow: "0 0 6px #3fb95088" }} />
                   </div>
                   <div style={{ flex: 1, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -3251,19 +3550,19 @@ export function AIInterface() {
                       <div key={msg.id}>
                         {msg.role === "user" ? (
                           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <div style={{ background: "#1f6feb", color: "#fff", padding: "7px 11px", borderRadius: "12px 12px 2px 12px", maxWidth: "85%", fontSize: 12, lineHeight: 1.5 }}>{msg.content}</div>
+                            <div style={{ background: "#1f6feb", color: "#fff", padding: "7px 11px", borderRadius: "12px 12px 2px 12px", maxWidth: "85%", fontSize: 12, lineHeight: 1.5 }}>{t(msg.contentKey)}</div>
                           </div>
                         ) : (
                           <div style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
                             <div style={{ width: 22, height: 22, background: "linear-gradient(135deg,#f26522,#f5a623)", borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>✦</div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ background: "#21262d", color: "#e1e4e8", padding: "7px 11px", borderRadius: "2px 12px 12px 12px", fontSize: 12, lineHeight: 1.5, marginBottom: 7 }}>{msg.content}</div>
+                              <div style={{ background: "#21262d", color: "#e1e4e8", padding: "7px 11px", borderRadius: "2px 12px 12px 12px", fontSize: 12, lineHeight: 1.5, marginBottom: 7 }}>{t(msg.contentKey)}</div>
                               {msg.steps && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                                   {msg.steps.map((s, si) => (
                                     <div key={si} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 7px", background: s.active ? "#1f6feb11" : "transparent", borderRadius: 4, border: s.active ? "1px solid #1f6feb33" : "1px solid transparent" }}>
                                       <span style={{ fontSize: 11, color: s.done ? "#3fb950" : s.active ? "#f26522" : "#484f58" }}>{s.done ? "✓" : s.active ? "◌" : "○"}</span>
-                                      <span style={{ fontSize: 11, color: s.active ? "#e1e4e8" : s.done ? "#8b949e" : "#484f58" }}>{s.label}</span>
+                                      <span style={{ fontSize: 11, color: s.active ? "#e1e4e8" : s.done ? "#8b949e" : "#484f58" }}>{t(s.labelKey)}</span>
                                       {s.active && <span style={{ marginLeft: "auto", fontSize: 10, color: "#f26522" }}>…</span>}
                                     </div>
                                   ))}
@@ -3285,14 +3584,14 @@ export function AIInterface() {
                     <div style={{ background: "#21262d", borderRadius: 10, border: `1px solid ${chatPlanMode ? "#1f6feb55" : "#30363d"}`, display: "flex", flexDirection: "column", gap: 0, transition: "border-color 0.15s" }}>
                       {/* Row 1: textarea (multi-line) */}
                       <textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
-                        placeholder={chatPlanMode ? "Describe what to plan…" : "What should I build next?"}
+                        placeholder={chatPlanMode ? t("legacyAi.monolith.chat.composer.placeholder.plan") : t("legacyAi.monolith.chat.composer.placeholder.power")}
                         rows={2}
                         style={{ background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 12, resize: "none", fontFamily: "inherit", lineHeight: 1.55, padding: "9px 11px 4px", minHeight: 38, maxHeight: 180 }} />
 
                       {/* Row 2: controls */}
                       <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 6px 6px" }}>
                         {/* Attach */}
-                        <button title="Attach file"
+                        <button title={t("legacyAi.monolith.chat.composer.attachFile")}
                           style={{ width: 26, height: 26, background: "transparent", border: "none", borderRadius: 5, color: "#8b949e", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                           onMouseEnter={e => (e.currentTarget.style.background = "#30363d")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
@@ -3300,9 +3599,9 @@ export function AIInterface() {
                         </button>
 
                         {/* Plan toggle */}
-                        <button onClick={() => setChatPlanMode(!chatPlanMode)} title="Plan mode — agent proposes a plan before acting"
+                        <button onClick={() => setChatPlanMode(!chatPlanMode)} title={t("legacyAi.monolith.chat.composer.planModeTitle")}
                           style={{ height: 26, padding: "0 9px", background: chatPlanMode ? "#1f6feb22" : "transparent", border: `1px solid ${chatPlanMode ? "#1f6feb55" : "#30363d"}`, borderRadius: 5, color: chatPlanMode ? "#58a6ff" : "#8b949e", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit", flexShrink: 0 }}>
-                          <span style={{ fontSize: 11 }}>◇</span> Plan
+                          <span style={{ fontSize: 11 }}>◇</span> {t("legacyAi.monolith.chat.composer.plan")}
                           {chatPlanMode && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#58a6ff" }} />}
                         </button>
 
@@ -3311,7 +3610,7 @@ export function AIInterface() {
                           <button onClick={() => setChatTierOpen(!chatTierOpen)}
                             style={{ height: 26, padding: "0 8px", background: "transparent", border: "1px solid #30363d", borderRadius: 5, color: "#c9d1d9", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: chatTier === "power" ? "#f26522" : chatTier === "lite" ? "#58a6ff" : "#3fb950" }} />
-                            <span style={{ textTransform: "capitalize" as const }}>{chatTier}</span>
+                            <span>{t(CHAT_TIER_KEYS[chatTier].name)}</span>
                             <span style={{ fontSize: 8, color: "#8b949e", marginLeft: 1 }}>▾</span>
                           </button>
                           {chatTierOpen && (
@@ -3319,21 +3618,21 @@ export function AIInterface() {
                               <div onClick={() => setChatTierOpen(false)} style={{ position: "fixed" as const, inset: 0, zIndex: 20 }} />
                               <div style={{ position: "absolute" as const, bottom: "calc(100% + 4px)", left: 0, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 4, minWidth: 180, zIndex: 21, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
                                 {([
-                                  { id: "power" as const, name: "Power", model: "GPT-4o · Claude 3.5 Sonnet", color: "#f26522", desc: "Smartest, full agentic loop" },
-                                  { id: "lite"  as const, name: "Lite",  model: "GPT-4o mini · Haiku",        color: "#58a6ff", desc: "Faster, lower cost" },
-                                  { id: "eco"   as const, name: "Eco",   model: "Llama 3.1 · Hermes 3 8B",   color: "#3fb950", desc: "Cheapest, basic tasks" },
-                                ]).map(t => (
-                                  <button key={t.id} onClick={() => { setChatTier(t.id); setChatTierOpen(false); }}
-                                    style={{ width: "100%", textAlign: "left" as const, background: chatTier === t.id ? `${t.color}18` : "transparent", border: "none", borderRadius: 5, padding: "7px 9px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "flex-start", gap: 8 }}
-                                    onMouseEnter={e => { if (chatTier !== t.id) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
-                                    onMouseLeave={e => { if (chatTier !== t.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, marginTop: 4, flexShrink: 0 }} />
+                                  { id: "power" as const, name: t(CHAT_TIER_KEYS.power.name), model: "GPT-4o · Claude 3.5 Sonnet", color: "#f26522", desc: t(CHAT_TIER_KEYS.power.description) },
+                                  { id: "lite"  as const, name: t(CHAT_TIER_KEYS.lite.name),  model: "GPT-4o mini · Haiku",        color: "#58a6ff", desc: t(CHAT_TIER_KEYS.lite.description) },
+                                  { id: "eco"   as const, name: t(CHAT_TIER_KEYS.eco.name),   model: "Llama 3.1 · Hermes 3 8B",   color: "#3fb950", desc: t(CHAT_TIER_KEYS.eco.description) },
+                                ]).map(tier => (
+                                  <button key={tier.id} onClick={() => { setChatTier(tier.id); setChatTierOpen(false); }}
+                                    style={{ width: "100%", textAlign: "left" as const, background: chatTier === tier.id ? `${tier.color}18` : "transparent", border: "none", borderRadius: 5, padding: "7px 9px", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "flex-start", gap: 8 }}
+                                    onMouseEnter={e => { if (chatTier !== tier.id) (e.currentTarget as HTMLElement).style.background = "#21262d"; }}
+                                    onMouseLeave={e => { if (chatTier !== tier.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: tier.color, marginTop: 4, flexShrink: 0 }} />
                                     <div style={{ flex: 1 }}>
-                                      <div style={{ fontSize: 12, color: "#e1e4e8", fontWeight: chatTier === t.id ? 600 : 400 }}>{t.name}</div>
-                                      <div style={{ fontSize: 10, color: t.color, marginTop: 1 }}>{t.model}</div>
-                                      <div style={{ fontSize: 10, color: "#484f58", marginTop: 1 }}>{t.desc}</div>
+                                      <div style={{ fontSize: 12, color: "#e1e4e8", fontWeight: chatTier === tier.id ? 600 : 400 }}>{tier.name}</div>
+                                      <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>{tier.model}</div>
+                                      <div style={{ fontSize: 10, color: "#484f58", marginTop: 1 }}>{tier.desc}</div>
                                     </div>
-                                    {chatTier === t.id && <span style={{ color: t.color, fontSize: 11, marginTop: 2 }}>✓</span>}
+                                    {chatTier === tier.id && <span style={{ color: tier.color, fontSize: 11, marginTop: 2 }}>✓</span>}
                                   </button>
                                 ))}
                               </div>
@@ -3344,7 +3643,7 @@ export function AIInterface() {
                         <div style={{ flex: 1 }} />
 
                         {/* Voice */}
-                        <button onClick={() => setChatVoiceOn(!chatVoiceOn)} title="Voice input"
+                        <button onClick={() => setChatVoiceOn(!chatVoiceOn)} title={t("legacyAi.monolith.chat.composer.voiceInput")}
                           style={{ width: 26, height: 26, background: chatVoiceOn ? "#f8514922" : "transparent", border: `1px solid ${chatVoiceOn ? "#f8514955" : "transparent"}`, borderRadius: 5, color: chatVoiceOn ? "#f85149" : "#8b949e", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                           onMouseEnter={e => { if (!chatVoiceOn) (e.currentTarget as HTMLElement).style.background = "#30363d"; }}
                           onMouseLeave={e => { if (!chatVoiceOn) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
@@ -3352,7 +3651,7 @@ export function AIInterface() {
                         </button>
 
                         {/* Send */}
-                        <button title={chatPlanMode ? "Send (Plan mode)" : "Send"}
+                        <button title={chatPlanMode ? t("legacyAi.monolith.chat.composer.sendPlan") : t("legacyAi.monolith.chat.composer.send")}
                           style={{ background: chatInput ? (chatPlanMode ? "#1f6feb" : "#f26522") : "#30363d", border: "none", borderRadius: 5, width: 26, height: 26, cursor: chatInput ? "pointer" : "default", color: "#fff", fontSize: 13, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}>
                           {chatPlanMode ? "◇" : "↑"}
                         </button>
@@ -3362,7 +3661,7 @@ export function AIInterface() {
                       {chatPlanMode && (
                         <div style={{ padding: "6px 11px 8px", borderTop: "1px solid #30363d", fontSize: 10, color: "#58a6ff", background: "#1f6feb0a", borderRadius: "0 0 9px 9px", display: "flex", alignItems: "center", gap: 6 }}>
                           <span>◇</span>
-                          <span>Plan mode: agent will propose a step-by-step plan and wait for approval before executing.</span>
+                          <span>{t("legacyAi.monolith.chat.composer.planHint")}</span>
                         </div>
                       )}
                     </div>
@@ -3370,11 +3669,9 @@ export function AIInterface() {
                     {/* Tier hint below */}
                     <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2px" }}>
                       <span style={{ fontSize: 10, color: "#484f58" }}>
-                        {chatTier === "power" && "Best quality · ~$0.04/task"}
-                        {chatTier === "lite"  && "Balanced · ~$0.008/task"}
-                        {chatTier === "eco"   && "Lowest cost · ~$0.001/task"}
+                        {t(CHAT_TIER_KEYS[chatTier].hint)}
                       </span>
-                      <span style={{ fontSize: 10, color: "#484f58" }}>⏎ send · ⇧⏎ newline</span>
+                      <span style={{ fontSize: 10, color: "#484f58" }}>{t("legacyAi.monolith.chat.composer.shortcut")}</span>
                     </div>
                   </div>
                 </div>
@@ -3392,7 +3689,7 @@ export function AIInterface() {
                     <div style={{ height: 34, display: "flex", alignItems: "stretch", borderBottom: "1px solid #21262d", background: "#0e1117", flexShrink: 0, overflowX: "auto", scrollbarWidth: "none" as const }}>
                       {visiblePanels.map(p => (
                         <button key={p} onClick={() => setActivePanel(p)} style={{ padding: "0 12px", background: "transparent", border: "none", borderBottom: activePanel === p ? "2px solid #f26522" : "2px solid transparent", color: activePanel === p ? "#e1e4e8" : "#8b949e", fontSize: 11, cursor: "pointer", fontWeight: activePanel === p ? 500 : 400, textTransform: "capitalize" as const, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" as const }}>
-                          <span style={{ fontSize: 12 }}>{PANEL_ICONS[p]}</span>{p}
+                          <span style={{ fontSize: 12 }}>{PANEL_ICONS[p]}</span>{t(PANEL_NAME_KEYS[p])}
                         </button>
                       ))}
                       <div style={{ flex: 1 }} />
@@ -3425,7 +3722,7 @@ export function AIInterface() {
         {(["tasks", "new", "account"] as Tab[]).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: "7px 22px", background: activeTab === tab ? "#21262d" : "transparent", border: activeTab === tab ? "1px solid #30363d" : "1px solid transparent", borderRadius: 8, color: activeTab === tab ? "#e1e4e8" : "#8b949e", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: activeTab === tab ? 600 : 400, display: "flex", alignItems: "center", gap: 5, minWidth: 90, justifyContent: "center" }}>
             <span style={{ fontSize: 14 }}>{tab === "tasks" ? "☰" : tab === "new" ? "✦" : "○"}</span>
-            <span style={{ textTransform: "capitalize" as const }}>{tab === "new" ? "Workspace" : tab}</span>
+            <span>{tab === "new" ? t("legacyAi.monolith.bottomNav.workspace") : tab === "tasks" ? t("legacyAi.monolith.bottomNav.tasks") : t("legacyAi.monolith.bottomNav.account")}</span>
           </button>
         ))}
       </div>
@@ -3433,10 +3730,30 @@ export function AIInterface() {
       {/* COMMAND PALETTE (⌘K) */}
       {cmdKOpen && (() => {
         const all = [
-          { group: "Files", icon: "📄", items: ["src/routes/auth.ts", "src/index.ts", "src/lib/jwt.ts", "package.json", ".env", "README.md"] },
-          { group: "Commands", icon: "⚡", items: ["Run project", "Stop project", "Open shell", "Format file", "Toggle terminal", "Restart language server", "Find in files", "Git: commit all"] },
-          { group: "Agent", icon: "✦", items: ["New chat", "Plan mode: Toggle", "Switch to Power tier", "Switch to Lite tier", "Open agent settings"] },
-          { group: "Settings", icon: "⚙", items: ["Open settings", "Switch theme", "Keyboard shortcuts", "Account & billing"] },
+          { group: t("legacyAi.monolith.commandPalette.groups.files"), icon: "📄", items: ["src/routes/auth.ts", "src/index.ts", "src/lib/jwt.ts", "package.json", ".env", "README.md"] },
+          { group: t("legacyAi.monolith.commandPalette.groups.commands"), icon: "⚡", items: [
+            t("legacyAi.monolith.commandPalette.items.runProject"),
+            t("legacyAi.monolith.commandPalette.items.stopProject"),
+            t("legacyAi.monolith.commandPalette.items.openShell"),
+            t("legacyAi.monolith.commandPalette.items.formatFile"),
+            t("legacyAi.monolith.commandPalette.items.toggleTerminal"),
+            t("legacyAi.monolith.commandPalette.items.restartLanguageServer"),
+            t("legacyAi.monolith.commandPalette.items.findInFiles"),
+            t("legacyAi.monolith.commandPalette.items.gitCommitAll"),
+          ] },
+          { group: t("legacyAi.monolith.commandPalette.groups.agent"), icon: "✦", items: [
+            t("legacyAi.monolith.commandPalette.items.newChat"),
+            t("legacyAi.monolith.commandPalette.items.togglePlanMode"),
+            t("legacyAi.monolith.commandPalette.items.switchPower"),
+            t("legacyAi.monolith.commandPalette.items.switchLite"),
+            t("legacyAi.monolith.commandPalette.items.openAgentSettings"),
+          ] },
+          { group: t("legacyAi.monolith.commandPalette.groups.settings"), icon: "⚙", items: [
+            t("legacyAi.monolith.commandPalette.items.openSettings"),
+            t("legacyAi.monolith.commandPalette.items.switchTheme"),
+            t("legacyAi.monolith.commandPalette.items.keyboardShortcuts"),
+            t("legacyAi.monolith.commandPalette.items.accountBilling"),
+          ] },
         ];
         const q = cmdKQuery.toLowerCase().trim();
         const filtered = all.map(g => ({ ...g, items: g.items.filter(it => !q || it.toLowerCase().includes(q)) })).filter(g => g.items.length > 0);
@@ -3445,13 +3762,13 @@ export function AIInterface() {
             <div onClick={e => e.stopPropagation()} style={{ width: 600, maxWidth: "90vw", background: "#161b22", border: "1px solid #30363d", borderRadius: 12, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", overflow: "hidden", display: "flex", flexDirection: "column" as const, maxHeight: "70vh" }}>
               <div style={{ padding: "14px 18px", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 16, color: "#8b949e" }}>⌕</span>
-                <input autoFocus placeholder="Type a command or search files…" value={cmdKQuery} onChange={e => setCmdKQuery(e.target.value)}
+                <input autoFocus placeholder={t("legacyAi.monolith.commandPalette.placeholder")} value={cmdKQuery} onChange={e => setCmdKQuery(e.target.value)}
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e1e4e8", fontSize: 15, fontFamily: "inherit" }} />
                 <kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 4, padding: "2px 8px", fontSize: 10, color: "#8b949e", fontFamily: "monospace" }}>esc</kbd>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
                 {filtered.length === 0 ? (
-                  <div style={{ padding: "30px 18px", color: "#484f58", fontSize: 13, textAlign: "center" as const }}>No results for "{cmdKQuery}"</div>
+                  <div style={{ padding: "30px 18px", color: "#484f58", fontSize: 13, textAlign: "center" as const }}>{t("legacyAi.monolith.commandPalette.noResults", { query: cmdKQuery })}</div>
                 ) : filtered.map(g => (
                   <div key={g.group}>
                     <div style={{ padding: "8px 18px 4px", fontSize: 10, color: "#484f58", textTransform: "uppercase" as const, letterSpacing: 0.8, fontWeight: 600 }}>{g.group}</div>
@@ -3468,10 +3785,10 @@ export function AIInterface() {
                 ))}
               </div>
               <div style={{ padding: "8px 18px", borderTop: "1px solid #21262d", display: "flex", gap: 14, fontSize: 10, color: "#484f58" }}>
-                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↑↓</kbd> navigate</span>
-                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↵</kbd> open</span>
-                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>esc</kbd> close</span>
-                <span style={{ marginLeft: "auto" }}>{filtered.reduce((n, g) => n + g.items.length, 0)} results</span>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↑↓</kbd> {t("legacyAi.monolith.commandPalette.navigate")}</span>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>↵</kbd> {t("legacyAi.monolith.commandPalette.open")}</span>
+                <span><kbd style={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 3, padding: "0 5px", fontSize: 9, color: "#8b949e", fontFamily: "monospace" }}>esc</kbd> {t("legacyAi.monolith.commandPalette.close")}</span>
+                <span style={{ marginLeft: "auto" }}>{t("legacyAi.monolith.commandPalette.results", { count: filtered.reduce((n, g) => n + g.items.length, 0) })}</span>
               </div>
             </div>
           </div>
@@ -3483,7 +3800,7 @@ export function AIInterface() {
         <div onClick={() => setShowQR(false)} style={{ position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 24, width: 320, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#e1e4e8" }}>Preview on your phone</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#e1e4e8" }}>{t("legacyAi.monolith.overlays.qr.title")}</span>
               <span onClick={() => setShowQR(false)} style={{ color: "#8b949e", cursor: "pointer", fontSize: 14 }}>✕</span>
             </div>
             {/* Fake QR code grid */}
@@ -3497,7 +3814,7 @@ export function AIInterface() {
               })}
             </div>
             <div style={{ fontSize: 11, color: "#8b949e", textAlign: "center" as const, lineHeight: 1.5 }}>
-              Scan with your phone camera<br />or open in Replit Mobile app
+              {t("legacyAi.monolith.overlays.qr.scanLine1")}<br />{t("legacyAi.monolith.overlays.qr.scanLine2")}
             </div>
             <div style={{ fontFamily: "'Fira Code', monospace", fontSize: 11, color: "#58a6ff", background: "#0d1117", padding: "6px 10px", borderRadius: 5, border: "1px solid #21262d", width: "100%", textAlign: "center" as const }}>
               my-rest-api.you.repl.co
