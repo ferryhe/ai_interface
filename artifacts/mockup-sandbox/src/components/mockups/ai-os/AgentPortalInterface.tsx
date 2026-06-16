@@ -5025,15 +5025,18 @@ const styles = `
   @media (max-width: 760px) {
     .portal-shell {
       grid-template-columns: 1fr;
+      padding-bottom: 70px;
     }
 
     .portal-nav {
-      position: sticky;
+      position: fixed;
+      left: 0;
+      right: 0;
       bottom: 0;
-      z-index: 20;
-      order: 2;
+      z-index: 40;
       border-right: 0;
       border-top: 1px solid #1e2936;
+      box-shadow: 0 -14px 28px #00000044;
       padding: 8px;
       grid-template-rows: 1fr;
     }
