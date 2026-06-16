@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
+import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
+
 type TranslationValues = Record<string, string | number>;
 
 function monolithText(
@@ -2978,6 +2980,18 @@ export function AIInterface() {
 
   return (
     <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", background: "#0e1117", color: "#e1e4e8", fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: "hidden", userSelect: "none" }}>
+      <style>{`
+        @media (max-width: 700px) {
+          .ai-monolith-language-switch {
+            position: fixed;
+            top: 54px;
+            right: 8px;
+            z-index: 2000;
+            background: #161b22 !important;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+          }
+        }
+      `}</style>
 
       {/* TOP BAR */}
       <div style={{ height: 48, background: "#161b22", borderBottom: "1px solid #21262d", display: "flex", alignItems: "center", padding: "0 12px", gap: 10, flexShrink: 0 }}>
@@ -3159,6 +3173,12 @@ export function AIInterface() {
 
           {/* Panels toggle */}
           <button onClick={() => setCustomizingPanels(c => !c)} style={{ background: customizingPanels ? "#1f6feb22" : "transparent", border: customizingPanels ? "1px solid #1f6feb" : "1px solid #30363d", borderRadius: 6, padding: "5px 10px", color: customizingPanels ? "#58a6ff" : "#8b949e", fontSize: 12, cursor: "pointer" }}>⚙ {t("legacyAi.monolith.topbar.panels")}</button>
+
+          <LanguageSwitcher
+            variant="ghost"
+            size="sm"
+            className="ai-monolith-language-switch h-7 border border-[#30363d] bg-transparent px-2 text-xs text-[#8b949e] hover:text-[#e1e4e8]"
+          />
 
           {/* Settings ⚙ */}
           <div style={{ position: "relative" as const }}>

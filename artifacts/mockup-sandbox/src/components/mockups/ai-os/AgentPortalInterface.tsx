@@ -2345,6 +2345,13 @@ export function AgentPortalInterface() {
       <div className="portal-lock-screen">
         <style>{styles}</style>
         <form className="portal-token-panel" onSubmit={submitToken}>
+          <div className="portal-lock-actions">
+            <LanguageSwitcher
+              className="portal-lock-language"
+              variant="ghost"
+              size="sm"
+            />
+          </div>
           <div className="portal-token-mark">
             <LockKeyhole size={22} />
           </div>
@@ -3749,6 +3756,27 @@ const styles = `
     gap: 14px;
     padding: 24px;
     box-shadow: 0 20px 60px #00000055;
+  }
+
+  .portal-lock-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .portal-token-panel .portal-lock-language {
+    min-height: 32px;
+    border: 1px solid #2a394d;
+    border-radius: 6px;
+    background: #0b1118;
+    color: #aeb8c6;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .portal-token-panel .portal-lock-language:hover {
+    border-color: #67b7ff;
+    color: #edf3fb;
   }
 
   .portal-admin-gate {
