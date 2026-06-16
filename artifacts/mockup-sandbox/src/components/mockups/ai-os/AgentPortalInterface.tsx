@@ -220,9 +220,17 @@ interface PortalAgentRunApiPlanStep {
   requiresApproval: boolean;
 }
 
+interface PortalAgentRunApiMessage {
+  id: string;
+  role: "user" | "agent" | "system" | "tool";
+  content: string;
+  createdAt?: string;
+}
+
 interface PortalAgentRunApiResponse {
   status: "planned" | "missing_key" | "needs_approval" | "failed";
   connection: { status: AgentConnectionStatus };
+  userMessage: PortalAgentRunApiMessage;
   agentMessage: { content: string };
   pipelineRun: {
     id: string;
@@ -237,6 +245,12 @@ interface PortalAgentRunApiResponse {
     steps: PortalAgentRunApiPlanStep[];
     warnings: string[];
   };
+}
+
+interface PortalAgentRunApiDetail {
+  messages: PortalAgentRunApiMessage[];
+  pipelineRun: PortalAgentRunApiResponse["pipelineRun"];
+  moduleRuns: PortalAgentRunApiModuleRun[];
 }
 
 interface PortalToolInteractionApiResponse {
@@ -593,6 +607,7 @@ function isPortalRuntimeAccessDenied(response: Response): boolean {
 function statusIcon(status: PortalStatus): ReactNode {
   if (status === "complete") return <CheckCircle2 size={16} />;
   if (status === "running") return <Radio size={16} />;
+  if (status === "blocked") return <LockKeyhole size={16} />;
   return <Clock3 size={16} />;
 }
 
@@ -816,11 +831,26 @@ function isPortalAgentRunApiPlanStep(
   );
 }
 
+function isPortalAgentRunApiMessage(
+  value: unknown,
+): value is PortalAgentRunApiMessage {
+  if (!isJsonObject(value)) return false;
+  return (
+    typeof value["id"] === "string" &&
+    (value["role"] === "user" ||
+      value["role"] === "agent" ||
+      value["role"] === "system" ||
+      value["role"] === "tool") &&
+    typeof value["content"] === "string"
+  );
+}
+
 function isPortalAgentRunApiResponse(
   value: unknown,
 ): value is PortalAgentRunApiResponse {
   if (!isJsonObject(value)) return false;
   const connection = value["connection"];
+  const userMessage = value["userMessage"];
   const agentMessage = value["agentMessage"];
   const pipelineRun = value["pipelineRun"];
   const plan = value["plan"];
@@ -829,6 +859,8 @@ function isPortalAgentRunApiResponse(
     isAgentRunStatus(value["status"]) &&
     isJsonObject(connection) &&
     isConnectionStatus(connection["status"]) &&
+    isPortalAgentRunApiMessage(userMessage) &&
+    userMessage.role === "user" &&
     isJsonObject(agentMessage) &&
     typeof agentMessage["content"] === "string" &&
     isJsonObject(pipelineRun) &&
@@ -845,6 +877,25 @@ function isPortalAgentRunApiResponse(
     plan["steps"].every(isPortalAgentRunApiPlanStep) &&
     Array.isArray(plan["warnings"]) &&
     plan["warnings"].every((warning) => typeof warning === "string")
+  );
+}
+
+function isPortalAgentRunApiDetail(
+  value: unknown,
+): value is PortalAgentRunApiDetail {
+  if (!isJsonObject(value)) return false;
+  const pipelineRun = value["pipelineRun"];
+  return (
+    Array.isArray(value["messages"]) &&
+    value["messages"].every(isPortalAgentRunApiMessage) &&
+    isJsonObject(pipelineRun) &&
+    typeof pipelineRun["id"] === "string" &&
+    typeof pipelineRun["title"] === "string" &&
+    isPipelineStatus(pipelineRun["status"]) &&
+    isNullableJsonObject(pipelineRun["metadata"]) &&
+    typeof pipelineRun["updatedAt"] === "string" &&
+    Array.isArray(value["moduleRuns"]) &&
+    value["moduleRuns"].every(isPortalAgentRunApiModuleRun)
   );
 }
 
@@ -941,6 +992,28 @@ function portalStatusFromApiRun(run: PortalAgentRunApiModuleRun): PortalStatus {
   if (interaction) return "waiting";
   if (run.status === "running") return "running";
   return "waiting";
+}
+
+function portalDetailStateFromDetail(
+  detail: PortalModuleRunDetail,
+): PortalDetailState {
+  return detail.artifacts.length > 0 || detail.events.length > 0
+    ? "ready"
+    : "empty";
+}
+
+function portalArtifactPreview(
+  artifact: PortalArtifact | null,
+): string | null {
+  if (!artifact) return null;
+  if (artifact.contentText !== null) return artifact.contentText;
+  if (artifact.contentJson !== null) {
+    return JSON.stringify(artifact.contentJson, null, 2);
+  }
+  if (artifact.provenance !== null) {
+    return JSON.stringify(artifact.provenance, null, 2);
+  }
+  return null;
 }
 
 function interactionStatusText(
@@ -1062,6 +1135,12 @@ function toPortalUiState(
   );
   const messages: PortalMessage[] = [
     ...createDemoPortalMessages(t),
+    {
+      id: `api-user-${response.userMessage.id}`,
+      speaker: "user",
+      text: response.userMessage.content,
+      meta: t("portal.apiFallback.submittedPrompt"),
+    },
     {
       id: `api-${response.pipelineRun.id}`,
       speaker: "agent",
@@ -1202,6 +1281,30 @@ function toPortalUiState(
   };
 }
 
+function mergePortalRunDetail(
+  current: PortalRunUiState,
+  detail: PortalAgentRunApiDetail,
+): PortalAgentRunApiResponse {
+  const userMessage =
+    detail.messages.find(
+      (message): message is PortalAgentRunApiMessage & { role: "user" } =>
+        message.role === "user",
+    ) ?? current.response.userMessage;
+  const agentMessage =
+    [...detail.messages]
+      .reverse()
+      .find((message) => message.role === "agent") ??
+    current.response.agentMessage;
+
+  return {
+    ...current.response,
+    userMessage,
+    agentMessage: { content: agentMessage.content },
+    pipelineRun: detail.pipelineRun,
+    moduleRuns: detail.moduleRuns,
+  };
+}
+
 export function AgentPortalInterface() {
   const { t, i18n } = useTranslation();
   const portalLocale = useMemo(
@@ -1222,12 +1325,13 @@ export function AgentPortalInterface() {
   const [portalAccessState, setPortalAccessState] = useState<PortalAccessState>(
     initialToken ? "checking" : "idle",
   );
-  const [portalAccessStatusMessage, setPortalAccessStatusText] = useState(() =>
-    portalMessage(
-      initialToken
-        ? "portal.statusMessages.checkingPortalToken"
-        : "portal.statusMessages.enterPortalToken",
-    ),
+  const [portalAccessStatusMessage, setPortalAccessStatusMessage] = useState(
+    () =>
+      portalMessage(
+        initialToken
+          ? "portal.statusMessages.checkingPortalToken"
+          : "portal.statusMessages.enterPortalToken",
+      ),
   );
   const [portalAccessVersionLabel, setPortalAccessVersionLabel] =
     useState("draft-0.3");
@@ -1238,7 +1342,7 @@ export function AgentPortalInterface() {
   const [draft, setDraft] = useState("");
   const [portalRunState, setPortalRunState] =
     useState<PortalRunSubmitState>("local");
-  const [portalRunStatusMessage, setPortalRunStatusText] = useState(() =>
+  const [portalRunStatusMessage, setPortalRunStatusMessage] = useState(() =>
     portalMessage("portal.statusMessages.localDemoRuntime"),
   );
   const [latestPortalRun, setLatestPortalRun] =
@@ -1250,8 +1354,8 @@ export function AgentPortalInterface() {
   const [portalActionStates, setPortalActionStates] = useState<
     Record<string, PortalActionState>
   >({});
-  const [portalActionStatusMessage, setPortalActionStatusText] = useState(() =>
-    portalMessage("portal.statusMessages.feedbackActionsLocal"),
+  const [portalActionStatusMessage, setPortalActionStatusMessage] = useState(
+    () => portalMessage("portal.statusMessages.feedbackActionsLocal"),
   );
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>(
     {},
@@ -1278,17 +1382,20 @@ export function AgentPortalInterface() {
   const [portalArtifactDetails, setPortalArtifactDetails] = useState<
     Record<string, PortalArtifact>
   >({});
-  const [portalDetailStatusMessage, setPortalDetailStatusText] = useState(() =>
-    portalMessage("portal.statusMessages.openDataRecord"),
+  const [portalDetailStatusMessage, setPortalDetailStatusMessage] = useState(
+    () => portalMessage("portal.statusMessages.openDataRecord"),
   );
-  const [portalSourceStatusMessage, setPortalSourceStatusText] = useState(() =>
-    portalMessage("portal.statusMessages.openSource"),
+  const [portalSourceStatusMessage, setPortalSourceStatusMessage] = useState(
+    () => portalMessage("portal.statusMessages.openSource"),
   );
-  const [portalResultStatusMessage, setPortalResultStatusText] = useState(() =>
-    portalMessage("portal.statusMessages.openResult"),
+  const [portalResultStatusMessage, setPortalResultStatusMessage] = useState(
+    () => portalMessage("portal.statusMessages.openResult"),
   );
   const portalActionInFlightRef = useRef<Set<string>>(new Set());
   const portalDetailCacheGenerationRef = useRef(0);
+  const selectedDataRecordIdRef = useRef<string | null>(null);
+  const selectedSourceIdRef = useRef<string | null>(null);
+  const selectedResultItemIdRef = useRef<string | null>(null);
   const portalAccessStatusText = translatePortalMessage(
     t,
     portalAccessStatusMessage,
@@ -1340,6 +1447,14 @@ export function AgentPortalInterface() {
     isPaused: isPortalAutoRefreshPaused,
     t,
   });
+  const portalRunSyncText = latestPortalRun
+    ? portalRunSyncSnapshot
+      ? `${portalRunSyncSourceLabel(
+          portalRunSyncSnapshot.source,
+          t,
+        )} ${formatApiTime(portalRunSyncSnapshot.checkedAt, portalLocale)}`
+      : t("portal.apiFallback.syncPending")
+    : "";
 
   function beginPortalAction(stepId: string): boolean {
     if (portalActionInFlightRef.current.has(stepId)) return false;
@@ -1382,13 +1497,13 @@ export function AgentPortalInterface() {
     setIsUnlocked(true);
     setAuthorizedPortalToken(tokenValue);
     setPortalAccessState("offline");
-    setPortalAccessStatusText(
+    setPortalAccessStatusMessage(
       portalMessage("portal.statusMessages.localDemoUnlocked"),
     );
     setLatestPortalRun(null);
     setPortalRunSyncSnapshot(null);
     setPortalRunState("local");
-    setPortalRunStatusText(
+    setPortalRunStatusMessage(
       portalMessage("portal.statusMessages.localDemoRuntime"),
     );
   }
@@ -1415,26 +1530,44 @@ export function AgentPortalInterface() {
   }
 
   function lockPortalAfterRuntimeAccessDenied(): void {
+    portalActionInFlightRef.current.clear();
+    portalDetailCacheGenerationRef.current += 1;
     setIsUnlocked(false);
     setAuthorizedPortalToken("");
     setPortalAccessState("invalid_token");
-    setPortalAccessStatusText(
+    setPortalAccessStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejectedLong"),
     );
+    setLatestPortalRun(null);
+    setPortalRunSyncSnapshot(null);
+    setActiveStep(DEFAULT_ACTIVE_STEP_ID);
     setPortalRunState("failed");
-    setPortalRunStatusText(
+    setPortalRunStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejected"),
     );
-    setPortalActionStatusText(
+    setPortalActionStates({});
+    setFeedbackDrafts({});
+    setSelectedInteractionOptions({});
+    selectedDataRecordIdRef.current = null;
+    selectedSourceIdRef.current = null;
+    selectedResultItemIdRef.current = null;
+    setSelectedDataRecordId(null);
+    setSelectedSourceId(null);
+    setSelectedResultItemId(null);
+    setPortalDetailStates({});
+    setPortalRunDetails({});
+    setSelectedArtifactByRunId({});
+    setPortalArtifactDetails({});
+    setPortalActionStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejected"),
     );
-    setPortalDetailStatusText(
+    setPortalDetailStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejected"),
     );
-    setPortalSourceStatusText(
+    setPortalSourceStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejected"),
     );
-    setPortalResultStatusText(
+    setPortalResultStatusMessage(
       portalMessage("portal.statusMessages.runtimeAccessRejected"),
     );
   }
@@ -1445,13 +1578,13 @@ export function AgentPortalInterface() {
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
     setPortalArtifactDetails({});
-    setPortalDetailStatusText(
+    setPortalDetailStatusMessage(
       portalMessage("portal.statusMessages.runRefreshedData"),
     );
-    setPortalSourceStatusText(
+    setPortalSourceStatusMessage(
       portalMessage("portal.statusMessages.runRefreshedSource"),
     );
-    setPortalResultStatusText(
+    setPortalResultStatusMessage(
       portalMessage("portal.statusMessages.runRefreshedResult"),
     );
   }
@@ -1462,14 +1595,14 @@ export function AgentPortalInterface() {
       setIsUnlocked(false);
       setAuthorizedPortalToken("");
       setPortalAccessState("missing_token");
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.enterPortalTokenToContinue"),
       );
       return;
     }
 
     setPortalAccessState("checking");
-    setPortalAccessStatusText(
+    setPortalAccessStatusMessage(
       portalMessage("portal.statusMessages.checkingPortalToken"),
     );
 
@@ -1488,7 +1621,7 @@ export function AgentPortalInterface() {
       setIsUnlocked(false);
       setAuthorizedPortalToken("");
       setPortalAccessState("failed");
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.portalAccessApiUnavailable"),
       );
       return;
@@ -1499,7 +1632,7 @@ export function AgentPortalInterface() {
       setIsUnlocked(false);
       setAuthorizedPortalToken("");
       setPortalAccessState("failed");
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.portalAccessApiStatus", {
           status: response.status,
         }),
@@ -1515,7 +1648,7 @@ export function AgentPortalInterface() {
       setIsUnlocked(false);
       setAuthorizedPortalToken("");
       setPortalAccessState("failed");
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.portalAccessInvalidJson"),
       );
       return;
@@ -1526,7 +1659,7 @@ export function AgentPortalInterface() {
       setIsUnlocked(false);
       setAuthorizedPortalToken("");
       setPortalAccessState("failed");
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.portalAccessUnexpectedPayload"),
       );
       return;
@@ -1537,7 +1670,7 @@ export function AgentPortalInterface() {
     if (data.authorized) {
       setIsUnlocked(true);
       setAuthorizedPortalToken(cleanToken);
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.publishedAgentUnlocked", {
           versionLabel: data.versionLabel,
         }),
@@ -1548,7 +1681,7 @@ export function AgentPortalInterface() {
     setIsUnlocked(false);
     setAuthorizedPortalToken("");
     if (data.status === "not_published") {
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.agentNotOpen", {
           publishStatus: data.publishStatus,
         }),
@@ -1556,12 +1689,12 @@ export function AgentPortalInterface() {
       return;
     }
     if (data.status === "invalid_token") {
-      setPortalAccessStatusText(
+      setPortalAccessStatusMessage(
         portalMessage("portal.statusMessages.tokenRejected"),
       );
       return;
     }
-    setPortalAccessStatusText(
+    setPortalAccessStatusMessage(
       portalMessage("portal.statusMessages.enterPortalTokenToContinue"),
     );
   }
@@ -1577,6 +1710,18 @@ export function AgentPortalInterface() {
       current ? toPortalUiState(current.response, t, portalLocale) : current,
     );
   }, [portalLocale, t]);
+
+  useEffect(() => {
+    selectedDataRecordIdRef.current = selectedDataRecordId;
+  }, [selectedDataRecordId]);
+
+  useEffect(() => {
+    selectedSourceIdRef.current = selectedSourceId;
+  }, [selectedSourceId]);
+
+  useEffect(() => {
+    selectedResultItemIdRef.current = selectedResultItemId;
+  }, [selectedResultItemId]);
 
   useEffect(() => {
     if (!isPortalAutoRefreshEnabled || !canAutoRefreshPortalRun) return;
@@ -1631,20 +1776,20 @@ export function AgentPortalInterface() {
     setPortalRunDetails({});
     setSelectedArtifactByRunId({});
     setPortalArtifactDetails({});
-    setPortalActionStatusText(
+    setPortalActionStatusMessage(
       portalMessage("portal.statusMessages.feedbackActionsLocal"),
     );
-    setPortalDetailStatusText(
+    setPortalDetailStatusMessage(
       portalMessage("portal.statusMessages.openDataRecord"),
     );
-    setPortalSourceStatusText(
+    setPortalSourceStatusMessage(
       portalMessage("portal.statusMessages.openSource"),
     );
-    setPortalResultStatusText(
+    setPortalResultStatusMessage(
       portalMessage("portal.statusMessages.openResult"),
     );
     setPortalRunState("submitting");
-    setPortalRunStatusText(
+    setPortalRunStatusMessage(
       portalMessage("portal.statusMessages.submittingAgentRunApi"),
     );
     setActiveView("steps");
@@ -1672,7 +1817,7 @@ export function AgentPortalInterface() {
         setLatestPortalRun(null);
         setActiveStep(DEFAULT_ACTIVE_STEP_ID);
         setPortalRunState("failed");
-        setPortalRunStatusText(
+        setPortalRunStatusMessage(
           portalMessage("portal.statusMessages.agentRunFailedLocal"),
         );
         return;
@@ -1683,7 +1828,7 @@ export function AgentPortalInterface() {
         setLatestPortalRun(null);
         setActiveStep(DEFAULT_ACTIVE_STEP_ID);
         setPortalRunState("failed");
-        setPortalRunStatusText(
+        setPortalRunStatusMessage(
           portalMessage("portal.statusMessages.agentRunUnexpectedLocal"),
         );
         return;
@@ -1693,7 +1838,7 @@ export function AgentPortalInterface() {
       setLatestPortalRun(uiState);
       setActiveStep(uiState.steps[0]?.id ?? FIRST_STEP_ID);
       setPortalRunState("saved");
-      setPortalRunStatusText(
+      setPortalRunStatusMessage(
         portalMessage("portal.statusMessages.savedRun", {
           runId: shortRunId(data.pipelineRun.id),
         }),
@@ -1706,7 +1851,7 @@ export function AgentPortalInterface() {
       setLatestPortalRun(null);
       setActiveStep(DEFAULT_ACTIVE_STEP_ID);
       setPortalRunState("offline");
-      setPortalRunStatusText(
+      setPortalRunStatusMessage(
         portalMessage("portal.statusMessages.apiOfflineLocal"),
       );
     }
@@ -1723,9 +1868,10 @@ export function AgentPortalInterface() {
       return;
     }
 
-    const pipelineRunId = latestPortalRun.response.pipelineRun.id;
+    const currentPortalRun = latestPortalRun;
+    const pipelineRunId = currentPortalRun.response.pipelineRun.id;
     setPortalRunState("refreshing");
-    setPortalRunStatusText(
+    setPortalRunStatusMessage(
       portalMessage("portal.statusMessages.refreshingRun", {
         runId: shortRunId(pipelineRunId),
       }),
@@ -1745,7 +1891,7 @@ export function AgentPortalInterface() {
           return;
         }
         setPortalRunState("failed");
-        setPortalRunStatusText(
+        setPortalRunStatusMessage(
           portalMessage("portal.statusMessages.refreshFailed", {
             runId: shortRunId(pipelineRunId),
           }),
@@ -1758,7 +1904,7 @@ export function AgentPortalInterface() {
         data = (await response.json()) as unknown;
       } catch {
         setPortalRunState("failed");
-        setPortalRunStatusText(
+        setPortalRunStatusMessage(
           portalMessage("portal.statusMessages.refreshUnexpected", {
             runId: shortRunId(pipelineRunId),
           }),
@@ -1766,9 +1912,9 @@ export function AgentPortalInterface() {
         return;
       }
 
-      if (!isPortalAgentRunApiResponse(data)) {
+      if (!isPortalAgentRunApiDetail(data)) {
         setPortalRunState("failed");
-        setPortalRunStatusText(
+        setPortalRunStatusMessage(
           portalMessage("portal.statusMessages.refreshUnexpected", {
             runId: shortRunId(pipelineRunId),
           }),
@@ -1776,7 +1922,8 @@ export function AgentPortalInterface() {
         return;
       }
 
-      const uiState = toPortalUiState(data, t, portalLocale);
+      const refreshedResponse = mergePortalRunDetail(currentPortalRun, data);
+      const uiState = toPortalUiState(refreshedResponse, t, portalLocale);
       setLatestPortalRun(uiState);
       resetPortalDetailCachesAfterRefresh();
       setActiveStep((current) =>
@@ -1785,9 +1932,9 @@ export function AgentPortalInterface() {
           : (uiState.steps[0]?.id ?? FIRST_STEP_ID),
       );
       setPortalRunState("saved");
-      setPortalRunStatusText(
+      setPortalRunStatusMessage(
         portalMessage("portal.statusMessages.refreshedRun", {
-          runId: shortRunId(data.pipelineRun.id),
+          runId: shortRunId(refreshedResponse.pipelineRun.id),
         }),
       );
       setPortalRunSyncSnapshot({
@@ -1796,7 +1943,7 @@ export function AgentPortalInterface() {
       });
     } catch {
       setPortalRunState("offline");
-      setPortalRunStatusText(
+      setPortalRunStatusMessage(
         portalMessage("portal.statusMessages.refreshUnavailable", {
           runId: shortRunId(pipelineRunId),
         }),
@@ -1840,7 +1987,7 @@ export function AgentPortalInterface() {
 
     if (!latestPortalRun || !step.runId) {
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalMessage("portal.statusMessages.localFeedbackCaptured"),
       );
       return;
@@ -1848,7 +1995,7 @@ export function AgentPortalInterface() {
 
     const responseText = feedbackDrafts[step.id]?.trim();
     const selectedOptionId = selectedInteractionOptions[step.id];
-    setPortalActionStatusText(
+    setPortalActionStatusMessage(
       portalEntityMessage(
         "portal.statusMessages.submittingFeedback",
         "step",
@@ -1856,6 +2003,19 @@ export function AgentPortalInterface() {
         step.labelKey,
       ),
     );
+    const feedbackPayload = {
+      responseText: responseText || undefined,
+      selectedOptionId,
+      ...(interaction.kind === "approval" && approved !== undefined
+        ? { approved }
+        : {}),
+      artifactIds: [],
+      resumeHandle: interaction.resumeHandle ?? undefined,
+      metadata: {
+        source: "agent-portal",
+        interactionKind: interaction.kind,
+      },
+    };
 
     try {
       const response = await fetch(
@@ -1865,17 +2025,7 @@ export function AgentPortalInterface() {
           headers: portalRuntimeHeaders(authorizedPortalToken, {
             "Content-Type": "application/json",
           }),
-          body: JSON.stringify({
-            responseText: responseText || undefined,
-            selectedOptionId,
-            approved,
-            artifactIds: [],
-            resumeHandle: interaction.resumeHandle ?? undefined,
-            metadata: {
-              source: "agent-portal",
-              interactionKind: interaction.kind,
-            },
-          }),
+          body: JSON.stringify(feedbackPayload),
         },
       );
 
@@ -1894,7 +2044,7 @@ export function AgentPortalInterface() {
 
       updatePortalRunFromModuleRun(data.run);
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.feedbackSaved",
           "step",
@@ -1904,7 +2054,7 @@ export function AgentPortalInterface() {
       );
     } catch {
       finishPortalAction(step.id, "failed");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.feedbackApiFailed",
           "step",
@@ -1926,13 +2076,13 @@ export function AgentPortalInterface() {
 
     if (!latestPortalRun || !step.runId) {
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalMessage("portal.statusMessages.localResumeRequested"),
       );
       return;
     }
 
-    setPortalActionStatusText(
+    setPortalActionStatusMessage(
       portalEntityMessage(
         "portal.statusMessages.resumingStep",
         "step",
@@ -1964,7 +2114,7 @@ export function AgentPortalInterface() {
 
       updatePortalRunFromModuleRun(data.run);
       finishPortalAction(step.id, "succeeded");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.resumeSubmitted",
           "step",
@@ -1974,7 +2124,7 @@ export function AgentPortalInterface() {
       );
     } catch {
       finishPortalAction(step.id, "failed");
-      setPortalActionStatusText(
+      setPortalActionStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.resumeApiFailed",
           "step",
@@ -1986,19 +2136,24 @@ export function AgentPortalInterface() {
   }
 
   async function openDataRecord(record: PortalDataRecord): Promise<void> {
+    selectedDataRecordIdRef.current = record.id;
     setSelectedDataRecordId(record.id);
 
     if (!record.runId) {
-      setPortalDetailStatusText(
+      setPortalDetailStatusMessage(
         portalMessage("portal.statusMessages.localDemoRecord"),
       );
       return;
     }
 
     const runId = record.runId;
-    if (portalRunDetails[runId]) {
-      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
-      setPortalDetailStatusText(
+    const cachedDetail = portalRunDetails[runId];
+    if (cachedDetail) {
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: portalDetailStateFromDetail(cachedDetail),
+      }));
+      setPortalDetailStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedDetails",
           "title",
@@ -2010,7 +2165,7 @@ export function AgentPortalInterface() {
     }
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
-    setPortalDetailStatusText(
+    setPortalDetailStatusMessage(
       portalEntityMessage(
         "portal.statusMessages.loadingDetailsFor",
         "title",
@@ -2036,13 +2191,19 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
-        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        if (
+          requestGeneration !== portalDetailCacheGenerationRef.current ||
+          selectedDataRecordIdRef.current !== record.id
+        ) {
           return;
         }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedDataRecordIdRef.current !== record.id
+      ) {
         return;
       }
       if (!isPortalModuleRunDetail(data)) {
@@ -2050,14 +2211,14 @@ export function AgentPortalInterface() {
       }
 
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      if (selectedDataRecordIdRef.current !== record.id) {
+        return;
+      }
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]:
-          data.artifacts.length > 0 || data.events.length > 0
-            ? "ready"
-            : "empty",
+        [runId]: portalDetailStateFromDetail(data),
       }));
-      setPortalDetailStatusText(
+      setPortalDetailStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedDetails",
           "title",
@@ -2066,11 +2227,14 @@ export function AgentPortalInterface() {
         ),
       );
     } catch {
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedDataRecordIdRef.current !== record.id
+      ) {
         return;
       }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
-      setPortalDetailStatusText(
+      setPortalDetailStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.detailApiFailed",
           "title",
@@ -2082,19 +2246,24 @@ export function AgentPortalInterface() {
   }
 
   async function openSource(source: PortalSource): Promise<void> {
+    selectedSourceIdRef.current = source.id;
     setSelectedSourceId(source.id);
 
     if (!source.runId) {
-      setPortalSourceStatusText(
+      setPortalSourceStatusMessage(
         portalMessage("portal.statusMessages.localDemoSource"),
       );
       return;
     }
 
     const runId = source.runId;
-    if (portalRunDetails[runId]) {
-      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
-      setPortalSourceStatusText(
+    const cachedDetail = portalRunDetails[runId];
+    if (cachedDetail) {
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: portalDetailStateFromDetail(cachedDetail),
+      }));
+      setPortalSourceStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedEvidence",
           "label",
@@ -2106,7 +2275,7 @@ export function AgentPortalInterface() {
     }
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
-    setPortalSourceStatusText(
+    setPortalSourceStatusMessage(
       portalEntityMessage(
         "portal.statusMessages.loadingEvidence",
         "label",
@@ -2132,13 +2301,19 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
-        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        if (
+          requestGeneration !== portalDetailCacheGenerationRef.current ||
+          selectedSourceIdRef.current !== source.id
+        ) {
           return;
         }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedSourceIdRef.current !== source.id
+      ) {
         return;
       }
       if (!isPortalModuleRunDetail(data)) {
@@ -2146,14 +2321,14 @@ export function AgentPortalInterface() {
       }
 
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      if (selectedSourceIdRef.current !== source.id) {
+        return;
+      }
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]:
-          data.artifacts.length > 0 || data.events.length > 0
-            ? "ready"
-            : "empty",
+        [runId]: portalDetailStateFromDetail(data),
       }));
-      setPortalSourceStatusText(
+      setPortalSourceStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedEvidence",
           "label",
@@ -2162,11 +2337,14 @@ export function AgentPortalInterface() {
         ),
       );
     } catch {
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedSourceIdRef.current !== source.id
+      ) {
         return;
       }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
-      setPortalSourceStatusText(
+      setPortalSourceStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.evidenceApiFailed",
           "label",
@@ -2178,19 +2356,24 @@ export function AgentPortalInterface() {
   }
 
   async function openResultItem(item: PortalResultItem): Promise<void> {
+    selectedResultItemIdRef.current = item.id;
     setSelectedResultItemId(item.id);
 
     if (!item.runId) {
-      setPortalResultStatusText(
+      setPortalResultStatusMessage(
         portalMessage("portal.statusMessages.localDemoResult"),
       );
       return;
     }
 
     const runId = item.runId;
-    if (portalRunDetails[runId]) {
-      setPortalDetailStates((current) => ({ ...current, [runId]: "ready" }));
-      setPortalResultStatusText(
+    const cachedDetail = portalRunDetails[runId];
+    if (cachedDetail) {
+      setPortalDetailStates((current) => ({
+        ...current,
+        [runId]: portalDetailStateFromDetail(cachedDetail),
+      }));
+      setPortalResultStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedResultDetails",
           "title",
@@ -2202,7 +2385,7 @@ export function AgentPortalInterface() {
     }
 
     setPortalDetailStates((current) => ({ ...current, [runId]: "loading" }));
-    setPortalResultStatusText(
+    setPortalResultStatusMessage(
       portalEntityMessage(
         "portal.statusMessages.loadingResultDetails",
         "title",
@@ -2228,13 +2411,19 @@ export function AgentPortalInterface() {
           lockPortalAfterRuntimeAccessDenied();
           return;
         }
-        if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+        if (
+          requestGeneration !== portalDetailCacheGenerationRef.current ||
+          selectedResultItemIdRef.current !== item.id
+        ) {
           return;
         }
         throw new Error(`Module run detail API returned ${response.status}`);
       }
       const data = (await response.json()) as unknown;
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedResultItemIdRef.current !== item.id
+      ) {
         return;
       }
       if (!isPortalModuleRunDetail(data)) {
@@ -2242,14 +2431,14 @@ export function AgentPortalInterface() {
       }
 
       setPortalRunDetails((current) => ({ ...current, [runId]: data }));
+      if (selectedResultItemIdRef.current !== item.id) {
+        return;
+      }
       setPortalDetailStates((current) => ({
         ...current,
-        [runId]:
-          data.artifacts.length > 0 || data.events.length > 0
-            ? "ready"
-            : "empty",
+        [runId]: portalDetailStateFromDetail(data),
       }));
-      setPortalResultStatusText(
+      setPortalResultStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.loadedResultDetails",
           "title",
@@ -2258,11 +2447,14 @@ export function AgentPortalInterface() {
         ),
       );
     } catch {
-      if (requestGeneration !== portalDetailCacheGenerationRef.current) {
+      if (
+        requestGeneration !== portalDetailCacheGenerationRef.current ||
+        selectedResultItemIdRef.current !== item.id
+      ) {
         return;
       }
       setPortalDetailStates((current) => ({ ...current, [runId]: "failed" }));
-      setPortalResultStatusText(
+      setPortalResultStatusMessage(
         portalEntityMessage(
           "portal.statusMessages.resultDetailApiFailed",
           "title",
@@ -2317,7 +2509,7 @@ export function AgentPortalInterface() {
         return;
       }
       if (statusTarget === "result") {
-        setPortalResultStatusText(
+        setPortalResultStatusMessage(
           portalMessage("portal.statusMessages.artifactApiFailed", {
             title: artifact.title,
           }),
@@ -2325,14 +2517,14 @@ export function AgentPortalInterface() {
         return;
       }
       if (statusTarget === "source") {
-        setPortalSourceStatusText(
+        setPortalSourceStatusMessage(
           portalMessage("portal.statusMessages.artifactApiFailed", {
             title: artifact.title,
           }),
         );
         return;
       }
-      setPortalDetailStatusText(
+      setPortalDetailStatusMessage(
         portalMessage("portal.statusMessages.artifactApiFailed", {
           title: artifact.title,
         }),
@@ -2452,16 +2644,10 @@ export function AgentPortalInterface() {
                 <Radio size={15} />
                 {portalRunStateLabel(portalRunState, t)}
               </div>
-              {latestPortalRun && portalRunSyncSnapshot && (
+              {latestPortalRun && (
                 <div className="portal-run-pill">
                   <Clock3 size={15} />
-                  {`${portalRunSyncSourceLabel(
-                    portalRunSyncSnapshot.source,
-                    t,
-                  )} ${formatApiTime(
-                    portalRunSyncSnapshot.checkedAt,
-                    portalLocale,
-                  )}`}
+                  {portalRunSyncText}
                 </div>
               )}
               <button
@@ -2994,7 +3180,9 @@ function PortalInteractionPanel({
             disabled={isBusy}
             onClick={(event) => {
               event.stopPropagation();
-              onSubmitFeedback(false);
+              onSubmitFeedback(
+                interaction.kind === "approval" ? false : undefined,
+              );
             }}
           >
             {isBusy
@@ -3095,10 +3283,12 @@ function DataView({
                   : "portal-record-row"
               }
             >
-              <div>
+              <div className="portal-record-row-header">
                 <span>{record.kind}</span>
                 <button
                   type="button"
+                  aria-expanded={selectedRecordId === record.id}
+                  aria-controls="portal-data-detail-drawer"
                   aria-label={t("portal.actions.viewDetailsFor", {
                     title: record.title,
                   })}
@@ -3152,7 +3342,7 @@ function PortalDataDetailDrawer({
 
   if (!record) {
     return (
-      <aside className="portal-detail-drawer">
+      <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
         <p>{t("portal.detailDrawer.selectRecord")}</p>
       </aside>
     );
@@ -3160,7 +3350,7 @@ function PortalDataDetailDrawer({
 
   if (!record.runId) {
     return (
-      <aside className="portal-detail-drawer">
+      <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
         <span className="portal-kicker">
           {t("portal.detailDrawer.localDemo")}
         </span>
@@ -3177,7 +3367,7 @@ function PortalDataDetailDrawer({
 
   if (detailState === "loading") {
     return (
-      <aside className="portal-detail-drawer">
+      <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
         <p>{t("portal.empty.loadingDetails")}</p>
       </aside>
     );
@@ -3185,7 +3375,7 @@ function PortalDataDetailDrawer({
 
   if (detailState === "failed") {
     return (
-      <aside className="portal-detail-drawer">
+      <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
         <p>{t("portal.detailDrawer.failed")}</p>
       </aside>
     );
@@ -3193,7 +3383,7 @@ function PortalDataDetailDrawer({
 
   if (!detail) {
     return (
-      <aside className="portal-detail-drawer">
+      <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
         <p>{t("portal.detailDrawer.openRecord")}</p>
       </aside>
     );
@@ -3203,18 +3393,10 @@ function PortalDataDetailDrawer({
     ? (artifactDetails[selectedArtifactId] ??
       detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
-  const artifactPreview =
-    selectedArtifact?.contentText ??
-    (selectedArtifact
-      ? JSON.stringify(
-          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
-          null,
-          2,
-        )
-      : null);
+  const artifactPreview = portalArtifactPreview(selectedArtifact);
 
   return (
-    <aside className="portal-detail-drawer">
+    <aside className="portal-detail-drawer" id="portal-data-detail-drawer">
       <span className="portal-kicker">{t("portal.detailDrawer.title")}</span>
       <strong>{detail.run.title ?? record.title}</strong>
       <p>{detail.run.summary ?? record.detail}</p>
@@ -3251,7 +3433,7 @@ function PortalDataDetailDrawer({
         </div>
       </div>
       {detailState === "empty" && <p>{t("portal.detailDrawer.empty")}</p>}
-      {artifactPreview && (
+      {artifactPreview !== null && (
         <pre className="portal-artifact-preview">{artifactPreview}</pre>
       )}
     </aside>
@@ -3420,15 +3602,7 @@ function PortalSourceEvidenceDrawer({
     ? (artifactDetails[selectedArtifactId] ??
       detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
-  const artifactPreview =
-    selectedArtifact?.contentText ??
-    (selectedArtifact
-      ? JSON.stringify(
-          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
-          null,
-          2,
-        )
-      : null);
+  const artifactPreview = portalArtifactPreview(selectedArtifact);
 
   return (
     <aside className="portal-source-drawer">
@@ -3468,7 +3642,7 @@ function PortalSourceEvidenceDrawer({
         </div>
       </div>
       {detailState === "empty" && <p>{t("portal.sourceDrawer.empty")}</p>}
-      {artifactPreview && (
+      {artifactPreview !== null && (
         <pre className="portal-artifact-preview">{artifactPreview}</pre>
       )}
     </aside>
@@ -3663,15 +3837,9 @@ function PortalResultDetailDrawer({
     ? (artifactDetails[selectedArtifactId] ??
       detail.artifacts.find((artifact) => artifact.id === selectedArtifactId))
     : null;
-  const artifactPreview =
-    selectedArtifact?.contentText ??
-    (selectedArtifact
-      ? JSON.stringify(
-          selectedArtifact.contentJson ?? selectedArtifact.provenance ?? {},
-          null,
-          2,
-        )
-      : item.detail);
+  const artifactPreview = selectedArtifact
+    ? portalArtifactPreview(selectedArtifact)
+    : item.detail;
 
   return (
     <aside className="portal-result-drawer">
@@ -3711,7 +3879,7 @@ function PortalResultDetailDrawer({
         </div>
       </div>
       {detailState === "empty" && <p>{t("portal.resultDrawer.empty")}</p>}
-      {artifactPreview && (
+      {artifactPreview !== null && (
         <pre className="portal-artifact-preview">{artifactPreview}</pre>
       )}
     </aside>
@@ -4570,7 +4738,7 @@ const styles = `
     background: #122033;
   }
 
-  .portal-record-row div {
+  .portal-record-row-header {
     min-width: 0;
     display: flex;
     align-items: center;

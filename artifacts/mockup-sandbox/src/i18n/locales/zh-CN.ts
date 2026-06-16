@@ -1106,6 +1106,8 @@ export const zhCN = {
         moduleRun: "模块运行",
         apiResultWithRun: "API 结果 {{runId}}",
         apiRunWithId: "API 运行 {{runId}}",
+        submittedPrompt: "已提交提示",
+        syncPending: "等待同步",
         updatedAt: "更新于 {{time}}",
         inspectStoredArtifacts: "打开详情以检查存储事件和产物。",
         inspectFinalArtifacts: "打开详情以检查最终运行产物。",

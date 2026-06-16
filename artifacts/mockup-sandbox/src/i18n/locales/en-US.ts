@@ -1207,6 +1207,8 @@ export const enUS = {
         moduleRun: "Module run",
         apiResultWithRun: "API result {{runId}}",
         apiRunWithId: "API run {{runId}}",
+        submittedPrompt: "Submitted prompt",
+        syncPending: "Sync pending",
         updatedAt: "Updated {{time}}",
         inspectStoredArtifacts:
           "Open details to inspect stored events and artifacts.",
