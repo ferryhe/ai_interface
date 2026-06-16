@@ -79,6 +79,15 @@ test("default skill manifests map built-in and community project skills", () => 
   assert.equal(docToMd?.ui.preferredRenderer, "markdown");
   assert.deepEqual(docToMd?.interactionKinds, ["question", "data_request"]);
 
+  const exampleReporter = builtinSkillManifests.find(
+    (skill) => skill.skillId === "example_reporter",
+  );
+  assert.equal(exampleReporter?.execution.kind, "internal");
+  assert.equal(
+    exampleReporter ? manifestAdapterDefinition(exampleReporter).adapterKind : null,
+    "internal",
+  );
+
   const climateMonitor = builtinSkillManifests.find(
     (skill) => skill.skillId === "climate_monitor",
   );

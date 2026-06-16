@@ -80,21 +80,32 @@ export function AgentDetail({
         </span>
       </div>
 
+      <div className="workbench-lines">
+        {agent.teamId && (
+          <span>
+            <strong>{t("agentFirst.workbench.teamLabel")}</strong>
+            <em>{agent.teamId}</em>
+          </span>
+        )}
+        {agent.runtimeStatus && (
+          <span>
+            <strong>{t("agentFirst.workbench.runtimeStatus")}</strong>
+            <em>{agent.runtimeStatus}</em>
+          </span>
+        )}
+      </div>
+
       {agent.identity && (
-        <>
-          <section className="workbench-section">
-            <span className="workbench-section-title">
-              <ShieldCheck size={15} />
-              {t("agentFirst.workbench.identity")}
-            </span>
-            <div className="workbench-lines">
-              <span><strong>{t("agentFirst.workbench.persona")}</strong><em>{agent.identity.persona}</em></span>
-              <span><strong>{t("agentFirst.workbench.background")}</strong><em>{agent.identity.background}</em></span>
-            </div>
-          </section>
-          {agent.teamId && <p className="soft-label">{t("agentFirst.workbench.team", { teamId: agent.teamId })}</p>}
-          {agent.runtimeStatus && <p className="soft-label">{t("agentFirst.workbench.status", { status: agent.runtimeStatus })}</p>}
-        </>
+        <section className="workbench-section">
+          <span className="workbench-section-title">
+            <ShieldCheck size={15} />
+            {t("agentFirst.workbench.identity")}
+          </span>
+          <div className="workbench-lines">
+            <span><strong>{t("agentFirst.workbench.persona")}</strong><em>{agent.identity.persona}</em></span>
+            <span><strong>{t("agentFirst.workbench.background")}</strong><em>{agent.identity.background}</em></span>
+          </div>
+        </section>
       )}
       {agent.criticalRules && agent.criticalRules.length > 0 && (
         <section className="workbench-section">
@@ -102,6 +113,68 @@ export function AgentDetail({
           <div className="workbench-lines">
             {agent.criticalRules.map((rule) => (
               <span key={rule.id}><strong>{rule.severity}</strong><em>{rule.description}</em></span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {agent.deliverables && agent.deliverables.length > 0 && (
+        <section className="workbench-section">
+          <span className="workbench-section-title">{t("agentFirst.workbench.deliverables")}</span>
+          <div className="workbench-lines">
+            {agent.deliverables.map((deliverable) => (
+              <span key={`${deliverable.name}-${deliverable.format}`}>
+                <strong>{deliverable.name}</strong>
+                <em>
+                  {t("agentFirst.workbench.format")}: {deliverable.format} / {deliverable.description} / {deliverable.successCriteria}
+                </em>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {agent.workflow && agent.workflow.length > 0 && (
+        <section className="workbench-section">
+          <span className="workbench-section-title">{t("agentFirst.workbench.workflow")}</span>
+          <div className="workbench-lines">
+            {agent.workflow.map((step) => (
+              <span key={step.name}>
+                <strong>{step.name}</strong>
+                <em>
+                  {step.description} / {step.approvalRequired
+                    ? t("agentFirst.workbench.approvalRequired")
+                    : t("agentFirst.workbench.approvalNotRequired")}
+                  {step.deliverables.length > 0
+                    ? ` / ${t("agentFirst.workbench.workflowDeliverables")}: ${step.deliverables.join(", ")}`
+                    : ""}
+                </em>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {agent.communicationStyle && (
+        <section className="workbench-section">
+          <span className="workbench-section-title">{t("agentFirst.workbench.communicationStyle")}</span>
+          <div className="workbench-lines">
+            <span><strong>{t("agentFirst.workbench.tone")}</strong><em>{agent.communicationStyle.tone}</em></span>
+            <span><strong>{t("agentFirst.workbench.outputFormat")}</strong><em>{agent.communicationStyle.outputFormat}</em></span>
+            <span><strong>{t("agentFirst.workbench.languagePreference")}</strong><em>{agent.communicationStyle.languagePreference}</em></span>
+          </div>
+        </section>
+      )}
+
+      {agent.successMetrics && agent.successMetrics.length > 0 && (
+        <section className="workbench-section">
+          <span className="workbench-section-title">{t("agentFirst.workbench.successMetrics")}</span>
+          <div className="workbench-lines">
+            {agent.successMetrics.map((metric) => (
+              <span key={metric.metric}>
+                <strong>{metric.metric}</strong>
+                <em>{metric.target} / {metric.measurement}</em>
+              </span>
             ))}
           </div>
         </section>

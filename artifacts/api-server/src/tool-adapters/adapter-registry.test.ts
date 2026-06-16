@@ -24,6 +24,7 @@ test("registers one adapter for each business module", () => {
   );
   assert.equal(getAdapterDefinition("doc_to_md").adapterKind, "http");
   assert.equal(getAdapterDefinition("md_to_rag").adapterKind, "cli");
+  assert.equal(getAdapterDefinition("example_reporter").adapterKind, "internal");
   const climateMonitor = getAdapterDefinition("climate_monitor");
   assert.equal(climateMonitor.adapterId, "climate_monitor.cli.v1");
   assert.deepEqual(climateMonitor.requiredEnv, [

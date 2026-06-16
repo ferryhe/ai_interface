@@ -38,7 +38,7 @@ agentId: knowledge_builder
 name: Knowledge Builder
 description: ...
 source: builtin|community|custom
-runtimeStatus: active|template       # template = not yet ready to run
+runtimeStatus: runnable|template     # template = not yet ready to run
 
 # ── 九段 ──
 identity:                            # Who the agent is
@@ -84,8 +84,8 @@ tests: [...]                         # Manifest-level smoke tests
 
 | Agent ID | Name | Team | Runtime Status | Description |
 |---|---|---|---|---|
-| `knowledge_builder` | Knowledge Builder | knowledge | active | Full pipeline: web_listening → doc_to_md → md_to_rag → rag_to_agent |
-| `evidence_collector` | Evidence Collector | — | active | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
+| `knowledge_builder` | Knowledge Builder | knowledge | runnable | Full pipeline: web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `evidence_collector` | Evidence Collector | — | runnable | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
 
 ### Template Agents (寿险行业)
 
@@ -266,7 +266,7 @@ Backstage is the execution and inspection workbench:
 - browse Agents, Skills, Runs, and Artifacts as first-class tabs;
 - inspect agent manifests with full nine-section detail (identity, criticalRules, deliverables, workflow, communicationStyle, successMetrics);
 - view team assignment (`teamId`) and filter agents by team;
-- see runtimeStatus indicators (active / template);
+- see runtimeStatus indicators (runnable / template);
 - inspect skill manifests, adapter readiness, run I/O, events, artifacts, and Skill UI handoff.
 
 Operator Backstage is the advanced path:
@@ -475,6 +475,11 @@ Default project path detection is intentionally shallow:
 requirements are declared in their skill manifests under
 `project.readiness.requiredPaths`.
 
+For real CLI execution with `workingDirectory: "project"`, an environment
+variable is used as the command cwd only when the skill manifest declares it as
+`project.envPath`. Required env names that merely look like `*_PROJECT_PATH`,
+`*_PROJECT_DIR`, or `*_PROJECT_ROOT` are not inferred as cwd values.
+
 Readiness is local existence checking only. Real sibling project commands only
 run through the opt-in safe executor path when
 `AI_INTERFACE_TOOL_EXECUTION_MODE=real` is set and the manifest allowlist
@@ -493,8 +498,11 @@ corepack pnpm install
 Run the API server:
 
 ```bash
-corepack pnpm --filter @workspace/api-server run dev
+PORT=3001 corepack pnpm --filter @workspace/api-server run dev
 ```
+
+`PORT` is required by the API server startup path. `LOG_LEVEL` is optional
+and defaults to `info`.
 
 Run the Agent OS interface on port 8080:
 
@@ -508,6 +516,13 @@ Regenerate API clients after editing `lib/api-spec/openapi.yaml`:
 ```bash
 corepack pnpm --filter @workspace/api-spec run codegen
 ```
+
+### Migration Notes
+
+- `ModuleId` is now an arbitrary non-empty string loaded from registered skill
+  manifests instead of a closed enum. API clients should validate presence and
+  registry membership where needed rather than switch exhaustively on built-in
+  module IDs.
 
 ---
 

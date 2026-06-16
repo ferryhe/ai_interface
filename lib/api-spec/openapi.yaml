@@ -95,6 +95,22 @@ paths:
       description: >-
         Returns agent manifest metadata and skill-reference readiness without
         exposing secrets or configured absolute local paths.
+      parameters:
+        - name: teamId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional team id filter.
+        - name: runtimeStatus
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - runnable
+              - template
+          description: Optional runtime status filter.
       responses:
         "200":
           description: Agent manifests and readiness
@@ -102,6 +118,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentListResponse"
+        "400":
+          description: Invalid query filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /teams:
     get:
       operationId: listTeams
@@ -1265,65 +1287,130 @@ components:
         - reason
         - riskLevel
     MissionPlanStep:
-      type: object
-      additionalProperties: false
-      properties:
-        stepId:
-          type: string
-          minLength: 1
-        title:
-          type: string
-          minLength: 1
-        objective:
-          type: string
-          minLength: 1
-        skillId:
-          type: string
-        moduleId:
-          type: string
-          minLength: 1
-        assignedAgentId:
-          type: string
-        roleId:
-          type: string
-        role:
-          type: string
-          enum:
-            - executor
-            - qa_reviewer
-        evidenceContract:
+      oneOf:
+        - title: Executor step
           type: object
+          additionalProperties: false
           properties:
-            requiredArtifacts:
+            stepId:
+              type: string
+              minLength: 1
+            title:
+              type: string
+              minLength: 1
+            objective:
+              type: string
+              minLength: 1
+            skillId:
+              type: string
+            moduleId:
+              type: string
+              minLength: 1
+            assignedAgentId:
+              type: string
+            roleId:
+              type: string
+            role:
+              type: string
+              enum:
+                - executor
+            evidenceContract:
+              type: object
+              additionalProperties: false
+              properties:
+                requiredArtifacts:
+                  type: array
+                  items:
+                    type: string
+                assertionType:
+                  type: string
+                  enum:
+                    - presence
+                    - json_schema
+                    - content_contains
+                assertionConfig:
+                  $ref: "#/components/schemas/JsonObject"
+              required:
+                - requiredArtifacts
+                - assertionType
+                - assertionConfig
+            dependsOn:
               type: array
               items:
                 type: string
-            assertionType:
+            status:
+              $ref: "#/components/schemas/MissionStepStatus"
+            approval:
+              $ref: "#/components/schemas/MissionStepApproval"
+          required:
+            - stepId
+            - title
+            - objective
+            - role
+            - dependsOn
+            - status
+        - title: QA reviewer step
+          type: object
+          additionalProperties: false
+          properties:
+            stepId:
+              type: string
+              minLength: 1
+            title:
+              type: string
+              minLength: 1
+            objective:
+              type: string
+              minLength: 1
+            skillId:
+              type: string
+            moduleId:
+              type: string
+              minLength: 1
+            assignedAgentId:
+              type: string
+            roleId:
+              type: string
+            role:
               type: string
               enum:
-                - presence
-                - json_schema
-                - content_contains
-            assertionConfig:
-              $ref: "#/components/schemas/JsonObject"
+                - qa_reviewer
+            evidenceContract:
+              type: object
+              additionalProperties: false
+              properties:
+                requiredArtifacts:
+                  type: array
+                  items:
+                    type: string
+                assertionType:
+                  type: string
+                  enum:
+                    - presence
+                    - json_schema
+                    - content_contains
+                assertionConfig:
+                  $ref: "#/components/schemas/JsonObject"
+              required:
+                - requiredArtifacts
+                - assertionType
+                - assertionConfig
+            dependsOn:
+              type: array
+              items:
+                type: string
+            status:
+              $ref: "#/components/schemas/MissionStepStatus"
+            approval:
+              $ref: "#/components/schemas/MissionStepApproval"
           required:
-            - requiredArtifacts
-            - assertionType
-            - assertionConfig
-        dependsOn:
-          type: array
-          items:
-            type: string
-        status:
-          $ref: "#/components/schemas/MissionStepStatus"
-        approval:
-          $ref: "#/components/schemas/MissionStepApproval"
-      required:
-        - stepId
-        - title
-        - objective
-        - dependsOn
-        - status
+            - stepId
+            - title
+            - objective
+            - role
+            - evidenceContract
+            - dependsOn
+            - status
     MissionPlan:
       type: object
       additionalProperties: false
@@ -1361,14 +1448,17 @@ components:
           properties:
             level:
               type: string
+              default: micro
               enum:
                 - full
                 - sprint
                 - micro
             maxAgents:
               type: integer
+              minimum: 1
             reviewIntensity:
               type: string
+              default: medium
               enum:
                 - high
                 - medium
@@ -1869,6 +1959,7 @@ components:
     ModuleId:
       type: string
       minLength: 1
+      description: Arbitrary non-empty runtime module identifier from registered skill manifests.
     ModuleCategory:
       type: string
       enum:
@@ -1890,6 +1981,7 @@ components:
         - http
         - cli
         - mcp
+        - internal
     ToolAdapterReadinessStatus:
       type: string
       enum:
@@ -2595,7 +2687,7 @@ components:
         - description
         - approvalRequired
         - deliverables
-    AgentSuccessMetrics:
+    AgentSuccessMetric:
       type: object
       properties:
         metric:
@@ -2712,11 +2804,12 @@ components:
         successMetrics:
           type: array
           items:
-            $ref: "#/components/schemas/AgentSuccessMetrics"
+            $ref: "#/components/schemas/AgentSuccessMetric"
         teamId:
           type: string
         runtimeStatus:
           type: string
+          default: runnable
           enum:
             - runnable
             - template

@@ -16,12 +16,21 @@ export interface TeamEntry {
   memberAgentIds: string[];
 }
 
-function findWorkspaceRoot(startPath: string): string {
+export interface LoadTeamRegistryOptions {
+  cwd?: string;
+  exists?: (path: string) => boolean;
+  readFile?: (path: string) => string;
+}
+
+function findWorkspaceRoot(
+  startPath: string,
+  pathExists: (path: string) => boolean,
+): string {
   let current = resolve(startPath);
   while (true) {
     if (
-      existsSync(resolve(current, "artifacts", "api-server", "src")) ||
-      existsSync(resolve(current, "agents", "builtin"))
+      pathExists(resolve(current, "artifacts", "api-server", "src")) ||
+      pathExists(resolve(current, "agents", "builtin"))
     ) {
       return current;
     }
@@ -31,12 +40,28 @@ function findWorkspaceRoot(startPath: string): string {
   }
 }
 
-function loadTeamRegistry(cwd?: string): Record<string, TeamDefinition> {
-  const root = findWorkspaceRoot(cwd ?? process.cwd());
+export function loadTeamRegistry(
+  options: LoadTeamRegistryOptions = {},
+): Record<string, TeamDefinition> {
+  const pathExists = options.exists ?? existsSync;
+  const readFile =
+    options.readFile ?? ((path: string) => readFileSync(path, "utf8"));
+  const root = findWorkspaceRoot(options.cwd ?? process.cwd(), pathExists);
   const registryPath = resolve(root, "teams", "team-registry.yaml");
-  if (!existsSync(registryPath)) return {};
-  const raw = readFileSync(registryPath, "utf8");
-  const parsed = parse(raw) as { teams?: Record<string, unknown> };
+  if (!pathExists(registryPath)) return {};
+
+  let parsed: { teams?: Record<string, unknown> };
+  try {
+    parsed = parse(readFile(registryPath)) as {
+      teams?: Record<string, unknown>;
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to load team registry at ${registryPath}: ${message}`,
+    );
+  }
+
   if (!parsed || typeof parsed !== "object" || !parsed.teams) return {};
 
   const teams: Record<string, TeamDefinition> = {};
@@ -85,9 +110,9 @@ export function resolveTeams(
 }
 
 export function createTeamResolver(
-  cwd?: string,
+  options: LoadTeamRegistryOptions = {},
 ): { registry: Record<string, TeamDefinition>; teams: TeamEntry[] } {
-  const registry = loadTeamRegistry(cwd);
+  const registry = loadTeamRegistry(options);
   // Team membership is resolved from agent manifests by the caller
   const teams = resolveTeams(registry, {
     agentTeamId: () => undefined,

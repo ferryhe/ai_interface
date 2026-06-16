@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
@@ -115,7 +115,7 @@ interface RuntimeModuleRun {
   title: string;
   status: RuntimeRunStatus;
   adapterId: string;
-  adapterKind: "cli" | "http";
+  adapterKind: "cli" | "http" | "mcp" | "internal";
   externalRunId: string;
   interaction?: {
     kind: "question" | "approval" | "data_request" | "blocked";
@@ -192,8 +192,28 @@ interface ToolInteractionApi {
   title: string;
   message: string;
   prompt: string | null;
+  options: ToolInteractionOptionApi[];
+  artifactIds: string[];
   resumeHandle: string | null;
+  requestedBy: string | null;
   requestedAt: string;
+  metadata: JsonObject;
+  respondedAt?: string;
+  response?: ToolInteractionFeedbackApi;
+}
+
+interface ToolInteractionOptionApi {
+  id: string;
+  label: string;
+  value?: unknown;
+}
+
+interface ToolInteractionFeedbackApi {
+  responseText?: string;
+  selectedOptionId?: string;
+  approved?: boolean;
+  artifactIds: string[];
+  resumeHandle?: string;
   metadata: JsonObject;
 }
 
@@ -205,6 +225,15 @@ interface ToolInteractionApiResponse {
 interface AgentRunUiState {
   response: AgentRunApiResponse;
   runtimeRuns: RuntimeModuleRun[];
+}
+
+interface LocalWorkbenchRunRaw {
+  source: "local-demo";
+  agentId: string;
+  agentNameKey: string | null;
+  agentNameFallback: string;
+  pipelineRunId: string;
+  skillIds: string[];
 }
 
 interface DataRecord {
@@ -227,7 +256,8 @@ interface SkillArtifactSample {
   title: string;
   kind: string;
   renderer: ArtifactRendererKind;
-  content: string | JsonObject | JsonObject[];
+  content?: string | JsonObject | JsonObject[];
+  contentKey?: string;
 }
 
 interface SkillManifestPreview {
@@ -573,8 +603,8 @@ const skillManifestPreviews: SkillManifestPreview[] = [
         title: "onboarding.md",
         kind: "markdown_document",
         renderer: "markdown",
-        content:
-          "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.\n\n- Source snapshots are linked to provenance.\n- Conversion warnings stay attached to the run.\n- Assets are stored beside Markdown output.",
+        contentKey:
+          "agentFirst.workbenchDemo.sampleArtifacts.docToMdMarkdown.content",
       },
     ],
   },
@@ -1328,6 +1358,11 @@ function previewUrl(componentPath: string, search = ""): string {
   return `${basePath}/preview/${componentPath}${search}`;
 }
 
+const PORTAL_DEMO_PREVIEW_URL = previewUrl(
+  "ai-os/AgentPortalInterface",
+  "?token=portal-demo-token",
+);
+
 function agentFirstMessage(
   key: string,
   values?: AgentFirstMessageValues,
@@ -1801,6 +1836,41 @@ function isInteractionStatus(value: unknown): value is ToolInteractionApiStatus 
   );
 }
 
+function isToolInteractionOptionApi(
+  value: unknown,
+): value is ToolInteractionOptionApi {
+  return (
+    isRecord(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["label"] === "string"
+  );
+}
+
+function parseToolInteractionFeedback(
+  value: unknown,
+): ToolInteractionFeedbackApi | undefined {
+  if (!isRecord(value)) return undefined;
+  const artifactIds = stringArrayValue(value["artifactIds"]);
+  const metadata = isJsonObject(value["metadata"]) ? value["metadata"] : {};
+  return {
+    responseText:
+      typeof value["responseText"] === "string"
+        ? value["responseText"]
+        : undefined,
+    selectedOptionId:
+      typeof value["selectedOptionId"] === "string"
+        ? value["selectedOptionId"]
+        : undefined,
+    approved: typeof value["approved"] === "boolean" ? value["approved"] : undefined,
+    artifactIds,
+    resumeHandle:
+      typeof value["resumeHandle"] === "string"
+        ? value["resumeHandle"]
+        : undefined,
+    metadata,
+  };
+}
+
 function parseToolInteraction(metadata: JsonObject | null): ToolInteractionApi | null {
   const value = metadata?.["interaction"];
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -1824,9 +1894,17 @@ function parseToolInteraction(metadata: JsonObject | null): ToolInteractionApi |
     title: interaction["title"],
     message: interaction["message"],
     prompt: typeof interaction["prompt"] === "string" ? interaction["prompt"] : null,
+    options: Array.isArray(interaction["options"])
+      ? interaction["options"].filter(isToolInteractionOptionApi)
+      : [],
+    artifactIds: stringArrayValue(interaction["artifactIds"]),
     resumeHandle:
       typeof interaction["resumeHandle"] === "string"
         ? interaction["resumeHandle"]
+        : null,
+    requestedBy:
+      typeof interaction["requestedBy"] === "string"
+        ? interaction["requestedBy"]
         : null,
     requestedAt: interaction["requestedAt"],
     metadata:
@@ -1835,6 +1913,11 @@ function parseToolInteraction(metadata: JsonObject | null): ToolInteractionApi |
       !Array.isArray(interaction["metadata"])
         ? (interaction["metadata"] as JsonObject)
         : {},
+    respondedAt:
+      typeof interaction["respondedAt"] === "string"
+        ? interaction["respondedAt"]
+        : undefined,
+    response: parseToolInteractionFeedback(interaction["response"]),
   };
 }
 
@@ -1865,6 +1948,7 @@ function runtimeInteractionStatusFromApi(
 
 function toRuntimeRunFromApiModuleRun(run: AgentRunApiModuleRun): RuntimeModuleRun {
   const interaction = parseToolInteraction(run.metadata);
+  const adapterKind = stringFromMetadata(run.metadata, "adapterKind", "http");
 
   return {
     id: run.id,
@@ -1873,8 +1957,11 @@ function toRuntimeRunFromApiModuleRun(run: AgentRunApiModuleRun): RuntimeModuleR
     status: runtimeStatusFromApiRun(run),
     adapterId: stringFromMetadata(run.metadata, "adapterId", `${run.moduleId}.adapter`),
     adapterKind:
-      stringFromMetadata(run.metadata, "adapterKind", "http") === "cli"
-        ? "cli"
+      adapterKind === "cli" ||
+      adapterKind === "http" ||
+      adapterKind === "mcp" ||
+      adapterKind === "internal"
+        ? adapterKind
         : "http",
     externalRunId: run.externalRunId,
     interaction: interaction
@@ -2135,25 +2222,49 @@ function toWorkbenchRunFromAgentRun(
   };
 }
 
-function createLocalWorkbenchRun(
-  agentId: string,
-  title: string,
-  agents: AgentManifestPreview[],
+function isLocalWorkbenchRunRaw(value: unknown): value is LocalWorkbenchRunRaw {
+  return (
+    isRecord(value) &&
+    value["source"] === "local-demo" &&
+    typeof value["agentId"] === "string" &&
+    (value["agentNameKey"] === null ||
+      typeof value["agentNameKey"] === "string") &&
+    typeof value["agentNameFallback"] === "string" &&
+    typeof value["pipelineRunId"] === "string" &&
+    Array.isArray(value["skillIds"]) &&
+    value["skillIds"].every((item) => typeof item === "string")
+  );
+}
+
+function localWorkbenchAgentNameKey(agentId: string): string | null {
+  if (agentId === "knowledge_builder") {
+    return "agentFirst.workbenchDemo.agents.knowledgeBuilder.name";
+  }
+  if (agentId === "climate_briefing_agent") {
+    return "agentFirst.workbenchDemo.agents.climateBriefing.name";
+  }
+  return null;
+}
+
+function localizeLocalWorkbenchRun(
+  raw: LocalWorkbenchRunRaw,
   t: TFunction,
 ): WorkbenchRunInspection {
-  const agent = agents.find((item) => item.agentId === agentId);
-  const skillIds = agent?.skills.map((skill) => skill.skillId) ?? ["md_to_rag", "rag_to_agent"];
-  const pipelineRunId = `local_${agentId}_${Date.now()}`;
+  const agentName = raw.agentNameKey
+    ? t(raw.agentNameKey)
+    : raw.agentNameFallback;
 
   return {
-    pipelineRunId,
-    title,
-    agentId,
+    pipelineRunId: raw.pipelineRunId,
+    title: t("agentFirst.workbenchDemo.localRun.title", {
+      agentName,
+    }),
+    agentId: raw.agentId,
     status: "queued",
-    activeSkillId: skillIds[0],
+    activeSkillId: raw.skillIds[0],
     updatedAt: t("agentFirst.workbenchDemo.localRun.updatedAt"),
-    moduleSteps: skillIds.map((skillId, index) => ({
-      id: `${pipelineRunId}_${skillId}`,
+    moduleSteps: raw.skillIds.map((skillId, index) => ({
+      id: `${raw.pipelineRunId}_${skillId}`,
       order: index + 1,
       moduleId: skillId,
       title: skillId,
@@ -2166,7 +2277,7 @@ function createLocalWorkbenchRun(
     })),
     events: [
       {
-        id: `${pipelineRunId}_queued`,
+        id: `${raw.pipelineRunId}_queued`,
         time: t("agentFirst.workbenchDemo.localRun.updatedAt"),
         type: "agent-run",
         status: "queued",
@@ -2174,12 +2285,29 @@ function createLocalWorkbenchRun(
         detail: t("agentFirst.workbenchDemo.localRun.eventDetail"),
       },
     ],
-    raw: {
-      source: "local-demo",
-      agentId,
-      pipelineRunId,
-    },
+    raw,
   };
+}
+
+function createLocalWorkbenchRun(
+  agentId: string,
+  agents: AgentManifestPreview[],
+  t: TFunction,
+): WorkbenchRunInspection {
+  const agent = agents.find((item) => item.agentId === agentId);
+  const skillIds = agent?.skills.map((skill) => skill.skillId) ?? ["md_to_rag", "rag_to_agent"];
+  const pipelineRunId = `local_${agentId}_${Date.now()}`;
+  const agentNameKey = localWorkbenchAgentNameKey(agentId);
+  const raw: LocalWorkbenchRunRaw = {
+    source: "local-demo",
+    agentId,
+    agentNameKey,
+    agentNameFallback: agentNameKey ? agentId : (agent?.title ?? agent?.name ?? agentId),
+    pipelineRunId,
+    skillIds,
+  };
+
+  return localizeLocalWorkbenchRun(raw, t);
 }
 
 function runtimeStatusFromWorkbenchStatus(status: WorkbenchRunStatus): RuntimeRunStatus {
@@ -2332,7 +2460,7 @@ function normalizeApiArtifacts(
 }
 
 export function AgentFirstInterface() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const demoWorkbenchData = useMemo(
     () => createAgentFirstWorkbenchDemoData(t),
     [t],
@@ -2410,9 +2538,14 @@ export function AgentFirstInterface() {
     useState<RuntimeModuleRun[] | null>(null);
   const [runtimeActionStates, setRuntimeActionStates] =
     useState<Record<string, RuntimeActionState>>({});
-  const [runtimeActionStatusMessage, setRuntimeActionStatusMessage] = useState(
+  const [runtimeActionNoticeMessage, setRuntimeActionNoticeMessage] = useState(
     agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
   );
+  const [runtimeActionStatusMessages, setRuntimeActionStatusMessages] =
+    useState<Record<string, AgentFirstLocalizedMessage>>({});
+  const submitCommandInFlightRef = useRef(false);
+  const workbenchTestRunInFlightRef = useRef(false);
+  const backstageAutoOpenRunIdRef = useRef<string | null>(null);
 
   const selectedModule = moduleById(selectedModuleId);
   const selectedSkillManifest = skillManifestById(selectedSkillId, skillCatalog);
@@ -2425,9 +2558,19 @@ export function AgentFirstInterface() {
   const configStatusText = translateAgentFirstMessage(t, configStatusMessage);
   const publishStatusText = translateAgentFirstMessage(t, publishStatusMessage);
   const agentRunStatusText = translateAgentFirstMessage(t, agentRunStatusMessage);
-  const runtimeActionStatusText = translateAgentFirstMessage(
+  const runtimeActionNoticeText = translateAgentFirstMessage(
     t,
-    runtimeActionStatusMessage,
+    runtimeActionNoticeMessage,
+  );
+  const runtimeActionStatusTexts = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(runtimeActionStatusMessages).map(([runId, message]) => [
+          runId,
+          translateAgentFirstMessage(t, message),
+        ]),
+      ),
+    [runtimeActionStatusMessages, t],
   );
   const filteredRecords = useMemo(
     () =>
@@ -2488,6 +2631,36 @@ export function AgentFirstInterface() {
     usesDemoArtifacts,
     usesDemoRuns,
   ]);
+
+  useEffect(() => {
+    const localRawRuns = [...localWorkbenchRuns, ...workbenchRuns]
+      .map((run) => run.raw)
+      .filter(isLocalWorkbenchRunRaw);
+
+    setLocalWorkbenchRuns((current) =>
+      current.map((run) =>
+        isLocalWorkbenchRunRaw(run.raw)
+          ? localizeLocalWorkbenchRun(run.raw, t)
+          : run,
+      ),
+    );
+    setWorkbenchRuns((current) =>
+      current.map((run) =>
+        isLocalWorkbenchRunRaw(run.raw)
+          ? localizeLocalWorkbenchRun(run.raw, t)
+          : run,
+      ),
+    );
+    setLocalFallbackRuntimeRuns((current) => {
+      if (!current) return current;
+      const pipelineRunId = current[0]?.externalRunId;
+      const raw = localRawRuns
+        .find(
+          (value) => value.pipelineRunId === pipelineRunId,
+        );
+      return raw ? toLocalRuntimeRuns(localizeLocalWorkbenchRun(raw, t)) : current;
+    });
+  }, [i18n.resolvedLanguage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2581,6 +2754,8 @@ export function AgentFirstInterface() {
   useEffect(() => {
     const triggeredRun = displayedRuntimeRuns.find(shouldOpenBackstageForRun);
     if (!triggeredRun) return;
+    if (backstageAutoOpenRunIdRef.current === triggeredRun.id) return;
+    backstageAutoOpenRunIdRef.current = triggeredRun.id;
     setSelectedSkillId(triggeredRun.moduleId);
     setBackstageTab("ui");
   }, [displayedRuntimeRuns]);
@@ -2832,11 +3007,14 @@ export function AgentFirstInterface() {
   }
 
   async function submitCommand(): Promise<void> {
-    if (agentRunState === "submitting") return;
+    if (submitCommandInFlightRef.current || agentRunState === "submitting") {
+      return;
+    }
 
     const trimmed = command.trim();
     if (!trimmed) return;
 
+    submitCommandInFlightRef.current = true;
     setQueuedPrompt(trimmed);
     setCommand("");
     setAgentRunState("submitting");
@@ -2844,7 +3022,8 @@ export function AgentFirstInterface() {
       agentFirstMessage("agentFirst.statusMessages.submittingAgentRunApi"),
     );
     setRuntimeActionStates({});
-    setRuntimeActionStatusMessage(
+    setRuntimeActionStatusMessages({});
+    setRuntimeActionNoticeMessage(
       agentFirstMessage("agentFirst.statusMessages.waitingForApiRunData"),
     );
     setActiveView("progress");
@@ -2867,7 +3046,7 @@ export function AgentFirstInterface() {
         setAgentRunStatusMessage(
           agentFirstMessage("agentFirst.statusMessages.agentRunApiFailedLocal"),
         );
-        setRuntimeActionStatusMessage(
+        setRuntimeActionNoticeMessage(
           agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
         );
         return;
@@ -2888,7 +3067,7 @@ export function AgentFirstInterface() {
           runId: data.pipelineRun.id.slice(0, 8),
         }),
       );
-      setRuntimeActionStatusMessage(
+      setRuntimeActionNoticeMessage(
         agentFirstMessage("agentFirst.statusMessages.runtimeActionsConnected"),
       );
       const triggeredRun = runtimeRuns.find(shouldOpenBackstageForRun);
@@ -2902,11 +3081,13 @@ export function AgentFirstInterface() {
       setAgentRunStatusMessage(
         agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalMock"),
       );
-      setRuntimeActionStatusMessage(
+      setRuntimeActionNoticeMessage(
         agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
       );
       setConnectionStatus("offline");
       setConnectionPayload(null);
+    } finally {
+      submitCommandInFlightRef.current = false;
     }
   }
 
@@ -2958,18 +3139,25 @@ export function AgentFirstInterface() {
   }
 
   async function testWorkbenchAgent(agentId: string): Promise<void> {
-    if (agentRunState === "submitting") return;
+    if (
+      agentRunState === "submitting" ||
+      workbenchTestRunInFlightRef.current
+    ) {
+      return;
+    }
 
     const agent = agents.find((item) => item.agentId === agentId);
     const prompt = `Run ${(agent?.title ?? agent?.name ?? agentId)} test plan.`;
 
+    workbenchTestRunInFlightRef.current = true;
     setSelectedAgentId(agentId);
     setAgentRunState("submitting");
     setAgentRunStatusMessage(
       agentFirstMessage("agentFirst.statusMessages.submittingAgent", { agentId }),
     );
     setRuntimeActionStates({});
-    setRuntimeActionStatusMessage(
+    setRuntimeActionStatusMessages({});
+    setRuntimeActionNoticeMessage(
       agentFirstMessage("agentFirst.statusMessages.waitingForApiRunData"),
     );
 
@@ -2988,9 +3176,6 @@ export function AgentFirstInterface() {
       if (!response.ok) {
         const localRun = createLocalWorkbenchRun(
           agentId,
-          t("agentFirst.workbenchDemo.localRun.title", {
-            agentName: agent?.name ?? agentId,
-          }),
           agents,
           t,
         );
@@ -3004,7 +3189,7 @@ export function AgentFirstInterface() {
         setAgentRunStatusMessage(
           agentFirstMessage("agentFirst.statusMessages.agentRunApiUnavailableLocalDemo"),
         );
-        setRuntimeActionStatusMessage(
+        setRuntimeActionNoticeMessage(
           agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
         );
         return;
@@ -3028,15 +3213,12 @@ export function AgentFirstInterface() {
           runId: data.pipelineRun.id.slice(0, 8),
         }),
       );
-      setRuntimeActionStatusMessage(
+      setRuntimeActionNoticeMessage(
         agentFirstMessage("agentFirst.statusMessages.runtimeActionsConnected"),
       );
     } catch {
       const localRun = createLocalWorkbenchRun(
         agentId,
-        t("agentFirst.workbenchDemo.localRun.title", {
-          agentName: agent?.name ?? agentId,
-        }),
         agents,
         t,
       );
@@ -3048,11 +3230,13 @@ export function AgentFirstInterface() {
       setAgentRunStatusMessage(
         agentFirstMessage("agentFirst.statusMessages.apiOfflineLocalDemo"),
       );
-      setRuntimeActionStatusMessage(
+      setRuntimeActionNoticeMessage(
         agentFirstMessage("agentFirst.statusMessages.runtimeActionsLocal"),
       );
       setConnectionStatus("offline");
       setConnectionPayload(null);
+    } finally {
+      workbenchTestRunInFlightRef.current = false;
     }
   }
 
@@ -3063,11 +3247,12 @@ export function AgentFirstInterface() {
     }
 
     setRuntimeActionStates((current) => ({ ...current, [run.id]: "submitting" }));
-    setRuntimeActionStatusMessage(
-      agentFirstMessage("agentFirst.statusMessages.resumingModule", {
+    setRuntimeActionStatusMessages((current) => ({
+      ...current,
+      [run.id]: agentFirstMessage("agentFirst.statusMessages.resumingModule", {
         moduleId: run.moduleId,
       }),
-    );
+    }));
 
     try {
       const response = await fetch(`/api/module-runs/${encodeURIComponent(run.id)}/resume`, {
@@ -3080,18 +3265,26 @@ export function AgentFirstInterface() {
       const data = (await response.json()) as ToolInteractionApiResponse;
       updateRuntimeRun(toRuntimeRunFromApiModuleRun(data.run));
       setRuntimeActionStates((current) => ({ ...current, [run.id]: "succeeded" }));
-      setRuntimeActionStatusMessage(
-        agentFirstMessage("agentFirst.statusMessages.resumeSubmittedForModule", {
-          moduleId: run.moduleId,
-        }),
-      );
+      setRuntimeActionStatusMessages((current) => ({
+        ...current,
+        [run.id]: agentFirstMessage(
+          "agentFirst.statusMessages.resumeSubmittedForModule",
+          {
+            moduleId: run.moduleId,
+          },
+        ),
+      }));
     } catch {
       setRuntimeActionStates((current) => ({ ...current, [run.id]: "failed" }));
-      setRuntimeActionStatusMessage(
-        agentFirstMessage("agentFirst.statusMessages.resumeApiFailedForModule", {
-          moduleId: run.moduleId,
-        }),
-      );
+      setRuntimeActionStatusMessages((current) => ({
+        ...current,
+        [run.id]: agentFirstMessage(
+          "agentFirst.statusMessages.resumeApiFailedForModule",
+          {
+            moduleId: run.moduleId,
+          },
+        ),
+      }));
     }
   }
 
@@ -3169,11 +3362,9 @@ export function AgentFirstInterface() {
             <button
               type="button"
               className="topbar-mode-switch portal-mode-switch"
-              onClick={() =>
-                window.location.assign(
-                  previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"),
-                )
-              }
+              aria-label={t("topbar.viewPortal")}
+              title={t("topbar.viewPortal")}
+              onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
             >
               <UploadCloud size={14} />
               {t("topbar.viewPortal")}
@@ -3265,7 +3456,7 @@ export function AgentFirstInterface() {
               selectedModuleId={selectedModuleId}
               runtimeRuns={displayedRuntimeRuns}
               runtimeActionStates={runtimeActionStates}
-              runtimeActionStatusText={runtimeActionStatusText}
+              runtimeActionStatusTexts={runtimeActionStatusTexts}
               onSelectModule={setSelectedModuleId}
               onOpenData={() => setActiveView("data")}
               onResumeRuntimeRun={resumeRuntimeRun}
@@ -3280,7 +3471,8 @@ export function AgentFirstInterface() {
               agentRunState={agentRunState}
               agentRunStatusText={agentRunStatusText}
               runtimeActionStates={runtimeActionStates}
-              runtimeActionStatusText={runtimeActionStatusText}
+              runtimeActionNoticeText={runtimeActionNoticeText}
+              runtimeActionStatusTexts={runtimeActionStatusTexts}
               latestAgentRun={latestAgentRun}
               onOpenConfigure={() => setActiveView("configure")}
               onOpenData={() => setActiveView("data")}
@@ -3808,6 +4000,9 @@ function JsonInspector({ title, value }: { title: string; value: unknown }) {
 }
 
 function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
+  const { t } = useTranslation();
+  const content = artifact.contentKey ? t(artifact.contentKey) : artifact.content;
+
   return (
     <div className="artifact-card">
       <div className="artifact-title">
@@ -3817,7 +4012,7 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
       </div>
       {artifact.renderer === "markdown" && (
         <div className="markdown-preview">
-          {String(artifact.content)
+          {String(content ?? "")
             .split("\n")
             .map((line, index) =>
               line.startsWith("# ") ? (
@@ -3832,18 +4027,18 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
             )}
         </div>
       )}
-      {artifact.renderer === "table" && Array.isArray(artifact.content) && (
+      {artifact.renderer === "table" && Array.isArray(content) && (
         <div className="artifact-table-wrap">
           <table className="artifact-table">
             <thead>
               <tr>
-                {Object.keys((artifact.content[0] as JsonObject) ?? {}).map((key) => (
+                {Object.keys((content[0] as JsonObject) ?? {}).map((key) => (
                   <th key={key}>{key}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {(artifact.content as JsonObject[]).map((row, index) => (
+              {(content as JsonObject[]).map((row, index) => (
                 <tr key={`${artifact.id}-${index}`}>
                   {Object.values(row).map((value, valueIndex) => (
                     <td key={`${artifact.id}-${index}-${valueIndex}`}>{String(value)}</td>
@@ -3855,9 +4050,9 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
         </div>
       )}
       {artifact.renderer === "json" && (
-        <pre className="artifact-json">{JSON.stringify(artifact.content, null, 2)}</pre>
+        <pre className="artifact-json">{JSON.stringify(content, null, 2)}</pre>
       )}
-      {artifact.renderer === "text" && <pre className="artifact-json">{String(artifact.content)}</pre>}
+      {artifact.renderer === "text" && <pre className="artifact-json">{String(content ?? "")}</pre>}
       {(artifact.renderer === "image" || artifact.renderer === "file") && (
         <div className="file-preview">
           <FileText size={18} />
@@ -4318,6 +4513,7 @@ function RuntimeControl({
       <div className="runtime-mode-group" aria-label={t("agentFirst.aria.runtimeExecutionMode")}>
         <button
           type="button"
+          aria-pressed={executionMode === "plan_only"}
           className={
             executionMode === "plan_only"
               ? "runtime-mode-button active"
@@ -4329,6 +4525,7 @@ function RuntimeControl({
         </button>
         <button
           type="button"
+          aria-pressed={executionMode === "execute_ready"}
           className={
             executionMode === "execute_ready"
               ? "runtime-mode-button active"
@@ -4353,7 +4550,7 @@ function ModulesView({
   selectedModuleId,
   runtimeRuns,
   runtimeActionStates,
-  runtimeActionStatusText,
+  runtimeActionStatusTexts,
   onSelectModule,
   onOpenData,
   onResumeRuntimeRun,
@@ -4363,7 +4560,7 @@ function ModulesView({
   selectedModuleId: ModuleId;
   runtimeRuns: RuntimeModuleRun[];
   runtimeActionStates: Record<string, RuntimeActionState>;
-  runtimeActionStatusText: string;
+  runtimeActionStatusTexts: Record<string, string>;
   onSelectModule: (moduleId: ModuleId) => void;
   onOpenData: () => void;
   onResumeRuntimeRun: (run: RuntimeModuleRun) => void | Promise<void>;
@@ -4374,6 +4571,9 @@ function ModulesView({
   const selectedActionState = selectedRuntimeRun
     ? runtimeActionStates[selectedRuntimeRun.id] ?? "idle"
     : "idle";
+  const selectedActionStatusText = selectedRuntimeRun
+    ? runtimeActionStatusTexts[selectedRuntimeRun.id]
+    : undefined;
   const supportsResume = skillManifestById(selectedModule.id).execution.supportsResume;
 
   return (
@@ -4482,8 +4682,8 @@ function ModulesView({
                 </button>
               </div>
             </div>
-            {(selectedActionState === "succeeded" || selectedActionState === "failed") && (
-              <p className="runtime-action-feedback">{runtimeActionStatusText}</p>
+            {selectedActionStatusText && selectedActionState !== "idle" && (
+              <p className="runtime-action-feedback">{selectedActionStatusText}</p>
             )}
           </div>
         )}
@@ -4521,7 +4721,8 @@ function ProgressView({
   agentRunState,
   agentRunStatusText,
   runtimeActionStates,
-  runtimeActionStatusText,
+  runtimeActionNoticeText,
+  runtimeActionStatusTexts,
   latestAgentRun,
   onOpenConfigure,
   onOpenData,
@@ -4534,7 +4735,8 @@ function ProgressView({
   agentRunState: AgentRunSubmitState;
   agentRunStatusText: string;
   runtimeActionStates: Record<string, RuntimeActionState>;
-  runtimeActionStatusText: string;
+  runtimeActionNoticeText: string;
+  runtimeActionStatusTexts: Record<string, string>;
   latestAgentRun: AgentRunUiState | null;
   onOpenConfigure: () => void;
   onOpenData: () => void;
@@ -4652,7 +4854,7 @@ function ProgressView({
       ) : (
         <p className="agent-run-status-text">{agentRunStatusText}</p>
       )}
-      <p className="agent-run-status-text">{runtimeActionStatusText}</p>
+      <p className="agent-run-status-text">{runtimeActionNoticeText}</p>
 
       <div className="timeline">
         {runtimeRuns.map((run) => (
@@ -4674,6 +4876,12 @@ function ProgressView({
                 </span>
                 {runtimeAction(run)}
               </div>
+              {runtimeActionStatusTexts[run.id] &&
+                (runtimeActionStates[run.id] ?? "idle") !== "idle" && (
+                  <p className="runtime-action-feedback">
+                    {runtimeActionStatusTexts[run.id]}
+                  </p>
+                )}
             </div>
           </article>
         ))}
@@ -5408,9 +5616,7 @@ function PublishView({
         <button
           type="button"
           className="primary-action"
-          onClick={() =>
-            window.location.assign(previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"))
-          }
+          onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
         >
           <UploadCloud size={15} />
           {t("agentFirst.publish.openPortalPreview")}
@@ -5527,9 +5733,7 @@ function PublishView({
             <code>portal-demo-token</code>
             <button
               type="button"
-              onClick={() =>
-                window.location.assign(previewUrl("ai-os/AgentPortalInterface", "?token=portal-demo-token"))
-              }
+              onClick={() => window.location.assign(PORTAL_DEMO_PREVIEW_URL)}
             >
               {t("agentFirst.publish.viewAsUser")}
             </button>
@@ -8319,7 +8523,7 @@ const styles = `
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 7px;
     background: rgba(2, 6, 23, 0.48);
-    color: var(--text);
+    color: #edf3fb;
     font: inherit;
     min-height: 38px;
     padding: 8px 10px;
@@ -8336,7 +8540,7 @@ const styles = `
   }
 
   .publish-token-meta strong {
-    color: var(--text);
+    color: #edf3fb;
     font-size: 12px;
   }
 
@@ -8358,7 +8562,7 @@ const styles = `
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 7px;
     background: rgba(148, 163, 184, 0.1);
-    color: var(--text);
+    color: #edf3fb;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -8436,7 +8640,7 @@ const styles = `
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 6px;
     padding: 7px 9px;
-    color: var(--text);
+    color: #edf3fb;
     background: rgba(2, 6, 23, 0.48);
   }
 
@@ -8464,7 +8668,7 @@ const styles = `
 
   .publish-portal-view-list strong,
   .publish-admin-boundary span {
-    color: var(--text);
+    color: #edf3fb;
     font-size: 12px;
   }
 
@@ -8690,7 +8894,7 @@ const styles = `
 
     .workspace-switch {
       flex: 1 1 auto;
-      max-width: calc(100vw - 112px);
+      max-width: calc(100vw - 150px);
       min-width: 0;
       overflow-x: auto;
       scrollbar-width: none;
@@ -8710,7 +8914,11 @@ const styles = `
     }
 
     .portal-mode-switch {
-      display: none;
+      flex: 0 0 34px;
+      justify-content: center;
+      min-width: 34px;
+      padding: 0;
+      font-size: 0;
     }
 
     .topbar-actions .topbar-pill {

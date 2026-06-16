@@ -23,7 +23,12 @@ export const HealthCheckResponse = zod.object({
 export const ListModulesResponse = zod.object({
   modules: zod.array(
     zod.object({
-      moduleId: zod.string().min(1),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       displayName: zod.string(),
       description: zod.string(),
       category: zod.enum(["source", "transform", "index", "agent"]),
@@ -41,8 +46,13 @@ export const GetToolAdaptersResponse = zod.object({
   adapters: zod.array(
     zod.object({
       adapterId: zod.string(),
-      moduleId: zod.string().min(1),
-      adapterKind: zod.enum(["http", "cli", "mcp"]),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      adapterKind: zod.enum(["http", "cli", "mcp", "internal"]),
       displayName: zod.string(),
       description: zod.string(),
       sourceRepo: zod.string(),
@@ -62,8 +72,13 @@ export const GetToolAdaptersResponse = zod.object({
   readiness: zod.array(
     zod.object({
       adapterId: zod.string(),
-      moduleId: zod.string().min(1),
-      adapterKind: zod.enum(["http", "cli", "mcp"]),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      adapterKind: zod.enum(["http", "cli", "mcp", "internal"]),
       displayName: zod.string(),
       description: zod.string(),
       sourceRepo: zod.string(),
@@ -95,7 +110,12 @@ export const GetSkillsResponse = zod.object({
   skills: zod.array(
     zod.object({
       skillId: zod.string().min(1),
-      moduleId: zod.string().min(1),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       name: zod.string(),
       title: zod.string().optional(),
       description: zod.string(),
@@ -189,6 +209,14 @@ export const GetSkillsResponse = zod.object({
  * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
  * @summary List agent manifests
  */
+export const GetAgentsQueryParams = zod.object({
+  teamId: zod.coerce.string().optional().describe("Optional team id filter."),
+  runtimeStatus: zod
+    .enum(["runnable", "template"])
+    .optional()
+    .describe("Optional runtime status filter."),
+});
+
 export const getAgentsResponseAgentsItemAgentIdRegExp = new RegExp(
   "^[a-z][a-z0-9_]{1,63}$",
 );
@@ -196,6 +224,7 @@ export const getAgentsResponseAgentsItemAgentIdRegExp = new RegExp(
 export const getAgentsResponseAgentsItemHandoffsItemTargetAgentIdRegExp =
   new RegExp("^[a-z][a-z0-9_]{1,63}$");
 
+export const getAgentsResponseAgentsItemRuntimeStatusDefault = `runnable`;
 export const getAgentsResponseReadinessItemAgentIdRegExp = new RegExp(
   "^[a-z][a-z0-9_]{1,63}$",
 );
@@ -305,7 +334,9 @@ export const GetAgentsResponse = zod.object({
         )
         .optional(),
       teamId: zod.string().optional(),
-      runtimeStatus: zod.enum(["runnable", "template"]).optional(),
+      runtimeStatus: zod
+        .enum(["runnable", "template"])
+        .default(getAgentsResponseAgentsItemRuntimeStatusDefault),
     }),
   ),
   readiness: zod.array(
@@ -474,7 +505,12 @@ export const CreateClimateMonitorRunResponse = zod.object({
 
 export const CreateModuleRunBody = zod.object({
   skillId: zod.string().min(1).optional(),
-  moduleId: zod.string().min(1),
+  moduleId: zod
+    .string()
+    .min(1)
+    .describe(
+      "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+    ),
   externalRunId: zod.string().min(1),
   pipelineRunId: zod.string().uuid().optional(),
   title: zod.string().optional(),
@@ -492,7 +528,12 @@ export const CreateModuleRunResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.string().min(1),
+    moduleId: zod
+      .string()
+      .min(1)
+      .describe(
+        "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+      ),
     skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
@@ -550,7 +591,12 @@ export const GetModuleRunResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.string().min(1),
+    moduleId: zod
+      .string()
+      .min(1)
+      .describe(
+        "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+      ),
     skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
@@ -595,7 +641,12 @@ export const GetModuleRunResponse = zod.object({
         zod.record(zod.string(), zod.unknown()),
         zod.null(),
       ]),
-      sourceModuleId: zod.string().min(1),
+      sourceModuleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       sourceSkillId: zod.string().min(1).optional(),
       sourceRunId: zod.string().uuid(),
       parentArtifactId: zod.string().uuid().nullable(),
@@ -631,7 +682,12 @@ export const UpdateModuleRunBody = zod.object({
 export const UpdateModuleRunResponse = zod.object({
   id: zod.string().uuid(),
   pipelineRunId: zod.string().uuid().nullable(),
-  moduleId: zod.string().min(1),
+  moduleId: zod
+    .string()
+    .min(1)
+    .describe(
+      "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+    ),
   skillId: zod.string().min(1).optional(),
   externalRunId: zod.string(),
   title: zod.string().nullable(),
@@ -748,7 +804,12 @@ export const SubmitModuleRunFeedbackResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.string().min(1),
+    moduleId: zod
+      .string()
+      .min(1)
+      .describe(
+        "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+      ),
     skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
@@ -855,7 +916,12 @@ export const ResumeModuleRunExecutionResponse = zod.object({
   run: zod.object({
     id: zod.string().uuid(),
     pipelineRunId: zod.string().uuid().nullable(),
-    moduleId: zod.string().min(1),
+    moduleId: zod
+      .string()
+      .min(1)
+      .describe(
+        "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+      ),
     skillId: zod.string().min(1).optional(),
     externalRunId: zod.string(),
     title: zod.string().nullable(),
@@ -964,7 +1030,12 @@ export const GetArtifactResponse = zod.object({
   title: zod.string(),
   contentText: zod.string().nullable(),
   contentJson: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
-  sourceModuleId: zod.string().min(1),
+  sourceModuleId: zod
+    .string()
+    .min(1)
+    .describe(
+      "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+    ),
   sourceSkillId: zod.string().min(1).optional(),
   sourceRunId: zod.string().uuid(),
   parentArtifactId: zod.string().uuid().nullable(),
@@ -1005,7 +1076,15 @@ export const ListRunsResponse = zod.object({
           "failed",
           "cancelled",
         ]),
-        activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+        activeModuleId: zod.union([
+          zod
+            .string()
+            .min(1)
+            .describe(
+              "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+            ),
+          zod.null(),
+        ]),
         metadata: zod.union([
           zod.record(zod.string(), zod.unknown()),
           zod.null(),
@@ -1017,7 +1096,12 @@ export const ListRunsResponse = zod.object({
         zod.object({
           id: zod.string().uuid(),
           pipelineRunId: zod.string().uuid().nullable(),
-          moduleId: zod.string().min(1),
+          moduleId: zod
+            .string()
+            .min(1)
+            .describe(
+              "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+            ),
           skillId: zod.string().min(1).optional(),
           externalRunId: zod.string(),
           title: zod.string().nullable(),
@@ -1092,7 +1176,15 @@ export const GetRunTimelineResponse = zod.object({
       "failed",
       "cancelled",
     ]),
-    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+    activeModuleId: zod.union([
+      zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      zod.null(),
+    ]),
     metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -1101,7 +1193,12 @@ export const GetRunTimelineResponse = zod.object({
     zod.object({
       id: zod.string().uuid(),
       pipelineRunId: zod.string().uuid().nullable(),
-      moduleId: zod.string().min(1),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       skillId: zod.string().min(1).optional(),
       externalRunId: zod.string(),
       title: zod.string().nullable(),
@@ -1169,7 +1266,12 @@ export const ListArtifactsResponse = zod.object({
         zod.record(zod.string(), zod.unknown()),
         zod.null(),
       ]),
-      sourceModuleId: zod.string().min(1),
+      sourceModuleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       sourceSkillId: zod.string().min(1).optional(),
       sourceRunId: zod.string().uuid(),
       parentArtifactId: zod.string().uuid().nullable(),
@@ -1249,6 +1351,12 @@ export const GetMissionHeader = zod.object({
     ),
 });
 
+export const getMissionResponseLatestRevisionPlanActivationProfileLevelDefault = `micro`;
+export const getMissionResponseLatestRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
+
+export const getMissionResponsePlanActivationProfileLevelDefault = `micro`;
+export const getMissionResponsePlanActivationProfileReviewIntensityDefault = `medium`;
+
 export const GetMissionResponse = zod.object({
   mission: zod.object({
     missionId: zod.string().min(1),
@@ -1288,6 +1396,119 @@ export const GetMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              getMissionResponseLatestRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              getMissionResponseLatestRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
+        })
+        .optional(),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.union([
         zod.object({
           stepId: zod.string().min(1),
           title: zod.string().min(1),
@@ -1296,7 +1517,7 @@ export const GetMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          role: zod.enum(["executor"]),
           evidenceContract: zod
             .object({
               requiredArtifacts: zod.array(zod.string()),
@@ -1326,45 +1547,16 @@ export const GetMissionResponse = zod.object({
             })
             .optional(),
         }),
-      ),
-      warnings: zod.array(zod.string()),
-      nonGoals: zod.array(zod.string()),
-      activationProfile: zod
-        .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
-        })
-        .optional(),
-    }),
-    createdAt: zod.coerce.date(),
-  }),
-  plan: zod.object({
-    missionId: zod.string().min(1),
-    title: zod.string().min(1),
-    userGoal: zod.string().min(1),
-    summary: zod.string().min(1),
-    status: zod.enum([
-      "draft",
-      "needs_confirmation",
-      "approved",
-      "executing",
-      "completed",
-      "failed",
-    ]),
-    riskLevel: zod.enum(["low", "medium", "high"]),
-    steps: zod.array(
-      zod.object({
-        stepId: zod.string().min(1),
-        title: zod.string().min(1),
-        objective: zod.string().min(1),
-        skillId: zod.string().optional(),
-        moduleId: zod.string().min(1).optional(),
-        assignedAgentId: zod.string().optional(),
-        roleId: zod.string().optional(),
-        role: zod.enum(["executor", "qa_reviewer"]).optional(),
-        evidenceContract: zod
-          .object({
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          role: zod.enum(["qa_reviewer"]),
+          evidenceContract: zod.object({
             requiredArtifacts: zod.array(zod.string()),
             assertionType: zod.enum([
               "presence",
@@ -1372,34 +1564,40 @@ export const GetMissionResponse = zod.object({
               "content_contains",
             ]),
             assertionConfig: zod.record(zod.string(), zod.unknown()),
-          })
-          .optional(),
-        dependsOn: zod.array(zod.string()),
-        status: zod.enum([
-          "pending",
-          "waiting_approval",
-          "running",
-          "blocked",
-          "succeeded",
-          "failed",
-          "cancelled",
-        ]),
-        approval: zod
-          .object({
-            required: zod.boolean(),
-            reason: zod.string().min(1),
-            riskLevel: zod.enum(["low", "medium", "high"]),
-          })
-          .optional(),
-      }),
+          }),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ]),
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
     activationProfile: zod
       .object({
-        level: zod.enum(["full", "sprint", "micro"]),
-        maxAgents: zod.number().optional(),
-        reviewIntensity: zod.enum(["high", "medium", "low"]),
+        level: zod
+          .enum(["full", "sprint", "micro"])
+          .default(getMissionResponsePlanActivationProfileLevelDefault),
+        maxAgents: zod.number().min(1).optional(),
+        reviewIntensity: zod
+          .enum(["high", "medium", "low"])
+          .default(
+            getMissionResponsePlanActivationProfileReviewIntensityDefault,
+          ),
       })
       .optional(),
   }),
@@ -1438,6 +1636,12 @@ export const ReviseMissionBody = zod.object({
   instruction: zod.string().min(1),
   expectedRevisionId: zod.string().uuid(),
 });
+
+export const reviseMissionResponseRevisionPlanActivationProfileLevelDefault = `micro`;
+export const reviseMissionResponseRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
+
+export const reviseMissionResponsePlanActivationProfileLevelDefault = `micro`;
+export const reviseMissionResponsePlanActivationProfileReviewIntensityDefault = `medium`;
 
 export const ReviseMissionResponse = zod.object({
   mission: zod.object({
@@ -1478,6 +1682,119 @@ export const ReviseMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              reviseMissionResponseRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              reviseMissionResponseRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
+        })
+        .optional(),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.union([
         zod.object({
           stepId: zod.string().min(1),
           title: zod.string().min(1),
@@ -1486,7 +1803,7 @@ export const ReviseMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          role: zod.enum(["executor"]),
           evidenceContract: zod
             .object({
               requiredArtifacts: zod.array(zod.string()),
@@ -1516,45 +1833,16 @@ export const ReviseMissionResponse = zod.object({
             })
             .optional(),
         }),
-      ),
-      warnings: zod.array(zod.string()),
-      nonGoals: zod.array(zod.string()),
-      activationProfile: zod
-        .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
-        })
-        .optional(),
-    }),
-    createdAt: zod.coerce.date(),
-  }),
-  plan: zod.object({
-    missionId: zod.string().min(1),
-    title: zod.string().min(1),
-    userGoal: zod.string().min(1),
-    summary: zod.string().min(1),
-    status: zod.enum([
-      "draft",
-      "needs_confirmation",
-      "approved",
-      "executing",
-      "completed",
-      "failed",
-    ]),
-    riskLevel: zod.enum(["low", "medium", "high"]),
-    steps: zod.array(
-      zod.object({
-        stepId: zod.string().min(1),
-        title: zod.string().min(1),
-        objective: zod.string().min(1),
-        skillId: zod.string().optional(),
-        moduleId: zod.string().min(1).optional(),
-        assignedAgentId: zod.string().optional(),
-        roleId: zod.string().optional(),
-        role: zod.enum(["executor", "qa_reviewer"]).optional(),
-        evidenceContract: zod
-          .object({
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          role: zod.enum(["qa_reviewer"]),
+          evidenceContract: zod.object({
             requiredArtifacts: zod.array(zod.string()),
             assertionType: zod.enum([
               "presence",
@@ -1562,34 +1850,40 @@ export const ReviseMissionResponse = zod.object({
               "content_contains",
             ]),
             assertionConfig: zod.record(zod.string(), zod.unknown()),
-          })
-          .optional(),
-        dependsOn: zod.array(zod.string()),
-        status: zod.enum([
-          "pending",
-          "waiting_approval",
-          "running",
-          "blocked",
-          "succeeded",
-          "failed",
-          "cancelled",
-        ]),
-        approval: zod
-          .object({
-            required: zod.boolean(),
-            reason: zod.string().min(1),
-            riskLevel: zod.enum(["low", "medium", "high"]),
-          })
-          .optional(),
-      }),
+          }),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ]),
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
     activationProfile: zod
       .object({
-        level: zod.enum(["full", "sprint", "micro"]),
-        maxAgents: zod.number().optional(),
-        reviewIntensity: zod.enum(["high", "medium", "low"]),
+        level: zod
+          .enum(["full", "sprint", "micro"])
+          .default(reviseMissionResponsePlanActivationProfileLevelDefault),
+        maxAgents: zod.number().min(1).optional(),
+        reviewIntensity: zod
+          .enum(["high", "medium", "low"])
+          .default(
+            reviseMissionResponsePlanActivationProfileReviewIntensityDefault,
+          ),
       })
       .optional(),
   }),
@@ -1628,6 +1922,9 @@ export const ApproveMissionBody = zod.object({
   revisionId: zod.string().uuid(),
   approvedBy: zod.string().optional(),
 });
+
+export const approveMissionResponseApprovedRevisionPlanActivationProfileLevelDefault = `micro`;
+export const approveMissionResponseApprovedRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
 
 export const ApproveMissionResponse = zod.object({
   mission: zod.object({
@@ -1668,17 +1965,55 @@ export const ApproveMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
-        zod.object({
-          stepId: zod.string().min(1),
-          title: zod.string().min(1),
-          objective: zod.string().min(1),
-          skillId: zod.string().optional(),
-          moduleId: zod.string().min(1).optional(),
-          assignedAgentId: zod.string().optional(),
-          roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
-          evidenceContract: zod
-            .object({
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
               requiredArtifacts: zod.array(zod.string()),
               assertionType: zod.enum([
                 "presence",
@@ -1686,34 +2021,42 @@ export const ApproveMissionResponse = zod.object({
                 "content_contains",
               ]),
               assertionConfig: zod.record(zod.string(), zod.unknown()),
-            })
-            .optional(),
-          dependsOn: zod.array(zod.string()),
-          status: zod.enum([
-            "pending",
-            "waiting_approval",
-            "running",
-            "blocked",
-            "succeeded",
-            "failed",
-            "cancelled",
-          ]),
-          approval: zod
-            .object({
-              required: zod.boolean(),
-              reason: zod.string().min(1),
-              riskLevel: zod.enum(["low", "medium", "high"]),
-            })
-            .optional(),
-        }),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
       ),
       warnings: zod.array(zod.string()),
       nonGoals: zod.array(zod.string()),
       activationProfile: zod
         .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              approveMissionResponseApprovedRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              approveMissionResponseApprovedRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
         })
         .optional(),
     }),
@@ -1905,7 +2248,15 @@ export const CreateAgentRunResponse = zod.object({
       "failed",
       "cancelled",
     ]),
-    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+    activeModuleId: zod.union([
+      zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      zod.null(),
+    ]),
     metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -1914,7 +2265,12 @@ export const CreateAgentRunResponse = zod.object({
     zod.object({
       id: zod.string().uuid(),
       pipelineRunId: zod.string().uuid().nullable(),
-      moduleId: zod.string().min(1),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       skillId: zod.string().min(1).optional(),
       externalRunId: zod.string(),
       title: zod.string().nullable(),
@@ -1951,7 +2307,12 @@ export const CreateAgentRunResponse = zod.object({
     steps: zod.array(
       zod.object({
         skillId: zod.string().min(1),
-        moduleId: zod.string().min(1),
+        moduleId: zod
+          .string()
+          .min(1)
+          .describe(
+            "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+          ),
         title: zod.string(),
         action: zod.string(),
         input: zod.record(zod.string(), zod.unknown()),
@@ -2034,7 +2395,15 @@ export const GetAgentRunResponse = zod.object({
       "failed",
       "cancelled",
     ]),
-    activeModuleId: zod.union([zod.string().min(1), zod.null()]),
+    activeModuleId: zod.union([
+      zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      zod.null(),
+    ]),
     metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -2043,7 +2412,12 @@ export const GetAgentRunResponse = zod.object({
     zod.object({
       id: zod.string().uuid(),
       pipelineRunId: zod.string().uuid().nullable(),
-      moduleId: zod.string().min(1),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
       skillId: zod.string().min(1).optional(),
       externalRunId: zod.string(),
       title: zod.string().nullable(),
@@ -2210,7 +2584,12 @@ export const GetAgentConfigResponse = zod.object({
     systemPrompt: zod.string(),
     businessSkillSettings: zod.array(
       zod.object({
-        moduleId: zod.string().min(1),
+        moduleId: zod
+          .string()
+          .min(1)
+          .describe(
+            "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+          ),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
@@ -2316,7 +2695,12 @@ export const UpdateAgentConfigBody = zod.object({
   businessSkillSettings: zod
     .array(
       zod.object({
-        moduleId: zod.string().min(1),
+        moduleId: zod
+          .string()
+          .min(1)
+          .describe(
+            "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+          ),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),
@@ -2383,7 +2767,12 @@ export const UpdateAgentConfigResponse = zod.object({
     systemPrompt: zod.string(),
     businessSkillSettings: zod.array(
       zod.object({
-        moduleId: zod.string().min(1),
+        moduleId: zod
+          .string()
+          .min(1)
+          .describe(
+            "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+          ),
         enabled: zod.boolean(),
         approvalRequired: zod.boolean(),
         canUseNetwork: zod.boolean(),

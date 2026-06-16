@@ -65,6 +65,16 @@
       "title": "QA review artifact completeness and traceability",
       "objective": "Verify the generated agent config, Markdown conversions, and RAG records all point back to approved sources before delivery.",
       "roleId": "qa_reviewer",
+      "role": "qa_reviewer",
+      "evidenceContract": {
+        "requiredArtifacts": [
+          "approved-source-snapshots",
+          "rag-corpus-records",
+          "generated-agent-config"
+        ],
+        "assertionType": "presence",
+        "assertionConfig": {}
+      },
       "dependsOn": ["build-rag-corpus", "generate-agent-config"],
       "status": "pending"
     }

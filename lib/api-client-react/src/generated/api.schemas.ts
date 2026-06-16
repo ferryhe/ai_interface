@@ -80,51 +80,55 @@ export interface MissionStepApproval {
   riskLevel: MissionRiskLevel;
 }
 
-export type MissionPlanStepRole =
-  (typeof MissionPlanStepRole)[keyof typeof MissionPlanStepRole];
-
-export const MissionPlanStepRole = {
-  executor: "executor",
-  qa_reviewer: "qa_reviewer",
-} as const;
-
-export type MissionPlanStepEvidenceContractAssertionType =
-  (typeof MissionPlanStepEvidenceContractAssertionType)[keyof typeof MissionPlanStepEvidenceContractAssertionType];
-
-export const MissionPlanStepEvidenceContractAssertionType = {
-  presence: "presence",
-  json_schema: "json_schema",
-  content_contains: "content_contains",
-} as const;
-
 export interface JsonObject {
   [key: string]: unknown;
 }
 
-export type MissionPlanStepEvidenceContract = {
-  requiredArtifacts: string[];
-  assertionType: MissionPlanStepEvidenceContractAssertionType;
-  assertionConfig: JsonObject;
-};
-
-export interface MissionPlanStep {
-  /** @minLength 1 */
-  stepId: string;
-  /** @minLength 1 */
-  title: string;
-  /** @minLength 1 */
-  objective: string;
-  skillId?: string;
-  /** @minLength 1 */
-  moduleId?: string;
-  assignedAgentId?: string;
-  roleId?: string;
-  role?: MissionPlanStepRole;
-  evidenceContract?: MissionPlanStepEvidenceContract;
-  dependsOn: string[];
-  status: MissionStepStatus;
-  approval?: MissionStepApproval;
-}
+export type MissionPlanStep =
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "executor";
+      evidenceContract?: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    }
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "qa_reviewer";
+      evidenceContract: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    };
 
 export type MissionPlanActivationProfileLevel =
   (typeof MissionPlanActivationProfileLevel)[keyof typeof MissionPlanActivationProfileLevel];
@@ -146,6 +150,7 @@ export const MissionPlanActivationProfileReviewIntensity = {
 
 export type MissionPlanActivationProfile = {
   level: MissionPlanActivationProfileLevel;
+  /** @minimum 1 */
   maxAgents?: number;
   reviewIntensity: MissionPlanActivationProfileReviewIntensity;
 };
@@ -395,6 +400,7 @@ export interface ActuarialPipelineRunsList {
 }
 
 /**
+ * Arbitrary non-empty runtime module identifier from registered skill manifests.
  * @minLength 1
  */
 export type ModuleId = string;
@@ -427,6 +433,7 @@ export const ToolAdapterKind = {
   http: "http",
   cli: "cli",
   mcp: "mcp",
+  internal: "internal",
 } as const;
 
 export type ToolAdapterReadinessStatus =
@@ -835,7 +842,7 @@ export interface AgentWorkflowPhase {
   deliverables: string[];
 }
 
-export interface AgentSuccessMetrics {
+export interface AgentSuccessMetric {
   metric: string;
   target: string;
   measurement: string;
@@ -936,7 +943,7 @@ export interface AgentManifest {
   deliverables?: AgentDeliverable[];
   workflow?: AgentWorkflowPhase[];
   communicationStyle?: AgentManifestCommunicationStyle;
-  successMetrics?: AgentSuccessMetrics[];
+  successMetrics?: AgentSuccessMetric[];
   teamId?: string;
   runtimeStatus?: AgentManifestRuntimeStatus;
 }
@@ -1562,6 +1569,25 @@ export type PortalTokenParameter = string;
  * Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.
  */
 export type AuthorizationHeaderParameter = string;
+
+export type GetAgentsParams = {
+  /**
+   * Optional team id filter.
+   */
+  teamId?: string;
+  /**
+   * Optional runtime status filter.
+   */
+  runtimeStatus?: GetAgentsRuntimeStatus;
+};
+
+export type GetAgentsRuntimeStatus =
+  (typeof GetAgentsRuntimeStatus)[keyof typeof GetAgentsRuntimeStatus];
+
+export const GetAgentsRuntimeStatus = {
+  runnable: "runnable",
+  template: "template",
+} as const;
 
 export type ListRunsParams = {
   agentId?: AgentId;

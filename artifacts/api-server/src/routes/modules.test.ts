@@ -467,3 +467,17 @@ test("modules route keeps non-Portal artifact reads available without a portal t
 
   assert.equal(response.status, 200);
 });
+
+test("modules route returns 404 for missing resume runs", async () => {
+  const repository = new InMemoryModuleRunRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  const missingRunId = randomUUID();
+
+  const response = await withModulesApp(repository, configRepository, (baseUrl) =>
+    fetch(`${baseUrl}/module-runs/${missingRunId}/resume`, { method: "POST" }),
+  );
+  const json = (await response.json()) as { error?: string };
+
+  assert.equal(response.status, 404);
+  assert.equal(json.error, `Module run not found: ${missingRunId}`);
+});

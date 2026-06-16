@@ -113,25 +113,29 @@ export function evaluateQaSteps(
     }
 
     const { assertionType, requiredArtifacts } = qa.evidenceContract;
-    if (assertionType === "presence") {
-      const missing = requiredArtifacts.filter((id) => !artifactSet.has(id));
+    const missing = requiredArtifacts.filter((id) => !artifactSet.has(id));
+    if (missing.length > 0) {
       return {
         stepId: qa.stepId,
-        passed: missing.length === 0,
+        passed: false,
         missingArtifacts: missing,
-        reason:
-          missing.length > 0
-            ? `missing artifacts: ${missing.join(", ")}`
-            : undefined,
+        reason: `missing artifacts: ${missing.join(", ")}`,
       };
     }
 
-    // json_schema and content_contains are placeholder — return pass
-    // for now to avoid blocking on unimplemented assertion types
+    if (assertionType === "presence") {
+      return {
+        stepId: qa.stepId,
+        passed: true,
+        missingArtifacts: [],
+      };
+    }
+
     return {
       stepId: qa.stepId,
-      passed: true,
+      passed: false,
       missingArtifacts: [],
+      reason: `unsupported QA assertion type: ${assertionType}`,
     };
   });
 }

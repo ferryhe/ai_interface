@@ -146,12 +146,6 @@ function configuredProjectPath(
   if (fallback?.envPath) {
     const configuredPath = env[fallback.envPath]?.trim();
     if (configuredPath) return configuredPath;
-  } else {
-    for (const name of adapter.requiredEnv) {
-      if (!/_PROJECT_(PATH|DIR|ROOT)$/.test(name)) continue;
-      const value = env[name]?.trim();
-      if (value) return value;
-    }
   }
 
   if (!fallback) return null;

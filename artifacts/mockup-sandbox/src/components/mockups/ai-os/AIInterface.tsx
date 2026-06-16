@@ -1,18 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
-
-type TranslationValues = Record<string, string | number>;
-
-function monolithText(
-  t: TFunction,
-  key: string,
-  values?: TranslationValues,
-): string {
-  return t(`legacyAi.monolith.${key}`, values);
-}
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 
@@ -746,16 +735,22 @@ function ConsolePanel() {
   );
 }
 
+type ShellHistoryEntry =
+  | { prompt: true; text: string }
+  | { prompt: false; text?: string; textKey?: string };
+
+const INITIAL_SHELL_HISTORY: ShellHistoryEntry[] = [
+  { prompt: true, text: "" },
+  { prompt: false, textKey: "legacyAi.monolith.panels.shell.welcome" },
+  { prompt: true, text: "ls -la" },
+  { prompt: false, text: "total 32\ndrwxr-xr-x  5 runner runner 4096 May  3 10:00 .\ndrwxr-xr-x 15 runner runner 4096 May  3 09:55 ..\n-rw-r--r--  1 runner runner  234 May  3 10:00 .env\n-rw-r--r--  1 runner runner 1204 May  3 09:58 package.json\ndrwxr-xr-x  3 runner runner 4096 May  3 09:57 src" },
+  { prompt: true, text: "cat .env" },
+  { prompt: false, text: "PORT=3001\nJWT_SECRET=REDACTED_FOR_DEMO\nREFRESH_SECRET=REDACTED_FOR_DEMO\nDB_URL=postgresql://localhost:5432/demo_db" },
+];
+
 function ShellPanel() {
   const { t } = useTranslation();
-  const [history, setHistory] = useState([
-    { prompt: true, text: "" },
-    { prompt: false, text: t("legacyAi.monolith.panels.shell.welcome") },
-    { prompt: true, text: "ls -la" },
-    { prompt: false, text: "total 32\ndrwxr-xr-x  5 runner runner 4096 May  3 10:00 .\ndrwxr-xr-x 15 runner runner 4096 May  3 09:55 ..\n-rw-r--r--  1 runner runner  234 May  3 10:00 .env\n-rw-r--r--  1 runner runner 1204 May  3 09:58 package.json\ndrwxr-xr-x  3 runner runner 4096 May  3 09:57 src" },
-    { prompt: true, text: "cat .env" },
-    { prompt: false, text: "PORT=3000\nJWT_SECRET=super_secret_key\nREFRESH_SECRET=refresh_key\nDB_URL=postgresql://localhost:5432/mydb" },
-  ]);
+  const [history, setHistory] = useState<ShellHistoryEntry[]>(() => [...INITIAL_SHELL_HISTORY]);
   const [input, setInput] = useState("");
   const [cmdHistory, setCmdHistory] = useState<string[]>(["ls -la", "cat .env"]);
   const [histIdx, setHistIdx] = useState(-1);
@@ -800,22 +795,26 @@ function ShellPanel() {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", fontFamily: "monospace", fontSize: 12 }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
-        {history.map((h, i) => (
-          <div key={i}>
-            {h.prompt ? (
-              <div style={{ display: "flex", gap: 6, color: "#e1e4e8", lineHeight: 1.8 }}>
-                <span style={{ color: "#3fb950" }}>runner@ai-os</span>
-                <span>:</span>
-                <span style={{ color: "#58a6ff" }}>~/project</span>
-                <span>$ {h.text}</span>
-              </div>
-            ) : (
-              h.text.split("\n").map((line, j) => (
-                <div key={j} style={{ color: "#8b949e", lineHeight: 1.7 }}>{line}</div>
-              ))
-            )}
-          </div>
-        ))}
+        {history.map((h, i) => {
+          const output = h.prompt ? "" : h.textKey ? t(h.textKey) : h.text ?? "";
+
+          return (
+            <div key={i}>
+              {h.prompt ? (
+                <div style={{ display: "flex", gap: 6, color: "#e1e4e8", lineHeight: 1.8 }}>
+                  <span style={{ color: "#3fb950" }}>runner@ai-os</span>
+                  <span>:</span>
+                  <span style={{ color: "#58a6ff" }}>~/project</span>
+                  <span>$ {h.text}</span>
+                </div>
+              ) : (
+                output.split("\n").map((line, j) => (
+                  <div key={j} style={{ color: "#8b949e", lineHeight: 1.7 }}>{line}</div>
+                ))
+              )}
+            </div>
+          );
+        })}
         <div style={{ display: "flex", gap: 6, color: "#e1e4e8", alignItems: "center" }}>
           <span style={{ color: "#3fb950" }}>runner@ai-os</span><span>:</span>
           <span style={{ color: "#58a6ff" }}>~/project</span><span>$</span>
@@ -1137,10 +1136,10 @@ function PackagesPanel() {
 }
 
 const INITIAL_SECRETS = [
-  { key: "JWT_SECRET", value: "super_secret_key_xyz", revealed: false },
-  { key: "REFRESH_SECRET", value: "refresh_key_abc_123", revealed: false },
-  { key: "DB_URL", value: "postgresql://localhost:5432/mydb", revealed: false },
-  { key: "PORT", value: "3000", revealed: true },
+  { key: "JWT_SECRET", value: "REDACTED_FOR_DEMO", revealed: false },
+  { key: "REFRESH_SECRET", value: "REDACTED_FOR_DEMO", revealed: false },
+  { key: "DB_URL", value: "postgresql://localhost:5432/demo_db", revealed: false },
+  { key: "PORT", value: "3001", revealed: true },
   { key: "NODE_ENV", value: "development", revealed: true },
 ];
 
@@ -1239,7 +1238,7 @@ function DatabasePanel() {
         ))}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: "#3fb950", gap: 4 }}>
-          <span>●</span> postgresql://localhost:5432/mydb
+          <span>●</span> postgresql://localhost:5432/demo_db
         </div>
       </div>
 
@@ -1487,32 +1486,54 @@ function DebuggerPanel() {
   );
 }
 
+type DeployLogLevel = "success" | "error" | "info" | "progress";
+
+type DeployLogEntry = {
+  key: string;
+  level: DeployLogLevel;
+};
+
+const INITIAL_DEPLOY_LOGS: DeployLogEntry[] = [
+  { key: "legacyAi.monolith.panels.deploy.logs.buildComplete", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.testsPassed", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.imagePushed", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.successful", level: "success" },
+];
+
+const DEPLOY_START_LOG: DeployLogEntry = {
+  key: "legacyAi.monolith.panels.deploy.logs.building",
+  level: "progress",
+};
+
+const DEPLOY_STEP_LOGS: DeployLogEntry[] = [
+  { key: "legacyAi.monolith.panels.deploy.logs.installing", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.runningTests", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.buildingImage", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.pushing", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.updating", level: "success" },
+  { key: "legacyAi.monolith.panels.deploy.logs.healthPassed", level: "success" },
+];
+
+const deployLogColor = (level: DeployLogLevel) => {
+  if (level === "success") return "#3fb950";
+  if (level === "error") return "#f85149";
+  if (level === "progress") return "#f26522";
+  return "#8b949e";
+};
+
 function DeployPanel() {
   const { t } = useTranslation();
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState(true);
-  const [logs, setLogs] = useState([
-    t("legacyAi.monolith.panels.deploy.logs.buildComplete"),
-    t("legacyAi.monolith.panels.deploy.logs.testsPassed"),
-    t("legacyAi.monolith.panels.deploy.logs.imagePushed"),
-    t("legacyAi.monolith.panels.deploy.logs.successful"),
-  ]);
+  const [logs, setLogs] = useState<DeployLogEntry[]>(() => [...INITIAL_DEPLOY_LOGS]);
   const [tab, setTab] = useState<"overview" | "logs" | "settings">("overview");
 
   const deploy = () => {
     setDeploying(true);
-    setLogs([t("legacyAi.monolith.panels.deploy.logs.building")]);
-    const steps = [
-      t("legacyAi.monolith.panels.deploy.logs.installing"),
-      t("legacyAi.monolith.panels.deploy.logs.runningTests"),
-      t("legacyAi.monolith.panels.deploy.logs.buildingImage"),
-      t("legacyAi.monolith.panels.deploy.logs.pushing"),
-      t("legacyAi.monolith.panels.deploy.logs.updating"),
-      t("legacyAi.monolith.panels.deploy.logs.healthPassed"),
-    ];
-    steps.forEach((s, i) => setTimeout(() => {
-      setLogs(prev => [...prev, s]);
-      if (i === steps.length - 1) { setDeploying(false); setDeployed(true); }
+    setLogs([DEPLOY_START_LOG]);
+    DEPLOY_STEP_LOGS.forEach((step, i) => setTimeout(() => {
+      setLogs(prev => [...prev, step]);
+      if (i === DEPLOY_STEP_LOGS.length - 1) { setDeploying(false); setDeployed(true); }
     }, (i + 1) * 700));
   };
 
@@ -1569,7 +1590,7 @@ function DeployPanel() {
         {tab === "logs" && (
           <div style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.8 }}>
             {logs.map((l, i) => (
-              <div key={i} style={{ color: l.startsWith("✓") ? "#3fb950" : l.startsWith("✗") ? "#f85149" : "#8b949e" }}>{l}</div>
+              <div key={`${l.key}-${i}`} style={{ color: deployLogColor(l.level) }}>{t(l.key)}</div>
             ))}
             {deploying && <div style={{ color: "#f26522", animation: "blink 1s step-end infinite" }}>_</div>}
           </div>
@@ -2015,8 +2036,8 @@ function AgentConfigPage() {
     { label: t("legacyAi.monolith.agentConfig.architecture.taskInput.label"), sub: t("legacyAi.monolith.agentConfig.architecture.taskInput.sub"), color: "#8b949e", icon: "💬" },
     { label: t("legacyAi.monolith.agentConfig.architecture.framework.label"), sub: t("legacyAi.monolith.agentConfig.architecture.framework.sub", { packageName: pkg.name }), color: pkg.color, icon: pkg.logo },
     { label: t("legacyAi.monolith.agentConfig.architecture.protocol.label"), sub: pkg.protocols.map(p => AGENT_FRAMEWORKS.find(f => f.id === p)?.name).join(" / "), color: "#e3b341", icon: "⬡" },
-    { label: t("legacyAi.monolith.agentConfig.architecture.provider.label"), sub: "OpenAI / Anthropic / Together AI / Ollama", color: "#58a6ff", icon: "◈" },
-    { label: t("legacyAi.monolith.agentConfig.architecture.executor.label"), sub: "shell · file_read · file_write · browser · deploy", color: "#3fb950", icon: "▶" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.provider.label"), sub: t("legacyAi.monolith.agentConfig.architecture.provider.sub"), color: "#58a6ff", icon: "◈" },
+    { label: t("legacyAi.monolith.agentConfig.architecture.executor.label"), sub: t("legacyAi.monolith.agentConfig.architecture.executor.sub"), color: "#3fb950", icon: "▶" },
   ];
 
   const PKG_MODELS: Record<string, string[]> = {
@@ -2986,7 +3007,7 @@ export function AIInterface() {
             position: fixed;
             top: 54px;
             right: 8px;
-            z-index: 90;
+            z-index: 10;
             background: #161b22 !important;
             box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
           }

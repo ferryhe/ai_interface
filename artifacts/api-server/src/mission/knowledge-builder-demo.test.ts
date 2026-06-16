@@ -79,7 +79,17 @@ test("knowledge builder demo fixture contains the expected roles, skills, and ap
   assert.deepEqual(deliveryStep?.dependsOn, ["build-rag-corpus"]);
 
   const qaStep = qaReviewerSteps[0];
+  assert.equal(qaStep?.role, "qa_reviewer");
   assert.deepEqual(qaStep?.dependsOn, ["build-rag-corpus", "generate-agent-config"]);
+  assert.deepEqual(qaStep?.evidenceContract, {
+    requiredArtifacts: [
+      "approved-source-snapshots",
+      "rag-corpus-records",
+      "generated-agent-config",
+    ],
+    assertionType: "presence",
+    assertionConfig: {},
+  });
 
   assert.ok(
     fixture.nonGoals.some((item) => /traceability/i.test(item)),

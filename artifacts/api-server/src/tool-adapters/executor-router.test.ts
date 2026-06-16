@@ -61,3 +61,11 @@ test("real mode routes MCP adapters to the MCP executor", () => {
 
   assert.equal(executor instanceof McpToolAdapterExecutor, true);
 });
+
+test("real mode keeps internal adapters on the safe fake executor", () => {
+  const executor = createToolAdapterExecutor(adapter("internal"), {
+    AI_INTERFACE_TOOL_EXECUTION_MODE: "real",
+  });
+
+  assert.equal(executor instanceof FakeToolAdapterExecutor, true);
+});

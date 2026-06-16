@@ -191,9 +191,10 @@ export function manifestAdapterDefinition(
     adapterKind:
       manifest.execution.kind === "http" ||
       manifest.execution.kind === "cli" ||
-      manifest.execution.kind === "mcp"
+      manifest.execution.kind === "mcp" ||
+      manifest.execution.kind === "internal"
         ? manifest.execution.kind
-        : "cli",
+        : "internal",
     displayName:
       adapterText?.displayName ?? `${manifest.title ?? manifest.name} Adapter`,
     description: adapterText?.description ?? manifest.description,

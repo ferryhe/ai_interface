@@ -13,7 +13,7 @@ import type {
   AgentDeliverable,
   AgentWorkflowPhase,
   AgentCommunicationStyle,
-  AgentSuccessMetrics,
+  AgentSuccessMetric,
 } from "./agent-manifest";
 import {
   AGENT_ID_PATTERN,
@@ -252,19 +252,6 @@ function normalizeProvider(
   };
 }
 
-function optionalStringArray(
-  record: Record<string, unknown>,
-  key: string,
-  path: string,
-): string[] | undefined {
-  const value = record[key];
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
-    throw manifestError(path, `Expected ${key} to be a string array`);
-  }
-  return value as string[];
-}
-
 function normalizeCriticalRules(
   raw: Record<string, unknown>,
   path: string,
@@ -353,7 +340,7 @@ function normalizeCommunicationStyle(
 function normalizeSuccessMetrics(
   raw: Record<string, unknown>,
   path: string,
-): AgentSuccessMetrics[] | undefined {
+): AgentSuccessMetric[] | undefined {
   const value = raw.successMetrics;
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) {

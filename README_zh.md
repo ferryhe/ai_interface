@@ -45,7 +45,7 @@ agentId: knowledge_builder
 name: Knowledge Builder
 description: ...
 source: builtin|community|custom
-runtimeStatus: active|template       # template=尚未就绪运行
+runtimeStatus: runnable|template     # template=尚未就绪运行
 
 # ── 九段 ──
 identity:                            # 身份定义
@@ -91,8 +91,8 @@ tests: [...]                         # Manifest 级冒烟测试
 
 | Agent ID | 名称 | 团队 | 运行状态 | 说明 |
 |---|---|---|---|---|
-| `knowledge_builder` | Knowledge Builder | knowledge | active | 全链路：web_listening → doc_to_md → md_to_rag → rag_to_agent |
-| `evidence_collector` | Evidence Collector | — | active | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
+| `knowledge_builder` | Knowledge Builder | knowledge | runnable | 全链路：web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `evidence_collector` | Evidence Collector | — | runnable | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
 
 ### 模板 Agent（寿险行业）
 
@@ -246,7 +246,7 @@ DAG 模式下，无审批要求的就绪步骤并行执行（默认最大并发 
 - 浏览 Agents、Skills、Runs、Artifacts 四大一级标签页
 - 查看 Agent 完整九段信息（identity、criticalRules、deliverables、workflow、communicationStyle、successMetrics）
 - 查看 Agent 所属团队（`teamId`）并按团队过滤
-- 查看 runtimeStatus 标识（active / template）
+- 查看 runtimeStatus 标识（runnable / template）
 - 检查技能 manifest、适配器就绪状态、运行 I/O、事件、产物和 Skill UI 交接
 
 ### Operator Backstage（高级治理路径）

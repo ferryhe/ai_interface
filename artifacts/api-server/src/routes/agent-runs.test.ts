@@ -11,6 +11,28 @@ import {
 import { InMemoryAgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
 import { createAgentRunsRouter } from "./agent-runs";
 
+function parseJsonResponse(
+  text: string,
+  label: string,
+): Record<string, unknown> {
+  if (text.trim() === "") return {};
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Expected ${label} to return a JSON object: ${message}; body=${text.slice(
+        0,
+        200,
+      )}`,
+    );
+  }
+  throw new Error(`Expected ${label} to return a JSON object`);
+}
+
 async function requestAgentRun(input: {
   runtimeRepository: InMemoryAgentRuntimeRepository;
   configRepository: InMemoryAgentConfigRepository;
@@ -40,7 +62,11 @@ async function requestAgentRun(input: {
       body: JSON.stringify(input.body),
     });
     const text = await response.text();
-    return { status: response.status, text, json: JSON.parse(text) };
+    return {
+      status: response.status,
+      text,
+      json: parseJsonResponse(text, "POST /agent-runs"),
+    };
   } finally {
     await new Promise<void>((resolve, reject) => {
       (server as Server).close((error) => (error ? reject(error) : resolve()));
@@ -75,7 +101,11 @@ async function requestAgentRunDetail(input: {
       },
     );
     const text = await response.text();
-    return { status: response.status, text, json: JSON.parse(text) };
+    return {
+      status: response.status,
+      text,
+      json: parseJsonResponse(text, "GET /agent-runs/:pipelineRunId"),
+    };
   } finally {
     await new Promise<void>((resolve, reject) => {
       (server as Server).close((error) => (error ? reject(error) : resolve()));

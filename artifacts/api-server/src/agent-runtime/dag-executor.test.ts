@@ -441,3 +441,78 @@ test("QA gate: fails when upstream not complete", () => {
   assert.equal(evaluations[0]!.passed, false);
   assert.equal(evaluations[0]!.reason, "upstream steps not complete");
 });
+
+test("QA gate: fails closed for unsupported assertion types", () => {
+  const evaluations = evaluateQaSteps(
+    [
+      {
+        stepId: "qa-json",
+        dependsOn: ["step-a"],
+        evidenceContract: {
+          requiredArtifacts: ["artifact-1"],
+          assertionType: "json_schema",
+          assertionConfig: { schema: { type: "object" } },
+        },
+      },
+      {
+        stepId: "qa-content",
+        dependsOn: ["step-a"],
+        evidenceContract: {
+          requiredArtifacts: ["artifact-1"],
+          assertionType: "content_contains",
+          assertionConfig: { text: "approved" },
+        },
+      },
+    ],
+    new Set(["step-a"]),
+    ["artifact-1"],
+  );
+
+  assert.deepEqual(
+    evaluations.map((evaluation) => ({
+      stepId: evaluation.stepId,
+      passed: evaluation.passed,
+      missingArtifacts: evaluation.missingArtifacts,
+      reason: evaluation.reason,
+    })),
+    [
+      {
+        stepId: "qa-json",
+        passed: false,
+        missingArtifacts: [],
+        reason: "unsupported QA assertion type: json_schema",
+      },
+      {
+        stepId: "qa-content",
+        passed: false,
+        missingArtifacts: [],
+        reason: "unsupported QA assertion type: content_contains",
+      },
+    ],
+  );
+});
+
+test("QA gate: checks required artifacts before assertion support", () => {
+  const evaluations = evaluateQaSteps(
+    [
+      {
+        stepId: "qa-json",
+        dependsOn: ["step-a"],
+        evidenceContract: {
+          requiredArtifacts: ["artifact-1"],
+          assertionType: "json_schema",
+          assertionConfig: { schema: { type: "object" } },
+        },
+      },
+    ],
+    new Set(["step-a"]),
+    [],
+  );
+
+  assert.deepEqual(evaluations[0], {
+    stepId: "qa-json",
+    passed: false,
+    missingArtifacts: ["artifact-1"],
+    reason: "missing artifacts: artifact-1",
+  });
+});

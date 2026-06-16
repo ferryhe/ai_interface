@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import type { Request } from "express";
 import {
   ExportAgentMcpToolResponse,
   GetAgentsResponse,
@@ -9,6 +10,7 @@ import {
   listAgentReadiness,
   type AgentRuntimeRegistry,
 } from "../agent-registry/agent-runtime-registry";
+import type { AgentRuntimeStatus } from "../agent-registry/agent-manifest";
 import {
   assertMcpToolMetadataContract,
   exportMcpToolMetadata,
@@ -27,21 +29,63 @@ function registeredSkillIdsForAgent(
   return readiness.enabledSkillIds.filter((skillId) => !missing.has(skillId));
 }
 
+function singleQueryParam(
+  req: Request,
+  name: string,
+): string | undefined {
+  const value = req.query[name];
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    throw new Error(`Expected ${name} query parameter to be provided once`);
+  }
+  if (typeof value !== "string") {
+    throw new Error(`Expected ${name} query parameter to be a string`);
+  }
+  return value;
+}
+
+function parseRuntimeStatus(
+  value: string | undefined,
+): AgentRuntimeStatus | undefined {
+  if (value === undefined) return undefined;
+  if (value === "runnable" || value === "template") return value;
+  throw new Error(
+    "Expected runtimeStatus query parameter to be runnable or template",
+  );
+}
+
 export function createAgentsRouter(
   registry: AgentRuntimeRegistry = defaultAgentRuntimeRegistry,
 ): IRouter {
   const router: IRouter = Router();
 
   router.get("/agents", (req, res) => {
+    let teamId: string | undefined;
+    let runtimeStatus: AgentRuntimeStatus | undefined;
+    try {
+      teamId = singleQueryParam(req, "teamId");
+      runtimeStatus = parseRuntimeStatus(
+        singleQueryParam(req, "runtimeStatus"),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(400).json({ error: message });
+      return;
+    }
+
     let agents = registry.listAgents();
-    const teamId = req.query.teamId as string | undefined;
     if (teamId) {
       agents = agents.filter((a) => a.teamId === teamId);
     }
+    if (runtimeStatus) {
+      agents = agents.filter((a) => a.runtimeStatus === runtimeStatus);
+    }
     const allReadiness = listAgentReadiness(registry);
-    const readiness = teamId
-      ? allReadiness.filter((r) => agents.some((a) => a.agentId === r.agentId))
-      : allReadiness;
+    const filteredAgentIds = new Set(agents.map((a) => a.agentId));
+    const readiness =
+      teamId || runtimeStatus
+        ? allReadiness.filter((r) => filteredAgentIds.has(r.agentId))
+        : allReadiness;
     const data = GetAgentsResponse.parse({
       agents,
       readiness,

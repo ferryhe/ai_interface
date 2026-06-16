@@ -10,6 +10,7 @@ import type { MissionPlanActivationProfileReviewIntensity } from "./missionPlanA
 
 export type MissionPlanActivationProfile = {
   level: MissionPlanActivationProfileLevel;
+  /** @minimum 1 */
   maxAgents?: number;
   reviewIntensity: MissionPlanActivationProfileReviewIntensity;
 };

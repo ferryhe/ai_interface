@@ -12,9 +12,9 @@ export const enUS = {
       currentAction: "Current action",
       blockingReason: "Blocking reason",
       lastActivity: "Last activity: {{time}}",
-      missionRole: "mission-role",
+      missionRole: "Mission role",
       runs: "{{count}} runs",
-      noRunsYet: "no runs yet",
+      noRunsYet: "No runs yet",
       risk: "{{level}} risk",
       riskApproval: "{{level}} risk approval",
       riskLevel: {
@@ -63,7 +63,7 @@ export const enUS = {
         skillSubtitle: "{{kind}} · {{readiness}}",
         readiness: {
           ready: "ready",
-          not_configured: "not configured",
+          not_configured: "Not configured",
         },
         cards: {
           agents: {
@@ -278,7 +278,7 @@ export const enUS = {
           succeeded: "succeeded",
           failed: "failed",
           cancelled: "cancelled",
-          approval_required: "approval required",
+          approval_required: "Approval required",
           waiting_for_user: "waiting for user",
           waiting_for_data: "waiting for data",
           blocked: "blocked",
@@ -382,7 +382,9 @@ export const enUS = {
         pipeline: "Pipeline {{runId}}",
         planSteps: "{{count}} plan steps",
         planWarnings: "Agent plan warnings",
-        resultRecordCount: "{{count}} result record",
+        resultRecordCount: "{{count}} result records",
+        resultRecordCount_one: "{{count}} result record",
+        resultRecordCount_other: "{{count}} result records",
       },
       data: {
         title: "Database memory",
@@ -828,8 +830,21 @@ export const enUS = {
         persona: "Persona",
         background: "Background",
         team: "Team: {{teamId}}",
+        teamLabel: "Team",
         status: "Status: {{status}}",
+        runtimeStatus: "Runtime status",
         criticalRules: "⚠ Critical Rules",
+        deliverables: "Deliverables",
+        format: "Format",
+        workflow: "Workflow",
+        approvalRequired: "Approval required",
+        approvalNotRequired: "No approval required",
+        workflowDeliverables: "Outputs",
+        communicationStyle: "Communication style",
+        tone: "Tone",
+        outputFormat: "Output format",
+        languagePreference: "Language preference",
+        successMetrics: "Success metrics",
         instructions: "Instructions",
         boundSkills: "Bound skills",
         required: "required",
@@ -956,6 +971,14 @@ export const enUS = {
           },
           markdown: {
             summary: "Markdown conversion output with provenance retained.",
+            content:
+              "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.",
+          },
+        },
+        sampleArtifacts: {
+          docToMdMarkdown: {
+            content:
+              "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.\n\n- Source snapshots are linked to provenance.\n- Conversion warnings stay attached to the run.\n- Assets are stored beside Markdown output.",
           },
         },
         localRun: {
@@ -1186,7 +1209,7 @@ export const enUS = {
           adminModule: "Document preparation",
           fallbackSummary:
             "Converted source material into clean Markdown records.",
-          fallbackData: "markdown docs",
+          fallbackData: "Markdown documents",
         },
         md_to_rag: {
           label: "Index",
@@ -1201,12 +1224,19 @@ export const enUS = {
           fallbackSummary: "Generating and validating the agent handoff.",
           fallbackData: "agent config",
         },
+        unknown: {
+          adminModule: "{{module}} module",
+          fallbackSummary: "{{module}} completed without a detailed summary.",
+          fallbackData: "{{module}} output",
+        },
       },
       apiFallback: {
         apiResult: "API result",
         moduleRun: "Module run",
         apiResultWithRun: "API result {{runId}}",
         apiRunWithId: "API run {{runId}}",
+        submittedPrompt: "Submitted prompt",
+        syncPending: "Sync pending",
         updatedAt: "Updated {{time}}",
         inspectStoredArtifacts:
           "Open details to inspect stored events and artifacts.",
@@ -1326,7 +1356,7 @@ export const enUS = {
           convert: {
             label: "Convert",
             summary: "Converted source material into clean Markdown records.",
-            dataCount: "6 markdown docs",
+            dataCount: "6 Markdown documents",
           },
           index: {
             label: "Index",
@@ -1471,7 +1501,7 @@ export const enUS = {
           start: "Start",
           stop: "Stop",
           run: "Run",
-          startApp: "Start app",
+          runApp: "Run app",
           stopApp: "Stop app",
           switchToolPage: "Switch tool page",
           switchToolTo: "Switch tool to {{tool}}",
@@ -2001,8 +2031,14 @@ export const enUS = {
               sub: "{{packageName}} - orchestration loop, memory, tools",
             },
             protocol: { label: "Tool Calling Protocol" },
-            provider: { label: "LLM Provider API" },
-            executor: { label: "Tool Executor" },
+            provider: {
+              label: "LLM Provider API",
+              sub: "OpenAI / Anthropic / Together AI / Ollama",
+            },
+            executor: {
+              label: "Tool Executor",
+              sub: "shell · file_read · file_write · browser · deploy",
+            },
           },
           selectedPackage: "selected: {{packageName}}",
           frameworkPackages: "Framework Packages",
@@ -2760,7 +2796,7 @@ export const enUS = {
       approval: "Approval",
     },
     approvalCard: {
-      runtimeStep: "runtime-step",
+      runtimeStep: "Runtime step",
       mission: "Mission:",
       revision: "Revision:",
       moduleRun: "Module run:",
