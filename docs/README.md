@@ -4,6 +4,7 @@
 
 - [`../README.md`](../README.md) — English: complete Mission Control overview, API/runtime summary, agent manifest, teams, QA gate, and verification.
 - [`../README_zh.md`](../README_zh.md) — 中文版项目说明。
+- `userguide.md` — 中文用户操作指南，覆盖前台、后台、Skill demo 和寿险 Agent 模板。
 - `project-overview.html` — Browser-friendly project introduction and usage guide.
 
 ## Contracts & Fixtures
