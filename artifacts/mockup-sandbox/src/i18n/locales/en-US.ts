@@ -2791,7 +2791,7 @@ export const enUS = {
       approval: "Approval",
     },
     approvalCard: {
-      runtimeStep: "runtime-step",
+      runtimeStep: "Runtime step",
       mission: "Mission:",
       revision: "Revision:",
       moduleRun: "Module run:",

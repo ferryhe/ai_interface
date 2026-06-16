@@ -128,9 +128,31 @@ test("ships matching mission and approval translation keys", () => {
   assert.equal(enUS.translation.missionCenter.title, "Mission Control");
   assert.equal(zhCN.translation.missionCenter.title, "Mission Control");
   assert.equal(enUS.translation.approvalInbox.updatedTitle, "Approval updated");
+  assert.equal(enUS.translation.approvalCard.runtimeStep, "Runtime step");
   assert.equal(
     zhCN.translation.approvalInbox.updatedTitle,
     "\u5ba1\u6279\u5df2\u66f4\u65b0",
+  );
+  assert.equal(zhCN.translation.approvalInbox.title, "\u5ba1\u6279\u7bb1");
+  assert.equal(
+    zhCN.translation.approvalInbox.apiUnavailable,
+    "\u5ba1\u6279 API \u4e0d\u53ef\u7528",
+  );
+  assert.equal(
+    zhCN.translation.approvalInbox.decisionFailed,
+    "\u5ba1\u6279\u64cd\u4f5c\u5931\u8d25",
+  );
+  assert.equal(
+    zhCN.translation.executionBoard.unavailableFallback,
+    "\u6267\u884c\u770b\u677f\u4e0d\u53ef\u7528",
+  );
+  assert.equal(
+    zhCN.translation.agentStatus.approvalLink,
+    "\u53bb\u5ba1\u6279\u7bb1\u5904\u7406",
+  );
+  assert.equal(
+    zhCN.translation.missionCenter.handoffFallback.includes("Approval Inbox"),
+    false,
   );
 });
 
