@@ -465,6 +465,17 @@ export const zhCN = {
           longOnly: "仅长期",
           shortOnly: "仅短期",
         },
+        memoryPromotion: {
+          agent_suggested: "Agent 建议",
+          manual: "手动",
+        },
+        reasoningEffort: {
+          none: "无",
+          low: "低",
+          medium: "中",
+          high: "高",
+          xhigh: "超高",
+        },
         shortTermThreadMemory: "短期线程记忆",
         longTermPostgresMemory: "长期 Postgres 记忆",
         promotion: "提升策略",
@@ -756,6 +767,108 @@ export const zhCN = {
         pipelineGroupCount: "{{count}} 个 pipeline 分组",
         moduleCount: "{{count}} 个模块",
         noArtifacts: "暂无产物",
+      },
+      workbenchDemo: {
+        common: {
+          now: "现在",
+        },
+        skills: {
+          web_listening: {
+            description: "监控 URL、创建快照、提取文本并检测变化。",
+          },
+          doc_to_md: {
+            description: "将源文档转换为 Markdown，并保留警告和资产。",
+          },
+          md_to_rag: {
+            description: "切分 Markdown 并准备 RAG 索引记录。",
+          },
+          rag_to_agent: {
+            description: "生成 Agent 配置、提示词和验证输出。",
+          },
+          climate_monitor: {
+            description: "跟踪 climate/actuarial monitor 报告与来源覆盖。",
+          },
+          ai_actuary: {
+            description: "通过安全 CLI executor 调用 reserving pipeline。",
+          },
+          example_reporter: {
+            description: "用于自定义 skill 校验的社区 manifest 示例。",
+          },
+        },
+        agents: {
+          knowledgeBuilder: {
+            name: "知识构建 Agent",
+            description: "将已批准的网页和文档来源转换为 RAG 支撑的 Agent 配置。",
+            instructions:
+              "从已批准来源构建可检查的知识 pipeline。用最小的已启用 skills 监控来源、转换文档、准备 RAG 记录并生成 Agent 配置。保留中间产物供审阅。",
+            tests: {
+              buildFromMarkdown: "从已批准的 Markdown 来源材料构建 Agent。",
+            },
+          },
+          climateBriefing: {
+            name: "Climate Briefing Agent",
+            description: "汇总 climate monitor 输出，并准备可审阅的 briefing。",
+            instructions:
+              "以 climate monitor 产物作为事实来源，保留来源覆盖说明，并且只有在验证后才把 briefing 草稿交给发布 Agent。",
+            handoffs: {
+              refreshSources: "覆盖范围变化时刷新来源材料。",
+            },
+          },
+        },
+        runs: {
+          knowledgeBuilder: {
+            title: "知识构建 Demo 运行",
+          },
+        },
+        runSteps: {
+          collectSources: {
+            title: "收集已批准来源",
+            summary: "已存储 18 个快照和 3 个变化事件。",
+          },
+          convertDocuments: {
+            title: "转换文档",
+            summary: "已生成 6 个 Markdown 文档，并包含 1 条警告。",
+          },
+          prepareRag: {
+            title: "准备 RAG 记录",
+            summary: "已索引 124 个 chunks 中的 96 个。",
+          },
+          draftAgent: {
+            title: "起草 Agent 配置",
+            summary: "正在等待 RAG 索引产物。",
+          },
+        },
+        events: {
+          plan: {
+            title: "计划已创建",
+            detail: "DAG 计划选择了 4 个绑定 skills。",
+          },
+          artifacts: {
+            title: "Markdown 产物已存储",
+            detail: "doc_to_md 写入了 6 个可展示的 Markdown 产物。",
+          },
+          active: {
+            title: "md_to_rag 运行中",
+            detail: "Chunk 元数据正在规范化以供检索。",
+          },
+        },
+        artifacts: {
+          snapshot: {
+            title: "最新页面快照",
+            summary: "已批准来源页面快照，包含提取文本元数据。",
+          },
+          markdown: {
+            summary: "Markdown 转换输出已保留来源信息。",
+          },
+        },
+        localRun: {
+          title: "{{agentName}} 本地测试",
+          updatedAt: "本地",
+          firstStepSummary: "本地 Demo fallback 已排队。",
+          waitingSummary: "等待前一步完成。",
+          eventTitle: "本地 fallback",
+          eventDetail: "Agent run API 不可用。",
+        },
       },
     },
     portal: {
