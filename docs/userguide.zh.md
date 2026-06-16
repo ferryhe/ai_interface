@@ -14,6 +14,18 @@ English version: [`userguide.md`](userguide.md)
 ```powershell
 $env:PORT="3001"
 $env:NODE_ENV="development"
+$env:DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/DATABASE"
+corepack pnpm --filter @workspace/api-server run build
+corepack pnpm --filter @workspace/api-server run start
+```
+
+如果只是做本地 E2E 冒烟测试、暂时没有 Postgres，可以使用内存仓库模式。这个模式不持久化数据，适合验证 HTTP/API/UI 链路：
+
+```powershell
+$env:PORT="3001"
+$env:NODE_ENV="development"
+$env:AI_INTERFACE_REPOSITORY_MODE="memory"
+$env:AI_INTERFACE_MANIFEST_WRITE_MODE="custom"
 corepack pnpm --filter @workspace/api-server run build
 corepack pnpm --filter @workspace/api-server run start
 ```
@@ -30,6 +42,7 @@ PORT=3001 corepack pnpm --filter @workspace/api-server run dev
 $env:PORT="8080"
 $env:BASE_PATH="/"
 $env:VITE_DEFAULT_PREVIEW="ai-os/AgentFirstInterface"
+$env:API_PROXY_TARGET="http://127.0.0.1:3001"
 corepack pnpm --dir artifacts/mockup-sandbox run dev
 ```
 

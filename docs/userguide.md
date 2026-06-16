@@ -14,6 +14,18 @@ Start the API server in PowerShell. The API server requires `PORT`; because the 
 ```powershell
 $env:PORT="3001"
 $env:NODE_ENV="development"
+$env:DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/DATABASE"
+corepack pnpm --filter @workspace/api-server run build
+corepack pnpm --filter @workspace/api-server run start
+```
+
+For a local E2E smoke test without Postgres persistence, use the in-memory repository mode instead of `DATABASE_URL`:
+
+```powershell
+$env:PORT="3001"
+$env:NODE_ENV="development"
+$env:AI_INTERFACE_REPOSITORY_MODE="memory"
+$env:AI_INTERFACE_MANIFEST_WRITE_MODE="custom"
 corepack pnpm --filter @workspace/api-server run build
 corepack pnpm --filter @workspace/api-server run start
 ```
@@ -30,6 +42,7 @@ Start the frontend preview in another PowerShell:
 $env:PORT="8080"
 $env:BASE_PATH="/"
 $env:VITE_DEFAULT_PREVIEW="ai-os/AgentFirstInterface"
+$env:API_PROXY_TARGET="http://127.0.0.1:3001"
 corepack pnpm --dir artifacts/mockup-sandbox run dev
 ```
 
