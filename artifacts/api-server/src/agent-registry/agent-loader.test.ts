@@ -6,6 +6,15 @@ import test from "node:test";
 
 import { loadAgentManifests } from "./agent-loader";
 
+const defaultAgentIds = [
+  "claims_reviewer",
+  "compliance_auditor",
+  "evidence_collector",
+  "knowledge_builder",
+  "life_uw_analyst",
+  "pricing_actuary",
+];
+
 const minimalManifest = (options: {
   agentId?: string;
   source?: string;
@@ -42,7 +51,7 @@ test("loads built-in knowledge_builder with normalized defaults", async () => {
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.agentId).sort(),
-    ["claims_reviewer", "compliance_auditor", "evidence_collector", "knowledge_builder", "life_uw_analyst", "pricing_actuary"],
+    defaultAgentIds,
   );
   const manifest = manifests.find((m) => m.agentId === "knowledge_builder");
   assert.equal(manifest?.name, "Knowledge Builder");
@@ -53,6 +62,7 @@ test("loads built-in knowledge_builder with normalized defaults", async () => {
   assert.equal(manifest?.permissions.canUseNetwork, true);
   assert.equal(manifest?.permissions.canWriteDatabase, true);
   assert.equal(manifest?.memory.promotionMode, "run_summary");
+  assert.equal(manifest?.runtimeStatus, "runnable");
   assert.deepEqual(manifest?.handoffs, []);
   assert.deepEqual(
     manifest?.skills.map((binding) => [
@@ -87,8 +97,112 @@ test("applies documented defaults to minimal manifests", async () => {
   assert.equal(manifest?.permissions.canUseNetwork, false);
   assert.equal(manifest?.permissions.canWriteDatabase, true);
   assert.equal(manifest?.memory.promotionMode, "run_summary");
+  assert.equal(manifest?.runtimeStatus, "runnable");
   assert.deepEqual(manifest?.handoffs, []);
   assert.deepEqual(manifest?.tests, []);
+});
+
+test("normalizes custom template nine-segment fields", async () => {
+  const root = await createRoot();
+  await writeManifest(
+    root,
+    "custom-template",
+    `agentId: custom_template
+name: Custom Template
+description: Fixture custom template manifest.
+source: custom
+runtimeStatus: template
+teamId: insurance
+instructions: Preserve evidence for review.
+identity:
+  persona: Fixture persona
+  background: Fixture background
+criticalRules:
+  - id: evidence
+    description: Preserve evidence.
+    severity: blocker
+deliverables:
+  - name: Evidence report
+    format: Markdown
+    description: Summarize evidence.
+    successCriteria: Every claim has a source.
+workflow:
+  - name: Review
+    description: Review evidence.
+    approvalRequired: true
+    deliverables:
+      - Evidence report
+communicationStyle:
+  tone: Professional
+  outputFormat: Markdown + tables
+  languagePreference: zh-CN
+successMetrics:
+  - metric: Traceability
+    target: "100%"
+    measurement: Every decision links to evidence.
+skills: []
+planner:
+  mode: linear
+  failureStrategy: fail_fast
+permissions:
+  approvalRequired: true
+  canUseNetwork: false
+  canWriteDatabase: false
+memory:
+  promotionMode: disabled
+handoffs: []
+tests: []
+`,
+  );
+
+  const [manifest] = await loadAgentManifests({ roots: [root] });
+
+  assert.equal(manifest?.source, "custom");
+  assert.equal(manifest?.runtimeStatus, "template");
+  assert.equal(manifest?.teamId, "insurance");
+  assert.deepEqual(manifest?.identity, {
+    persona: "Fixture persona",
+    background: "Fixture background",
+  });
+  assert.deepEqual(manifest?.criticalRules, [
+    {
+      id: "evidence",
+      description: "Preserve evidence.",
+      severity: "blocker",
+    },
+  ]);
+  assert.deepEqual(manifest?.deliverables, [
+    {
+      name: "Evidence report",
+      format: "Markdown",
+      description: "Summarize evidence.",
+      successCriteria: "Every claim has a source.",
+    },
+  ]);
+  assert.deepEqual(manifest?.workflow, [
+    {
+      name: "Review",
+      description: "Review evidence.",
+      approvalRequired: true,
+      deliverables: ["Evidence report"],
+    },
+  ]);
+  assert.deepEqual(manifest?.communicationStyle, {
+    tone: "Professional",
+    outputFormat: "Markdown + tables",
+    languagePreference: "zh-CN",
+  });
+  assert.deepEqual(manifest?.successMetrics, [
+    {
+      metric: "Traceability",
+      target: "100%",
+      measurement: "Every decision links to evidence.",
+    },
+  ]);
+  assert.deepEqual(manifest?.skills, []);
+  assert.equal(manifest?.permissions.approvalRequired, true);
+  assert.equal(manifest?.permissions.canWriteDatabase, false);
+  assert.equal(manifest?.memory.promotionMode, "disabled");
 });
 
 test("duplicate agentId errors include both manifest paths", async () => {
@@ -261,6 +375,6 @@ test("default roots load from an explicit repository root cwd", async () => {
 
   assert.deepEqual(
     manifests.map((manifest) => manifest.agentId).sort(),
-    ["claims_reviewer", "compliance_auditor", "evidence_collector", "knowledge_builder", "life_uw_analyst", "pricing_actuary"],
+    defaultAgentIds,
   );
 });
