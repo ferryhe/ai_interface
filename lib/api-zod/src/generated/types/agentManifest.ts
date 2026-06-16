@@ -19,7 +19,7 @@ import type { AgentManifestRuntimeStatus } from "./agentManifestRuntimeStatus";
 import type { AgentManifestTest } from "./agentManifestTest";
 import type { AgentSkillBinding } from "./agentSkillBinding";
 import type { AgentSource } from "./agentSource";
-import type { AgentSuccessMetrics } from "./agentSuccessMetrics";
+import type { AgentSuccessMetric } from "./agentSuccessMetric";
 import type { AgentWorkflowPhase } from "./agentWorkflowPhase";
 
 export interface AgentManifest {
@@ -41,7 +41,7 @@ export interface AgentManifest {
   deliverables?: AgentDeliverable[];
   workflow?: AgentWorkflowPhase[];
   communicationStyle?: AgentManifestCommunicationStyle;
-  successMetrics?: AgentSuccessMetrics[];
+  successMetrics?: AgentSuccessMetric[];
   teamId?: string;
   runtimeStatus?: AgentManifestRuntimeStatus;
 }

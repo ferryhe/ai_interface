@@ -115,7 +115,7 @@ interface RuntimeModuleRun {
   title: string;
   status: RuntimeRunStatus;
   adapterId: string;
-  adapterKind: "cli" | "http";
+  adapterKind: "cli" | "http" | "mcp" | "internal";
   externalRunId: string;
   interaction?: {
     kind: "question" | "approval" | "data_request" | "blocked";
@@ -1948,6 +1948,7 @@ function runtimeInteractionStatusFromApi(
 
 function toRuntimeRunFromApiModuleRun(run: AgentRunApiModuleRun): RuntimeModuleRun {
   const interaction = parseToolInteraction(run.metadata);
+  const adapterKind = stringFromMetadata(run.metadata, "adapterKind", "http");
 
   return {
     id: run.id,
@@ -1956,8 +1957,11 @@ function toRuntimeRunFromApiModuleRun(run: AgentRunApiModuleRun): RuntimeModuleR
     status: runtimeStatusFromApiRun(run),
     adapterId: stringFromMetadata(run.metadata, "adapterId", `${run.moduleId}.adapter`),
     adapterKind:
-      stringFromMetadata(run.metadata, "adapterKind", "http") === "cli"
-        ? "cli"
+      adapterKind === "cli" ||
+      adapterKind === "http" ||
+      adapterKind === "mcp" ||
+      adapterKind === "internal"
+        ? adapterKind
         : "http",
     externalRunId: run.externalRunId,
     interaction: interaction

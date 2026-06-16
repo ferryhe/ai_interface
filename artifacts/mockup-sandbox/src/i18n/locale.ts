@@ -43,6 +43,7 @@ export function detectInitialLocale({
   return (
     normalizeLocale(params.get("lang")) ??
     normalizeLocale(storedLocale) ??
+    normalizeLocale(navigatorLanguage) ??
     DEFAULT_LOCALE
   );
 }

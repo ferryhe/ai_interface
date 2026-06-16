@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AgentSuccessMetrics {
+export interface AgentSuccessMetric {
   metric: string;
   target: string;
   measurement: string;

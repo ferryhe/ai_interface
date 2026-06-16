@@ -7,7 +7,10 @@ import {
 } from "../skill-runtime/skill-manifest";
 import type { ToolAdapterDefinition } from "../tool-adapters/adapter-registry";
 
-export type SkillAdapterMode = "external_api" | "external_cli_or_api";
+export type SkillAdapterMode =
+  | "external_api"
+  | "external_cli_or_api"
+  | "internal";
 
 export interface BusinessSkillDefinition {
   skillId: string;
@@ -37,7 +40,11 @@ export function businessSkillDefinitionFromManifest(
     description: manifest.description,
     adapter: manifestAdapterDefinition(manifest),
     adapterMode:
-      manifest.execution.kind === "http" ? "external_api" : "external_cli_or_api",
+      manifest.execution.kind === "internal"
+        ? "internal"
+        : manifest.execution.kind === "http"
+          ? "external_api"
+          : "external_cli_or_api",
     canonicalEntrypoints:
       manifest.execution.allowedCommands.length > 0
         ? [...manifest.execution.allowedCommands]

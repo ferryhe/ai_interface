@@ -34,5 +34,9 @@ export function createToolAdapterExecutor(
     return new McpToolAdapterExecutor(env);
   }
 
+  if (adapter.adapterKind === "internal") {
+    return new FakeToolAdapterExecutor();
+  }
+
   return new FakeToolAdapterExecutor();
 }

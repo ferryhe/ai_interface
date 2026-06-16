@@ -25,10 +25,15 @@ function createPlan(overrides: Partial<MissionPlan> = {}): MissionPlan {
           objective: "Create the initial mission plan.",
           dependsOn: [],
           status: "pending",
+          role: "executor",
         },
       ],
     warnings: overrides.warnings ?? [],
     nonGoals: overrides.nonGoals ?? [],
+    activationProfile: overrides.activationProfile ?? {
+      level: "micro",
+      reviewIntensity: "medium",
+    },
   };
 }
 

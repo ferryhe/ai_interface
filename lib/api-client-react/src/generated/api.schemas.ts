@@ -400,6 +400,7 @@ export interface ActuarialPipelineRunsList {
 }
 
 /**
+ * Arbitrary non-empty runtime module identifier from registered skill manifests.
  * @minLength 1
  */
 export type ModuleId = string;
@@ -432,6 +433,7 @@ export const ToolAdapterKind = {
   http: "http",
   cli: "cli",
   mcp: "mcp",
+  internal: "internal",
 } as const;
 
 export type ToolAdapterReadinessStatus =
@@ -840,7 +842,7 @@ export interface AgentWorkflowPhase {
   deliverables: string[];
 }
 
-export interface AgentSuccessMetrics {
+export interface AgentSuccessMetric {
   metric: string;
   target: string;
   measurement: string;
@@ -941,7 +943,7 @@ export interface AgentManifest {
   deliverables?: AgentDeliverable[];
   workflow?: AgentWorkflowPhase[];
   communicationStyle?: AgentManifestCommunicationStyle;
-  successMetrics?: AgentSuccessMetrics[];
+  successMetrics?: AgentSuccessMetric[];
   teamId?: string;
   runtimeStatus?: AgentManifestRuntimeStatus;
 }

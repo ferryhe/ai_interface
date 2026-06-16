@@ -7,7 +7,7 @@ import {
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
 
-export type ToolAdapterKind = "http" | "cli" | "mcp";
+export type ToolAdapterKind = "http" | "cli" | "mcp" | "internal";
 export type ToolAdapterReadinessStatus = "ready" | "missing_required_env";
 export type ToolAdapterWorkingDirectory = "workspace" | "project";
 

@@ -144,6 +144,7 @@ test("/agents serves an injected registry with readiness", async () => {
       memory: { promotionMode: "run_summary" },
       handoffs: [],
       tests: [],
+      runtimeStatus: "runnable",
     },
   ]);
   assert.deepEqual(json.readiness, [

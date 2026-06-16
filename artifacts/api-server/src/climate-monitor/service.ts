@@ -38,12 +38,33 @@ type JsonObject = Record<string, JsonValue>;
 export type ClimateMonitorProjectReadinessStatus = "ready" | "not_configured";
 export type ClimateMonitorGitStatus = "clean" | "dirty" | "unavailable";
 export type ClimateMonitorCoverageStatus = "complete" | "partial" | "unknown";
+export type ClimateMonitorProjectConfiguredBy =
+  | "CLIMATE_MONITOR_PROJECT_PATH"
+  | "defaultSiblingPath";
+
+type ClimateMonitorProjectResolution =
+  | {
+      path: string;
+      source: "env";
+      configuredBy: Extract<
+        ClimateMonitorProjectConfiguredBy,
+        "CLIMATE_MONITOR_PROJECT_PATH"
+      >;
+    }
+  | {
+      path: string;
+      source: "defaultSiblingPath";
+      configuredBy: Extract<
+        ClimateMonitorProjectConfiguredBy,
+        "defaultSiblingPath"
+      >;
+    };
 
 export interface ClimateMonitorStatus {
   project: {
     status: ClimateMonitorProjectReadinessStatus;
     /** Env var name, or "defaultSiblingPath" when sibling fallback selected the project. */
-    configuredBy: string;
+    configuredBy: ClimateMonitorProjectConfiguredBy;
     defaultSiblingPath: string;
     script: string;
   };
@@ -136,17 +157,15 @@ function resolveProject(
   env: Record<string, string | undefined>,
   cwd: string,
   adapter: ToolAdapterDefinition,
-): {
-  path: string;
-  configuredBy: string;
-} {
+): ClimateMonitorProjectResolution {
   const fallback = requiredProjectFallback(adapter);
   if (fallback.envPath) {
     const configuredPath = env[fallback.envPath]?.trim();
     if (configuredPath) {
       return {
         path: configuredPath,
-        configuredBy: fallback.envPath,
+        source: "env",
+        configuredBy: "CLIMATE_MONITOR_PROJECT_PATH",
       };
     }
   }
@@ -160,6 +179,7 @@ function resolveProject(
   );
   return {
     path: readyDefault ?? defaultCandidates[0] ?? resolve(cwd, fallback.defaultSiblingPath),
+    source: "defaultSiblingPath",
     configuredBy: "defaultSiblingPath",
   };
 }

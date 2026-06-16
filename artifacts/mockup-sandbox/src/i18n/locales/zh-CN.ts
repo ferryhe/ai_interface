@@ -12,7 +12,7 @@ export const zhCN = {
       currentAction: "当前动作",
       blockingReason: "阻塞原因",
       lastActivity: "最后活动：{{time}}",
-      missionRole: "mission-role",
+      missionRole: "任务角色",
       runs: "{{count}} 个运行",
       noRunsYet: "暂无运行",
       risk: "{{level}}风险",
@@ -36,8 +36,8 @@ export const zhCN = {
       },
     },
     topbar: {
-      viewPortal: "查看 Portal",
-      adminConsole: "Admin Console",
+      viewPortal: "查看门户",
+      adminConsole: "管理控制台",
     },
     operator: {
       source: {
@@ -52,13 +52,13 @@ export const zhCN = {
       },
       backstage: {
         badges: {
-          operator: "Operator",
+          operator: "运维",
           guardedWrites: "受保护写入",
           governance: "治理",
         },
-        title: "Operator 后台",
+        title: "运维后台",
         description:
-          "Operator 可以检查所有 manifest 和工作台治理文档。内置/社区 manifest 与工作台文档保持只读；只有自定义 Agent manifest 可以通过受保护的 localhost manifest API 编辑。",
+          "运维人员可以检查所有清单和工作台治理文档。内置/社区清单与工作台文档保持只读；只有自定义 Agent 清单可以通过受保护的 localhost 清单 API 编辑。",
         skillCount: "{{count}} 个技能",
         skillSubtitle: "{{kind}} · {{readiness}}",
         readiness: {
@@ -67,12 +67,12 @@ export const zhCN = {
         },
         cards: {
           agents: {
-            title: "Agent manifest",
+            title: "Agent 清单",
             description: "带来源标识的审阅，以及仅限自定义内容的受保护编辑和脱敏响应。",
           },
           skills: {
-            title: "Skill manifest",
-            description: "将内置 / 社区 / 自定义来源规范化，便于 Operator 审阅。",
+            title: "Skill 清单",
+            description: "将内置 / 社区 / 自定义来源规范化，便于运维审阅。",
           },
           workbench: {
             title: "工作台文档",
@@ -80,19 +80,19 @@ export const zhCN = {
           },
         },
         tabs: {
-          agents: "Agent manifest",
-          skills: "Skill manifest",
+          agents: "Agent 清单",
+          skills: "Skill 清单",
           workbench: "工作台文档",
         },
         agentManifests: {
-          title: "Agent manifest",
+          title: "Agent 清单",
           description:
-            "通过现有 GET /api/agents 数据只读审阅已注册的 Agent manifest。只有自定义 manifest 可以在下方修改。",
+            "通过现有 GET /api/agents 数据只读审阅已注册的 Agent 清单。只有自定义清单可以在下方修改。",
         },
         skillManifests: {
-          title: "Skill manifest",
+          title: "Skill 清单",
           description:
-            "通过现有 GET /api/skills 数据只读查看已注册的 Skill manifest。",
+            "通过现有 GET /api/skills 数据只读查看已注册的 Skill 清单。",
         },
       },
       manifestViewer: {
@@ -101,7 +101,7 @@ export const zhCN = {
         emptyDescription: "没有可用的 manifest。",
         redactionNotice:
           "敏感值、本地路径、provider URL、token 和 MCP 风格端点会在此 Operator 视图中脱敏。",
-        manifestId: "Manifest ID：",
+        manifestId: "清单 ID：",
       },
       manifestEditor: {
         title: "自定义 manifest 编辑器",
@@ -116,9 +116,9 @@ export const zhCN = {
           prefix: "写入范围仅限",
           suffix: "，必须来自同源 localhost 访问，并返回脱敏响应。",
         },
-        emptySelect: "选择一个 Agent manifest 以检查或编辑。",
+        emptySelect: "选择一个 Agent 清单以检查或编辑。",
         nonCustom:
-          "{{agentId}} 是 {{source}} manifest。Operator 编辑仅对自定义 manifest 开启。",
+          "{{agentId}} 是 {{source}} 清单。运维编辑仅对自定义清单开启。",
         editing: "正在编辑 {{agentId}}。保存前可能需要手动替换脱敏占位符。",
         saving: "保存中",
         save: "保存自定义 manifest",
@@ -127,10 +127,10 @@ export const zhCN = {
           saved: "自定义 manifest 已通过受保护的 localhost-only API 写入。",
         },
         errors: {
-          mustBeObject: "Manifest JSON 必须是对象。",
-          invalidJson: "Manifest JSON 无效。",
-          apiReturned: "Manifest API 返回 {{status}}",
-          writeFailed: "Manifest 写入失败。",
+          mustBeObject: "清单 JSON 必须是对象。",
+          invalidJson: "清单 JSON 无效。",
+          apiReturned: "清单 API 返回 {{status}}",
+          writeFailed: "清单写入失败。",
         },
       },
       workbench: {
@@ -215,8 +215,8 @@ export const zhCN = {
           queued: "已排队",
         },
         connection: {
-          configured: "Provider 已就绪",
-          missing_key: "缺少 Provider 环境变量",
+          configured: "提供商已就绪",
+          missing_key: "缺少提供商环境变量",
           offline: "API 离线",
         },
         agentRun: {
@@ -263,7 +263,7 @@ export const zhCN = {
         },
         agentReadiness: {
           ready: "就绪",
-          missing_skills: "缺少 skills",
+          missing_skills: "缺少技能",
         },
         workbenchRun: {
           pending: "待处理",
@@ -311,14 +311,14 @@ export const zhCN = {
         loadingClimateMonitorStatus: "正在加载 Climate Monitor 状态",
         climateStatusLoadedFromApi: "状态已从 API 加载",
         climateApiOfflineLocalMock: "API 离线 - 本地模拟状态",
-        submittingClimateDryRun: "正在提交 dry-run",
-        submittingClimateLiveRun: "正在提交 live run",
+        submittingClimateDryRun: "正在提交试运行",
+        submittingClimateLiveRun: "正在提交正式运行",
         climateRunFailed: "{{message}}",
         climateRunHttpError: "Climate Monitor 运行返回 {{status}}",
-        climateDryRunAccepted: "Dry-run 已被 API 接受",
-        climateLiveRunAccepted: "Live run 已被 API 接受",
-        climateDryRunApiOffline: "Dry-run 未提交；API 离线",
-        climateLiveRunApiUnavailable: "Live-run API 不可用",
+        climateDryRunAccepted: "试运行已被 API 接受",
+        climateLiveRunAccepted: "正式运行已被 API 接受",
+        climateDryRunApiOffline: "试运行未提交；API 离线",
+        climateLiveRunApiUnavailable: "正式运行 API 不可用",
       },
       metrics: {
         adapter: "适配器",
@@ -347,8 +347,8 @@ export const zhCN = {
         demoUserMessage:
           "基于监听的文档构建入门知识 Agent，并把每个模块结果写入数据库。",
         demoAgentMessage:
-          "我会运行五模块链路，并把快照、Markdown、chunks、Agent 配置和 climate report 记录写入 Postgres。",
-        pipelineTitle: "Pipeline：文档到可发布 Agent",
+          "我会运行五模块链路，并把快照、Markdown、分块、Agent 配置和气候报告记录写入 Postgres。",
+        pipelineTitle: "流水线：文档到可发布 Agent",
         pipelineDetail:
           "{{succeededCount}} 已成功 / {{resumeReadyCount}} 可恢复 / {{approvalCount}} 需审批 / {{configNeededCount}} 需配置",
         liveWorkspace: "实时工作区",
@@ -365,10 +365,10 @@ export const zhCN = {
         resultUi: "结果界面",
       },
       progress: {
-        title: "Pipeline 进度",
+        title: "流水线进度",
         description: "每个模块运行都会把事件和产物写回共享数据库记忆。",
         queuedInstruction: "已排队指令",
-        pipeline: "Pipeline {{runId}}",
+        pipeline: "流水线 {{runId}}",
         planSteps: "{{count}} 个计划步骤",
         planWarnings: "Agent 计划警告",
         resultRecordCount: "{{count}} 条结果记录",
@@ -383,11 +383,11 @@ export const zhCN = {
       },
       backstage: {
         tabs: {
-          agents: "Agents",
-          skills: "Skills",
+          agents: "Agent",
+          skills: "技能",
           runs: "运行",
           artifacts: "产物",
-          operator: "Operator",
+          operator: "运维",
         },
         skillTabs: {
           io: "运行 I/O",
@@ -399,10 +399,10 @@ export const zhCN = {
           opsPanel: "运维面板",
           htmlTab: "HTML 标签页",
         },
-        agentsTitle: "Agents",
-        skillsTitle: "Skills",
+        agentsTitle: "Agent",
+        skillsTitle: "技能",
         loadedCount: "{{count}} 个已加载",
-        skillManifest: "Skill manifest",
+        skillManifest: "Skill 清单",
         foregroundDetail: "前台详情",
         input: "输入",
         output: "输出",
@@ -427,27 +427,27 @@ export const zhCN = {
         pending: "待处理",
         lastChecked: "最后检查",
         date: "日期",
-        manifest: "Manifest",
-        research: "Research",
-        dryRun: "Dry-run",
-        liveRun: "Live run",
+        manifest: "清单",
+        research: "研究",
+        dryRun: "试运行",
+        liveRun: "正式运行",
       },
       configure: {
         title: "配置 Agent",
         description:
-          "连接 AI 运行时，选择模型行为，决定 Agent 可以使用哪些 skills，并明确每项能力会产出什么。",
-        provider: "Provider",
+          "连接 AI 运行时，选择模型行为，决定 Agent 可以使用哪些技能，并明确每项能力会产出什么。",
+        provider: "提供商",
         providerFallback: "{{provider}} 兜底",
-        activePlanner: "当前 planner",
-        endpoint: "Endpoint",
+        activePlanner: "当前规划器",
+        endpoint: "端点",
         model: "模型",
         reasoning: "推理",
         reasoningSummary: "{{effort}} 推理",
         systemPrompt: "系统提示词",
         businessSkills: "业务 Skills",
         businessSkillsDescription:
-          "这些是你的产品模块。Agent 会调用它们构建 pipeline，并且每个模块会把可展示结果写回数据库。",
-        generalSkills: "通用 Skills",
+          "这些是你的产品模块。Agent 会调用它们构建流水线，并且每个模块会把可展示结果写回数据库。",
+        generalSkills: "通用技能",
         generalSkillsDescription:
           "这些是 Agent 的通用能力。保持按需可用，Agent 可以在对话中请求安装或使用，并在敏感动作前请求审批。",
         enabled: "启用",
@@ -491,13 +491,13 @@ export const zhCN = {
         maxToolSteps: "最大工具步骤",
         runtimePreview: "运行时预览",
         active: "激活",
-        skills: "Skills",
+        skills: "技能",
         skillCounts: "{{businessCount}} 个业务 / {{generalCount}} 个通用",
         memoryIntoCollection: "{{memoryMode}} 写入 {{collection}}",
         selfLearningAllowed: "允许自学习",
         selfLearningPaused: "自学习已暂停",
         guides: {
-          provider: "选择 planner provider 和 endpoint。连接检查通过受保护的本地 API 执行。",
+          provider: "选择规划器提供商和端点。连接检查通过受保护的本地 API 执行。",
           model: "选择用于规划、工具选择和进度说明的模型与推理行为。",
           memory: "决定如何把对话和运行摘要提升到 Postgres 支撑的记忆中。",
           safety: "为外部影响、发布和自学习设置审批门禁与限制。",
@@ -520,8 +520,8 @@ export const zhCN = {
             md_to_rag: {
               summary: "通过切分 Markdown 并准备 embedding/index 元数据来构建检索记忆。",
               trigger: "当 Markdown 已存在且 Agent 需要可搜索的长期知识时使用。",
-              action: "Agent 请求 chunks、token 计数、embedding payload 元数据和索引状态记录。",
-              output: "RAG chunks、token 计数、embedding 元数据和索引进度会显示在数据中。",
+              action: "Agent 请求分块、token 计数、embedding payload 元数据和索引状态记录。",
+              output: "RAG 分块、token 计数、embedding 元数据和索引进度会显示在数据中。",
               boundary: "它准备记忆记录；面向模型的回答仍来自 Agent 运行时。",
             },
             rag_to_agent: {
@@ -605,11 +605,11 @@ export const zhCN = {
             detail: "对话、规划、选择工具并说明进度。",
           },
           businessSkills: {
-            title: "业务 skills",
+            title: "业务技能",
             detail: "运行固定模块链路并存储标准输出。",
           },
           generalSkills: {
-            title: "通用 skills",
+            title: "通用技能",
             detail: "在对话需要时安装或启用通用能力。",
           },
           memory: {
@@ -650,29 +650,29 @@ export const zhCN = {
       publish: {
         title: "发布 Agent",
         description: "RAG 索引和验证记录存储完成后，最终 Agent 才会可用。",
-        openPortalPreview: "打开 Portal 预览",
+        openPortalPreview: "打开门户预览",
         versionLabel: "版本标签",
-        portalToken: "Portal token",
-        portalTokenPlaceholder: "输入新的 portal token",
-        tokenEnding: "Token 末尾 ****{{tokenLast4}}",
-        noSavedToken: "尚未保存 token",
+        portalToken: "门户令牌",
+        portalTokenPlaceholder: "输入新的门户令牌",
+        tokenEnding: "令牌末尾 ****{{tokenLast4}}",
+        noSavedToken: "尚未保存令牌",
         updatedAt: "更新于 {{time}}",
         noPlaintextTokens: "API 永远不会返回明文 token。",
         saveDraft: "保存草稿",
         pause: "暂停",
         steps: {
           ragIndex: "RAG 索引",
-          chunkProgress: "96 / 124 chunks",
+          chunkProgress: "96 / 124 个分块",
           agentConfig: "Agent 配置",
           validation: "验证",
-          endpoint: "Endpoint",
+          endpoint: "端点",
         },
-        portalAccess: "Portal 访问",
-        portalAccessTitle: "Token 解锁前台工作区",
+        portalAccess: "门户访问",
+        portalAccessTitle: "令牌解锁前台工作区",
         portalAccessDescription:
-          "已发布用户使用 portal token 进入，然后在对话、步骤、数据、来源和结果中工作。",
+          "已发布用户使用门户令牌进入，然后在对话、步骤、数据、来源和结果中工作。",
         viewAsUser: "以用户身份查看",
-        demoTokenOnly: "仅 Demo token。生产 token 校验应在服务端完成。",
+        demoTokenOnly: "仅演示令牌。生产令牌校验应在服务端完成。",
         frontstageVisible: "前台可见",
         frontstageVisibleTitle: "用户保留进度和数据可见性",
         portalViews: {
@@ -700,10 +700,10 @@ export const zhCN = {
         adminOnly: "仅管理员",
         adminOnlyTitle: "配置保留在后台",
         adminOnlyDescription:
-          "Provider、模型、业务 skills、通用 skills、记忆、安全和发布门禁保持为管理员控制项。",
+          "提供商、模型、业务技能、通用技能、记忆、安全和发布门禁保持为管理员控制项。",
         configureRuntime: "配置运行时",
         manageMemoryWrites: "管理记忆写入",
-        controlSkillPermissions: "控制 skill 权限",
+        controlSkillPermissions: "控制技能权限",
       },
       composer: {
         placeholder: "让 Agent 运行模块、存储数据或检查结果...",
@@ -717,26 +717,26 @@ export const zhCN = {
         agent: "Agent",
       },
       workbench: {
-        missingSkills: "缺少 skills",
-        skillCount: "{{count}} 个 skills",
+        missingSkills: "缺少技能",
+        skillCount: "{{count}} 个技能",
         visibleCount: "{{count}} 个可见",
         runs: "运行",
         unassigned: "未分配",
         noRuns: "暂无运行",
         empty: "空",
-        pipelineRun: "Pipeline 运行",
+        pipelineRun: "流水线运行",
         none: "无",
         agent: "Agent",
-        activeSkill: "当前 skill",
+        activeSkill: "当前技能",
         idle: "空闲",
         steps: "步骤",
         moduleSteps: "模块步骤",
         events: "事件",
         rawJson: "原始 JSON",
         noRunSelected: "未选择运行",
-        agentManifest: "Agent manifest",
+        agentManifest: "Agent 清单",
         source: "来源",
-        planner: "Planner",
+        planner: "规划器",
         noApiRun: "没有 API 运行",
         lastRun: "最近运行",
         identity: "身份",
@@ -759,7 +759,7 @@ export const zhCN = {
         languagePreference: "语言偏好",
         successMetrics: "成功指标",
         instructions: "指令",
-        boundSkills: "绑定 skills",
+        boundSkills: "绑定技能",
         required: "必需",
         optional: "可选",
         permissions: "权限",
@@ -773,7 +773,7 @@ export const zhCN = {
         create: "创建",
         localWriteModeDisabled: "本地写入模式已禁用",
         localPreviewOnly: "仅本地预览",
-        manifestWritten: "Manifest 已写入",
+        manifestWritten: "清单已写入",
         yamlPreview: "YAML 预览",
         newAgent: "新建 Agent",
         name: "名称",
@@ -801,13 +801,13 @@ export const zhCN = {
             description: "生成 Agent 配置、提示词和验证输出。",
           },
           climate_monitor: {
-            description: "跟踪 climate/actuarial monitor 报告与来源覆盖。",
+            description: "跟踪气候/精算监控报告与来源覆盖。",
           },
           ai_actuary: {
-            description: "通过安全 CLI executor 调用 reserving pipeline。",
+            description: "通过安全 CLI executor 调用准备金流水线。",
           },
           example_reporter: {
-            description: "用于自定义 skill 校验的社区 manifest 示例。",
+            description: "用于自定义技能校验的社区清单示例。",
           },
         },
         agents: {
@@ -815,14 +815,14 @@ export const zhCN = {
             name: "知识构建 Agent",
             description: "将已批准的网页和文档来源转换为 RAG 支撑的 Agent 配置。",
             instructions:
-              "从已批准来源构建可检查的知识 pipeline。用最小的已启用 skills 监控来源、转换文档、准备 RAG 记录并生成 Agent 配置。保留中间产物供审阅。",
+              "从已批准来源构建可检查的知识流水线。用最小的已启用技能监控来源、转换文档、准备 RAG 记录并生成 Agent 配置。保留中间产物供审阅。",
             tests: {
               buildFromMarkdown: "从已批准的 Markdown 来源材料构建 Agent。",
             },
           },
           climateBriefing: {
-            name: "Climate Briefing Agent",
-            description: "汇总 climate monitor 输出，并准备可审阅的 briefing。",
+            name: "气候简报 Agent",
+            description: "汇总气候监控输出，并准备可审阅的简报。",
             instructions:
               "以 climate monitor 产物作为事实来源，保留来源覆盖说明，并且只有在验证后才把 briefing 草稿交给发布 Agent。",
             handoffs: {
@@ -846,7 +846,7 @@ export const zhCN = {
           },
           prepareRag: {
             title: "准备 RAG 记录",
-            summary: "已索引 124 个 chunks 中的 96 个。",
+            summary: "已索引 124 个分块中的 96 个。",
           },
           draftAgent: {
             title: "起草 Agent 配置",
@@ -856,7 +856,7 @@ export const zhCN = {
         events: {
           plan: {
             title: "计划已创建",
-            detail: "DAG 计划选择了 4 个绑定 skills。",
+            detail: "DAG 计划选择了 4 个绑定技能。",
           },
           artifacts: {
             title: "Markdown 产物已存储",
@@ -887,9 +887,9 @@ export const zhCN = {
         localRun: {
           title: "{{agentName}} 本地测试",
           updatedAt: "本地",
-          firstStepSummary: "本地 Demo fallback 已排队。",
+          firstStepSummary: "本地演示回退已排队。",
           waitingSummary: "等待前一步完成。",
-          eventTitle: "本地 fallback",
+          eventTitle: "本地回退",
           eventDetail: "Agent run API 不可用。",
         },
       },
@@ -904,7 +904,7 @@ export const zhCN = {
         result: "结果",
       },
       topbar: {
-        surface: "终端用户 Agent Portal",
+        surface: "终端用户 Agent 门户",
         title: "入门知识 Agent",
         description: "面向终端用户的已发布 Agent 工作区。",
         lastSync: "最近同步",
@@ -913,23 +913,23 @@ export const zhCN = {
       },
       lock: {
         kicker: "已发布工作区",
-        title: "Agent Portal",
+        title: "Agent 门户",
         description: "输入访问令牌以打开已发布的 Agent 工作区。",
         tokenLabel: "访问令牌",
         tokenPlaceholder: "portal-token",
         checking: "正在检查",
-        enter: "进入 Portal",
+        enter: "进入门户",
       },
       admin: {
         kicker: "管理员访问",
         title: "输入管理员令牌",
         description:
-          "Admin Console 面向运营人员。提交管理员令牌继续，或返回 Portal。",
+          "管理控制台面向运营人员。提交管理员令牌继续，或返回门户。",
         tokenLabel: "管理员令牌",
         tokenPlaceholder: "admin-token",
-        back: "返回 Portal",
-        enter: "进入 Admin",
-        previewNote: "仅用于 Demo 预览。不输入令牌会停留在前台 Portal。",
+        back: "返回门户",
+        enter: "进入管理",
+        previewNote: "仅用于演示预览。不输入令牌会停留在前台门户。",
       },
       runState: {
         local: "本地 Demo",
@@ -1167,24 +1167,24 @@ export const zhCN = {
         offline: "离线",
       },
       statusMessages: {
-        enterPortalToken: "输入 Portal 令牌",
-        enterPortalTokenToContinue: "输入 Portal 令牌以继续",
-        checkingPortalToken: "正在检查 Portal 令牌",
-        localDemoUnlocked: "API 离线，已解锁本地 Demo Portal",
-        localDemoRuntime: "本地 Demo 运行时",
-        runtimeAccessRejected: "运行时 API 已拒绝 Portal 访问",
+        enterPortalToken: "输入门户令牌",
+        enterPortalTokenToContinue: "输入门户令牌以继续",
+        checkingPortalToken: "正在检查门户令牌",
+        localDemoUnlocked: "API 离线，已解锁本地演示门户",
+        localDemoRuntime: "本地演示运行时",
+        runtimeAccessRejected: "运行时 API 已拒绝门户访问",
         runtimeAccessRejectedLong:
           "运行时 API 拒绝了 Portal 访问。请重新输入有效令牌。",
         runRefreshedData: "运行已刷新，请打开数据记录重新加载模块产物",
         runRefreshedSource: "运行已刷新，请打开来源重新加载证据",
         runRefreshedResult: "运行已刷新，请打开结果项重新加载交付详情",
-        portalAccessApiUnavailable: "Portal 访问 API 不可用",
+        portalAccessApiUnavailable: "门户访问 API 不可用",
         portalAccessApiStatus:
-          "Portal 访问 API 返回 {{status}}；访问仍保持锁定",
-        portalAccessInvalidJson: "Portal 访问 API 返回了无效 JSON",
-        portalAccessUnexpectedPayload: "Portal 访问 API 返回了异常载荷",
+          "门户访问 API 返回 {{status}}；访问仍保持锁定",
+        portalAccessInvalidJson: "门户访问 API 返回了无效 JSON",
+        portalAccessUnexpectedPayload: "门户访问 API 返回了异常载荷",
         publishedAgentUnlocked: "已解锁已发布 Agent {{versionLabel}}",
-        agentNotOpen: "Agent 当前为 {{publishStatus}}；Portal 尚未开放",
+        agentNotOpen: "Agent 当前为 {{publishStatus}}；门户尚未开放",
         tokenRejected: "API 已检查并拒绝该令牌",
         feedbackActionsLocal: "在 API 运行数据可用前，反馈动作仅保留在本地",
         openDataRecord: "打开数据记录以检查存储的模块产物",

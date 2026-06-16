@@ -68,7 +68,7 @@ test("normalizes supported English and Chinese locale inputs", () => {
   assert.equal(normalizeLocale("fr-FR"), null);
 });
 
-test("detects initial locale from URL, storage, then the default locale", () => {
+test("detects initial locale from URL, storage, browser language, then default", () => {
   assert.equal(
     detectInitialLocale({
       search: "?lang=zh-CN",
@@ -91,7 +91,7 @@ test("detects initial locale from URL, storage, then the default locale", () => 
       storedLocale: null,
       navigatorLanguage: "zh-Hans-CN",
     }),
-    "en-US",
+    "zh-CN",
   );
   assert.equal(
     detectInitialLocale({

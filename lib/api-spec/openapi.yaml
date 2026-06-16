@@ -1959,6 +1959,7 @@ components:
     ModuleId:
       type: string
       minLength: 1
+      description: Arbitrary non-empty runtime module identifier from registered skill manifests.
     ModuleCategory:
       type: string
       enum:
@@ -1980,6 +1981,7 @@ components:
         - http
         - cli
         - mcp
+        - internal
     ToolAdapterReadinessStatus:
       type: string
       enum:
@@ -2685,7 +2687,7 @@ components:
         - description
         - approvalRequired
         - deliverables
-    AgentSuccessMetrics:
+    AgentSuccessMetric:
       type: object
       properties:
         metric:
@@ -2802,11 +2804,12 @@ components:
         successMetrics:
           type: array
           items:
-            $ref: "#/components/schemas/AgentSuccessMetrics"
+            $ref: "#/components/schemas/AgentSuccessMetric"
         teamId:
           type: string
         runtimeStatus:
           type: string
+          default: runnable
           enum:
             - runnable
             - template

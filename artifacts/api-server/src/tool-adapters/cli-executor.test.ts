@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
@@ -132,6 +132,11 @@ test("uses manifest-owned commands from the project working directory", async ()
             command: [nodeExecutable, scriptPath, "--json"],
             workingDirectory: "project",
             allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+            projectFallback: {
+              defaultSiblingPath: "../missing_project",
+              envPath: "AI_ACTUARY_PROJECT_PATH",
+              requiredPaths: [],
+            },
           }),
           {
             command: ["malicious", "--ignored"],
@@ -290,6 +295,69 @@ test("uses the discovered project fallback directory as manifest command cwd", a
     result.eventPayload?.["stdout"],
     `{\"cwd\":\"[redacted]\",\"cwdBase\":\"${result.outputJson?.["cwdBase"]}\"}\n`,
   );
+});
+
+test("uses explicit project fallback env path as manifest command cwd", async () => {
+  let projectBase = "";
+  const result = await withCliScript(
+    "const path = require('node:path');\nconsole.log(JSON.stringify({ cwd: process.cwd(), cwdBase: path.basename(process.cwd()) }));\n",
+    async (scriptPath) => {
+      const projectDir = dirname(scriptPath);
+      projectBase = basename(projectDir);
+      return new CliToolAdapterExecutor({
+        CUSTOM_PROJECT_ROOT: projectDir,
+      }).execute(
+        request(
+          cliAdapter({
+            requiredEnv: ["CUSTOM_PROJECT_ROOT"],
+            command: [nodeExecutable, scriptPath],
+            workingDirectory: "project",
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+            projectFallback: {
+              defaultSiblingPath: "../missing_project",
+              envPath: "CUSTOM_PROJECT_ROOT",
+              requiredPaths: [],
+            },
+          }),
+          {},
+          { CUSTOM_PROJECT_ROOT: projectDir },
+        ),
+      );
+    },
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.equal(result.outputJson?.["cwd"], "[redacted]");
+  assert.equal(result.outputJson?.["cwdBase"], projectBase);
+});
+
+test("does not infer manifest command cwd from regex-like required env names", async () => {
+  let projectBase = "";
+  const result = await withCliScript(
+    "const path = require('node:path');\nconsole.log(JSON.stringify({ cwd: process.cwd(), cwdBase: path.basename(process.cwd()) }));\n",
+    async (scriptPath) => {
+      const projectDir = dirname(scriptPath);
+      projectBase = basename(projectDir);
+      return new CliToolAdapterExecutor({
+        CUSTOM_PROJECT_ROOT: projectDir,
+      }).execute(
+        request(
+          cliAdapter({
+            requiredEnv: ["CUSTOM_PROJECT_ROOT"],
+            command: [nodeExecutable, scriptPath],
+            workingDirectory: "project",
+            allowedCommands: [`${nodeExecutable} ${scriptPath}`],
+          }),
+          {},
+          { CUSTOM_PROJECT_ROOT: projectDir },
+        ),
+      );
+    },
+  );
+
+  assert.equal(result.status, "succeeded");
+  assert.notEqual(result.outputJson?.["cwdBase"], projectBase);
+  assert.doesNotMatch(String(result.outputJson?.["cwdBase"]), /ai-interface-cli-test-/);
 });
 
 test("timeout maps to failed and records a warning event", async () => {

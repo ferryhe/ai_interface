@@ -13,7 +13,7 @@ import type {
   AgentDeliverable,
   AgentWorkflowPhase,
   AgentCommunicationStyle,
-  AgentSuccessMetrics,
+  AgentSuccessMetric,
 } from "./agent-manifest";
 import {
   AGENT_ID_PATTERN,
@@ -353,7 +353,7 @@ function normalizeCommunicationStyle(
 function normalizeSuccessMetrics(
   raw: Record<string, unknown>,
   path: string,
-): AgentSuccessMetrics[] | undefined {
+): AgentSuccessMetric[] | undefined {
   const value = raw.successMetrics;
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) {

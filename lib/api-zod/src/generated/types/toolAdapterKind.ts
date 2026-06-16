@@ -13,4 +13,5 @@ export const ToolAdapterKind = {
   http: "http",
   cli: "cli",
   mcp: "mcp",
+  internal: "internal",
 } as const;

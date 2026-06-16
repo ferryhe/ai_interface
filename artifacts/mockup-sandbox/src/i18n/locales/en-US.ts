@@ -12,9 +12,9 @@ export const enUS = {
       currentAction: "Current action",
       blockingReason: "Blocking reason",
       lastActivity: "Last activity: {{time}}",
-      missionRole: "mission-role",
+      missionRole: "Mission role",
       runs: "{{count}} runs",
-      noRunsYet: "no runs yet",
+      noRunsYet: "No runs yet",
       risk: "{{level}} risk",
       riskApproval: "{{level}} risk approval",
       riskLevel: {
@@ -63,7 +63,7 @@ export const enUS = {
         skillSubtitle: "{{kind}} · {{readiness}}",
         readiness: {
           ready: "ready",
-          not_configured: "not configured",
+          not_configured: "Not configured",
         },
         cards: {
           agents: {
@@ -278,7 +278,7 @@ export const enUS = {
           succeeded: "succeeded",
           failed: "failed",
           cancelled: "cancelled",
-          approval_required: "approval required",
+          approval_required: "Approval required",
           waiting_for_user: "waiting for user",
           waiting_for_data: "waiting for data",
           blocked: "blocked",
@@ -1209,7 +1209,7 @@ export const enUS = {
           adminModule: "Document preparation",
           fallbackSummary:
             "Converted source material into clean Markdown records.",
-          fallbackData: "markdown docs",
+          fallbackData: "Markdown documents",
         },
         md_to_rag: {
           label: "Index",
@@ -1351,7 +1351,7 @@ export const enUS = {
           convert: {
             label: "Convert",
             summary: "Converted source material into clean Markdown records.",
-            dataCount: "6 markdown docs",
+            dataCount: "6 Markdown documents",
           },
           index: {
             label: "Index",

@@ -60,7 +60,7 @@ export * from "./agentRuntimeStatus";
 export * from "./agentSafetySettings";
 export * from "./agentSkillBinding";
 export * from "./agentSource";
-export * from "./agentSuccessMetrics";
+export * from "./agentSuccessMetric";
 export * from "./agentThread";
 export * from "./agentThreadStatus";
 export * from "./agentWorkflowPhase";

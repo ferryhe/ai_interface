@@ -7,6 +7,7 @@
  */
 
 /**
+ * Arbitrary non-empty runtime module identifier from registered skill manifests.
  * @minLength 1
  */
 export type ModuleId = string;

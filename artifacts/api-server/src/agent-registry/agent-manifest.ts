@@ -55,11 +55,14 @@ export interface AgentCommunicationStyle {
   languagePreference: string;
 }
 
-export interface AgentSuccessMetrics {
+export interface AgentSuccessMetric {
   metric: string;
   target: string;
   measurement: string;
 }
+
+/** @deprecated Use AgentSuccessMetric. */
+export type AgentSuccessMetrics = AgentSuccessMetric;
 
 export type AgentRuntimeStatus = "runnable" | "template";
 
@@ -100,7 +103,7 @@ export interface AgentManifest {
   deliverables?: AgentDeliverable[];
   workflow?: AgentWorkflowPhase[];
   communicationStyle?: AgentCommunicationStyle;
-  successMetrics?: AgentSuccessMetrics[];
+  successMetrics?: AgentSuccessMetric[];
   // Team / status
   teamId?: string;
   runtimeStatus?: AgentRuntimeStatus;
