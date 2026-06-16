@@ -372,6 +372,8 @@ export const zhCN = {
         planSteps: "{{count}} 个计划步骤",
         planWarnings: "Agent 计划警告",
         resultRecordCount: "{{count}} 条结果记录",
+        resultRecordCount_one: "{{count}} 条结果记录",
+        resultRecordCount_other: "{{count}} 条结果记录",
       },
       data: {
         title: "数据库记忆",

@@ -382,7 +382,9 @@ export const enUS = {
         pipeline: "Pipeline {{runId}}",
         planSteps: "{{count}} plan steps",
         planWarnings: "Agent plan warnings",
-        resultRecordCount: "{{count}} result record",
+        resultRecordCount: "{{count}} result records",
+        resultRecordCount_one: "{{count}} result record",
+        resultRecordCount_other: "{{count}} result records",
       },
       data: {
         title: "Database memory",
