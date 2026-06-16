@@ -113,9 +113,11 @@ export function ManifestEditor({
     } catch (error) {
       setSaveState("failed");
       setMessage(
-        error instanceof Error
-          ? error.message
-          : t("operator.manifestEditor.errors.invalidJson"),
+        error instanceof SyntaxError
+          ? t("operator.manifestEditor.errors.invalidJson")
+          : error instanceof Error
+            ? error.message
+            : t("operator.manifestEditor.errors.invalidJson"),
       );
       return;
     }

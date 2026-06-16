@@ -76,7 +76,7 @@ export function BottomDock({
   const currentToolLabel = toolLabel(currentTool, t);
   const runningTitle = running
     ? t("legacyAi.dock.actions.stop")
-    : t("legacyAi.dock.actions.start");
+    : t("legacyAi.dock.actions.run");
 
   const dockButton = (
     view: MainDockView,
@@ -115,7 +115,7 @@ export function BottomDock({
         aria-label={
           running
             ? t("legacyAi.dock.actions.stopApp")
-            : t("legacyAi.dock.actions.startApp")
+            : t("legacyAi.dock.actions.runApp")
         }
       >
         <Square size={19} fill="currentColor" />

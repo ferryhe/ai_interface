@@ -600,8 +600,9 @@ export function createAgentFirstWorkbenchDemoData(
                 moduleRunId: "run_doc_to_md_demo",
                 moduleId: "doc_to_md",
                 createdAt: "09:45",
-                content:
-                  "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.",
+                content: t(
+                  "agentFirst.workbenchDemo.artifacts.markdown.content",
+                ),
               },
             ],
           },

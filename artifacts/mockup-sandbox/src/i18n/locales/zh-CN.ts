@@ -743,8 +743,21 @@ export const zhCN = {
         persona: "角色设定",
         background: "背景",
         team: "团队：{{teamId}}",
+        teamLabel: "团队",
         status: "状态：{{status}}",
+        runtimeStatus: "运行状态",
         criticalRules: "重要规则",
+        deliverables: "交付物",
+        format: "格式",
+        workflow: "工作流",
+        approvalRequired: "需要审批",
+        approvalNotRequired: "无需审批",
+        workflowDeliverables: "输出",
+        communicationStyle: "沟通风格",
+        tone: "语气",
+        outputFormat: "输出格式",
+        languagePreference: "语言偏好",
+        successMetrics: "成功指标",
         instructions: "指令",
         boundSkills: "绑定 skills",
         required: "必需",
@@ -861,6 +874,14 @@ export const zhCN = {
           },
           markdown: {
             summary: "Markdown 转换输出已保留来源信息。",
+            content:
+              "# 入门\n\n使用引导式设置连接来源、确认文档质量，并发布可搜索的助手。",
+          },
+        },
+        sampleArtifacts: {
+          docToMdMarkdown: {
+            content:
+              "# 入门\n\n使用引导式设置连接来源、确认文档质量，并发布可搜索的助手。\n\n- 来源快照会链接到出处。\n- 转换警告会保留在运行记录中。\n- 资产会与 Markdown 输出一起存储。",
           },
         },
         localRun: {
@@ -1347,7 +1368,7 @@ export const zhCN = {
           start: "启动",
           stop: "停止",
           run: "运行",
-          startApp: "启动应用",
+          runApp: "运行应用",
           stopApp: "停止应用",
           switchToolPage: "切换工具页",
           switchToolTo: "切换工具到 {{tool}}",
@@ -1872,8 +1893,14 @@ export const zhCN = {
               sub: "{{packageName}} - 编排循环、记忆、工具",
             },
             protocol: { label: "工具调用协议" },
-            provider: { label: "LLM Provider API" },
-            executor: { label: "工具执行器" },
+            provider: {
+              label: "LLM Provider API",
+              sub: "OpenAI / Anthropic / Together AI / Ollama",
+            },
+            executor: {
+              label: "工具执行器",
+              sub: "shell · file_read · file_write · browser · deploy",
+            },
           },
           selectedPackage: "已选择：{{packageName}}",
           frameworkPackages: "框架包",

@@ -830,8 +830,21 @@ export const enUS = {
         persona: "Persona",
         background: "Background",
         team: "Team: {{teamId}}",
+        teamLabel: "Team",
         status: "Status: {{status}}",
+        runtimeStatus: "Runtime status",
         criticalRules: "⚠ Critical Rules",
+        deliverables: "Deliverables",
+        format: "Format",
+        workflow: "Workflow",
+        approvalRequired: "Approval required",
+        approvalNotRequired: "No approval required",
+        workflowDeliverables: "Outputs",
+        communicationStyle: "Communication style",
+        tone: "Tone",
+        outputFormat: "Output format",
+        languagePreference: "Language preference",
+        successMetrics: "Success metrics",
         instructions: "Instructions",
         boundSkills: "Bound skills",
         required: "required",
@@ -958,6 +971,14 @@ export const enUS = {
           },
           markdown: {
             summary: "Markdown conversion output with provenance retained.",
+            content:
+              "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.",
+          },
+        },
+        sampleArtifacts: {
+          docToMdMarkdown: {
+            content:
+              "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.\n\n- Source snapshots are linked to provenance.\n- Conversion warnings stay attached to the run.\n- Assets are stored beside Markdown output.",
           },
         },
         localRun: {
@@ -1475,7 +1496,7 @@ export const enUS = {
           start: "Start",
           stop: "Stop",
           run: "Run",
-          startApp: "Start app",
+          runApp: "Run app",
           stopApp: "Stop app",
           switchToolPage: "Switch tool page",
           switchToolTo: "Switch tool to {{tool}}",
@@ -2005,8 +2026,14 @@ export const enUS = {
               sub: "{{packageName}} - orchestration loop, memory, tools",
             },
             protocol: { label: "Tool Calling Protocol" },
-            provider: { label: "LLM Provider API" },
-            executor: { label: "Tool Executor" },
+            provider: {
+              label: "LLM Provider API",
+              sub: "OpenAI / Anthropic / Together AI / Ollama",
+            },
+            executor: {
+              label: "Tool Executor",
+              sub: "shell · file_read · file_write · browser · deploy",
+            },
           },
           selectedPackage: "selected: {{packageName}}",
           frameworkPackages: "Framework Packages",

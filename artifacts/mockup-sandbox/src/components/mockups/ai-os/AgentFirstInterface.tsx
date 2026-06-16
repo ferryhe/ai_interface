@@ -256,7 +256,8 @@ interface SkillArtifactSample {
   title: string;
   kind: string;
   renderer: ArtifactRendererKind;
-  content: string | JsonObject | JsonObject[];
+  content?: string | JsonObject | JsonObject[];
+  contentKey?: string;
 }
 
 interface SkillManifestPreview {
@@ -602,8 +603,8 @@ const skillManifestPreviews: SkillManifestPreview[] = [
         title: "onboarding.md",
         kind: "markdown_document",
         renderer: "markdown",
-        content:
-          "# Onboarding\n\nUse the guided setup to connect sources, confirm document quality, and publish a searchable assistant.\n\n- Source snapshots are linked to provenance.\n- Conversion warnings stay attached to the run.\n- Assets are stored beside Markdown output.",
+        contentKey:
+          "agentFirst.workbenchDemo.sampleArtifacts.docToMdMarkdown.content",
       },
     ],
   },
@@ -3995,6 +3996,9 @@ function JsonInspector({ title, value }: { title: string; value: unknown }) {
 }
 
 function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
+  const { t } = useTranslation();
+  const content = artifact.contentKey ? t(artifact.contentKey) : artifact.content;
+
   return (
     <div className="artifact-card">
       <div className="artifact-title">
@@ -4004,7 +4008,7 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
       </div>
       {artifact.renderer === "markdown" && (
         <div className="markdown-preview">
-          {String(artifact.content)
+          {String(content ?? "")
             .split("\n")
             .map((line, index) =>
               line.startsWith("# ") ? (
@@ -4019,18 +4023,18 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
             )}
         </div>
       )}
-      {artifact.renderer === "table" && Array.isArray(artifact.content) && (
+      {artifact.renderer === "table" && Array.isArray(content) && (
         <div className="artifact-table-wrap">
           <table className="artifact-table">
             <thead>
               <tr>
-                {Object.keys((artifact.content[0] as JsonObject) ?? {}).map((key) => (
+                {Object.keys((content[0] as JsonObject) ?? {}).map((key) => (
                   <th key={key}>{key}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {(artifact.content as JsonObject[]).map((row, index) => (
+              {(content as JsonObject[]).map((row, index) => (
                 <tr key={`${artifact.id}-${index}`}>
                   {Object.values(row).map((value, valueIndex) => (
                     <td key={`${artifact.id}-${index}-${valueIndex}`}>{String(value)}</td>
@@ -4042,9 +4046,9 @@ function ArtifactRenderer({ artifact }: { artifact: SkillArtifactSample }) {
         </div>
       )}
       {artifact.renderer === "json" && (
-        <pre className="artifact-json">{JSON.stringify(artifact.content, null, 2)}</pre>
+        <pre className="artifact-json">{JSON.stringify(content, null, 2)}</pre>
       )}
-      {artifact.renderer === "text" && <pre className="artifact-json">{String(artifact.content)}</pre>}
+      {artifact.renderer === "text" && <pre className="artifact-json">{String(content ?? "")}</pre>}
       {(artifact.renderer === "image" || artifact.renderer === "file") && (
         <div className="file-preview">
           <FileText size={18} />
