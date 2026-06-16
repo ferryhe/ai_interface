@@ -37,7 +37,7 @@ import {
 
 type PortalView = "chat" | "steps" | "data" | "sources" | "result";
 type PortalStatus = "complete" | "running" | "waiting" | "blocked";
-type ModuleId = "web_listening" | "doc_to_md" | "md_to_rag" | "rag_to_agent";
+type ModuleId = string;
 type JsonObject = Record<string, unknown>;
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
 type PortalRunSubmitState =
@@ -285,7 +285,16 @@ interface PortalLocalizedMessage {
   valueKeys?: Record<string, string>;
 }
 
-const modulePortalSpecs: Record<ModuleId, { id: string }> = {
+const knownPortalModuleIds = [
+  "web_listening",
+  "doc_to_md",
+  "md_to_rag",
+  "rag_to_agent",
+] as const;
+
+type KnownPortalModuleId = (typeof knownPortalModuleIds)[number];
+
+const modulePortalSpecs: Record<KnownPortalModuleId, { id: string }> = {
   web_listening: { id: "listen" },
   doc_to_md: { id: "convert" },
   md_to_rag: { id: "index" },
@@ -342,24 +351,69 @@ function portalEntityMessage(
     : portalMessage(key, { [valueName]: value });
 }
 
-function portalModuleLabelKey(moduleId: ModuleId): string {
-  return `portal.modules.${moduleId}.label`;
+function isKnownPortalModuleId(
+  moduleId: ModuleId,
+): moduleId is KnownPortalModuleId {
+  return Object.hasOwn(modulePortalSpecs, moduleId);
+}
+
+export function formatPortalModuleId(moduleId: ModuleId): string {
+  const label = moduleId.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!label) return "";
+  return `${label.charAt(0).toUpperCase()}${label.slice(1).toLowerCase()}`;
+}
+
+export function portalModuleStepPrefix(moduleId: ModuleId): string {
+  if (isKnownPortalModuleId(moduleId)) return modulePortalSpecs[moduleId].id;
+  return (
+    moduleId
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "module"
+  );
+}
+
+function portalModuleStepId(moduleId: ModuleId, runId: string): string {
+  return `${portalModuleStepPrefix(moduleId)}-${runId}`;
+}
+
+function portalModuleLabelKey(moduleId: ModuleId): string | undefined {
+  return isKnownPortalModuleId(moduleId)
+    ? `portal.modules.${moduleId}.label`
+    : undefined;
 }
 
 function portalModuleLabel(moduleId: ModuleId, t: TFunction): string {
-  return t(`portal.modules.${moduleId}.label`);
+  const labelKey = portalModuleLabelKey(moduleId);
+  return labelKey ? t(labelKey) : formatPortalModuleId(moduleId);
 }
 
 function portalModuleAdminLabel(moduleId: ModuleId, t: TFunction): string {
-  return t(`portal.modules.${moduleId}.adminModule`);
+  if (isKnownPortalModuleId(moduleId)) {
+    return t(`portal.modules.${moduleId}.adminModule`);
+  }
+  return t("portal.modules.unknown.adminModule", {
+    module: formatPortalModuleId(moduleId),
+  });
 }
 
 function portalModuleFallbackSummary(moduleId: ModuleId, t: TFunction): string {
-  return t(`portal.modules.${moduleId}.fallbackSummary`);
+  if (isKnownPortalModuleId(moduleId)) {
+    return t(`portal.modules.${moduleId}.fallbackSummary`);
+  }
+  return t("portal.modules.unknown.fallbackSummary", {
+    module: formatPortalModuleId(moduleId),
+  });
 }
 
 function portalModuleFallbackData(moduleId: ModuleId, t: TFunction): string {
-  return t(`portal.modules.${moduleId}.fallbackData`);
+  if (isKnownPortalModuleId(moduleId)) {
+    return t(`portal.modules.${moduleId}.fallbackData`);
+  }
+  return t("portal.modules.unknown.fallbackData", {
+    module: formatPortalModuleId(moduleId),
+  });
 }
 
 function createDemoPortalSteps(t: TFunction): PortalStep[] {
@@ -699,13 +753,8 @@ function isPortalAccessVerificationResponse(
   );
 }
 
-function isModuleId(value: unknown): value is ModuleId {
-  return (
-    value === "web_listening" ||
-    value === "doc_to_md" ||
-    value === "md_to_rag" ||
-    value === "rag_to_agent"
-  );
+export function isModuleId(value: unknown): value is ModuleId {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isConnectionStatus(value: unknown): value is AgentConnectionStatus {
@@ -1089,7 +1138,6 @@ function toPortalStepFromApiRun(
   t: TFunction,
   locale: AppLocale,
 ): PortalStep {
-  const spec = modulePortalSpecs[run.moduleId];
   const label = portalModuleLabel(run.moduleId, t);
   const interaction = parsePortalToolInteraction(run.metadata);
   const requiresApproval = run.metadata?.["requiresApproval"] === true;
@@ -1108,7 +1156,7 @@ function toPortalStepFromApiRun(
     );
 
   return {
-    id: `${spec.id}-${run.id}`,
+    id: portalModuleStepId(run.moduleId, run.id),
     moduleId: run.moduleId,
     label,
     labelKey: portalModuleLabelKey(run.moduleId),
@@ -1151,7 +1199,6 @@ function toPortalUiState(
     },
   ];
   const dataRecords: PortalDataRecord[] = response.moduleRuns.map((run) => {
-    const spec = modulePortalSpecs[run.moduleId];
     const stepLabel = portalModuleLabel(run.moduleId, t);
     return {
       id: `api-data-${run.id}`,
@@ -1161,7 +1208,7 @@ function toPortalUiState(
       title: run.title ?? stepLabel,
       titleKey: run.title ? undefined : portalModuleLabelKey(run.moduleId),
       step: stepLabel,
-      stepId: `${spec.id}-${run.id}`,
+      stepId: portalModuleStepId(run.moduleId, run.id),
       runId: run.id,
       detail:
         run.summary ??

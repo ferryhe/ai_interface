@@ -84,8 +84,8 @@ tests: [...]                         # Manifest-level smoke tests
 
 | Agent ID | Name | Team | Runtime Status | Description |
 |---|---|---|---|---|
-| `knowledge_builder` | Knowledge Builder | knowledge | active | Full pipeline: web_listening → doc_to_md → md_to_rag → rag_to_agent |
-| `evidence_collector` | Evidence Collector | — | active | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
+| `knowledge_builder` | Knowledge Builder | knowledge | runnable | Full pipeline: web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `evidence_collector` | Evidence Collector | — | runnable | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
 
 ### Template Agents (寿险行业)
 

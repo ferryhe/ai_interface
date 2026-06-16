@@ -1123,6 +1123,11 @@ export const zhCN = {
           fallbackSummary: "正在生成并验证 Agent 交付内容。",
           fallbackData: "Agent 配置",
         },
+        unknown: {
+          adminModule: "{{module}} 模块",
+          fallbackSummary: "{{module}} 已完成，但没有详细摘要。",
+          fallbackData: "{{module}} 输出",
+        },
       },
       apiFallback: {
         apiResult: "API 结果",

@@ -1224,6 +1224,11 @@ export const enUS = {
           fallbackSummary: "Generating and validating the agent handoff.",
           fallbackData: "agent config",
         },
+        unknown: {
+          adminModule: "{{module}} module",
+          fallbackSummary: "{{module}} completed without a detailed summary.",
+          fallbackData: "{{module}} output",
+        },
       },
       apiFallback: {
         apiResult: "API result",
