@@ -189,6 +189,14 @@ export const GetSkillsResponse = zod.object({
  * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
  * @summary List agent manifests
  */
+export const GetAgentsQueryParams = zod.object({
+  teamId: zod.coerce.string().optional().describe("Optional team id filter."),
+  runtimeStatus: zod
+    .enum(["runnable", "template"])
+    .optional()
+    .describe("Optional runtime status filter."),
+});
+
 export const getAgentsResponseAgentsItemAgentIdRegExp = new RegExp(
   "^[a-z][a-z0-9_]{1,63}$",
 );

@@ -45,6 +45,7 @@ import type {
   ErrorResponse,
   ExecuteMissionRequest,
   ExecuteMissionResult,
+  GetAgentsParams,
   GetMissionResult,
   HealthStatus,
   ListArtifactsParams,
@@ -377,37 +378,57 @@ export function useGetSkills<
  * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
  * @summary List agent manifests
  */
-export const getGetAgentsUrl = () => {
-  return `/api/agents`;
+export const getGetAgentsUrl = (params?: GetAgentsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/agents?${stringifiedParams}`
+    : `/api/agents`;
 };
 
 export const getAgents = async (
+  params?: GetAgentsParams,
   options?: RequestInit,
 ): Promise<AgentListResponse> => {
-  return customFetch<AgentListResponse>(getGetAgentsUrl(), {
+  return customFetch<AgentListResponse>(getGetAgentsUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetAgentsQueryKey = () => {
-  return [`/api/agents`] as const;
+export const getGetAgentsQueryKey = (params?: GetAgentsParams) => {
+  return [`/api/agents`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetAgentsQueryOptions = <
   TData = Awaited<ReturnType<typeof getAgents>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getAgents>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAgentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAgentsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAgentsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgents>>> = ({
     signal,
-  }) => getAgents({ signal, ...requestOptions });
+  }) => getAgents(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAgents>>,
@@ -419,7 +440,7 @@ export const getGetAgentsQueryOptions = <
 export type GetAgentsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getAgents>>
 >;
-export type GetAgentsQueryError = ErrorType<unknown>;
+export type GetAgentsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List agent manifests
@@ -427,12 +448,19 @@ export type GetAgentsQueryError = ErrorType<unknown>;
 
 export function useGetAgents<
   TData = Awaited<ReturnType<typeof getAgents>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getAgents>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetAgentsQueryOptions(options);
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAgentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

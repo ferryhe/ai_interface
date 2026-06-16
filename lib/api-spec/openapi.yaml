@@ -95,6 +95,22 @@ paths:
       description: >-
         Returns agent manifest metadata and skill-reference readiness without
         exposing secrets or configured absolute local paths.
+      parameters:
+        - name: teamId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional team id filter.
+        - name: runtimeStatus
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - runnable
+              - template
+          description: Optional runtime status filter.
       responses:
         "200":
           description: Agent manifests and readiness
@@ -102,6 +118,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentListResponse"
+        "400":
+          description: Invalid query filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /teams:
     get:
       operationId: listTeams

@@ -96,6 +96,8 @@ export * from "./executeMissionRequest";
 export * from "./executeMissionResult";
 export * from "./generalSkillId";
 export * from "./generalSkillSetting";
+export * from "./getAgentsParams";
+export * from "./getAgentsRuntimeStatus";
 export * from "./getMissionResult";
 export * from "./healthStatus";
 export * from "./jsonObject";

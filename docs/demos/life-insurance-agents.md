@@ -22,7 +22,7 @@
 
 1. 在 API 中查看 Agent 列表：`GET /api/agents`
 2. 按团队过滤：`GET /api/agents?teamId=insurance`
-3. 如需只显示模板 Agent，客户端可按 `runtimeStatus: template` 过滤返回结果
+3. 按运行时状态过滤：`GET /api/agents?runtimeStatus=template`
 4. 基于模板创建可执行 Agent：修改 `runtimeStatus` 为 `runnable` 并绑定实际 skill
 
 ## 内容边界

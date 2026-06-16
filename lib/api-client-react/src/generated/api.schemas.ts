@@ -1563,6 +1563,25 @@ export type PortalTokenParameter = string;
  */
 export type AuthorizationHeaderParameter = string;
 
+export type GetAgentsParams = {
+  /**
+   * Optional team id filter.
+   */
+  teamId?: string;
+  /**
+   * Optional runtime status filter.
+   */
+  runtimeStatus?: GetAgentsRuntimeStatus;
+};
+
+export type GetAgentsRuntimeStatus =
+  (typeof GetAgentsRuntimeStatus)[keyof typeof GetAgentsRuntimeStatus];
+
+export const GetAgentsRuntimeStatus = {
+  runnable: "runnable",
+  template: "template",
+} as const;
+
 export type ListRunsParams = {
   agentId?: AgentId;
   skillId?: SkillId;

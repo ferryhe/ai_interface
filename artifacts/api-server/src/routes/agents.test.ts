@@ -12,13 +12,11 @@ import { createAgentsRouter } from "./agents";
 
 async function withAgentsApp<T>(
   callback: (baseUrl: string) => Promise<T>,
+  agents: AgentManifest[] = [customAgent()],
 ): Promise<T> {
   const app = express();
   const skillRegistry = createSkillRuntimeRegistry([customSkill()]);
-  const agentRegistry = createAgentRuntimeRegistry(
-    [customAgent()],
-    skillRegistry,
-  );
+  const agentRegistry = createAgentRuntimeRegistry(agents, skillRegistry);
   app.use(createAgentsRouter(agentRegistry));
 
   const server = app.listen(0);
@@ -37,14 +35,22 @@ async function withAgentsApp<T>(
   }
 }
 
-function customAgent(): AgentManifest {
+function customAgent(options: {
+  agentId?: string;
+  name?: string;
+  description?: string;
+  teamId?: string;
+  runtimeStatus?: "runnable" | "template";
+  skillId?: string;
+} = {}): AgentManifest {
+  const skillId = options.skillId ?? "custom_skill";
   return {
-    agentId: "custom_agent",
-    name: "Custom Agent",
-    description: "Coordinates a custom skill.",
+    agentId: options.agentId ?? "custom_agent",
+    name: options.name ?? "Custom Agent",
+    description: options.description ?? "Coordinates a custom skill.",
     source: "custom",
     instructions: "Use approved skills.",
-    skills: [{ skillId: "custom_skill", required: true }],
+    skills: [{ skillId, required: true }],
     planner: {
       mode: "linear",
       failureStrategy: "fail_fast",
@@ -59,6 +65,10 @@ function customAgent(): AgentManifest {
     },
     handoffs: [],
     tests: [],
+    ...(options.teamId ? { teamId: options.teamId } : {}),
+    ...(options.runtimeStatus
+      ? { runtimeStatus: options.runtimeStatus }
+      : {}),
   };
 }
 
@@ -144,6 +154,78 @@ test("/agents serves an injected registry with readiness", async () => {
       enabledSkillIds: ["custom_skill"],
     },
   ]);
+});
+
+test("/agents filters agents and readiness by teamId and runtimeStatus", async () => {
+  const response = await withAgentsApp(
+    (baseUrl) =>
+      fetch(`${baseUrl}/agents?teamId=insurance&runtimeStatus=template`),
+    [
+      customAgent({
+        agentId: "pricing_actuary",
+        name: "Pricing Actuary",
+        teamId: "insurance",
+        runtimeStatus: "template",
+        skillId: "custom_skill",
+      }),
+      customAgent({
+        agentId: "claims_runner",
+        name: "Claims Runner",
+        teamId: "insurance",
+        runtimeStatus: "runnable",
+        skillId: "custom_skill",
+      }),
+      customAgent({
+        agentId: "knowledge_builder",
+        name: "Knowledge Builder",
+        teamId: "knowledge",
+        runtimeStatus: "template",
+        skillId: "missing_skill",
+      }),
+    ],
+  );
+  const json = (await response.json()) as {
+    agents: Array<{ agentId: string; teamId?: string; runtimeStatus?: string }>;
+    readiness: Array<{ agentId: string }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    json.agents.map((agent) => ({
+      agentId: agent.agentId,
+      teamId: agent.teamId,
+      runtimeStatus: agent.runtimeStatus,
+    })),
+    [
+      {
+        agentId: "pricing_actuary",
+        teamId: "insurance",
+        runtimeStatus: "template",
+      },
+    ],
+  );
+  assert.deepEqual(
+    json.readiness.map((item) => item.agentId),
+    ["pricing_actuary"],
+  );
+});
+
+test("/agents rejects repeated or invalid filters", async () => {
+  await withAgentsApp(async (baseUrl) => {
+    const repeatedTeam = await fetch(
+      `${baseUrl}/agents?teamId=insurance&teamId=knowledge`,
+    );
+    const repeatedStatus = await fetch(
+      `${baseUrl}/agents?runtimeStatus=template&runtimeStatus=runnable`,
+    );
+    const invalidStatus = await fetch(
+      `${baseUrl}/agents?runtimeStatus=archived`,
+    );
+
+    assert.equal(repeatedTeam.status, 400);
+    assert.equal(repeatedStatus.status, 400);
+    assert.equal(invalidStatus.status, 400);
+  });
 });
 
 test("/agents/:agentId/export/vscode-agent returns VS Code agent markdown", async () => {
