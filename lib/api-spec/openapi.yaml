@@ -1287,65 +1287,130 @@ components:
         - reason
         - riskLevel
     MissionPlanStep:
-      type: object
-      additionalProperties: false
-      properties:
-        stepId:
-          type: string
-          minLength: 1
-        title:
-          type: string
-          minLength: 1
-        objective:
-          type: string
-          minLength: 1
-        skillId:
-          type: string
-        moduleId:
-          type: string
-          minLength: 1
-        assignedAgentId:
-          type: string
-        roleId:
-          type: string
-        role:
-          type: string
-          enum:
-            - executor
-            - qa_reviewer
-        evidenceContract:
+      oneOf:
+        - title: Executor step
           type: object
+          additionalProperties: false
           properties:
-            requiredArtifacts:
+            stepId:
+              type: string
+              minLength: 1
+            title:
+              type: string
+              minLength: 1
+            objective:
+              type: string
+              minLength: 1
+            skillId:
+              type: string
+            moduleId:
+              type: string
+              minLength: 1
+            assignedAgentId:
+              type: string
+            roleId:
+              type: string
+            role:
+              type: string
+              enum:
+                - executor
+            evidenceContract:
+              type: object
+              additionalProperties: false
+              properties:
+                requiredArtifacts:
+                  type: array
+                  items:
+                    type: string
+                assertionType:
+                  type: string
+                  enum:
+                    - presence
+                    - json_schema
+                    - content_contains
+                assertionConfig:
+                  $ref: "#/components/schemas/JsonObject"
+              required:
+                - requiredArtifacts
+                - assertionType
+                - assertionConfig
+            dependsOn:
               type: array
               items:
                 type: string
-            assertionType:
+            status:
+              $ref: "#/components/schemas/MissionStepStatus"
+            approval:
+              $ref: "#/components/schemas/MissionStepApproval"
+          required:
+            - stepId
+            - title
+            - objective
+            - role
+            - dependsOn
+            - status
+        - title: QA reviewer step
+          type: object
+          additionalProperties: false
+          properties:
+            stepId:
+              type: string
+              minLength: 1
+            title:
+              type: string
+              minLength: 1
+            objective:
+              type: string
+              minLength: 1
+            skillId:
+              type: string
+            moduleId:
+              type: string
+              minLength: 1
+            assignedAgentId:
+              type: string
+            roleId:
+              type: string
+            role:
               type: string
               enum:
-                - presence
-                - json_schema
-                - content_contains
-            assertionConfig:
-              $ref: "#/components/schemas/JsonObject"
+                - qa_reviewer
+            evidenceContract:
+              type: object
+              additionalProperties: false
+              properties:
+                requiredArtifacts:
+                  type: array
+                  items:
+                    type: string
+                assertionType:
+                  type: string
+                  enum:
+                    - presence
+                    - json_schema
+                    - content_contains
+                assertionConfig:
+                  $ref: "#/components/schemas/JsonObject"
+              required:
+                - requiredArtifacts
+                - assertionType
+                - assertionConfig
+            dependsOn:
+              type: array
+              items:
+                type: string
+            status:
+              $ref: "#/components/schemas/MissionStepStatus"
+            approval:
+              $ref: "#/components/schemas/MissionStepApproval"
           required:
-            - requiredArtifacts
-            - assertionType
-            - assertionConfig
-        dependsOn:
-          type: array
-          items:
-            type: string
-        status:
-          $ref: "#/components/schemas/MissionStepStatus"
-        approval:
-          $ref: "#/components/schemas/MissionStepApproval"
-      required:
-        - stepId
-        - title
-        - objective
-        - dependsOn
-        - status
+            - stepId
+            - title
+            - objective
+            - role
+            - evidenceContract
+            - dependsOn
+            - status
     MissionPlan:
       type: object
       additionalProperties: false
@@ -1383,14 +1448,17 @@ components:
           properties:
             level:
               type: string
+              default: micro
               enum:
                 - full
                 - sprint
                 - micro
             maxAgents:
               type: integer
+              minimum: 1
             reviewIntensity:
               type: string
+              default: medium
               enum:
                 - high
                 - medium

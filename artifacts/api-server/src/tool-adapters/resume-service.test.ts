@@ -11,7 +11,10 @@ import {
 import type { ModuleId } from "../modules/registry";
 import type { SkillManifest } from "../skill-runtime/skill-manifest";
 import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
-import { resumeModuleRunExecution } from "./resume-service";
+import {
+  ModuleRunNotFoundError,
+  resumeModuleRunExecution,
+} from "./resume-service";
 
 function customReporterManifest(): SkillManifest {
   return {
@@ -378,6 +381,19 @@ test("rejects a run without a resumable interaction", async () => {
         env: { DOC_TO_MD_API_BASE_URL: "https://doc.example.internal" },
       }),
     /no resumable interaction/,
+  );
+
+  assert.equal(repository.runEvents.length, 0);
+});
+
+test("rejects missing module runs with a typed not-found error", async () => {
+  const repository = new InMemoryModuleRunRepository();
+
+  await assert.rejects(
+    () => resumeModuleRunExecution(repository, "missing-run"),
+    (error) =>
+      error instanceof ModuleRunNotFoundError &&
+      error.message === "Module run not found: missing-run",
   );
 
   assert.equal(repository.runEvents.length, 0);

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { AgentRuntimePlan } from "../agent-runtime/agent-runtime-service";
 import {
+  DEFAULT_ACTIVATION_PROFILE,
   mapAgentRuntimePlanToMissionPlan,
   validateMissionPlan,
   type MissionPlan,
@@ -145,6 +146,119 @@ test("fails when approval-required fields are incomplete", () => {
   assert.throws(() => validateMissionPlan(missingRiskLevel), /approval.riskLevel/);
 });
 
+test("fails when mission step role is invalid", () => {
+  const plan = baseMissionPlan({
+    steps: [
+      {
+        stepId: "qa-step",
+        title: "Review evidence",
+        objective: "Review the generated artifacts.",
+        role: "reviewer" as never,
+        dependsOn: [],
+        status: "pending",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => validateMissionPlan(plan),
+    /Mission step qa-step role must be one of: executor, qa_reviewer/,
+  );
+});
+
+test("fails when mission evidence contract is malformed", () => {
+  const missingContract = baseMissionPlan({
+    steps: [
+      {
+        stepId: "qa-step",
+        title: "Review evidence",
+        objective: "Review the generated artifacts.",
+        role: "qa_reviewer",
+        dependsOn: [],
+        status: "pending",
+      },
+    ],
+  });
+  const invalidArtifacts = baseMissionPlan({
+    steps: [
+      {
+        stepId: "qa-step",
+        title: "Review evidence",
+        objective: "Review the generated artifacts.",
+        role: "qa_reviewer",
+        evidenceContract: {
+          requiredArtifacts: "artifact-1",
+          assertionType: "presence",
+          assertionConfig: {},
+        } as never,
+        dependsOn: [],
+        status: "pending",
+      },
+    ],
+  });
+  const invalidAssertion = baseMissionPlan({
+    steps: [
+      {
+        stepId: "qa-step",
+        title: "Review evidence",
+        objective: "Review the generated artifacts.",
+        role: "qa_reviewer",
+        evidenceContract: {
+          requiredArtifacts: ["artifact-1"],
+          assertionType: "regex" as never,
+          assertionConfig: {},
+        },
+        dependsOn: [],
+        status: "pending",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => validateMissionPlan(missingContract),
+    /Mission step qa-step with role=qa_reviewer requires evidenceContract/,
+  );
+  assert.throws(
+    () => validateMissionPlan(invalidArtifacts),
+    /Mission step qa-step evidenceContract.requiredArtifacts must be an array/,
+  );
+  assert.throws(
+    () => validateMissionPlan(invalidAssertion),
+    /Mission step qa-step evidenceContract.assertionType must be one of: presence, json_schema, content_contains/,
+  );
+});
+
+test("fills default activation profile from shared defaults", () => {
+  const plan = validateMissionPlan(baseMissionPlan());
+
+  assert.deepEqual(plan.activationProfile, DEFAULT_ACTIVATION_PROFILE);
+  assert.equal(plan.steps[0]?.role, "executor");
+});
+
+test("fails when mission activation profile is malformed", () => {
+  const nullProfile = {
+    ...baseMissionPlan(),
+    activationProfile: null,
+  } as unknown as MissionPlan;
+  const invalidMaxAgents = {
+    ...baseMissionPlan(),
+    activationProfile: {
+      level: "micro",
+      maxAgents: 0,
+      reviewIntensity: "medium",
+    },
+  } as MissionPlan;
+
+  assert.throws(
+    () => validateMissionPlan(nullProfile),
+    /Mission plan activationProfile must be an object/,
+  );
+  assert.throws(
+    () => validateMissionPlan(invalidMaxAgents),
+    /Mission plan activationProfile.maxAgents must be a positive integer/,
+  );
+});
+
 test("maps AgentRuntimePlan to a valid MissionPlan", () => {
   const runtimePlan: AgentRuntimePlan = {
     summary: "Review sources, index them, and prepare the agent.",
@@ -184,13 +298,16 @@ test("maps AgentRuntimePlan to a valid MissionPlan", () => {
   assert.equal(missionPlan.missionId, "mission-123");
   assert.equal(missionPlan.status, "needs_confirmation");
   assert.equal(missionPlan.riskLevel, "high");
+  assert.deepEqual(missionPlan.activationProfile, DEFAULT_ACTIVATION_PROFILE);
   assert.deepEqual(missionPlan.warnings, ["Planner skipped one disabled skill."]);
   assert.deepEqual(missionPlan.nonGoals, ["Do not create a child-agent scheduler."]);
   assert.equal(missionPlan.steps[0]?.skillId, "web_listening");
   assert.equal(missionPlan.steps[0]?.moduleId, "web_listening");
+  assert.equal(missionPlan.steps[0]?.role, "executor");
   assert.equal(missionPlan.steps[0]?.status, "pending");
   assert.equal(missionPlan.steps[1]?.skillId, "rag_to_agent");
   assert.equal(missionPlan.steps[1]?.moduleId, "rag_to_agent");
+  assert.equal(missionPlan.steps[1]?.role, "executor");
   assert.equal(missionPlan.steps[1]?.status, "waiting_approval");
   assert.deepEqual(missionPlan.steps[1]?.dependsOn, ["collect-sources"]);
   assert.equal(missionPlan.steps[1]?.approval?.required, true);

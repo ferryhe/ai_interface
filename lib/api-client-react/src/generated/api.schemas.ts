@@ -80,51 +80,55 @@ export interface MissionStepApproval {
   riskLevel: MissionRiskLevel;
 }
 
-export type MissionPlanStepRole =
-  (typeof MissionPlanStepRole)[keyof typeof MissionPlanStepRole];
-
-export const MissionPlanStepRole = {
-  executor: "executor",
-  qa_reviewer: "qa_reviewer",
-} as const;
-
-export type MissionPlanStepEvidenceContractAssertionType =
-  (typeof MissionPlanStepEvidenceContractAssertionType)[keyof typeof MissionPlanStepEvidenceContractAssertionType];
-
-export const MissionPlanStepEvidenceContractAssertionType = {
-  presence: "presence",
-  json_schema: "json_schema",
-  content_contains: "content_contains",
-} as const;
-
 export interface JsonObject {
   [key: string]: unknown;
 }
 
-export type MissionPlanStepEvidenceContract = {
-  requiredArtifacts: string[];
-  assertionType: MissionPlanStepEvidenceContractAssertionType;
-  assertionConfig: JsonObject;
-};
-
-export interface MissionPlanStep {
-  /** @minLength 1 */
-  stepId: string;
-  /** @minLength 1 */
-  title: string;
-  /** @minLength 1 */
-  objective: string;
-  skillId?: string;
-  /** @minLength 1 */
-  moduleId?: string;
-  assignedAgentId?: string;
-  roleId?: string;
-  role?: MissionPlanStepRole;
-  evidenceContract?: MissionPlanStepEvidenceContract;
-  dependsOn: string[];
-  status: MissionStepStatus;
-  approval?: MissionStepApproval;
-}
+export type MissionPlanStep =
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "executor";
+      evidenceContract?: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    }
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "qa_reviewer";
+      evidenceContract: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    };
 
 export type MissionPlanActivationProfileLevel =
   (typeof MissionPlanActivationProfileLevel)[keyof typeof MissionPlanActivationProfileLevel];
@@ -146,6 +150,7 @@ export const MissionPlanActivationProfileReviewIntensity = {
 
 export type MissionPlanActivationProfile = {
   level: MissionPlanActivationProfileLevel;
+  /** @minimum 1 */
   maxAgents?: number;
   reviewIntensity: MissionPlanActivationProfileReviewIntensity;
 };

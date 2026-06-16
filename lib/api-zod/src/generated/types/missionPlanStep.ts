@@ -5,26 +5,52 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { MissionPlanStepEvidenceContract } from "./missionPlanStepEvidenceContract";
-import type { MissionPlanStepRole } from "./missionPlanStepRole";
+import type { JsonObject } from "./jsonObject";
 import type { MissionStepApproval } from "./missionStepApproval";
 import type { MissionStepStatus } from "./missionStepStatus";
 
-export interface MissionPlanStep {
-  /** @minLength 1 */
-  stepId: string;
-  /** @minLength 1 */
-  title: string;
-  /** @minLength 1 */
-  objective: string;
-  skillId?: string;
-  /** @minLength 1 */
-  moduleId?: string;
-  assignedAgentId?: string;
-  roleId?: string;
-  role?: MissionPlanStepRole;
-  evidenceContract?: MissionPlanStepEvidenceContract;
-  dependsOn: string[];
-  status: MissionStepStatus;
-  approval?: MissionStepApproval;
-}
+export type MissionPlanStep =
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "executor";
+      evidenceContract?: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    }
+  | {
+      /** @minLength 1 */
+      stepId: string;
+      /** @minLength 1 */
+      title: string;
+      /** @minLength 1 */
+      objective: string;
+      skillId?: string;
+      /** @minLength 1 */
+      moduleId?: string;
+      assignedAgentId?: string;
+      roleId?: string;
+      role: "qa_reviewer";
+      evidenceContract: {
+        requiredArtifacts: string[];
+        assertionType: "presence" | "json_schema" | "content_contains";
+        assertionConfig: JsonObject;
+      };
+      dependsOn: string[];
+      status: MissionStepStatus;
+      approval?: MissionStepApproval;
+    };

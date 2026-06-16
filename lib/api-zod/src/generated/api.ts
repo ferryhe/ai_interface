@@ -1257,6 +1257,12 @@ export const GetMissionHeader = zod.object({
     ),
 });
 
+export const getMissionResponseLatestRevisionPlanActivationProfileLevelDefault = `micro`;
+export const getMissionResponseLatestRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
+
+export const getMissionResponsePlanActivationProfileLevelDefault = `micro`;
+export const getMissionResponsePlanActivationProfileReviewIntensityDefault = `medium`;
+
 export const GetMissionResponse = zod.object({
   mission: zod.object({
     missionId: zod.string().min(1),
@@ -1296,6 +1302,119 @@ export const GetMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              getMissionResponseLatestRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              getMissionResponseLatestRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
+        })
+        .optional(),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.union([
         zod.object({
           stepId: zod.string().min(1),
           title: zod.string().min(1),
@@ -1304,7 +1423,7 @@ export const GetMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          role: zod.enum(["executor"]),
           evidenceContract: zod
             .object({
               requiredArtifacts: zod.array(zod.string()),
@@ -1334,45 +1453,16 @@ export const GetMissionResponse = zod.object({
             })
             .optional(),
         }),
-      ),
-      warnings: zod.array(zod.string()),
-      nonGoals: zod.array(zod.string()),
-      activationProfile: zod
-        .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
-        })
-        .optional(),
-    }),
-    createdAt: zod.coerce.date(),
-  }),
-  plan: zod.object({
-    missionId: zod.string().min(1),
-    title: zod.string().min(1),
-    userGoal: zod.string().min(1),
-    summary: zod.string().min(1),
-    status: zod.enum([
-      "draft",
-      "needs_confirmation",
-      "approved",
-      "executing",
-      "completed",
-      "failed",
-    ]),
-    riskLevel: zod.enum(["low", "medium", "high"]),
-    steps: zod.array(
-      zod.object({
-        stepId: zod.string().min(1),
-        title: zod.string().min(1),
-        objective: zod.string().min(1),
-        skillId: zod.string().optional(),
-        moduleId: zod.string().min(1).optional(),
-        assignedAgentId: zod.string().optional(),
-        roleId: zod.string().optional(),
-        role: zod.enum(["executor", "qa_reviewer"]).optional(),
-        evidenceContract: zod
-          .object({
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          role: zod.enum(["qa_reviewer"]),
+          evidenceContract: zod.object({
             requiredArtifacts: zod.array(zod.string()),
             assertionType: zod.enum([
               "presence",
@@ -1380,34 +1470,40 @@ export const GetMissionResponse = zod.object({
               "content_contains",
             ]),
             assertionConfig: zod.record(zod.string(), zod.unknown()),
-          })
-          .optional(),
-        dependsOn: zod.array(zod.string()),
-        status: zod.enum([
-          "pending",
-          "waiting_approval",
-          "running",
-          "blocked",
-          "succeeded",
-          "failed",
-          "cancelled",
-        ]),
-        approval: zod
-          .object({
-            required: zod.boolean(),
-            reason: zod.string().min(1),
-            riskLevel: zod.enum(["low", "medium", "high"]),
-          })
-          .optional(),
-      }),
+          }),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ]),
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
     activationProfile: zod
       .object({
-        level: zod.enum(["full", "sprint", "micro"]),
-        maxAgents: zod.number().optional(),
-        reviewIntensity: zod.enum(["high", "medium", "low"]),
+        level: zod
+          .enum(["full", "sprint", "micro"])
+          .default(getMissionResponsePlanActivationProfileLevelDefault),
+        maxAgents: zod.number().min(1).optional(),
+        reviewIntensity: zod
+          .enum(["high", "medium", "low"])
+          .default(
+            getMissionResponsePlanActivationProfileReviewIntensityDefault,
+          ),
       })
       .optional(),
   }),
@@ -1446,6 +1542,12 @@ export const ReviseMissionBody = zod.object({
   instruction: zod.string().min(1),
   expectedRevisionId: zod.string().uuid(),
 });
+
+export const reviseMissionResponseRevisionPlanActivationProfileLevelDefault = `micro`;
+export const reviseMissionResponseRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
+
+export const reviseMissionResponsePlanActivationProfileLevelDefault = `micro`;
+export const reviseMissionResponsePlanActivationProfileReviewIntensityDefault = `medium`;
 
 export const ReviseMissionResponse = zod.object({
   mission: zod.object({
@@ -1486,6 +1588,119 @@ export const ReviseMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
+              requiredArtifacts: zod.array(zod.string()),
+              assertionType: zod.enum([
+                "presence",
+                "json_schema",
+                "content_contains",
+              ]),
+              assertionConfig: zod.record(zod.string(), zod.unknown()),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
+      ),
+      warnings: zod.array(zod.string()),
+      nonGoals: zod.array(zod.string()),
+      activationProfile: zod
+        .object({
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              reviseMissionResponseRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              reviseMissionResponseRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
+        })
+        .optional(),
+    }),
+    createdAt: zod.coerce.date(),
+  }),
+  plan: zod.object({
+    missionId: zod.string().min(1),
+    title: zod.string().min(1),
+    userGoal: zod.string().min(1),
+    summary: zod.string().min(1),
+    status: zod.enum([
+      "draft",
+      "needs_confirmation",
+      "approved",
+      "executing",
+      "completed",
+      "failed",
+    ]),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    steps: zod.array(
+      zod.union([
         zod.object({
           stepId: zod.string().min(1),
           title: zod.string().min(1),
@@ -1494,7 +1709,7 @@ export const ReviseMissionResponse = zod.object({
           moduleId: zod.string().min(1).optional(),
           assignedAgentId: zod.string().optional(),
           roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
+          role: zod.enum(["executor"]),
           evidenceContract: zod
             .object({
               requiredArtifacts: zod.array(zod.string()),
@@ -1524,45 +1739,16 @@ export const ReviseMissionResponse = zod.object({
             })
             .optional(),
         }),
-      ),
-      warnings: zod.array(zod.string()),
-      nonGoals: zod.array(zod.string()),
-      activationProfile: zod
-        .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
-        })
-        .optional(),
-    }),
-    createdAt: zod.coerce.date(),
-  }),
-  plan: zod.object({
-    missionId: zod.string().min(1),
-    title: zod.string().min(1),
-    userGoal: zod.string().min(1),
-    summary: zod.string().min(1),
-    status: zod.enum([
-      "draft",
-      "needs_confirmation",
-      "approved",
-      "executing",
-      "completed",
-      "failed",
-    ]),
-    riskLevel: zod.enum(["low", "medium", "high"]),
-    steps: zod.array(
-      zod.object({
-        stepId: zod.string().min(1),
-        title: zod.string().min(1),
-        objective: zod.string().min(1),
-        skillId: zod.string().optional(),
-        moduleId: zod.string().min(1).optional(),
-        assignedAgentId: zod.string().optional(),
-        roleId: zod.string().optional(),
-        role: zod.enum(["executor", "qa_reviewer"]).optional(),
-        evidenceContract: zod
-          .object({
+        zod.object({
+          stepId: zod.string().min(1),
+          title: zod.string().min(1),
+          objective: zod.string().min(1),
+          skillId: zod.string().optional(),
+          moduleId: zod.string().min(1).optional(),
+          assignedAgentId: zod.string().optional(),
+          roleId: zod.string().optional(),
+          role: zod.enum(["qa_reviewer"]),
+          evidenceContract: zod.object({
             requiredArtifacts: zod.array(zod.string()),
             assertionType: zod.enum([
               "presence",
@@ -1570,34 +1756,40 @@ export const ReviseMissionResponse = zod.object({
               "content_contains",
             ]),
             assertionConfig: zod.record(zod.string(), zod.unknown()),
-          })
-          .optional(),
-        dependsOn: zod.array(zod.string()),
-        status: zod.enum([
-          "pending",
-          "waiting_approval",
-          "running",
-          "blocked",
-          "succeeded",
-          "failed",
-          "cancelled",
-        ]),
-        approval: zod
-          .object({
-            required: zod.boolean(),
-            reason: zod.string().min(1),
-            riskLevel: zod.enum(["low", "medium", "high"]),
-          })
-          .optional(),
-      }),
+          }),
+          dependsOn: zod.array(zod.string()),
+          status: zod.enum([
+            "pending",
+            "waiting_approval",
+            "running",
+            "blocked",
+            "succeeded",
+            "failed",
+            "cancelled",
+          ]),
+          approval: zod
+            .object({
+              required: zod.boolean(),
+              reason: zod.string().min(1),
+              riskLevel: zod.enum(["low", "medium", "high"]),
+            })
+            .optional(),
+        }),
+      ]),
     ),
     warnings: zod.array(zod.string()),
     nonGoals: zod.array(zod.string()),
     activationProfile: zod
       .object({
-        level: zod.enum(["full", "sprint", "micro"]),
-        maxAgents: zod.number().optional(),
-        reviewIntensity: zod.enum(["high", "medium", "low"]),
+        level: zod
+          .enum(["full", "sprint", "micro"])
+          .default(reviseMissionResponsePlanActivationProfileLevelDefault),
+        maxAgents: zod.number().min(1).optional(),
+        reviewIntensity: zod
+          .enum(["high", "medium", "low"])
+          .default(
+            reviseMissionResponsePlanActivationProfileReviewIntensityDefault,
+          ),
       })
       .optional(),
   }),
@@ -1636,6 +1828,9 @@ export const ApproveMissionBody = zod.object({
   revisionId: zod.string().uuid(),
   approvedBy: zod.string().optional(),
 });
+
+export const approveMissionResponseApprovedRevisionPlanActivationProfileLevelDefault = `micro`;
+export const approveMissionResponseApprovedRevisionPlanActivationProfileReviewIntensityDefault = `medium`;
 
 export const ApproveMissionResponse = zod.object({
   mission: zod.object({
@@ -1676,17 +1871,55 @@ export const ApproveMissionResponse = zod.object({
       ]),
       riskLevel: zod.enum(["low", "medium", "high"]),
       steps: zod.array(
-        zod.object({
-          stepId: zod.string().min(1),
-          title: zod.string().min(1),
-          objective: zod.string().min(1),
-          skillId: zod.string().optional(),
-          moduleId: zod.string().min(1).optional(),
-          assignedAgentId: zod.string().optional(),
-          roleId: zod.string().optional(),
-          role: zod.enum(["executor", "qa_reviewer"]).optional(),
-          evidenceContract: zod
-            .object({
+        zod.union([
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["executor"]),
+            evidenceContract: zod
+              .object({
+                requiredArtifacts: zod.array(zod.string()),
+                assertionType: zod.enum([
+                  "presence",
+                  "json_schema",
+                  "content_contains",
+                ]),
+                assertionConfig: zod.record(zod.string(), zod.unknown()),
+              })
+              .optional(),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+          zod.object({
+            stepId: zod.string().min(1),
+            title: zod.string().min(1),
+            objective: zod.string().min(1),
+            skillId: zod.string().optional(),
+            moduleId: zod.string().min(1).optional(),
+            assignedAgentId: zod.string().optional(),
+            roleId: zod.string().optional(),
+            role: zod.enum(["qa_reviewer"]),
+            evidenceContract: zod.object({
               requiredArtifacts: zod.array(zod.string()),
               assertionType: zod.enum([
                 "presence",
@@ -1694,34 +1927,42 @@ export const ApproveMissionResponse = zod.object({
                 "content_contains",
               ]),
               assertionConfig: zod.record(zod.string(), zod.unknown()),
-            })
-            .optional(),
-          dependsOn: zod.array(zod.string()),
-          status: zod.enum([
-            "pending",
-            "waiting_approval",
-            "running",
-            "blocked",
-            "succeeded",
-            "failed",
-            "cancelled",
-          ]),
-          approval: zod
-            .object({
-              required: zod.boolean(),
-              reason: zod.string().min(1),
-              riskLevel: zod.enum(["low", "medium", "high"]),
-            })
-            .optional(),
-        }),
+            }),
+            dependsOn: zod.array(zod.string()),
+            status: zod.enum([
+              "pending",
+              "waiting_approval",
+              "running",
+              "blocked",
+              "succeeded",
+              "failed",
+              "cancelled",
+            ]),
+            approval: zod
+              .object({
+                required: zod.boolean(),
+                reason: zod.string().min(1),
+                riskLevel: zod.enum(["low", "medium", "high"]),
+              })
+              .optional(),
+          }),
+        ]),
       ),
       warnings: zod.array(zod.string()),
       nonGoals: zod.array(zod.string()),
       activationProfile: zod
         .object({
-          level: zod.enum(["full", "sprint", "micro"]),
-          maxAgents: zod.number().optional(),
-          reviewIntensity: zod.enum(["high", "medium", "low"]),
+          level: zod
+            .enum(["full", "sprint", "micro"])
+            .default(
+              approveMissionResponseApprovedRevisionPlanActivationProfileLevelDefault,
+            ),
+          maxAgents: zod.number().min(1).optional(),
+          reviewIntensity: zod
+            .enum(["high", "medium", "low"])
+            .default(
+              approveMissionResponseApprovedRevisionPlanActivationProfileReviewIntensityDefault,
+            ),
         })
         .optional(),
     }),

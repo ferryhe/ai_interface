@@ -34,6 +34,7 @@ import {
   updateModuleRun,
 } from "../modules/ingest-service";
 import {
+  ModuleRunNotFoundError,
   ModuleRunResumeConflictError,
   resumeModuleRunExecution,
 } from "../tool-adapters/resume-service";
@@ -292,7 +293,7 @@ export function createModulesRouter(
       res.json(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.startsWith("Module run not found")) {
+      if (error instanceof ModuleRunNotFoundError) {
         res.status(404).json(errorResponse(message));
         return;
       }

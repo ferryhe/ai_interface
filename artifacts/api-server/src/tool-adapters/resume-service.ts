@@ -22,6 +22,13 @@ export class ModuleRunResumeConflictError extends Error {
   }
 }
 
+export class ModuleRunNotFoundError extends Error {
+  constructor(runId: string) {
+    super(`Module run not found: ${runId}`);
+    this.name = "ModuleRunNotFoundError";
+  }
+}
+
 function assertResumableInteraction(
   interaction: ToolInteraction | null,
   runId: string,
@@ -63,7 +70,7 @@ export async function resumeModuleRunExecution(
 ): Promise<ToolInteractionResponse> {
   const existing = await repository.findModuleRunById(runId);
   if (!existing) {
-    throw new Error(`Module run not found: ${runId}`);
+    throw new ModuleRunNotFoundError(runId);
   }
 
   const currentInteraction = getCurrentInteraction(existing);

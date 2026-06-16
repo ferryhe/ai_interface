@@ -94,6 +94,29 @@ const MISSION_STEP_STATUSES: MissionStepStatus[] = [
   "failed",
   "cancelled",
 ];
+const MISSION_STEP_ROLES: MissionStepRole[] = ["executor", "qa_reviewer"];
+const EVIDENCE_ASSERTION_TYPES: EvidenceContract["assertionType"][] = [
+  "presence",
+  "json_schema",
+  "content_contains",
+];
+const ACTIVATION_PROFILE_LEVELS: ActivationProfile["level"][] = [
+  "full",
+  "sprint",
+  "micro",
+];
+const ACTIVATION_PROFILE_REVIEW_INTENSITIES: Array<
+  ActivationProfile["reviewIntensity"]
+> = ["high", "medium", "low"];
+
+export const DEFAULT_ACTIVATION_PROFILE: ActivationProfile = {
+  level: "micro",
+  reviewIntensity: "medium",
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
 function isMissionRiskLevel(value: string): value is MissionRiskLevel {
   return MISSION_RISK_LEVELS.includes(value as MissionRiskLevel);
@@ -107,7 +130,22 @@ function isMissionStepStatus(value: string): value is MissionStepStatus {
   return MISSION_STEP_STATUSES.includes(value as MissionStepStatus);
 }
 
-function requireNonEmptyString(value: string, label: string): string {
+function isMissionStepRole(value: string): value is MissionStepRole {
+  return MISSION_STEP_ROLES.includes(value as MissionStepRole);
+}
+
+function isEvidenceAssertionType(
+  value: string,
+): value is EvidenceContract["assertionType"] {
+  return EVIDENCE_ASSERTION_TYPES.includes(
+    value as EvidenceContract["assertionType"],
+  );
+}
+
+function requireNonEmptyString(value: unknown, label: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
   const normalized = value.trim();
   if (!normalized) {
     throw new Error(`${label} must be a non-empty string.`);
@@ -130,6 +168,69 @@ function normalizeDependsOn(step: MissionPlanStep, index: number): string[] {
       `Mission step ${step.stepId || index + 1} dependsOn[${dependencyIndex}]`,
     ),
   );
+}
+
+function normalizeStringArray(value: unknown, label: string): string[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+  return value.map((item, index) =>
+    requireNonEmptyString(item, `${label}[${index}]`),
+  );
+}
+
+function normalizeEvidenceContract(
+  step: MissionPlanStep,
+  index: number,
+): void {
+  if (step.evidenceContract === undefined) return;
+
+  const stepLabel = step.stepId || String(index + 1);
+  if (!isRecord(step.evidenceContract)) {
+    throw new Error(
+      `Mission step ${stepLabel} evidenceContract must be an object.`,
+    );
+  }
+
+  const allowedKeys = new Set([
+    "requiredArtifacts",
+    "assertionType",
+    "assertionConfig",
+  ]);
+  for (const key of Object.keys(step.evidenceContract)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(
+        `Mission step ${stepLabel} evidenceContract has unsupported field: ${key}.`,
+      );
+    }
+  }
+
+  step.evidenceContract.requiredArtifacts = normalizeStringArray(
+    step.evidenceContract.requiredArtifacts,
+    `Mission step ${stepLabel} evidenceContract.requiredArtifacts`,
+  );
+  if (!isEvidenceAssertionType(step.evidenceContract.assertionType)) {
+    throw new Error(
+      `Mission step ${stepLabel} evidenceContract.assertionType must be one of: ${EVIDENCE_ASSERTION_TYPES.join(", ")}.`,
+    );
+  }
+  if (!isRecord(step.evidenceContract.assertionConfig)) {
+    throw new Error(
+      `Mission step ${stepLabel} evidenceContract.assertionConfig must be an object.`,
+    );
+  }
+}
+
+function normalizeMissionStepRole(step: MissionPlanStep): void {
+  if (step.role === undefined) {
+    step.role = "executor";
+    return;
+  }
+  if (!isMissionStepRole(step.role)) {
+    throw new Error(
+      `Mission step ${step.stepId} role must be one of: ${MISSION_STEP_ROLES.join(", ")}.`,
+    );
+  }
 }
 
 function validateApproval(step: MissionPlanStep, index: number): void {
@@ -157,6 +258,60 @@ function validateApproval(step: MissionPlanStep, index: number): void {
       `Mission step ${step.stepId || index + 1} with approval.required=true must use waiting_approval status.`,
     );
   }
+}
+
+function normalizeActivationProfile(
+  activationProfile: unknown,
+): ActivationProfile {
+  if (activationProfile === undefined) {
+    return { ...DEFAULT_ACTIVATION_PROFILE };
+  }
+  if (!isRecord(activationProfile)) {
+    throw new Error("Mission plan activationProfile must be an object.");
+  }
+  const level = activationProfile.level;
+  if (
+    typeof level !== "string" ||
+    !ACTIVATION_PROFILE_LEVELS.includes(level as ActivationProfile["level"])
+  ) {
+    throw new Error(
+      `Mission plan activationProfile.level must be one of: ${ACTIVATION_PROFILE_LEVELS.join(", ")}.`,
+    );
+  }
+  const reviewIntensity = activationProfile.reviewIntensity;
+  if (
+    typeof reviewIntensity !== "string" ||
+    !ACTIVATION_PROFILE_REVIEW_INTENSITIES.includes(
+      reviewIntensity as ActivationProfile["reviewIntensity"],
+    )
+  ) {
+    throw new Error(
+      `Mission plan activationProfile.reviewIntensity must be one of: ${ACTIVATION_PROFILE_REVIEW_INTENSITIES.join(", ")}.`,
+    );
+  }
+  const maxAgents = activationProfile.maxAgents;
+  if (
+    maxAgents !== undefined &&
+    (typeof maxAgents !== "number" ||
+      !Number.isInteger(maxAgents) ||
+      maxAgents < 1)
+  ) {
+    throw new Error(
+      "Mission plan activationProfile.maxAgents must be a positive integer.",
+    );
+  }
+  return maxAgents === undefined
+    ? {
+        level: level as ActivationProfile["level"],
+        reviewIntensity:
+          reviewIntensity as ActivationProfile["reviewIntensity"],
+      }
+    : {
+        level: level as ActivationProfile["level"],
+        maxAgents,
+        reviewIntensity:
+          reviewIntensity as ActivationProfile["reviewIntensity"],
+      };
 }
 
 function assertAcyclic(steps: MissionPlanStep[]): void {
@@ -226,6 +381,7 @@ export function validateMissionPlan(plan: MissionPlan): MissionPlan {
   if (!Array.isArray(plan.nonGoals)) {
     throw new Error("Mission plan nonGoals must be an array.");
   }
+  plan.activationProfile = normalizeActivationProfile(plan.activationProfile);
 
   const seen = new Set<string>();
   for (const [index, step] of plan.steps.entries()) {
@@ -241,8 +397,15 @@ export function validateMissionPlan(plan: MissionPlan): MissionPlan {
         `Mission step ${step.stepId} status must be one of: ${MISSION_STEP_STATUSES.join(", ")}.`,
       );
     }
+    normalizeMissionStepRole(step);
+    if (step.role === "qa_reviewer" && step.evidenceContract === undefined) {
+      throw new Error(
+        `Mission step ${step.stepId} with role=qa_reviewer requires evidenceContract.`,
+      );
+    }
 
     step.dependsOn = normalizeDependsOn(step, index);
+    normalizeEvidenceContract(step, index);
     validateApproval(step, index);
 
     if (seen.has(step.stepId)) {
