@@ -245,7 +245,7 @@ export function MissionCenterShell({
   }
 
   return (
-    <section className="space-y-6 rounded-[28px] border border-border/60 bg-background/95 p-5 shadow-sm backdrop-blur md:p-6">
+    <section className="space-y-6 rounded-lg border border-border bg-card p-4 shadow-none md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <Badge variant="outline" className="w-fit gap-1">
@@ -259,7 +259,7 @@ export function MissionCenterShell({
             </p>
           </div>
         </div>
-        <div className="grid min-w-[220px] gap-2 rounded-xl border border-border/70 bg-muted/20 p-3 text-sm">
+        <div className="grid min-w-[220px] gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">{t("missionCenter.currentPlan")}</span>
             <span className="font-medium text-foreground">
@@ -280,7 +280,7 @@ export function MissionCenterShell({
       </div>
 
       {statusMessageKey ? (
-          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+          <Alert className="border-emerald-500/35 bg-emerald-500/10 text-emerald-100 [&>svg]:text-emerald-300">
           <Bot className="h-4 w-4" />
           <AlertTitle>{t("missionCenter.statusTitle")}</AlertTitle>
           <AlertDescription>{t(statusMessageKey)}</AlertDescription>
@@ -322,7 +322,7 @@ export function MissionCenterShell({
               conflictMessage={conflictMessage}
             />
           ) : (
-            <Card className="border-dashed border-border/70 shadow-none">
+            <Card className="border-dashed border-border bg-muted/20 shadow-none">
               <CardHeader>
                 <CardTitle>{t("missionCenter.waitingTitle")}</CardTitle>
                 <CardDescription>
@@ -334,7 +334,7 @@ export function MissionCenterShell({
         </TabsContent>
 
         <TabsContent value="backstage" className="space-y-6">
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border bg-muted/20 shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <ArrowRightLeft className="h-4 w-4" />
@@ -345,7 +345,7 @@ export function MissionCenterShell({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 {executeResult?.executionReadiness.message ??
                   executionReadiness?.message ??
                   t("missionCenter.handoffFallback")}

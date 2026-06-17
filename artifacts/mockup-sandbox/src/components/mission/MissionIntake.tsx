@@ -30,7 +30,7 @@ export function MissionIntake({
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3">
         <Badge variant="outline" className="w-fit gap-1">
           <Sparkles className="h-3.5 w-3.5" />
@@ -46,7 +46,7 @@ export function MissionIntake({
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           placeholder={t("missionIntake.placeholder")}
-          className="min-h-[160px]"
+          className="min-h-[160px] border-border bg-background/70"
         />
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -70,7 +70,7 @@ export function MissionIntake({
             </div>
           </div>
           <div className="flex gap-3">
-            <Input value="knowledge_builder" readOnly className="w-[180px] bg-muted/40" />
+            <Input value="knowledge_builder" readOnly className="w-[180px] border-border bg-muted/40" />
             <Button onClick={onSubmit} disabled={isSubmitting || !draft.trim()}>
               {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {t("missionIntake.submit")}
@@ -79,7 +79,7 @@ export function MissionIntake({
         </div>
 
         {error ? (
-          <Alert className="border-rose-200 bg-rose-50 text-rose-900">
+          <Alert className="border-rose-500/35 bg-rose-500/10 text-rose-100">
             <AlertTitle>{t("missionIntake.apiFailed")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

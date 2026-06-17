@@ -1,22 +1,22 @@
 import type { CSSProperties } from "react";
 
 export const colors = {
-  bg: "#0b0f14",
-  surface: "#101720",
-  surfaceAlt: "#151d28",
-  surfaceRaised: "#1b2430",
-  border: "#263241",
-  borderStrong: "#344456",
-  text: "#eef4fb",
-  muted: "#8d9bad",
-  faint: "#5d6a7a",
-  orange: "#f97316",
-  blue: "#4f9cff",
-  green: "#35d07f",
-  yellow: "#f2c94c",
-  red: "#ff6b6b",
-  violet: "#a78bfa",
-  cyan: "#33c6d8",
+  bg: "var(--agent-bg, #0b0f14)",
+  surface: "var(--agent-surface, #101720)",
+  surfaceAlt: "var(--agent-surface-alt, #151d28)",
+  surfaceRaised: "var(--agent-surface-raised, #1b2430)",
+  border: "var(--agent-border, #263241)",
+  borderStrong: "var(--agent-border-strong, #344456)",
+  text: "var(--agent-text, #eef4fb)",
+  muted: "var(--agent-muted, #8d9bad)",
+  faint: "var(--agent-faint, #5d6a7a)",
+  orange: "var(--agent-orange, #f97316)",
+  blue: "var(--agent-blue, #4f9cff)",
+  green: "var(--agent-green, #35d07f)",
+  yellow: "var(--agent-yellow, #f2c94c)",
+  red: "var(--agent-red, #ff6b6b)",
+  violet: "var(--agent-violet, #a78bfa)",
+  cyan: "var(--agent-cyan, #33c6d8)",
 };
 
 export const fontFamily =
@@ -25,7 +25,7 @@ export const fontFamily =
 export const monoFamily =
   "'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace";
 
-export const focusRing = `0 0 0 2px ${colors.blue}44`;
+export const focusRing = `0 0 0 2px color-mix(in srgb, ${colors.blue} 28%, transparent)`;
 
 export const panel: CSSProperties = {
   background: colors.surface,

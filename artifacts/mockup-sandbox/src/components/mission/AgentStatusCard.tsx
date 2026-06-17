@@ -9,12 +9,12 @@ import { ArtifactStrip } from "./ArtifactStrip";
 import type { MissionBoardAgent } from "./mission-types";
 
 const statusTone: Record<MissionBoardAgent["status"], string> = {
-  pending: "border-slate-200 bg-slate-50 text-slate-700",
-  running: "border-sky-200 bg-sky-50 text-sky-700",
-  waiting_approval: "border-amber-200 bg-amber-50 text-amber-800",
-  blocked: "border-orange-200 bg-orange-50 text-orange-800",
-  succeeded: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  failed: "border-rose-200 bg-rose-50 text-rose-700",
+  pending: "border-slate-500/30 bg-slate-500/10 text-slate-300",
+  running: "border-sky-500/35 bg-sky-500/10 text-sky-200",
+  waiting_approval: "border-amber-500/35 bg-amber-500/10 text-amber-200",
+  blocked: "border-orange-500/35 bg-orange-500/10 text-orange-200",
+  succeeded: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200",
+  failed: "border-rose-500/35 bg-rose-500/10 text-rose-200",
 };
 
 function StatusIcon({ status }: { status: MissionBoardAgent["status"] }) {
@@ -36,7 +36,7 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
   const lastEventAt = formatTime(agent.lastEventAt, locale);
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -59,13 +59,13 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.currentAction")}</div>
           <p className="mt-1 text-sm leading-6 text-foreground">{agent.currentAction}</p>
         </div>
 
         {agent.blockingReason ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 p-3 text-sm text-amber-100">
             <div className="font-medium">{t("common.blockingReason")}</div>
             <p className="mt-1 leading-6">{agent.blockingReason}</p>
           </div>
@@ -74,7 +74,7 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
         {agent.status === "waiting_approval" ? (
           <a
             href="#approval-inbox"
-            className="inline-flex items-center gap-2 text-sm font-medium text-amber-800 underline-offset-4 hover:underline"
+            className="inline-flex items-center gap-2 text-sm font-medium text-amber-200 underline-offset-4 hover:underline"
           >
             {t("agentStatus.approvalLink")}
             <ExternalLink className="h-4 w-4" />

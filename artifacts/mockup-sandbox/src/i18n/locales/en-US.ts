@@ -38,6 +38,8 @@ export const enUS = {
     topbar: {
       viewPortal: "View Portal",
       adminConsole: "Admin Console",
+      switchToLight: "Switch to light theme",
+      switchToDark: "Switch to dark theme",
     },
     operator: {
       source: {

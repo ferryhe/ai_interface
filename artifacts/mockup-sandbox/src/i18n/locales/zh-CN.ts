@@ -38,6 +38,8 @@ export const zhCN = {
     topbar: {
       viewPortal: "查看门户",
       adminConsole: "管理控制台",
+      switchToLight: "切换到浅色主题",
+      switchToDark: "切换到深色主题",
     },
     operator: {
       source: {
