@@ -20,12 +20,14 @@ import {
   ListChecks,
   LockKeyhole,
   MessageSquareText,
+  Moon,
   Radio,
   RefreshCw,
   Send,
   Settings2,
   ShieldCheck,
   Sparkles,
+  Sun,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import {
@@ -36,6 +38,7 @@ import {
 } from "@/i18n/locale";
 
 type PortalView = "chat" | "steps" | "data" | "sources" | "result";
+type ThemeMode = "dark" | "light";
 type PortalStatus = "complete" | "running" | "waiting" | "blocked";
 type ModuleId = string;
 type JsonObject = Record<string, unknown>;
@@ -1384,6 +1387,7 @@ export function AgentPortalInterface() {
     useState("draft-0.3");
   const [adminToken, setAdminToken] = useState(initialAdminToken);
   const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
   const [activeView, setActiveView] = useState<PortalView>("chat");
   const [activeStep, setActiveStep] = useState(DEFAULT_ACTIVE_STEP_ID);
   const [draft, setDraft] = useState("");
@@ -2581,7 +2585,7 @@ export function AgentPortalInterface() {
 
   if (!isUnlocked) {
     return (
-      <div className="portal-lock-screen">
+      <div className={`portal-lock-screen portal-shell--${themeMode}`}>
         <style>{styles}</style>
         <form className="portal-token-panel" onSubmit={submitToken}>
           <div className="portal-lock-actions">
@@ -2590,6 +2594,25 @@ export function AgentPortalInterface() {
               variant="ghost"
               size="sm"
             />
+            <button
+              type="button"
+              className="portal-lock-theme portal-theme-switch"
+              aria-label={
+                themeMode === "dark"
+                  ? t("topbar.switchToLight")
+                  : t("topbar.switchToDark")
+              }
+              title={
+                themeMode === "dark"
+                  ? t("topbar.switchToLight")
+                  : t("topbar.switchToDark")
+              }
+              onClick={() =>
+                setThemeMode((current) => (current === "dark" ? "light" : "dark"))
+              }
+            >
+              {themeMode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
           </div>
           <div className="portal-token-mark">
             <LockKeyhole size={22} />
@@ -2630,7 +2653,7 @@ export function AgentPortalInterface() {
   }
 
   return (
-    <div className="portal-shell">
+    <div className={`portal-shell portal-shell--${themeMode}`}>
       <style>{styles}</style>
       <aside className="portal-nav" aria-label="Portal navigation">
         <div className="portal-brand">
@@ -2671,6 +2694,25 @@ export function AgentPortalInterface() {
                 className="portal-refresh-button"
                 variant="ghost"
               />
+              <button
+                type="button"
+                className="portal-mode-switch portal-theme-switch"
+                aria-label={
+                  themeMode === "dark"
+                    ? t("topbar.switchToLight")
+                    : t("topbar.switchToDark")
+                }
+                title={
+                  themeMode === "dark"
+                    ? t("topbar.switchToLight")
+                    : t("topbar.switchToDark")
+                }
+                onClick={() =>
+                  setThemeMode((current) => (current === "dark" ? "light" : "dark"))
+                }
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
               <button
                 type="button"
                 className="portal-mode-switch"
@@ -3975,6 +4017,7 @@ const styles = `
 
   .portal-lock-actions {
     display: flex;
+    gap: 8px;
     justify-content: flex-end;
   }
 
@@ -3992,6 +4035,19 @@ const styles = `
   .portal-token-panel .portal-lock-language:hover {
     border-color: #67b7ff;
     color: #edf3fb;
+  }
+
+  .portal-token-panel .portal-lock-theme {
+    width: 32px;
+    min-height: 32px;
+    border: 1px solid #2a394d;
+    border-radius: 6px;
+    background: #0b1118;
+    color: #aeb8c6;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
   }
 
   .portal-admin-gate {
@@ -4291,6 +4347,12 @@ const styles = `
     font-size: 12px;
     font-weight: 850;
     white-space: nowrap;
+  }
+
+  .portal-theme-switch {
+    width: 32px;
+    justify-content: center;
+    padding: 0;
   }
 
   .portal-refresh-button {
@@ -5217,6 +5279,197 @@ const styles = `
     font-size: 11px;
     font-style: normal;
     font-weight: 750;
+  }
+
+  .portal-shell--light {
+    color-scheme: light;
+    background: #edf3fb;
+    color: #0f172a;
+  }
+
+  .portal-shell--light.portal-lock-screen,
+  .portal-shell--light .portal-main,
+  .portal-shell--light .portal-workspace,
+  .portal-shell--light .portal-view {
+    border-color: #cbd5e1;
+    background: #edf3fb;
+    color: #0f172a;
+  }
+
+  .portal-shell--light .portal-nav,
+  .portal-shell--light .portal-topbar,
+  .portal-shell--light .portal-context {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .portal-shell--light .portal-admin-gate {
+    background: rgba(248, 250, 252, 0.88);
+  }
+
+  .portal-shell--light .portal-token-panel,
+  .portal-shell--light .portal-admin-panel,
+  .portal-shell--light .portal-token-input,
+  .portal-shell--light .portal-message,
+  .portal-shell--light .portal-composer,
+  .portal-shell--light .portal-step-card,
+  .portal-shell--light .portal-interaction-panel,
+  .portal-shell--light .portal-record-row,
+  .portal-shell--light .portal-detail-drawer,
+  .portal-shell--light .portal-detail-columns div,
+  .portal-shell--light .portal-source-card,
+  .portal-shell--light .portal-source-drawer,
+  .portal-shell--light .portal-source-evidence-grid div,
+  .portal-shell--light .portal-result-card,
+  .portal-shell--light .portal-result-drawer,
+  .portal-shell--light .portal-result-detail-grid div,
+  .portal-shell--light .portal-readiness-grid span,
+  .portal-shell--light .portal-context-block,
+  .portal-shell--light .portal-mini-steps button,
+  .portal-shell--light .portal-artifact-preview {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .portal-shell--light .portal-mode-switch,
+  .portal-shell--light .portal-refresh-button,
+  .portal-shell--light .portal-token-panel .portal-lock-language,
+  .portal-shell--light .portal-token-panel .portal-lock-theme,
+  .portal-shell--light .portal-chat-actions button,
+  .portal-shell--light .portal-filter-row button,
+  .portal-shell--light .portal-detail-columns button,
+  .portal-shell--light .portal-source-card button,
+  .portal-shell--light .portal-source-evidence-grid button,
+  .portal-shell--light .portal-result-card button,
+  .portal-shell--light .portal-result-detail-grid button,
+  .portal-shell--light .portal-admin-panel button.secondary {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+  }
+
+  .portal-shell--light .portal-brand {
+    border-color: #cbd5e1;
+    color: #2563eb;
+  }
+
+  .portal-shell--light .portal-brand span {
+    color: #ea580c;
+  }
+
+  .portal-shell--light .portal-nav button {
+    color: #64748b;
+  }
+
+  .portal-shell--light .portal-nav button.active,
+  .portal-shell--light .portal-message.user,
+  .portal-shell--light .portal-filter-row button.active,
+  .portal-shell--light .portal-detail-columns button.active,
+  .portal-shell--light .portal-source-card.active,
+  .portal-shell--light .portal-source-evidence-grid button.active,
+  .portal-shell--light .portal-result-card.active,
+  .portal-shell--light .portal-result-detail-grid button.active,
+  .portal-shell--light .portal-mini-steps button.active {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #0f172a;
+  }
+
+  .portal-shell--light .portal-token-panel h1,
+  .portal-shell--light .portal-admin-panel h2,
+  .portal-shell--light .portal-topbar h1,
+  .portal-shell--light .portal-section-heading h2,
+  .portal-shell--light .portal-context h2,
+  .portal-shell--light .portal-result-summary h3,
+  .portal-shell--light .portal-source-drawer strong,
+  .portal-shell--light .portal-result-card strong,
+  .portal-shell--light .portal-result-drawer strong,
+  .portal-shell--light .portal-context-block strong,
+  .portal-shell--light .portal-composer-status span,
+  .portal-shell--light .portal-mini-steps .portal-step-label {
+    color: #0f172a;
+  }
+
+  .portal-shell--light .portal-kicker,
+  .portal-shell--light .portal-token-panel p,
+  .portal-shell--light .portal-token-panel em,
+  .portal-shell--light .portal-admin-panel p,
+  .portal-shell--light .portal-admin-panel em,
+  .portal-shell--light .portal-token-panel label,
+  .portal-shell--light .portal-admin-panel label,
+  .portal-shell--light .portal-context p,
+  .portal-shell--light .portal-message p,
+  .portal-shell--light .portal-message span,
+  .portal-shell--light .portal-step-card p,
+  .portal-shell--light .portal-interaction-panel p,
+  .portal-shell--light .portal-record-row p,
+  .portal-shell--light .portal-record-row span,
+  .portal-shell--light .portal-detail-drawer p,
+  .portal-shell--light .portal-source-card p,
+  .portal-shell--light .portal-source-card span,
+  .portal-shell--light .portal-source-drawer p,
+  .portal-shell--light .portal-source-drawer em,
+  .portal-shell--light .portal-source-evidence-grid span,
+  .portal-shell--light .portal-result-summary p,
+  .portal-shell--light .portal-result-card p,
+  .portal-shell--light .portal-result-card span,
+  .portal-shell--light .portal-result-card em,
+  .portal-shell--light .portal-result-drawer p,
+  .portal-shell--light .portal-result-drawer em,
+  .portal-shell--light .portal-result-detail-grid span,
+  .portal-shell--light .portal-readiness-grid em,
+  .portal-shell--light .portal-mini-steps em,
+  .portal-shell--light .portal-composer-status {
+    color: #475569;
+  }
+
+  .portal-shell--light .portal-source-card div,
+  .portal-shell--light .portal-result-summary svg,
+  .portal-shell--light .portal-step-dot {
+    color: #2563eb;
+  }
+
+  .portal-shell--light .portal-status-pill,
+  .portal-shell--light .portal-status-badge.complete,
+  .portal-shell--light .portal-run-pill.saved {
+    border-color: #86efac;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .portal-shell--light .portal-status-badge.running,
+  .portal-shell--light .portal-run-pill.submitting,
+  .portal-shell--light .portal-run-pill.refreshing {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .portal-shell--light .portal-status-badge.waiting {
+    border-color: #fcd34d;
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .portal-shell--light .portal-status-badge.blocked,
+  .portal-shell--light .portal-run-pill.offline,
+  .portal-shell--light .portal-run-pill.failed {
+    border-color: #fca5a5;
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .portal-shell--light .portal-run-pill {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+  }
+
+  .portal-shell--light .portal-token-input input,
+  .portal-shell--light .portal-interaction-panel textarea {
+    color: #0f172a;
   }
 
   button:focus-visible,

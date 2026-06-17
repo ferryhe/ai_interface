@@ -9306,6 +9306,72 @@ const styles = `
     scrollbar-color: #94a3b8 transparent;
   }
 
+  .agent-os-shell--light .configure-hero p,
+  .agent-os-shell--light .agent-run-status-text,
+  .agent-os-shell--light .runtime-action-feedback,
+  .agent-os-shell--light .capability-map em,
+  .agent-os-shell--light .config-field label,
+  .agent-os-shell--light .config-field-label,
+  .agent-os-shell--light .wizard-field span,
+  .agent-os-shell--light .artifact-card code,
+  .agent-os-shell--light .markdown-preview,
+  .agent-os-shell--light .markdown-preview p,
+  .agent-os-shell--light .markdown-list-line,
+  .agent-os-shell--light .artifact-table td {
+    color: #475569;
+  }
+
+  .agent-os-shell--light .markdown-preview h3,
+  .agent-os-shell--light .artifact-table th {
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .connection-pill,
+  .agent-os-shell--light .configure-hero,
+  .agent-os-shell--light .provider-readiness,
+  .agent-os-shell--light .result-line,
+  .agent-os-shell--light .runtime-chip-row span,
+  .agent-os-shell--light .skill-help summary,
+  .agent-os-shell--light .switch-legend summary,
+  .agent-os-shell--light .switch-legend span,
+  .agent-os-shell--light .artifact-table th,
+  .agent-os-shell--light .artifact-table td {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+  }
+
+  .agent-os-shell--light .switch-legend[open] summary,
+  .agent-os-shell--light .skill-help[open] summary,
+  .agent-os-shell--light .runtime-mode-button.active {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .agent-os-shell--light .result-line span,
+  .agent-os-shell--light .runtime-action-row > span:not(.connection-pill) {
+    color: #475569;
+  }
+
+  .agent-os-shell--light .connection-pill.configured {
+    border-color: #86efac;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .agent-os-shell--light .connection-pill.missing_key {
+    border-color: #fcd34d;
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .agent-os-shell--light .connection-pill.offline {
+    border-color: #fca5a5;
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
   button:focus-visible,
   textarea:focus-visible,
   input:focus-visible,
