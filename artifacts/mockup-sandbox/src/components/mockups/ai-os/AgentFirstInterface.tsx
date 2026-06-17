@@ -3386,7 +3386,6 @@ export function AgentFirstInterface() {
                   ? t("topbar.switchToLight")
                   : t("topbar.switchToDark")
               }
-              aria-pressed={themeMode === "light"}
               onClick={() =>
                 setThemeMode((current) => (current === "dark" ? "light" : "dark"))
               }
