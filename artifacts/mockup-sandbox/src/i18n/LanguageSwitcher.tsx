@@ -1,4 +1,3 @@
-import { Languages } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -32,8 +31,7 @@ export function LanguageSwitcher({
       aria-label={t("language.ariaLabel")}
       onClick={() => void switchLanguage()}
     >
-      <Languages className="h-4 w-4" />
-      {t("language.switchTo")}
+      中/en
     </Button>
   );
 }

@@ -91,7 +91,7 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
   }
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -116,27 +116,27 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
       </CardHeader>
       <CardContent className="space-y-4">
         {statusMessage ? (
-          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+          <Alert className="border-emerald-500/35 bg-emerald-500/10 text-emerald-100">
             <AlertTitle>{t("approvalInbox.updatedTitle")}</AlertTitle>
             <AlertDescription>{t(statusMessage.key, { action: statusMessage.action })}</AlertDescription>
           </Alert>
         ) : null}
 
         {errorMessage ? (
-          <Alert className="border-rose-200 bg-rose-50 text-rose-900">
+          <Alert className="border-rose-500/35 bg-rose-500/10 text-rose-100">
             <AlertTitle>{t("approvalInbox.unavailableTitle")}</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         ) : null}
 
         {loadState === "loading" ? (
-          <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
             {t("approvalInbox.loading")}
           </div>
         ) : null}
 
         {approvals.length === 0 && loadState !== "loading" ? (
-          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
             {t("approvalInbox.empty")}
           </div>
         ) : null}

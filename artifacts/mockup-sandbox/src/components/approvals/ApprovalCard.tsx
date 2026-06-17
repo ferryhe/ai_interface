@@ -25,9 +25,9 @@ export interface ApprovalInboxItem {
 }
 
 const riskTone: Record<ApprovalInboxItem["riskLevel"], string> = {
-  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  medium: "bg-amber-50 text-amber-800 border-amber-200",
-  high: "bg-rose-50 text-rose-700 border-rose-200",
+  low: "bg-emerald-500/10 text-emerald-200 border-emerald-500/35",
+  medium: "bg-amber-500/10 text-amber-200 border-amber-500/35",
+  high: "bg-rose-500/10 text-rose-200 border-rose-500/35",
 };
 
 export function ApprovalCard({
@@ -45,7 +45,7 @@ export function ApprovalCard({
   const locale = normalizeLocale(i18n.resolvedLanguage) ?? DEFAULT_LOCALE;
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -68,7 +68,7 @@ export function ApprovalCard({
       <CardContent className="space-y-4">
         <p className="text-sm leading-6 text-muted-foreground">{approval.reason}</p>
 
-        <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground sm:grid-cols-2">
+        <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground sm:grid-cols-2">
           <div>
             <span className="font-medium text-foreground">{t("approvalCard.mission")}</span> {approval.missionId}
           </div>

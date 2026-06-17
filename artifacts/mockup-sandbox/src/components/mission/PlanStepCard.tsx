@@ -8,31 +8,31 @@ import { useTranslation } from "react-i18next";
 import type { MissionPlanStep, MissionRiskLevel, MissionStepStatus } from "./mission-types";
 
 const statusTone: Record<MissionStepStatus, string> = {
-  pending: "bg-slate-100 text-slate-700 border-slate-200",
-  waiting_approval: "bg-amber-100 text-amber-800 border-amber-200",
-  running: "bg-blue-100 text-blue-700 border-blue-200",
-  blocked: "bg-rose-100 text-rose-700 border-rose-200",
-  succeeded: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  failed: "bg-rose-100 text-rose-700 border-rose-200",
-  cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+  pending: "bg-slate-500/10 text-slate-300 border-slate-500/30",
+  waiting_approval: "bg-amber-500/10 text-amber-200 border-amber-500/35",
+  running: "bg-sky-500/10 text-sky-200 border-sky-500/35",
+  blocked: "bg-rose-500/10 text-rose-200 border-rose-500/35",
+  succeeded: "bg-emerald-500/10 text-emerald-200 border-emerald-500/35",
+  failed: "bg-rose-500/10 text-rose-200 border-rose-500/35",
+  cancelled: "bg-slate-500/10 text-slate-400 border-slate-500/30",
 };
 
 const riskTone: Record<MissionRiskLevel, string> = {
-  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  medium: "bg-amber-50 text-amber-800 border-amber-200",
-  high: "bg-rose-50 text-rose-700 border-rose-200",
+  low: "bg-emerald-500/10 text-emerald-200 border-emerald-500/35",
+  medium: "bg-amber-500/10 text-amber-200 border-amber-500/35",
+  high: "bg-rose-500/10 text-rose-200 border-rose-500/35",
 };
 
 export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: number }) {
   const { t } = useTranslation();
 
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 font-semibold text-primary">
                 {index + 1}
               </span>
               <span>{step.stepId}</span>
@@ -64,14 +64,14 @@ export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: nu
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-lg border border-dashed border-border/70 p-3">
+          <div className="rounded-lg border border-dashed border-border bg-background/35 p-3">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t("planStep.dependsOn")}
             </div>
             {step.dependsOn.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {step.dependsOn.map((dependency, dependencyIndex) => (
-                  <span key={dependency} className="inline-flex items-center gap-2 rounded-full bg-muted px-2.5 py-1">
+                  <span key={dependency} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-2.5 py-1">
                     {dependencyIndex > 0 ? <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" /> : null}
                     {dependency}
                   </span>
@@ -82,7 +82,7 @@ export function PlanStepCard({ step, index }: { step: MissionPlanStep; index: nu
             )}
           </div>
 
-          <div className="rounded-lg border border-dashed border-border/70 p-3">
+          <div className="rounded-lg border border-dashed border-border bg-background/35 p-3">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t("planStep.approval")}
             </div>

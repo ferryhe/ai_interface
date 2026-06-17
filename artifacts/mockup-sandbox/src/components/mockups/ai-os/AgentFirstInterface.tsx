@@ -14,12 +14,14 @@ import {
   Layers3,
   ListChecks,
   MessageSquareText,
+  Moon,
   Paperclip,
   Search,
   Send,
   Settings2,
   ShieldCheck,
   Sparkles,
+  Sun,
   UploadCloud,
   WandSparkles,
 } from "lucide-react";
@@ -45,6 +47,7 @@ import type {
 
 type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
 type WorkspaceMode = "mission" | "foreground" | "backstage";
+type ThemeMode = "dark" | "light";
 type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts" | "operator";
 type BackstageTab = "io" | "artifacts" | "events" | "ui";
 type ModuleId =
@@ -2471,6 +2474,7 @@ export function AgentFirstInterface() {
     [t],
   );
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("mission");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
   const [selectedSkillId, setSelectedSkillId] = useState<ModuleId>("rag_to_agent");
@@ -3299,7 +3303,7 @@ export function AgentFirstInterface() {
   }
 
   return (
-    <div className="agent-os-shell">
+    <div className={`agent-os-shell agent-os-shell--${themeMode}`}>
       <aside className="side-rail" aria-label={t("agentFirst.aria.mainNavigation")}>
         <div className="brand-mark">
           <Sparkles size={17} />
@@ -3369,6 +3373,26 @@ export function AgentFirstInterface() {
               </button>
             </div>
             <LanguageSwitcher className="topbar-mode-switch language-mode-switch" variant="ghost" />
+            <button
+              type="button"
+              className="topbar-mode-switch theme-mode-switch"
+              aria-label={
+                themeMode === "dark"
+                  ? t("topbar.switchToLight")
+                  : t("topbar.switchToDark")
+              }
+              title={
+                themeMode === "dark"
+                  ? t("topbar.switchToLight")
+                  : t("topbar.switchToDark")
+              }
+              aria-pressed={themeMode === "light"}
+              onClick={() =>
+                setThemeMode((current) => (current === "dark" ? "light" : "dark"))
+              }
+            >
+              {themeMode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
             <button
               type="button"
               className="topbar-mode-switch portal-mode-switch"
@@ -5962,9 +5986,412 @@ const styles = `
     inset: 0;
     display: flex;
     min-width: 0;
+    color-scheme: dark;
+    --button-outline: rgba(148, 163, 184, 0.22);
+    --badge-outline: rgba(148, 163, 184, 0.24);
+    --background: 216 31% 5%;
+    --foreground: 210 40% 93%;
+    --card: 214 30% 9%;
+    --card-foreground: 210 40% 93%;
+    --popover: 214 31% 7%;
+    --popover-foreground: 210 40% 93%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 30% 14%;
+    --secondary-foreground: 210 40% 93%;
+    --muted: 214 31% 13%;
+    --muted-foreground: 215 17% 64%;
+    --accent: 211 56% 15%;
+    --accent-foreground: 211 100% 92%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 28% 20%;
+    --input: 214 28% 20%;
+    --ring: 211 100% 65%;
+    --primary-border: rgba(249, 115, 22, 0.55);
+    --secondary-border: rgba(148, 163, 184, 0.18);
+    --destructive-border: rgba(248, 113, 113, 0.42);
+    --agent-bg: #080b0f;
+    --agent-surface: #101720;
+    --agent-surface-alt: #151d28;
+    --agent-surface-raised: #1b2430;
+    --agent-border: #263241;
+    --agent-border-strong: #344456;
+    --agent-text: #edf3fb;
+    --agent-muted: #8d9bad;
+    --agent-faint: #5d6a7a;
+    --agent-orange: #f97316;
+    --agent-blue: #4f9cff;
+    --agent-green: #35d07f;
+    --agent-yellow: #f2c94c;
+    --agent-red: #ff6b6b;
+    --agent-violet: #a78bfa;
+    --agent-cyan: #33c6d8;
     background: #080b0f;
     color: #edf3fb;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .agent-os-shell--light {
+    color-scheme: light;
+    --button-outline: rgba(15, 23, 42, 0.14);
+    --badge-outline: rgba(15, 23, 42, 0.12);
+    --background: 210 36% 96%;
+    --foreground: 215 28% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 13%;
+    --primary: 24 95% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 32% 91%;
+    --secondary-foreground: 215 28% 13%;
+    --muted: 210 30% 92%;
+    --muted-foreground: 215 16% 43%;
+    --accent: 210 72% 92%;
+    --accent-foreground: 214 80% 24%;
+    --border: 214 22% 82%;
+    --input: 214 22% 82%;
+    --ring: 211 100% 42%;
+    --primary-border: rgba(234, 88, 12, 0.42);
+    --secondary-border: rgba(15, 23, 42, 0.12);
+    --destructive-border: rgba(220, 38, 38, 0.32);
+    --agent-bg: #edf3fb;
+    --agent-surface: #ffffff;
+    --agent-surface-alt: #f8fafc;
+    --agent-surface-raised: #e2e8f0;
+    --agent-border: #cbd5e1;
+    --agent-border-strong: #94a3b8;
+    --agent-text: #0f172a;
+    --agent-muted: #475569;
+    --agent-faint: #64748b;
+    --agent-orange: #ea580c;
+    --agent-blue: #2563eb;
+    --agent-green: #15803d;
+    --agent-yellow: #b45309;
+    --agent-red: #dc2626;
+    --agent-violet: #7c3aed;
+    --agent-cyan: #0891b2;
+    background: #edf3fb;
+    color: #111827;
+  }
+
+  .agent-os-shell--light .side-rail,
+  .agent-os-shell--light .topbar {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+
+  .agent-os-shell--light .brand-mark {
+    border-color: #cbd5e1;
+    color: #ea580c;
+  }
+
+  .agent-os-shell--light .rail-button {
+    color: #64748b;
+  }
+
+  .agent-os-shell--light .rail-button.active {
+    border-color: #bfdbfe;
+    background: #dbeafe;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .topbar-title {
+    color: #111827;
+  }
+
+  .agent-os-shell--light .workspace-switch {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+  }
+
+  .agent-os-shell--light .workspace-switch button {
+    color: #64748b;
+  }
+
+  .agent-os-shell--light .workspace-switch button.active {
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .topbar-mode-switch {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .agent-os-shell--light .topbar-pill {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+  }
+
+  .agent-os-shell--light .topbar-pill.live {
+    border-color: #22c55e55;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .agent-os-shell--light .view-frame,
+  .agent-os-shell--light .skill-catalog,
+  .agent-os-shell--light .backstage-main,
+  .agent-os-shell--light .chat-panel,
+  .agent-os-shell--light .workspace-panel,
+  .agent-os-shell--light .module-list,
+  .agent-os-shell--light .module-detail,
+  .agent-os-shell--light .page-panel,
+  .agent-os-shell--light .run-list,
+  .agent-os-shell--light .run-detail,
+  .agent-os-shell--light .artifact-inspector-layout,
+  .agent-os-shell--light .workbench-section,
+  .agent-os-shell--light .json-inspector,
+  .agent-os-shell--light .artifact-card,
+  .agent-os-shell--light .event-row,
+  .agent-os-shell--light .runtime-panel,
+  .agent-os-shell--light .runtime-control,
+  .agent-os-shell--light .runtime-interaction,
+  .agent-os-shell--light .config-card,
+  .agent-os-shell--light .publish-settings-panel,
+  .agent-os-shell--light .publish-access-card,
+  .agent-os-shell--light .publish-step,
+  .agent-os-shell--light .composer-shell,
+  .agent-os-shell--light .composer,
+  .agent-os-shell--light .mobile-nav,
+  .agent-os-shell--light .skill-ui-frame {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .view-frame {
+    background: #edf3fb;
+  }
+
+  .agent-os-shell--light .panel-heading,
+  .agent-os-shell--light .module-detail-header,
+  .agent-os-shell--light .page-header,
+  .agent-os-shell--light .preview-bar,
+  .agent-os-shell--light .publish-settings-header,
+  .agent-os-shell--light .artifact-title,
+  .agent-os-shell--light .backstage-header,
+  .agent-os-shell--light .runtime-action-row {
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .agent-catalog-row,
+  .agent-os-shell--light .agent-catalog-select,
+  .agent-os-shell--light .agent-catalog-run,
+  .agent-os-shell--light .agent-catalog-meta span,
+  .agent-os-shell--light .agent-skill-chip,
+  .agent-os-shell--light .workbench-metrics span,
+  .agent-os-shell--light .workbench-lines span,
+  .agent-os-shell--light .skill-row,
+  .agent-os-shell--light .run-list-row,
+  .agent-os-shell--light .run-step-row,
+  .agent-os-shell--light .artifact-pipeline-group,
+  .agent-os-shell--light .memory-node,
+  .agent-os-shell--light .run-card,
+  .agent-os-shell--light .queued-card,
+  .agent-os-shell--light .timeline-card,
+  .agent-os-shell--light .result-panel,
+  .agent-os-shell--light .metric,
+  .agent-os-shell--light .data-row,
+  .agent-os-shell--light .api-plan-panel,
+  .agent-os-shell--light .runtime-mode-button,
+  .agent-os-shell--light .runtime-status,
+  .agent-os-shell--light .runtime-action-row > span:not(.connection-pill),
+  .agent-os-shell--light .runtime-timeline-card,
+  .agent-os-shell--light .filter-chip,
+  .agent-os-shell--light .provider-readiness,
+  .agent-os-shell--light .capability-map span,
+  .agent-os-shell--light .switch-legend,
+  .agent-os-shell--light .switch-legend div,
+  .agent-os-shell--light .skill-setting-row,
+  .agent-os-shell--light .general-skill-row,
+  .agent-os-shell--light .skill-help,
+  .agent-os-shell--light .skill-help-panel,
+  .agent-os-shell--light .skill-detail-grid span,
+  .agent-os-shell--light .toggle-row,
+  .agent-os-shell--light .runtime-lines span,
+  .agent-os-shell--light .publish-token-meta,
+  .agent-os-shell--light .publish-token-row,
+  .agent-os-shell--light .publish-admin-boundary,
+  .agent-os-shell--light .publish-portal-view-list span,
+  .agent-os-shell--light .publish-admin-boundary span,
+  .agent-os-shell--light .climate-report-card,
+  .agent-os-shell--light .climate-ops-card,
+  .agent-os-shell--light .climate-coverage-row,
+  .agent-os-shell--light .climate-warning-row,
+  .agent-os-shell--light .climate-dedup-grid span {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .agent-catalog-row.active,
+  .agent-os-shell--light .skill-row.active,
+  .agent-os-shell--light .run-list-row.active,
+  .agent-os-shell--light .memory-node.active,
+  .agent-os-shell--light .module-row.active,
+  .agent-os-shell--light .runtime-mode-button.active,
+  .agent-os-shell--light .filter-chip.active,
+  .agent-os-shell--light .segmented-button.active,
+  .agent-os-shell--light .backstage-tabs button.active {
+    border-color: #60a5fa;
+    background: #dbeafe;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .agent-catalog-icon,
+  .agent-os-shell--light .search-box,
+  .agent-os-shell--light .locked-value,
+  .agent-os-shell--light .config-card select,
+  .agent-os-shell--light .config-card input,
+  .agent-os-shell--light .config-card textarea,
+  .agent-os-shell--light .wizard-field input,
+  .agent-os-shell--light .wizard-field textarea,
+  .agent-os-shell--light .publish-field input,
+  .agent-os-shell--light .composer textarea,
+  .agent-os-shell--light .json-inspector pre,
+  .agent-os-shell--light .artifact-json,
+  .agent-os-shell--light .publish-token-row code,
+  .agent-os-shell--light .data-table {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .agent-catalog-main strong,
+  .agent-os-shell--light .agent-detail-header h2,
+  .agent-os-shell--light .workbench-section-title,
+  .agent-os-shell--light .agent-skill-chip strong,
+  .agent-os-shell--light .run-list-row strong,
+  .agent-os-shell--light .run-step-row strong,
+  .agent-os-shell--light .artifact-pipeline-heading strong,
+  .agent-os-shell--light .backstage-header h1,
+  .agent-os-shell--light .artifact-title strong,
+  .agent-os-shell--light .climate-report-card h2,
+  .agent-os-shell--light .climate-report-meta strong,
+  .agent-os-shell--light .climate-coverage-row strong,
+  .agent-os-shell--light .climate-warning-row strong,
+  .agent-os-shell--light .climate-dedup-grid strong,
+  .agent-os-shell--light .panel-heading,
+  .agent-os-shell--light .run-card h2,
+  .agent-os-shell--light .timeline-card h2,
+  .agent-os-shell--light .metric strong,
+  .agent-os-shell--light .module-detail-header h1,
+  .agent-os-shell--light .page-header h1,
+  .agent-os-shell--light .module-row strong,
+  .agent-os-shell--light .result-line strong,
+  .agent-os-shell--light .data-row strong,
+  .agent-os-shell--light .runtime-interaction strong,
+  .agent-os-shell--light .provider-readiness strong,
+  .agent-os-shell--light .capability-map strong,
+  .agent-os-shell--light .switch-legend strong,
+  .agent-os-shell--light .config-card-heading span,
+  .agent-os-shell--light .skill-setting-row strong,
+  .agent-os-shell--light .general-skill-row strong,
+  .agent-os-shell--light .skill-detail-grid strong,
+  .agent-os-shell--light .runtime-lines strong,
+  .agent-os-shell--light .publish-token-meta strong,
+  .agent-os-shell--light .publish-access-card h2,
+  .agent-os-shell--light .publish-portal-view-list strong,
+  .agent-os-shell--light .publish-admin-boundary span {
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .agent-catalog-main em,
+  .agent-os-shell--light .agent-catalog-meta span,
+  .agent-os-shell--light .agent-detail-header p,
+  .agent-os-shell--light .workbench-section p,
+  .agent-os-shell--light .workbench-metrics em,
+  .agent-os-shell--light .workbench-lines em,
+  .agent-os-shell--light .agent-skill-chip em,
+  .agent-os-shell--light .run-list-row em,
+  .agent-os-shell--light .run-step-row em,
+  .agent-os-shell--light .artifact-pipeline-heading em,
+  .agent-os-shell--light .artifact-meta-line em,
+  .agent-os-shell--light .backstage-header p,
+  .agent-os-shell--light .artifact-card p,
+  .agent-os-shell--light .event-row p,
+  .agent-os-shell--light .event-row em,
+  .agent-os-shell--light .climate-report-card p,
+  .agent-os-shell--light .climate-report-meta span,
+  .agent-os-shell--light .climate-report-meta em,
+  .agent-os-shell--light .climate-coverage-row em,
+  .agent-os-shell--light .climate-warning-row span,
+  .agent-os-shell--light .climate-dedup-grid em,
+  .agent-os-shell--light .soft-label,
+  .agent-os-shell--light .chat-bubble p,
+  .agent-os-shell--light .run-card p,
+  .agent-os-shell--light .page-header p,
+  .agent-os-shell--light .module-detail-header p,
+  .agent-os-shell--light .timeline-card p,
+  .agent-os-shell--light .data-row p,
+  .agent-os-shell--light .metric span,
+  .agent-os-shell--light .module-row em,
+  .agent-os-shell--light .module-row b,
+  .agent-os-shell--light .queued-card em,
+  .agent-os-shell--light .api-plan-panel p,
+  .agent-os-shell--light .timeline-card small,
+  .agent-os-shell--light .runtime-interaction p,
+  .agent-os-shell--light .runtime-interaction em,
+  .agent-os-shell--light .data-row em,
+  .agent-os-shell--light .config-card-heading em,
+  .agent-os-shell--light .config-explainer,
+  .agent-os-shell--light .switch-legend em,
+  .agent-os-shell--light .skill-setting-row em,
+  .agent-os-shell--light .general-skill-row em,
+  .agent-os-shell--light .skill-detail-grid em,
+  .agent-os-shell--light .runtime-lines em,
+  .agent-os-shell--light .publish-settings-header p,
+  .agent-os-shell--light .publish-token-meta em,
+  .agent-os-shell--light .publish-access-card p,
+  .agent-os-shell--light .publish-access-card em,
+  .agent-os-shell--light .publish-portal-view-list em {
+    color: #475569;
+  }
+
+  .agent-os-shell--light .text-slate-100,
+  .agent-os-shell--light .text-slate-200,
+  .agent-os-shell--light .text-slate-300,
+  .agent-os-shell--light .text-slate-400 {
+    color: #334155;
+  }
+
+  .agent-os-shell--light .text-emerald-100,
+  .agent-os-shell--light .text-emerald-200,
+  .agent-os-shell--light .text-emerald-300 {
+    color: #166534;
+  }
+
+  .agent-os-shell--light .text-amber-100,
+  .agent-os-shell--light .text-amber-200,
+  .agent-os-shell--light .text-amber-300 {
+    color: #92400e;
+  }
+
+  .agent-os-shell--light .text-rose-100,
+  .agent-os-shell--light .text-rose-200,
+  .agent-os-shell--light .text-rose-300,
+  .agent-os-shell--light .text-red-100,
+  .agent-os-shell--light .text-red-200,
+  .agent-os-shell--light .text-red-300 {
+    color: #991b1b;
+  }
+
+  .agent-os-shell--light .text-sky-100,
+  .agent-os-shell--light .text-sky-200,
+  .agent-os-shell--light .text-sky-300 {
+    color: #075985;
+  }
+
+  .agent-os-shell--light .text-orange-100,
+  .agent-os-shell--light .text-orange-200,
+  .agent-os-shell--light .text-orange-300 {
+    color: #9a3412;
   }
 
   .side-rail {
@@ -6140,6 +6567,20 @@ const styles = `
     font-size: 12px;
     font-weight: 800;
     white-space: nowrap;
+  }
+
+  .language-mode-switch {
+    min-width: 46px;
+    justify-content: center;
+    gap: 0;
+    padding: 0 8px;
+    text-transform: none;
+  }
+
+  .theme-mode-switch {
+    min-width: 34px;
+    justify-content: center;
+    padding: 0;
   }
 
   .view-frame {
@@ -8793,6 +9234,77 @@ const styles = `
 
   .mobile-nav {
     display: none;
+  }
+
+  .agent-os-shell--light .chat-bubble.user,
+  .agent-os-shell--light .chat-bubble.agent,
+  .agent-os-shell--light .status-dot,
+  .agent-os-shell--light .small-action,
+  .agent-os-shell--light .icon-action,
+  .agent-os-shell--light .mode-action,
+  .agent-os-shell--light .agent-run-state,
+  .agent-os-shell--light .workspace-preview,
+  .agent-os-shell--light .backstage-tabs button,
+  .agent-os-shell--light .wizard-form,
+  .agent-os-shell--light .segmented-button,
+  .agent-os-shell--light .toggle-row.large,
+  .agent-os-shell--light .runtime-mode-button,
+  .agent-os-shell--light .publish-status-badge,
+  .agent-os-shell--light .publish-save-badge {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .chat-bubble.user,
+  .agent-os-shell--light .status-dot.running,
+  .agent-os-shell--light .runtime-status.running,
+  .agent-os-shell--light .runtime-status.resumable {
+    border-color: #93c5fd;
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .agent-os-shell--light .mode-action.active {
+    border-color: #c4b5fd;
+    background: #ede9fe;
+    color: #6d28d9;
+  }
+
+  .agent-os-shell--light .send-action:disabled {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+    color: #64748b;
+  }
+
+  .agent-os-shell--light .agent-run-state.saved,
+  .agent-os-shell--light .status-dot.succeeded,
+  .agent-os-shell--light .runtime-status.succeeded,
+  .agent-os-shell--light .publish-status-badge.published {
+    border-color: #86efac;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .agent-os-shell--light .agent-run-state.failed,
+  .agent-os-shell--light .runtime-status.blocked {
+    border-color: #fca5a5;
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .agent-os-shell--light .runtime-status.approval_required,
+  .agent-os-shell--light .runtime-status.waiting_for_user,
+  .agent-os-shell--light .runtime-status.waiting_for_data,
+  .agent-os-shell--light .runtime-status.skipped,
+  .agent-os-shell--light .publish-status-badge.paused {
+    border-color: #fcd34d;
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .agent-os-shell--light * {
+    scrollbar-color: #94a3b8 transparent;
   }
 
   button:focus-visible,
