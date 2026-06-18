@@ -9316,13 +9316,11 @@ const styles = `
   .agent-os-shell--light .artifact-card code,
   .agent-os-shell--light .markdown-preview,
   .agent-os-shell--light .markdown-preview p,
-  .agent-os-shell--light .markdown-list-line,
-  .agent-os-shell--light .artifact-table td {
+  .agent-os-shell--light .markdown-list-line {
     color: #475569;
   }
 
-  .agent-os-shell--light .markdown-preview h3,
-  .agent-os-shell--light .artifact-table th {
+  .agent-os-shell--light .markdown-preview h3 {
     color: #0f172a;
   }
 
@@ -9339,6 +9337,14 @@ const styles = `
     border-color: #cbd5e1;
     background: #ffffff;
     color: #334155;
+  }
+
+  .agent-os-shell--light .artifact-table th {
+    color: #0f172a;
+  }
+
+  .agent-os-shell--light .artifact-table td {
+    color: #475569;
   }
 
   .agent-os-shell--light .switch-legend[open] summary,
