@@ -2,7 +2,7 @@
   "missionId": "knowledge-builder-demo-001",
   "title": "Build a Q&A knowledge-base agent from approved web pages and documents",
   "userGoal": "把我批准的网页和文档资料做成一个可问答的知识库 Agent。",
-  "summary": "Collect approved sources, normalize documents into Markdown, build the retrieval corpus, generate the agent configuration, and verify source traceability before delivery.",
+  "summary": "Collect approved sources, normalize documents into Markdown, build the retrieval corpus, and verify source traceability before delivery.",
   "status": "needs_confirmation",
   "riskLevel": "high",
   "steps": [
@@ -50,32 +50,21 @@
       }
     },
     {
-      "stepId": "generate-agent-config",
-      "title": "Generate the knowledge-base agent configuration",
-      "objective": "Create the delivery-ready agent configuration that points at the built retrieval corpus and preserves artifact references.",
-      "skillId": "rag_to_agent",
-      "moduleId": "rag_to_agent",
-      "roleId": "knowledge_builder",
-      "assignedAgentId": "knowledge_builder",
-      "dependsOn": ["build-rag-corpus"],
-      "status": "pending"
-    },
-    {
       "stepId": "qa-traceability-review",
       "title": "QA review artifact completeness and traceability",
-      "objective": "Verify the generated agent config, Markdown conversions, and RAG records all point back to approved sources before delivery.",
+      "objective": "Verify the Markdown conversions, RAG records, index manifest, and query results all point back to approved sources before delivery.",
       "roleId": "qa_reviewer",
       "role": "qa_reviewer",
       "evidenceContract": {
         "requiredArtifacts": [
           "approved-source-snapshots",
           "rag-corpus-records",
-          "generated-agent-config"
+          "query-results"
         ],
         "assertionType": "presence",
         "assertionConfig": {}
       },
-      "dependsOn": ["build-rag-corpus", "generate-agent-config"],
+      "dependsOn": ["build-rag-corpus"],
       "status": "pending"
     }
   ],

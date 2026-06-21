@@ -26,8 +26,8 @@
 |---|---|---|---|
 | `web_listening` | builtin | `../web_listening` | 页面监控、快照采集、文本提取与变更检测 |
 | `doc_to_md` | builtin | `../doc_to_md` | 源文档转 Markdown，附带资源、警告与追踪数据 |
-| `md_to_rag` | builtin | `../c-ross-2` | Markdown 分块，准备 RAG 就绪记录 |
-| `rag_to_agent` | builtin | `../c-ross-2` | 生成 Agent 提示词、工具绑定、配置与验证 |
+| `md_to_rag` | builtin | `../md_to_rag` | 构建可移植 RAG artifacts、索引、查询结果与 drift 报告 |
+| `rag_to_agent` | builtin | `../c-ross-2` | 兼容保留的独立 Agent prompt/config 生成 skill |
 | `climate_monitor` | builtin | `../climate_monitor_wiki` | 运行气候监控工作流并汇总报告/来源/覆盖范围 |
 | `ai_actuary` | builtin | `../ai_actuary` | 通过安全 CLI 执行器调用精算准备金流水线 |
 | `example_reporter` | community | `skills/community/example_reporter` | 仅用于验证的社区 manifest 示例 |
@@ -91,7 +91,7 @@ tests: [...]                         # Manifest 级冒烟测试
 
 | Agent ID | 名称 | 团队 | 运行状态 | 说明 |
 |---|---|---|---|---|
-| `knowledge_builder` | Knowledge Builder | knowledge | runnable | 全链路：web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `knowledge_builder` | Knowledge Builder | knowledge | runnable | 全链路：web_listening → doc_to_md → md_to_rag |
 | `evidence_collector` | Evidence Collector | — | runnable | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
 
 ### 模板 Agent（寿险行业）

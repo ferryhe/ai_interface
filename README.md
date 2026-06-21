@@ -17,8 +17,8 @@ The current runtime wires a generic skill runtime around YAML manifests loaded f
 |---|---|---|---|
 | `web_listening` | builtin | `../web_listening` | Monitor pages, capture snapshots, extract text, and detect changes. |
 | `doc_to_md` | builtin | `../doc_to_md` | Convert source documents into Markdown, assets, warnings, and trace data. |
-| `md_to_rag` | builtin | `../c-ross-2` | Chunk Markdown and prepare RAG-ready records. |
-| `rag_to_agent` | builtin | `../c-ross-2` | Generate agent prompts, tool bindings, configs, and validation output. |
+| `md_to_rag` | builtin | `../md_to_rag` | Build portable RAG artifacts, indexes, query results, and drift reports. |
+| `rag_to_agent` | builtin | `../c-ross-2` | Compatibility skill for standalone agent prompt/config generation. |
 | `climate_monitor` | builtin | `../climate_monitor_wiki` | Run the climate monitor workflow and summarize report/source/scope coverage. |
 | `ai_actuary` | builtin | `../ai_actuary` | Invoke the ai_actuary reserving pipeline through the safe CLI executor. |
 | `example_reporter` | community | `skills/community/example_reporter` | Validation-only community manifest example. |
@@ -84,7 +84,7 @@ tests: [...]                         # Manifest-level smoke tests
 
 | Agent ID | Name | Team | Runtime Status | Description |
 |---|---|---|---|---|
-| `knowledge_builder` | Knowledge Builder | knowledge | runnable | Full pipeline: web_listening → doc_to_md → md_to_rag → rag_to_agent |
+| `knowledge_builder` | Knowledge Builder | knowledge | runnable | Full pipeline: web_listening → doc_to_md → md_to_rag |
 | `evidence_collector` | Evidence Collector | — | runnable | 轻量级证据采集 Agent，绑定 web_listening 和 doc_to_md |
 
 ### Template Agents (寿险行业)
@@ -467,8 +467,8 @@ Default project path detection is intentionally shallow:
 
 - `web_listening` checks `WEB_LISTENING_PROJECT_PATH` or `../web_listening`;
 - `doc_to_md` checks `DOC_TO_MD_PROJECT_PATH` or `../doc_to_md`;
-- `md_to_rag` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`;
-- `rag_to_agent` checks `CROSS2_PROJECT_PATH` or `../c-ross-2`.
+- `md_to_rag` checks `MD_TO_RAG_PROJECT_PATH` or `../md_to_rag`;
+- `rag_to_agent` checks `CROSS2_PROJECT_PATH` or `../c-ross-2` for project metadata and `RAG_TO_AGENT_API_BASE_URL` for HTTP execution.
 - `climate_monitor` checks `CLIMATE_MONITOR_PROJECT_PATH` or `../climate_monitor_wiki`.
 - `ai_actuary` checks `AI_ACTUARY_PROJECT_PATH` or `../ai_actuary`.
 - `example_reporter` is a community validation fixture under `skills/community/example_reporter` and is disabled unless `EXAMPLE_REPORTER_ENABLED` is set.

@@ -581,7 +581,7 @@ test("POST /missions/:missionId/execute rejects an approved mission with an exis
       const created = await postJson(baseUrl, "/missions", {
         message: "Do not start a second runtime while a matching run is active.",
         agentId: "knowledge_builder",
-        enabledSkillIds: ["doc_to_md", "md_to_rag", "rag_to_agent"],
+        enabledSkillIds: ["doc_to_md", "md_to_rag"],
       });
       const missionId = (created.json["mission"] as { missionId: string }).missionId;
       const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
@@ -660,7 +660,7 @@ test("POST /missions/:missionId/execute creates mission-linked runtime, timeline
       const created = await postJson(baseUrl, "/missions", {
         message: "Build and publish a traceable knowledge agent.",
         agentId: "knowledge_builder",
-        enabledSkillIds: ["doc_to_md", "md_to_rag", "rag_to_agent"],
+        enabledSkillIds: ["doc_to_md", "md_to_rag"],
       });
       const missionId = (created.json["mission"] as { missionId: string }).missionId;
       const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
@@ -696,15 +696,15 @@ test("POST /missions/:missionId/execute creates mission-linked runtime, timeline
       assert.equal(pipelineRun.metadata["revisionId"], revisionId);
       assert.equal(thread.id, pipelineRun.threadId);
       assert.equal(thread.metadata["missionId"], missionId);
-      assert.equal(moduleRuns.length, 3);
+      assert.equal(moduleRuns.length, 2);
       assert.equal(moduleRuns.every((run) => run.pipelineRunId === pipelineRun.id), true);
       assert.equal(moduleRuns.every((run) => run.metadata["missionId"] === missionId), true);
       assert.equal(moduleRuns.every((run) => run.metadata["revisionId"] === revisionId), true);
       assert.deepEqual(
         moduleRuns.map((run) => run.metadata["dagStepId"]),
-        ["step-1", "step-2", "step-3"],
+        ["step-1", "step-2"],
       );
-      assert.equal(moduleRuns[2]?.metadata["adapterExecutionStatus"], "approval_required");
+      assert.equal(moduleRuns[1]?.metadata["adapterExecutionStatus"], "approval_required");
 
       const timeline = await getAgentRunTimeline(repositories.runtimeRepository, pipelineRun.id);
       assert.equal(timeline.pipelineRun.id, pipelineRun.id);
@@ -745,7 +745,7 @@ test("POST /missions/:missionId/execute rejects rerun while an approval pause is
       const created = await postJson(baseUrl, "/missions", {
         message: "Build and publish a traceable knowledge agent with approval.",
         agentId: "knowledge_builder",
-        enabledSkillIds: ["doc_to_md", "md_to_rag", "rag_to_agent"],
+        enabledSkillIds: ["doc_to_md", "md_to_rag"],
       });
       const missionId = (created.json["mission"] as { missionId: string }).missionId;
       const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
@@ -774,7 +774,7 @@ test("POST /missions/:missionId/execute still rejects an older active run beyond
       const created = await postJson(baseUrl, "/missions", {
         message: "Build and publish a traceable knowledge agent with an older approval pause.",
         agentId: "knowledge_builder",
-        enabledSkillIds: ["doc_to_md", "md_to_rag", "rag_to_agent"],
+        enabledSkillIds: ["doc_to_md", "md_to_rag"],
       });
       const missionId = (created.json["mission"] as { missionId: string }).missionId;
       const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
@@ -815,9 +815,8 @@ test("mission runtime approvals resume the paused module and retain interaction 
   await withMissionRuntimeEnv(async () => {
     await withMissionsApp(async (baseUrl, repositories) => {
       const created = await postJson(baseUrl, "/missions", {
-        message: "Build a knowledge agent that needs publish approval.",
-        agentId: "knowledge_builder",
-        enabledSkillIds: ["doc_to_md", "md_to_rag", "rag_to_agent"],
+        message: "Generate an agent configuration that needs publish approval.",
+        enabledSkillIds: ["rag_to_agent"],
       });
       const missionId = (created.json["mission"] as { missionId: string }).missionId;
       const revisionId = (created.json["revision"] as { revisionId: string }).revisionId;
@@ -1069,7 +1068,7 @@ test("POST /missions with agentId uses only agent skill bindings", async () => {
     const response = await postJson(baseUrl, "/missions", {
       message: "Build a knowledge base from approved docs.",
       agentId: "knowledge_builder",
-      enabledSkillIds: ["md_to_rag", "rag_to_agent"],
+      enabledSkillIds: ["md_to_rag"],
     });
 
     assert.equal(response.status, 201);
@@ -1077,8 +1076,24 @@ test("POST /missions with agentId uses only agent skill bindings", async () => {
       steps: Array<{ skillId: string; assignedAgentId: string }>;
     };
     const skillIds = plan.steps.map((s) => s.skillId);
-    assert.deepStrictEqual(skillIds, ["md_to_rag", "rag_to_agent"]);
+    assert.deepStrictEqual(skillIds, ["md_to_rag"]);
     assert.equal(plan.steps.every((s) => s.assignedAgentId === "knowledge_builder"), true);
+  });
+});
+
+test("POST /missions with agentId rejects retired downstream skill ids", async () => {
+  await withMissionsApp(async (baseUrl) => {
+    const response = await postJson(baseUrl, "/missions", {
+      message: "Run a retired downstream mission.",
+      agentId: "knowledge_builder",
+      enabledSkillIds: ["rag_to_agent"],
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(
+      response.text,
+      /does not declare the following skill bindings:/i,
+    );
   });
 });
 
