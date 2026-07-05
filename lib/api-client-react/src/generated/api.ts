@@ -23,11 +23,14 @@ import type {
   AgentConnectionTestResponse,
   AgentId,
   AgentListResponse,
+  AgentManifestWriteResponse,
   AgentMcpToolMetadata,
   AgentRunDetail,
   AgentRunListResponse,
   AgentRunResponse,
   AgentRunTimeline,
+  ApprovalDecisionResponse,
+  ApprovalListResponse,
   ApproveMissionRequest,
   ApproveMissionResult,
   Artifact,
@@ -35,12 +38,14 @@ import type {
   ClimateMonitorRunRequest,
   ClimateMonitorRunResponse,
   ClimateMonitorStatusResponse,
+  CreateAgentManifestRequest,
   CreateAgentRunRequest,
   CreateArtifactRequest,
   CreateMissionRequest,
   CreateMissionResult,
   CreateModuleRunRequest,
   CreateRunEventRequest,
+  CreateSkillManifestRequest,
   CreateToolInteractionRequest,
   ErrorResponse,
   ExecuteMissionRequest,
@@ -50,6 +55,7 @@ import type {
   HealthStatus,
   ListArtifactsParams,
   ListRunsParams,
+  MissionBoardResponse,
   ModuleListResponse,
   ModuleRun,
   ModuleRunDetail,
@@ -59,6 +65,7 @@ import type {
   ReviseMissionResult,
   RunEvent,
   SkillListResponse,
+  SkillManifestWriteResponse,
   StartPipelineRunRequest,
   SubmitToolFeedbackRequest,
   TeamListResponse,
@@ -373,6 +380,94 @@ export function useGetSkills<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Writes a custom skill manifest. This is a Backstage/Admin write surface guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote address, and same-origin checks. It must never be exposed from the ordinary frontstage or Portal runtime.
+ * @summary Write a skill manifest
+ */
+export const getCreateSkillManifestUrl = () => {
+  return `/api/skill-manifests`;
+};
+
+export const createSkillManifest = async (
+  createSkillManifestRequest: CreateSkillManifestRequest,
+  options?: RequestInit,
+): Promise<SkillManifestWriteResponse> => {
+  return customFetch<SkillManifestWriteResponse>(getCreateSkillManifestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSkillManifestRequest),
+  });
+};
+
+export const getCreateSkillManifestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSkillManifest>>,
+    TError,
+    { data: BodyType<CreateSkillManifestRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSkillManifest>>,
+  TError,
+  { data: BodyType<CreateSkillManifestRequest> },
+  TContext
+> => {
+  const mutationKey = ["createSkillManifest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSkillManifest>>,
+    { data: BodyType<CreateSkillManifestRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSkillManifest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSkillManifestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSkillManifest>>
+>;
+export type CreateSkillManifestMutationBody =
+  BodyType<CreateSkillManifestRequest>;
+export type CreateSkillManifestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Write a skill manifest
+ */
+export const useCreateSkillManifest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSkillManifest>>,
+    TError,
+    { data: BodyType<CreateSkillManifestRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSkillManifest>>,
+  TError,
+  { data: BodyType<CreateSkillManifestRequest> },
+  TContext
+> => {
+  return useMutation(getCreateSkillManifestMutationOptions(options));
+};
 
 /**
  * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
@@ -714,6 +809,94 @@ export function useExportAgentMcpTool<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Writes a custom agent manifest. This is a Backstage/Admin write surface guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote address, and same-origin checks. It must never be exposed from the ordinary frontstage or Portal runtime.
+ * @summary Write an agent manifest
+ */
+export const getCreateAgentManifestUrl = () => {
+  return `/api/agent-manifests`;
+};
+
+export const createAgentManifest = async (
+  createAgentManifestRequest: CreateAgentManifestRequest,
+  options?: RequestInit,
+): Promise<AgentManifestWriteResponse> => {
+  return customFetch<AgentManifestWriteResponse>(getCreateAgentManifestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAgentManifestRequest),
+  });
+};
+
+export const getCreateAgentManifestMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAgentManifest>>,
+    TError,
+    { data: BodyType<CreateAgentManifestRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAgentManifest>>,
+  TError,
+  { data: BodyType<CreateAgentManifestRequest> },
+  TContext
+> => {
+  const mutationKey = ["createAgentManifest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAgentManifest>>,
+    { data: BodyType<CreateAgentManifestRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAgentManifest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAgentManifestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAgentManifest>>
+>;
+export type CreateAgentManifestMutationBody =
+  BodyType<CreateAgentManifestRequest>;
+export type CreateAgentManifestMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Write an agent manifest
+ */
+export const useCreateAgentManifest = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAgentManifest>>,
+    TError,
+    { data: BodyType<CreateAgentManifestRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAgentManifest>>,
+  TError,
+  { data: BodyType<CreateAgentManifestRequest> },
+  TContext
+> => {
+  return useMutation(getCreateAgentManifestMutationOptions(options));
+};
 
 /**
  * Returns redacted climate monitor repository status, latest report summary, source/scope coverage, and git branch/dirty state without exposing configured absolute paths or secret values.
@@ -2138,6 +2321,95 @@ export function useGetMission<
 }
 
 /**
+ * Returns the mission-scoped board projected from the selected plan revision, related runtime runs, pending approvals, and latest artifacts. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer ***`.
+ * @summary Get a mission execution board
+ */
+export const getGetMissionBoardUrl = (missionId: string) => {
+  return `/api/missions/${missionId}/board`;
+};
+
+export const getMissionBoard = async (
+  missionId: string,
+  options?: RequestInit,
+): Promise<MissionBoardResponse> => {
+  return customFetch<MissionBoardResponse>(getGetMissionBoardUrl(missionId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMissionBoardQueryKey = (missionId: string) => {
+  return [`/api/missions/${missionId}/board`] as const;
+};
+
+export const getGetMissionBoardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMissionBoard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  missionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMissionBoard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMissionBoardQueryKey(missionId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMissionBoard>>> = ({
+    signal,
+  }) => getMissionBoard(missionId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!missionId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMissionBoard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMissionBoardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMissionBoard>>
+>;
+export type GetMissionBoardQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a mission execution board
+ */
+
+export function useGetMissionBoard<
+  TData = Awaited<ReturnType<typeof getMissionBoard>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  missionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMissionBoard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMissionBoardQueryOptions(missionId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Revise the latest mission draft
  */
 export const getReviseMissionUrl = (missionId: string) => {
@@ -2397,6 +2669,258 @@ export const useExecuteMission = <
   TContext
 > => {
   return useMutation(getExecuteMissionMutationOptions(options));
+};
+
+/**
+ * Lists pending approval requests projected from runtime interactions. The current route returns the global pending approval list; frontstage and Portal callers must use the surface/facade boundary to restrict the visible set to mission-scoped or otherwise allowed approvals. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer ***`.
+ * @summary List pending approval requests
+ */
+export const getListApprovalsUrl = () => {
+  return `/api/approvals`;
+};
+
+export const listApprovals = async (
+  options?: RequestInit,
+): Promise<ApprovalListResponse> => {
+  return customFetch<ApprovalListResponse>(getListApprovalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListApprovalsQueryKey = () => {
+  return [`/api/approvals`] as const;
+};
+
+export const getListApprovalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listApprovals>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApprovals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListApprovalsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listApprovals>>> = ({
+    signal,
+  }) => listApprovals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listApprovals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListApprovalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listApprovals>>
+>;
+export type ListApprovalsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List pending approval requests
+ */
+
+export function useListApprovals<
+  TData = Awaited<ReturnType<typeof listApprovals>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApprovals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListApprovalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Approves a projected runtime approval request and attempts to resume the blocked module run. Portal-origin requests require a verified Portal token and are expected to be limited to allowed mission-scoped approvals by the frontstage facade.
+ * @summary Approve a pending approval request
+ */
+export const getApproveApprovalUrl = (approvalId: string) => {
+  return `/api/approvals/${approvalId}/approve`;
+};
+
+export const approveApproval = async (
+  approvalId: string,
+  options?: RequestInit,
+): Promise<ApprovalDecisionResponse> => {
+  return customFetch<ApprovalDecisionResponse>(
+    getApproveApprovalUrl(approvalId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getApproveApprovalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveApproval>>,
+    TError,
+    { approvalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveApproval>>,
+  TError,
+  { approvalId: string },
+  TContext
+> => {
+  const mutationKey = ["approveApproval"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveApproval>>,
+    { approvalId: string }
+  > = (props) => {
+    const { approvalId } = props ?? {};
+
+    return approveApproval(approvalId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveApprovalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveApproval>>
+>;
+
+export type ApproveApprovalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Approve a pending approval request
+ */
+export const useApproveApproval = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveApproval>>,
+    TError,
+    { approvalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveApproval>>,
+  TError,
+  { approvalId: string },
+  TContext
+> => {
+  return useMutation(getApproveApprovalMutationOptions(options));
+};
+
+/**
+ * Rejects a projected runtime approval request, cancels the blocked module run, and records an approval-rejected event. Portal-origin requests require a verified Portal token and are expected to be limited to allowed mission-scoped approvals by the frontstage facade.
+ * @summary Reject a pending approval request
+ */
+export const getRejectApprovalUrl = (approvalId: string) => {
+  return `/api/approvals/${approvalId}/reject`;
+};
+
+export const rejectApproval = async (
+  approvalId: string,
+  options?: RequestInit,
+): Promise<ApprovalDecisionResponse> => {
+  return customFetch<ApprovalDecisionResponse>(
+    getRejectApprovalUrl(approvalId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRejectApprovalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectApproval>>,
+    TError,
+    { approvalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectApproval>>,
+  TError,
+  { approvalId: string },
+  TContext
+> => {
+  const mutationKey = ["rejectApproval"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectApproval>>,
+    { approvalId: string }
+  > = (props) => {
+    const { approvalId } = props ?? {};
+
+    return rejectApproval(approvalId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectApprovalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectApproval>>
+>;
+
+export type RejectApprovalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reject a pending approval request
+ */
+export const useRejectApproval = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectApproval>>,
+    TError,
+    { approvalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectApproval>>,
+  TError,
+  { approvalId: string },
+  TContext
+> => {
+  return useMutation(getRejectApprovalMutationOptions(options));
 };
 
 /**

@@ -87,6 +87,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SkillListResponse"
+  /skill-manifests:
+    post:
+      operationId: createSkillManifest
+      tags: [skills]
+      summary: Write a skill manifest
+      description: >-
+        Writes a custom skill manifest. This is a Backstage/Admin write surface
+        guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote
+        address, and same-origin checks. It must never be exposed from the
+        ordinary frontstage or Portal runtime.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSkillManifestRequest"
+      responses:
+        "201":
+          description: Skill manifest written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillManifestWriteResponse"
+        "400":
+          description: Invalid manifest payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Manifest write guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /agents:
     get:
       operationId: getAgents
@@ -189,6 +224,41 @@ paths:
                 $ref: "#/components/schemas/AgentMcpToolMetadata"
         "404":
           description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agent-manifests:
+    post:
+      operationId: createAgentManifest
+      tags: [agents]
+      summary: Write an agent manifest
+      description: >-
+        Writes a custom agent manifest. This is a Backstage/Admin write surface
+        guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote
+        address, and same-origin checks. It must never be exposed from the
+        ordinary frontstage or Portal runtime.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentManifestRequest"
+      responses:
+        "201":
+          description: Agent manifest written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentManifestWriteResponse"
+        "400":
+          description: Invalid manifest payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Manifest write guard rejected the request
           content:
             application/json:
               schema:
@@ -751,6 +821,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /missions/{missionId}/board:
+    get:
+      operationId: getMissionBoard
+      tags: [missions]
+      summary: Get a mission execution board
+      description: >-
+        Returns the mission-scoped board projected from the selected plan
+        revision, related runtime runs, pending approvals, and latest artifacts.
+        Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and
+        require a verified Portal token through `X-Portal-Token` or
+        `Authorization: Bearer ***`.
+      parameters:
+        - $ref: "#/components/parameters/MissionId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      responses:
+        "200":
+          description: Mission execution board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissionBoardResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Mission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /missions/{missionId}/revise:
     post:
       operationId: reviseMission
@@ -891,6 +996,128 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Mission must be approved before execution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /approvals:
+    get:
+      operationId: listApprovals
+      tags: [approvals]
+      summary: List pending approval requests
+      description: >-
+        Lists pending approval requests projected from runtime interactions.
+        The current route returns the global pending approval list; frontstage
+        and Portal callers must use the surface/facade boundary to restrict the
+        visible set to mission-scoped or otherwise allowed approvals.
+        Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and
+        require a verified Portal token through `X-Portal-Token` or
+        `Authorization: Bearer ***`.
+      parameters:
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      responses:
+        "200":
+          description: Pending approval requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalListResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /approvals/{approvalId}/approve:
+    post:
+      operationId: approveApproval
+      tags: [approvals]
+      summary: Approve a pending approval request
+      description: >-
+        Approves a projected runtime approval request and attempts to resume
+        the blocked module run. Portal-origin requests require a verified
+        Portal token and are expected to be limited to allowed mission-scoped
+        approvals by the frontstage facade.
+      parameters:
+        - $ref: "#/components/parameters/ApprovalId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      responses:
+        "200":
+          description: Approval accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalDecisionResponse"
+        "400":
+          description: Invalid approval id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Approval request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Approval request is no longer pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /approvals/{approvalId}/reject:
+    post:
+      operationId: rejectApproval
+      tags: [approvals]
+      summary: Reject a pending approval request
+      description: >-
+        Rejects a projected runtime approval request, cancels the blocked
+        module run, and records an approval-rejected event. Portal-origin
+        requests require a verified Portal token and are expected to be limited
+        to allowed mission-scoped approvals by the frontstage facade.
+      parameters:
+        - $ref: "#/components/parameters/ApprovalId"
+        - $ref: "#/components/parameters/PortalSurface"
+        - $ref: "#/components/parameters/PortalToken"
+        - $ref: "#/components/parameters/AuthorizationHeader"
+      responses:
+        "200":
+          description: Approval rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalDecisionResponse"
+        "400":
+          description: Invalid approval id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Portal access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Approval request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Approval request is no longer pending
           content:
             application/json:
               schema:
@@ -1186,6 +1413,13 @@ components:
         runtime calls.
       schema:
         type: string
+    ApprovalId:
+      name: approvalId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
     RunId:
       name: runId
       in: path
@@ -1215,6 +1449,207 @@ components:
         type: string
         minLength: 1
   schemas:
+    MissionBoardArtifact:
+      type: object
+      additionalProperties: false
+      properties:
+        artifactId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        title:
+          type: string
+      required:
+        - artifactId
+        - kind
+        - title
+    MissionBoardAgent:
+      type: object
+      additionalProperties: false
+      properties:
+        agentId:
+          type: string
+        roleId:
+          type: string
+        displayName:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - running
+            - waiting_approval
+            - blocked
+            - succeeded
+            - failed
+        currentAction:
+          type: string
+        lastEventAt:
+          type: string
+          format: date-time
+        blockingReason:
+          type: string
+        moduleRunIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        latestArtifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MissionBoardArtifact"
+      required:
+        - displayName
+        - status
+        - currentAction
+        - moduleRunIds
+        - latestArtifacts
+    MissionBoardResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        missionId:
+          type: string
+        revisionId:
+          type:
+            - string
+            - "null"
+        board:
+          type: array
+          items:
+            $ref: "#/components/schemas/MissionBoardAgent"
+      required:
+        - missionId
+        - revisionId
+        - board
+    ApprovalRiskLevel:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+    ApprovalRequestStatus:
+      type: string
+      enum:
+        - pending
+        - approved
+        - rejected
+        - expired
+    ApprovalRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        approvalId:
+          type: string
+        missionId:
+          type: string
+        revisionId:
+          type: string
+        moduleRunId:
+          type: string
+          format: uuid
+        interactionId:
+          type: string
+        resumeHandle:
+          type: string
+        stepId:
+          type: string
+        agentId:
+          type: string
+        skillId:
+          type: string
+        toolKind:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/ApprovalRiskLevel"
+        action:
+          type: string
+        reason:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/ApprovalRequestStatus"
+      required:
+        - approvalId
+        - missionId
+        - revisionId
+        - moduleRunId
+        - riskLevel
+        - action
+        - reason
+        - requestedAt
+        - status
+    ApprovalListResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        approvals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalRequest"
+      required:
+        - approvals
+    ApprovalDecisionResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        approval:
+          $ref: "#/components/schemas/ApprovalRequest"
+      required:
+        - approval
+    CreateAgentManifestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        agentId:
+          type: string
+          minLength: 1
+        manifest:
+          $ref: "#/components/schemas/JsonObject"
+        overwrite:
+          type: boolean
+      required:
+        - agentId
+        - manifest
+    AgentManifestWriteResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        manifest:
+          $ref: "#/components/schemas/AgentManifest"
+        path:
+          type: string
+      required:
+        - manifest
+        - path
+    CreateSkillManifestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        skillId:
+          type: string
+          minLength: 1
+        manifest:
+          $ref: "#/components/schemas/JsonObject"
+        overwrite:
+          type: boolean
+      required:
+        - skillId
+        - manifest
+    SkillManifestWriteResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        manifest:
+          $ref: "#/components/schemas/SkillManifest"
+        path:
+          type: string
+      required:
+        - manifest
+        - path
     HealthStatus:
       type: object
       properties:
