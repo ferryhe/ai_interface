@@ -1,3 +1,4 @@
+import { ListApprovalsResponse } from "@workspace/api-zod";
 import { Router, type IRouter } from "express";
 
 import type { AgentConfigRepository } from "../agent-config/agent-config-service";
@@ -22,6 +23,19 @@ function errorResponse(message: string): { error: string } {
 
 function approvalIdFromParams(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function stringQueryParam(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0].trim() || null;
+  return null;
+}
+
+function filterApprovalsByMission<T extends { missionId?: string }>(
+  approvals: T[],
+  missionId: string | null,
+): T[] {
+  return missionId ? approvals.filter((approval) => approval.missionId === missionId) : approvals;
 }
 
 function errorStatus(error: unknown): number {
@@ -68,10 +82,15 @@ export function createApprovalsRouter(
     }
 
     try {
-      const approvals = await listApprovalsService(repository);
-      res.json(
+      const missionId = stringQueryParam(req.query["missionId"]);
+      const approvals = filterApprovalsByMission(
+        await listApprovalsService(repository),
+        missionId,
+      );
+      const data = ListApprovalsResponse.parse(
         redactInspectorResponse({ approvals }, options.env),
       );
+      res.json(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(errorStatus(error)).json(errorResponse(message));

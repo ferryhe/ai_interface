@@ -18,7 +18,7 @@ export function ApprovalSummary({ plan }: { plan: MissionPlan }) {
   const approvalSteps = plan.steps.filter((step) => step.approval?.required);
 
   return (
-    <Card className="border-border bg-muted/20 shadow-none">
+    <Card id="mission-approval-points" className="border-border bg-muted/20 shadow-none">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
           <CardTitle className="text-base">{t("approvalSummary.title")}</CardTitle>

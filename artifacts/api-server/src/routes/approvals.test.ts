@@ -65,16 +65,24 @@ async function withApprovalsApp<T>(
 
 async function createPendingApproval(
   repository: InMemoryAgentRuntimeRepository,
-  input: { action?: string; reason?: string } = {},
+  input: {
+    action?: string;
+    reason?: string;
+    missionId?: string;
+    revisionId?: string;
+    approvalRequestedAt?: unknown;
+  } = {},
 ): Promise<{ approvalId: string; runId: string }> {
+  const missionId = input.missionId ?? "mission-route";
+  const revisionId = input.revisionId ?? "revision-route";
   const pipelineRun = await repository.createPipelineRun({
     threadId: null,
     title: "Inbox pipeline",
     status: "running",
     activeModuleId: "doc_to_md",
     metadata: {
-      missionId: "mission-route",
-      revisionId: "revision-route",
+      missionId,
+      revisionId,
     },
   });
 
@@ -85,9 +93,9 @@ async function createPendingApproval(
     title: "Convert inbox document",
     inputJson: { topic: "routes" },
     metadata: {
-      missionId: "mission-route",
-      revisionId: "revision-route",
-      action: input.action ?? "Approve deployment token sk-route-token-12345678",
+      missionId,
+      revisionId,
+      action: input.action ?? "Approve deployment token «redacted:sk-…»",
       approvalReason:
         input.reason ??
         "Reads /home/ec2-user/work/Secret Project/.env before publishing.",
@@ -97,6 +105,9 @@ async function createPendingApproval(
       stepId: "publish-agent",
       skillId: "doc_to_md",
       adapterKind: "http",
+      ...(input.approvalRequestedAt !== undefined
+        ? { approvalRequestedAt: input.approvalRequestedAt }
+        : {}),
     },
   });
 
@@ -136,17 +147,56 @@ test("GET /approvals lists pending approvals with redaction", async () => {
 
       assert.equal(response.status, 200);
       assert.equal(json.approvals.length, 1);
-      assert.equal(text.includes("sk-route-token-12345678"), false);
+      assert.equal(text.includes("«redacted:sk-…»"), false);
       assert.equal(text.includes("/home/ec2-user/work/Secret Project/.env"), false);
       assert.match(text, /\[redacted\]/);
     },
     {
       env: {
-        OPENAI_API_KEY: "sk-route-token-12345678",
+        OPENAI_API_KEY: "«redacted:sk-…»",
         SECRET_PROJECT_PATH: "/home/ec2-user/work/Secret Project/.env",
       },
     },
   );
+});
+
+test("GET /approvals can scope results to the current mission", async () => {
+  await withApprovalsApp(async (baseUrl, { runtimeRepository }) => {
+    await createPendingApproval(runtimeRepository, {
+      missionId: "mission-current",
+      action: "Approve current mission publish",
+    });
+    await createPendingApproval(runtimeRepository, {
+      missionId: "mission-other",
+      action: "Approve unrelated publish",
+    });
+
+    const response = await fetch(`${baseUrl}/approvals?missionId=mission-current`);
+    const json = JSON.parse(await response.text()) as { approvals: Array<Record<string, unknown>> };
+
+    assert.equal(response.status, 200);
+    assert.equal(json.approvals.length, 1);
+    assert.equal(json.approvals[0]?.["missionId"], "mission-current");
+    assert.equal(json.approvals[0]?.["action"], "Approve current mission publish");
+  });
+});
+
+test("GET /approvals normalizes invalid approval requested timestamps before contract validation", async () => {
+  await withApprovalsApp(async (baseUrl, { runtimeRepository }) => {
+    await createPendingApproval(runtimeRepository, {
+      action: "Approve malformed metadata timestamp",
+      approvalRequestedAt: "not-a-date",
+    });
+
+    const response = await fetch(`${baseUrl}/approvals`);
+    const json = JSON.parse(await response.text()) as { approvals: Array<Record<string, unknown>> };
+    const requestedAt = json.approvals[0]?.["requestedAt"];
+
+    assert.equal(response.status, 200);
+    assert.equal(json.approvals.length, 1);
+    assert.notEqual(requestedAt, "not-a-date", "invalid metadata timestamp must not leak through");
+    assert.equal(Number.isNaN(Date.parse(String(requestedAt))), false);
+  });
 });
 
 test("POST /approvals/:approvalId/approve allows admin access", async () => {

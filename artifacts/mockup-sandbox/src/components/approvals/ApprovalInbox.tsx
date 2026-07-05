@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +27,29 @@ type ApprovalStatusMessage = {
   action: string;
 };
 
-export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: string }) {
+function scopedEndpoint(endpoint: string, missionId: string | undefined): string {
+  if (!missionId) return endpoint;
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}missionId=${encodeURIComponent(missionId)}`;
+}
+
+type ApprovalInboxProps = {
+  endpoint?: string;
+  missionId?: string;
+  id?: string;
+  titleKey?: string;
+  descriptionKey?: string;
+  emptyKey?: string;
+};
+
+export function ApprovalInbox({
+  endpoint = "/api/approvals",
+  missionId,
+  id,
+  titleKey = "approvalInbox.title",
+  descriptionKey = "approvalInbox.description",
+  emptyKey = "approvalInbox.empty",
+}: ApprovalInboxProps) {
   const { t } = useTranslation();
   const [approvals, setApprovals] = useState<ApprovalInboxItem[]>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading">("idle");
@@ -35,11 +57,16 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<ApprovalStatusMessage | null>(null);
 
+  const visibleApprovals = useMemo(
+    () => (missionId ? approvals.filter((approval) => approval.missionId === missionId) : approvals),
+    [approvals, missionId],
+  );
+
   const loadApprovals = useCallback(async () => {
     setLoadState("loading");
     setErrorMessage(null);
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(scopedEndpoint(endpoint, missionId), {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) {
@@ -52,7 +79,7 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
     } finally {
       setLoadState("idle");
     }
-  }, [endpoint, t]);
+  }, [endpoint, missionId, t]);
 
   useEffect(() => {
     void loadApprovals();
@@ -91,16 +118,16 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
   }
 
   return (
-    <Card className="border-border bg-muted/20 shadow-none">
+    <Card id={id} className="border-border bg-muted/20 shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="h-4 w-4" />
-              {t("approvalInbox.title")}
+              {t(titleKey)}
             </CardTitle>
             <CardDescription>
-              {t("approvalInbox.description")}
+              {t(descriptionKey)}
             </CardDescription>
           </div>
           <Button
@@ -135,14 +162,14 @@ export function ApprovalInbox({ endpoint = "/api/approvals" }: { endpoint?: stri
           </div>
         ) : null}
 
-        {approvals.length === 0 && loadState !== "loading" ? (
+        {visibleApprovals.length === 0 && loadState !== "loading" ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
-            {t("approvalInbox.empty")}
+            {t(emptyKey)}
           </div>
         ) : null}
 
         <div className="space-y-4">
-          {approvals.map((approval) => (
+          {visibleApprovals.map((approval) => (
             <ApprovalCard
               key={approval.approvalId}
               approval={approval}

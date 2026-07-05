@@ -90,13 +90,19 @@ function projectedStatus(
   return null;
 }
 
+function validDateString(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : value;
+}
+
 function requestedAtFor(
   run: ModuleRunRecord,
   interaction: ToolInteraction | null,
 ): string {
   return (
-    readString(run.metadata?.["approvalRequestedAt"]) ??
-    interaction?.requestedAt ??
+    validDateString(readString(run.metadata?.["approvalRequestedAt"])) ??
+    validDateString(interaction?.requestedAt) ??
     run.updatedAt.toISOString()
   );
 }
