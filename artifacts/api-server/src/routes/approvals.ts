@@ -1,3 +1,4 @@
+import { ListApprovalsResponse } from "@workspace/api-zod";
 import { Router, type IRouter } from "express";
 
 import type { AgentConfigRepository } from "../agent-config/agent-config-service";
@@ -86,9 +87,10 @@ export function createApprovalsRouter(
         await listApprovalsService(repository),
         missionId,
       );
-      res.json(
+      const data = ListApprovalsResponse.parse(
         redactInspectorResponse({ approvals }, options.env),
       );
+      res.json(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(errorStatus(error)).json(errorResponse(message));

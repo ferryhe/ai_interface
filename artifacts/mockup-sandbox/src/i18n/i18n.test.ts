@@ -130,6 +130,10 @@ test("ships matching mission and approval translation keys", () => {
   assert.equal(enUS.translation.approvalInbox.updatedTitle, "Approval updated");
   assert.equal(enUS.translation.approvalCard.runtimeStep, "Runtime step");
   assert.equal(
+    enUS.translation.agentStatus.approvalLink,
+    "Review current mission approval points",
+  );
+  assert.equal(
     zhCN.translation.approvalInbox.updatedTitle,
     "\u5ba1\u6279\u5df2\u66f4\u65b0",
   );
@@ -167,10 +171,16 @@ test("locale resources include all visible mission and approval labels", () => {
     "missionCenter.stepComplete",
     "missionCenter.stepPending",
     "missionCenter.stepIntakeTitle",
+    "missionCenter.stepIntakeDescription",
     "missionCenter.stepReviewTitle",
+    "missionCenter.stepReviewDescription",
     "missionCenter.stepApprovalTitle",
+    "missionCenter.stepApprovalDescription",
     "missionCenter.stepResultTitle",
+    "missionCenter.stepResultDescription",
     "missionCenter.resultTitle",
+    "missionCenter.resultDescription",
+    "missionCenter.resultFallback",
     "common.riskLevel.low",
     "common.riskLevel.medium",
     "common.riskLevel.high",
@@ -191,6 +201,9 @@ test("locale resources include all visible mission and approval labels", () => {
     "planStep.dependsOn",
     "planStep.approval",
     "approvalInbox.title",
+    "approvalInbox.currentMissionTitle",
+    "approvalInbox.currentMissionDescription",
+    "approvalInbox.currentMissionEmpty",
     "approvalCard.runtimeStep",
     "approvalCard.mission",
     "approvalCard.revision",

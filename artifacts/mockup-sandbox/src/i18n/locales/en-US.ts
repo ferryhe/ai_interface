@@ -2855,7 +2855,7 @@ export const enUS = {
         "There are no execution records yet. Approve only confirms the plan; real run state and artifact links appear after execution.",
     },
     agentStatus: {
-      approvalLink: "Review current mission approval point",
+      approvalLink: "Review current mission approval points",
     },
     artifactStrip: {
       empty: "No latest artifacts yet.",

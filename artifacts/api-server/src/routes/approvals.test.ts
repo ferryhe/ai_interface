@@ -65,7 +65,13 @@ async function withApprovalsApp<T>(
 
 async function createPendingApproval(
   repository: InMemoryAgentRuntimeRepository,
-  input: { action?: string; reason?: string; missionId?: string; revisionId?: string } = {},
+  input: {
+    action?: string;
+    reason?: string;
+    missionId?: string;
+    revisionId?: string;
+    approvalRequestedAt?: unknown;
+  } = {},
 ): Promise<{ approvalId: string; runId: string }> {
   const missionId = input.missionId ?? "mission-route";
   const revisionId = input.revisionId ?? "revision-route";
@@ -99,6 +105,9 @@ async function createPendingApproval(
       stepId: "publish-agent",
       skillId: "doc_to_md",
       adapterKind: "http",
+      ...(input.approvalRequestedAt !== undefined
+        ? { approvalRequestedAt: input.approvalRequestedAt }
+        : {}),
     },
   });
 
@@ -169,6 +178,24 @@ test("GET /approvals can scope results to the current mission", async () => {
     assert.equal(json.approvals.length, 1);
     assert.equal(json.approvals[0]?.["missionId"], "mission-current");
     assert.equal(json.approvals[0]?.["action"], "Approve current mission publish");
+  });
+});
+
+test("GET /approvals normalizes invalid approval requested timestamps before contract validation", async () => {
+  await withApprovalsApp(async (baseUrl, { runtimeRepository }) => {
+    await createPendingApproval(runtimeRepository, {
+      action: "Approve malformed metadata timestamp",
+      approvalRequestedAt: "not-a-date",
+    });
+
+    const response = await fetch(`${baseUrl}/approvals`);
+    const json = JSON.parse(await response.text()) as { approvals: Array<Record<string, unknown>> };
+    const requestedAt = json.approvals[0]?.["requestedAt"];
+
+    assert.equal(response.status, 200);
+    assert.equal(json.approvals.length, 1);
+    assert.notEqual(requestedAt, "not-a-date", "invalid metadata timestamp must not leak through");
+    assert.equal(Number.isNaN(Date.parse(String(requestedAt))), false);
   });
 });
 
