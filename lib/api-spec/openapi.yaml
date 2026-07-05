@@ -1307,7 +1307,13 @@ paths:
       operationId: getAgentConfig
       tags: [agent-config]
       summary: Get Agent configuration
-      description: Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
+      description: >-
+        Returns the persisted Agent control plane configuration and provider
+        readiness based on required environment variables. Secret values and
+        local provider URLs are never returned. This admin surface is guarded
+        to localhost, same-origin or forwarded-host requests with loopback
+        forwarded clients and same-origin Fetch Metadata, and rejects
+        Portal-origin runtime requests before reading configuration.
       responses:
         "200":
           description: Agent configuration
@@ -1315,10 +1321,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentConfigResponse"
+        "403":
+          description: Agent config admin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       operationId: updateAgentConfig
       tags: [agent-config]
       summary: Update Agent configuration
+      description: >-
+        Updates the Agent control plane configuration. This admin surface is
+        guarded to localhost, same-origin or forwarded-host requests with
+        loopback forwarded clients, and rejects Portal-origin runtime requests
+        before validating or writing the payload.
       requestBody:
         required: true
         content:
@@ -1338,12 +1355,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Agent config admin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /agent-config/test-connection:
     post:
       operationId: testAgentConfigConnection
       tags: [agent-config]
       summary: Test Agent provider connection
-      description: Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
+      description: >-
+        Reports provider readiness from server-side environment configuration
+        without accepting or returning secrets or local provider URLs. This
+        admin diagnostic is guarded to localhost, same-origin or forwarded-host
+        requests with loopback forwarded clients, and rejects Portal-origin
+        runtime requests before reading configuration.
       responses:
         "200":
           description: Connection status
@@ -1351,6 +1379,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentConnectionTestResponse"
+        "403":
+          description: Agent config admin guard rejected the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /portal-auth/verify:
     post:
       operationId: verifyPortalAccess

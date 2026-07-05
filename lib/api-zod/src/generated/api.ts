@@ -2799,7 +2799,7 @@ export const GetPipelineRunResponse = zod.object({
 });
 
 /**
- * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
+ * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned. This admin surface is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients and same-origin Fetch Metadata, and rejects Portal-origin runtime requests before reading configuration.
  * @summary Get Agent configuration
  */
 
@@ -2909,6 +2909,7 @@ export const GetAgentConfigResponse = zod.object({
 });
 
 /**
+ * Updates the Agent control plane configuration. This admin surface is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients, and rejects Portal-origin runtime requests before validating or writing the payload.
  * @summary Update Agent configuration
  */
 
@@ -3092,7 +3093,7 @@ export const UpdateAgentConfigResponse = zod.object({
 });
 
 /**
- * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
+ * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs. This admin diagnostic is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients, and rejects Portal-origin runtime requests before reading configuration.
  * @summary Test Agent provider connection
  */
 export const TestAgentConfigConnectionResponse = zod.object({

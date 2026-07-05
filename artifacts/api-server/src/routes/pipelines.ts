@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import type { Request } from "express";
-import { isIP } from "node:net";
 import {
   GetPipelineRunParams,
   GetPipelineRunResponse,
@@ -14,6 +13,10 @@ import {
   type StartPipelineRunInput,
   type PipelineRunListItem,
 } from "../pipelines/runner";
+import {
+  isLoopbackRemoteAddress,
+  localAdminGuardError,
+} from "./local-admin-guard";
 
 function errorResponse(message: string): { error: string } {
   return { error: message };
@@ -45,49 +48,6 @@ function parseStartBody(value: unknown): StartPipelineRunInput {
   };
 }
 
-function hostNameFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizedHostFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).host;
-  } catch {
-    return null;
-  }
-}
-
-function isLoopbackHost(host: string): boolean {
-  const hostname = hostNameFromHeader(host);
-  const normalizedHostname = hostname?.toLowerCase();
-  return (
-    normalizedHostname === "localhost" ||
-    normalizedHostname === "[::1]" ||
-    normalizedHostname === "::1" ||
-    (normalizedHostname !== undefined &&
-      isIP(normalizedHostname) === 4 &&
-      normalizedHostname.startsWith("127."))
-  );
-}
-
-function isAllowedPipelineCommandHost(host: string | undefined): boolean {
-  return Boolean(host && isLoopbackHost(host));
-}
-
-function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
-  if (!remoteAddress) return false;
-  const normalized = remoteAddress.trim().toLowerCase();
-  if (normalized === "::1") return true;
-  if (normalized.startsWith("::ffff:")) {
-    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
-  }
-  return isIP(normalized) === 4 && normalized.startsWith("127.");
-}
-
 function pipelineCommandGuardError(req: Request): string | null {
   if (req.get("x-ai-interface-command-intent") !== "actuarial-pipeline-run") {
     return "Actuarial pipeline run requires explicit command intent";
@@ -97,30 +57,7 @@ function pipelineCommandGuardError(req: Request): string | null {
 }
 
 function pipelineLocalRequestGuardError(req: Request, action: string): string | null {
-  if (req.get("sec-fetch-site") === "cross-site") {
-    return `Cross-site actuarial pipeline ${action} requests are not allowed`;
-  }
-
-  const host = req.get("host");
-  if (
-    !isAllowedPipelineCommandHost(host) ||
-    !isLoopbackRemoteAddress(req.socket.remoteAddress)
-  ) {
-    return `Actuarial pipeline ${action} requests are only allowed from localhost`;
-  }
-
-  const origin = req.get("origin");
-  if (!origin || !host) return null;
-
-  try {
-    const parsedOrigin = new URL(origin);
-    const normalizedHost = normalizedHostFromHeader(host);
-    return normalizedHost !== null && parsedOrigin.host === normalizedHost
-      ? null
-      : "Origin does not match the ai_interface host";
-  } catch {
-    return "Invalid Origin header";
-  }
+  return localAdminGuardError(req, `actuarial pipeline ${action}`);
 }
 
 export const __privatePipelinesRouteGuards = {

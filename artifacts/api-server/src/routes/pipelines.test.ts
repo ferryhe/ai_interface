@@ -40,9 +40,12 @@ async function rawPipelinePost(
   baseUrl: string,
   input: {
     host?: string;
+    forwardedHost?: string;
+    forwardedFor?: string;
     origin?: string;
     commandIntent?: string;
     secFetchSite?: string;
+    surface?: string;
   } = {},
 ): Promise<{ statusCode: number; text: string }> {
   const url = new URL("/pipelines/runs", baseUrl);
@@ -63,7 +66,14 @@ async function rawPipelinePost(
             ? { "X-AI-Interface-Command-Intent": input.commandIntent }
             : {}),
           ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.forwardedHost
+            ? { "X-Forwarded-Host": input.forwardedHost }
+            : {}),
+          ...(input.forwardedFor
+            ? { "X-Forwarded-For": input.forwardedFor }
+            : {}),
           ...(input.secFetchSite ? { "Sec-Fetch-Site": input.secFetchSite } : {}),
+          ...(input.surface ? { "X-AI-Interface-Surface": input.surface } : {}),
         },
       },
       (res) => {
@@ -87,8 +97,11 @@ async function rawPipelineGet(
   path: string,
   input: {
     host?: string;
+    forwardedHost?: string;
+    forwardedFor?: string;
     origin?: string;
     secFetchSite?: string;
+    surface?: string;
   } = {},
 ): Promise<{ statusCode: number; text: string }> {
   const url = new URL(path, baseUrl);
@@ -103,7 +116,14 @@ async function rawPipelineGet(
         headers: {
           Host: input.host ?? url.host,
           ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.forwardedHost
+            ? { "X-Forwarded-Host": input.forwardedHost }
+            : {}),
+          ...(input.forwardedFor
+            ? { "X-Forwarded-For": input.forwardedFor }
+            : {}),
           ...(input.secFetchSite ? { "Sec-Fetch-Site": input.secFetchSite } : {}),
+          ...(input.surface ? { "X-AI-Interface-Surface": input.surface } : {}),
         },
       },
       (res) => {
@@ -206,6 +226,54 @@ test("pipeline run route accepts same-origin localhost command requests", async 
   assert.equal(response.statusCode, 201);
   assert.equal(json.runId, "run-from-route");
   assert.equal(json.inputPath, "case_input.json");
+});
+
+test("pipeline run route accepts Vite-proxied localhost command requests with forwarded host", async () => {
+  const service = fakeService(async (input) =>
+    fakePipelineRun({ inputPath: input.inputPath, runId: "run-from-vite-proxy" }),
+  );
+
+  const response = await withPipelinesApp(service, (baseUrl) => {
+    const apiHost = new URL(baseUrl).host;
+    const uiHost = "127.0.0.1:5174";
+    return rawPipelinePost(baseUrl, {
+      host: apiHost,
+      forwardedHost: uiHost,
+      forwardedFor: "127.0.0.1",
+      origin: `http://${uiHost}`,
+      secFetchSite: "same-origin",
+      commandIntent: "actuarial-pipeline-run",
+    });
+  });
+  const json = JSON.parse(response.text) as { runId: string; inputPath: string };
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(json.runId, "run-from-vite-proxy");
+  assert.equal(json.inputPath, "case_input.json");
+});
+
+test("pipeline run route rejects non-loopback forwarded clients before starting execution", async () => {
+  let started = false;
+  const service = fakeService(async () => {
+    started = true;
+    return fakePipelineRun();
+  });
+
+  const response = await withPipelinesApp(service, (baseUrl) => {
+    const apiHost = new URL(baseUrl).host;
+    return rawPipelinePost(baseUrl, {
+      host: apiHost,
+      forwardedHost: "127.0.0.1:5174",
+      forwardedFor: "192.168.0.20",
+      origin: "http://127.0.0.1:5174",
+      secFetchSite: "same-origin",
+      commandIntent: "actuarial-pipeline-run",
+    });
+  });
+
+  assert.equal(response.statusCode, 403);
+  assert.match(response.text, /localhost/);
+  assert.equal(started, false);
 });
 
 test("pipeline route remote guard accepts IPv4-mapped loopback addresses", () => {

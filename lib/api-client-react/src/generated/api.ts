@@ -3355,7 +3355,7 @@ export function useGetPipelineRun<
 }
 
 /**
- * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned.
+ * Returns the persisted Agent control plane configuration and provider readiness based on required environment variables. Secret values and local provider URLs are never returned. This admin surface is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients and same-origin Fetch Metadata, and rejects Portal-origin runtime requests before reading configuration.
  * @summary Get Agent configuration
  */
 export const getGetAgentConfigUrl = () => {
@@ -3377,7 +3377,7 @@ export const getGetAgentConfigQueryKey = () => {
 
 export const getGetAgentConfigQueryOptions = <
   TData = Awaited<ReturnType<typeof getAgentConfig>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getAgentConfig>>,
@@ -3404,7 +3404,7 @@ export const getGetAgentConfigQueryOptions = <
 export type GetAgentConfigQueryResult = NonNullable<
   Awaited<ReturnType<typeof getAgentConfig>>
 >;
-export type GetAgentConfigQueryError = ErrorType<unknown>;
+export type GetAgentConfigQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get Agent configuration
@@ -3412,7 +3412,7 @@ export type GetAgentConfigQueryError = ErrorType<unknown>;
 
 export function useGetAgentConfig<
   TData = Awaited<ReturnType<typeof getAgentConfig>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getAgentConfig>>,
@@ -3431,6 +3431,7 @@ export function useGetAgentConfig<
 }
 
 /**
+ * Updates the Agent control plane configuration. This admin surface is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients, and rejects Portal-origin runtime requests before validating or writing the payload.
  * @summary Update Agent configuration
  */
 export const getUpdateAgentConfigUrl = () => {
@@ -3517,7 +3518,7 @@ export const useUpdateAgentConfig = <
 };
 
 /**
- * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs.
+ * Reports provider readiness from server-side environment configuration without accepting or returning secrets or local provider URLs. This admin diagnostic is guarded to localhost, same-origin or forwarded-host requests with loopback forwarded clients, and rejects Portal-origin runtime requests before reading configuration.
  * @summary Test Agent provider connection
  */
 export const getTestAgentConfigConnectionUrl = () => {
@@ -3537,7 +3538,7 @@ export const testAgentConfigConnection = async (
 };
 
 export const getTestAgentConfigConnectionMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3576,13 +3577,13 @@ export type TestAgentConfigConnectionMutationResult = NonNullable<
   Awaited<ReturnType<typeof testAgentConfigConnection>>
 >;
 
-export type TestAgentConfigConnectionMutationError = ErrorType<unknown>;
+export type TestAgentConfigConnectionMutationError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Test Agent provider connection
  */
 export const useTestAgentConfigConnection = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

@@ -18,6 +18,8 @@ import modulesRouter from "./modules";
 import pipelinesRouter from "./pipelines";
 import { createPortalAuthRouter } from "./portal-auth";
 import portalAuthRouter from "./portal-auth";
+import { portalSurfaceDenyByDefault } from "./portal-access-guard";
+import { localAdminSurfaceGuard } from "./local-admin-guard";
 import { createRunInspectorRouter } from "./run-inspector";
 import runInspectorRouter from "./run-inspector";
 import skillsRouter from "./skills";
@@ -26,6 +28,9 @@ import toolAdaptersRouter from "./tool-adapters";
 
 export function createDatabaseRouter(): IRouter {
   const router: IRouter = Router();
+
+  router.use(portalSurfaceDenyByDefault);
+  router.use(localAdminSurfaceGuard);
 
   router.use(agentManifestsRouter);
   router.use(agentsRouter);
@@ -51,6 +56,9 @@ export function createMemoryRouter(): IRouter {
   const configRepository = new InMemoryAgentConfigRepository();
   const runtimeRepository = new InMemoryAgentRuntimeRepository();
   const missionRepository = new InMemoryMissionRepository();
+
+  router.use(portalSurfaceDenyByDefault);
+  router.use(localAdminSurfaceGuard);
 
   router.use(agentManifestsRouter);
   router.use(agentsRouter);

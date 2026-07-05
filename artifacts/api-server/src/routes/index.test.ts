@@ -33,12 +33,15 @@ async function requestJson(input: {
   baseUrl: string;
   path: string;
   method?: string;
+  headers?: Record<string, string>;
   body?: unknown;
 }): Promise<{ status: number; json: Record<string, unknown> }> {
   const response = await fetch(`${input.baseUrl}${input.path}`, {
     method: input.method ?? "GET",
     headers:
-      input.body === undefined ? undefined : { "Content-Type": "application/json" },
+      input.body === undefined
+        ? input.headers
+        : { ...input.headers, "Content-Type": "application/json" },
     body: input.body === undefined ? undefined : JSON.stringify(input.body),
   });
   const text = await response.text();
@@ -100,5 +103,69 @@ test("memory API router serves config, agent runs, and missions without DATABASE
       (mission.json["mission"] as { status: string }).status,
       "needs_confirmation",
     );
+  });
+});
+
+test("memory API router denies Portal access to non-allowlisted admin surfaces", async () => {
+  await withApiApp(async (baseUrl) => {
+    const agents = await requestJson({
+      baseUrl,
+      path: "/api/agents",
+      headers: { "X-AI-Interface-Surface": "agent-portal" },
+    });
+    assert.equal(agents.status, 403);
+    assert.match(String(agents.json["error"]), /Portal runtime is not allowed/);
+
+    const health = await requestJson({
+      baseUrl,
+      path: "/api/healthz",
+      headers: { "X-AI-Interface-Surface": "agent-portal" },
+    });
+    assert.equal(health.status, 403);
+    assert.match(String(health.json["error"]), /Portal runtime is not allowed/);
+
+    const verification = await requestJson({
+      baseUrl,
+      path: "/api/portal-auth/verify",
+      method: "POST",
+      headers: { "X-AI-Interface-Surface": "agent-portal" },
+      body: { token: "" },
+    });
+    assert.notEqual(verification.status, 403);
+  });
+});
+
+test("memory API router protects governance read surfaces with the local admin guard", async () => {
+  await withApiApp(async (baseUrl) => {
+    const responses = await Promise.all([
+      requestJson({
+        baseUrl,
+        path: "/api/agents",
+        headers: { "Sec-Fetch-Site": "cross-site" },
+      }),
+      requestJson({
+        baseUrl,
+        path: "/api/skills",
+        headers: { "Sec-Fetch-Site": "cross-site" },
+      }),
+      requestJson({
+        baseUrl,
+        path: "/api/modules",
+        headers: { "Sec-Fetch-Site": "cross-site" },
+      }),
+      requestJson({
+        baseUrl,
+        path: "/api/climate-monitor/status",
+        headers: { "Sec-Fetch-Site": "cross-site" },
+      }),
+    ]);
+
+    assert.deepEqual(
+      responses.map((response) => response.status),
+      [403, 403, 403, 403],
+    );
+    for (const response of responses) {
+      assert.match(String(response.json["error"]), /Cross-site local admin read/);
+    }
   });
 });
