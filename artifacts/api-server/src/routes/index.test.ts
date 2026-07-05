@@ -5,6 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { createApiRouter } from "./index";
+import { isPortalRuntimeRequest } from "./portal-access-guard";
 
 async function withApiApp<T>(
   callback: (baseUrl: string) => Promise<T>,
@@ -106,6 +107,16 @@ test("memory API router serves config, agent runs, and missions without DATABASE
   });
 });
 
+test("Portal surface classifier ignores non-string metadata.source", () => {
+  assert.equal(
+    isPortalRuntimeRequest(
+      { headers: {} } as Parameters<typeof isPortalRuntimeRequest>[0],
+      { source: 123 },
+    ),
+    false,
+  );
+});
+
 test("memory API router denies Portal access to non-allowlisted admin surfaces", async () => {
   await withApiApp(async (baseUrl) => {
     const agents = await requestJson({
@@ -138,14 +149,6 @@ test("memory API router denies Portal access to non-allowlisted admin surfaces",
       String(metadataOnlyPortal.json["error"]),
       /Portal runtime is not allowed/,
     );
-
-    const nonStringMetadataSource = await requestJson({
-      baseUrl,
-      path: "/api/module-runs",
-      method: "POST",
-      body: { metadata: { source: 123 } },
-    });
-    assert.notEqual(nonStringMetadataSource.status, 403);
 
     const health = await requestJson({
       baseUrl,
