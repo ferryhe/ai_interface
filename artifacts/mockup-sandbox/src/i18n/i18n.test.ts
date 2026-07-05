@@ -148,7 +148,7 @@ test("ships matching mission and approval translation keys", () => {
   );
   assert.equal(
     zhCN.translation.agentStatus.approvalLink,
-    "\u53bb\u5ba1\u6279\u7bb1\u5904\u7406",
+    "查看当前 Mission 审批点",
   );
   assert.equal(
     zhCN.translation.missionCenter.handoffFallback.includes("Approval Inbox"),
@@ -161,6 +161,16 @@ test("locale resources include all visible mission and approval labels", () => {
     "missionCenter.tabMissionCenter",
     "missionCenter.tabBackstage",
     "missionCenter.steps",
+    "missionCenter.portalStepsLabel",
+    "missionCenter.stepOrdinal",
+    "missionCenter.stepActive",
+    "missionCenter.stepComplete",
+    "missionCenter.stepPending",
+    "missionCenter.stepIntakeTitle",
+    "missionCenter.stepReviewTitle",
+    "missionCenter.stepApprovalTitle",
+    "missionCenter.stepResultTitle",
+    "missionCenter.resultTitle",
     "common.riskLevel.low",
     "common.riskLevel.medium",
     "common.riskLevel.high",

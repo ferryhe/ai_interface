@@ -73,7 +73,7 @@ export function AgentStatusCard({ agent }: { agent: MissionBoardAgent }) {
 
         {agent.status === "waiting_approval" ? (
           <a
-            href="#approval-inbox"
+            href="#mission-approval-inbox"
             className="inline-flex items-center gap-2 text-sm font-medium text-amber-200 underline-offset-4 hover:underline"
           >
             {t("agentStatus.approvalLink")}

@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:i18n": "tsx --test src/i18n/i18n.test.ts",
     "test:portal": "tsx --test src/components/mockups/ai-os/AgentPortalInterface.test.ts",
-    "test:agent-first": "tsx --test src/components/mockups/ai-os/AgentFirstInterface.test.ts"
+    "test:agent-first": "tsx --test src/components/mockups/ai-os/AgentFirstInterface.test.ts",
+    "test:mission-shell": "tsx --test src/components/mission/MissionCenterShell.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

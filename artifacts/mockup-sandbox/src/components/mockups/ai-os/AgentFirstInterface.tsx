@@ -3434,16 +3434,7 @@ export function AgentFirstInterface() {
 
         <main className="view-frame">
           {workspaceMode === "mission" ? (
-            <MissionCenterShell
-              onOpenBackstage={() => {
-                setWorkspaceMode("backstage");
-                setWorkbenchTab("runs");
-              }}
-              onOpenOperator={() => {
-                setWorkspaceMode("backstage");
-                setWorkbenchTab("operator");
-              }}
-            />
+            <MissionCenterShell />
           ) : workspaceMode === "backstage" ? (
             <BackstageView
               workbenchTab={workbenchTab}
