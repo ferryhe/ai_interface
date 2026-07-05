@@ -93,8 +93,11 @@ async function rawAgentManifestPost(
   body: unknown,
   input: {
     host?: string;
+    forwardedHost?: string;
+    forwardedFor?: string;
     origin?: string;
     secFetchSite?: string;
+    surface?: string;
   } = {},
 ): Promise<{ statusCode: number; text: string }> {
   const url = new URL("/api/agent-manifests", baseUrl);
@@ -112,9 +115,16 @@ async function rawAgentManifestPost(
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
           ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.forwardedHost
+            ? { "X-Forwarded-Host": input.forwardedHost }
+            : {}),
+          ...(input.forwardedFor
+            ? { "X-Forwarded-For": input.forwardedFor }
+            : {}),
           ...(input.secFetchSite
             ? { "Sec-Fetch-Site": input.secFetchSite }
             : {}),
+          ...(input.surface ? { "X-AI-Interface-Surface": input.surface } : {}),
         },
       },
       (res) => {
@@ -269,6 +279,56 @@ test("POST /api/agent-manifests rejects non-local write hosts before file write"
   );
 
   assert.equal(response.statusCode, 403);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
+    false,
+  );
+});
+
+test("POST /api/agent-manifests accepts Vite-proxied localhost writes with forwarded host", async () => {
+  const cwd = await createRoot();
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) => {
+      const apiHost = new URL(baseUrl).host;
+      const uiHost = "127.0.0.1:5174";
+      return rawAgentManifestPost(baseUrl, requestBody(), {
+        host: apiHost,
+        forwardedHost: uiHost,
+        forwardedFor: "127.0.0.1",
+        origin: `http://${uiHost}`,
+        secFetchSite: "same-origin",
+      });
+    },
+  );
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(
+    await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
+    true,
+  );
+});
+
+test("POST /api/agent-manifests rejects Portal-surface writes before file write", async () => {
+  const cwd = await createRoot();
+
+  const response = await withAgentManifestsApp(
+    {
+      cwd,
+      env: { AI_INTERFACE_MANIFEST_WRITE_MODE: "custom" },
+    },
+    (baseUrl) =>
+      rawAgentManifestPost(baseUrl, requestBody(), {
+        surface: "agent-portal",
+      }),
+  );
+
+  assert.equal(response.statusCode, 403);
+  assert.match(response.text, /Portal runtime is not allowed/);
   assert.equal(
     await fileExists(join(cwd, "agents", "custom", "my_agent", "agent.yaml")),
     false,

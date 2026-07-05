@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import type { Request } from "express";
-import { isIP } from "node:net";
 import { GetAgentsResponse } from "@workspace/api-zod";
 
 import { redactAgentInteropText } from "../agent-registry/mcp-tool-exporter";
@@ -8,6 +7,7 @@ import {
   writeAgentManifest,
   type WritableAgentManifest,
 } from "../agent-registry/agent-manifest-writer";
+import { localAdminGuardError } from "./local-admin-guard";
 
 export interface CreateAgentManifestsRouterOptions {
   cwd?: string;
@@ -50,71 +50,8 @@ export function redactedErrorResponse(message: string): { error: string } {
   return errorResponse(redactManifestString(message));
 }
 
-function hostNameFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizedHostFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).host;
-  } catch {
-    return null;
-  }
-}
-
-function isLoopbackHost(host: string): boolean {
-  const hostname = hostNameFromHeader(host);
-  const normalizedHostname = hostname?.toLowerCase();
-  return (
-    normalizedHostname === "localhost" ||
-    normalizedHostname === "[::1]" ||
-    normalizedHostname === "::1" ||
-    (normalizedHostname !== undefined &&
-      isIP(normalizedHostname) === 4 &&
-      normalizedHostname.startsWith("127."))
-  );
-}
-
-function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
-  if (!remoteAddress) return false;
-  const normalized = remoteAddress.trim().toLowerCase();
-  if (normalized === "::1") return true;
-  if (normalized.startsWith("::ffff:")) {
-    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
-  }
-  return isIP(normalized) === 4 && normalized.startsWith("127.");
-}
-
 export function manifestWriteGuardError(req: Request): string | null {
-  if (req.get("sec-fetch-site") === "cross-site") {
-    return "Cross-site agent manifest write requests are not allowed";
-  }
-
-  const host = req.get("host");
-  if (
-    !host ||
-    !isLoopbackHost(host) ||
-    !isLoopbackRemoteAddress(req.socket.remoteAddress)
-  ) {
-    return "Agent manifest write requests are only allowed from localhost";
-  }
-
-  const origin = req.get("origin");
-  if (!origin) return null;
-
-  try {
-    const parsedOrigin = new URL(origin);
-    const normalizedHost = normalizedHostFromHeader(host);
-    return normalizedHost !== null && parsedOrigin.host === normalizedHost
-      ? null
-      : "Origin does not match the ai_interface host";
-  } catch {
-    return "Invalid Origin header";
-  }
+  return localAdminGuardError(req, "agent manifest write");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

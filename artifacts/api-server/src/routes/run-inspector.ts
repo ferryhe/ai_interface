@@ -1,4 +1,3 @@
-import { isIP } from "node:net";
 import { Router, type IRouter, type Request } from "express";
 import {
   GetRunTimelineParams,
@@ -20,6 +19,7 @@ import {
   type SkillRuntimeRegistry,
 } from "../skill-runtime/skill-runtime-registry";
 import { createLazyRepository } from "./lazy-repository";
+import { localAdminGuardError } from "./local-admin-guard";
 
 const DEFAULT_LIMIT = 50;
 const REDACTED = "[redacted]";
@@ -28,71 +28,8 @@ function errorResponse(message: string): { error: string } {
   return { error: message };
 }
 
-function hostNameFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizedHostFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).host;
-  } catch {
-    return null;
-  }
-}
-
-function isLoopbackHost(host: string): boolean {
-  const hostname = hostNameFromHeader(host);
-  const normalizedHostname = hostname?.toLowerCase();
-  return (
-    normalizedHostname === "localhost" ||
-    normalizedHostname === "[::1]" ||
-    normalizedHostname === "::1" ||
-    (normalizedHostname !== undefined &&
-      isIP(normalizedHostname) === 4 &&
-      normalizedHostname.startsWith("127."))
-  );
-}
-
-function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
-  if (!remoteAddress) return false;
-  const normalized = remoteAddress.trim().toLowerCase();
-  if (normalized === "::1") return true;
-  if (normalized.startsWith("::ffff:")) {
-    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
-  }
-  return isIP(normalized) === 4 && normalized.startsWith("127.");
-}
-
 function inspectorReadGuardError(req: Request): string | null {
-  if (req.get("sec-fetch-site") === "cross-site") {
-    return "Cross-site run inspector read requests are not allowed";
-  }
-
-  const host = req.get("host");
-  if (
-    !host ||
-    !isLoopbackHost(host) ||
-    !isLoopbackRemoteAddress(req.socket.remoteAddress)
-  ) {
-    return "Run inspector read requests are only allowed from localhost";
-  }
-
-  const origin = req.get("origin");
-  if (!origin) return null;
-
-  try {
-    const parsedOrigin = new URL(origin);
-    const normalizedHost = normalizedHostFromHeader(host);
-    return normalizedHost !== null && parsedOrigin.host === normalizedHost
-      ? null
-      : "Origin does not match the ai_interface host";
-  } catch {
-    return "Invalid Origin header";
-  }
+  return localAdminGuardError(req, "run inspector read");
 }
 
 function jsonEscaped(value: string): string {

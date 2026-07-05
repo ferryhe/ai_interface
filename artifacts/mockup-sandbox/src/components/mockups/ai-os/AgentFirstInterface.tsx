@@ -2566,6 +2566,15 @@ export function AgentFirstInterface() {
   );
   const displayedRuntimeRuns =
     latestAgentRun?.runtimeRuns ?? localFallbackRuntimeRuns ?? mockRuntimeRuns;
+  const shouldLoadAdminConfig =
+    workspaceMode === "foreground" &&
+    (activeView === "configure" || activeView === "publish");
+  const shouldLoadWorkbenchIndexes =
+    workspaceMode === "backstage" ||
+    (workspaceMode === "foreground" &&
+      (activeView === "progress" ||
+        activeView === "configure" ||
+        activeView === "publish"));
   const configStatusText = translateAgentFirstMessage(t, configStatusMessage);
   const publishStatusText = translateAgentFirstMessage(t, publishStatusMessage);
   const agentRunStatusText = translateAgentFirstMessage(t, agentRunStatusMessage);
@@ -2674,6 +2683,8 @@ export function AgentFirstInterface() {
   }, [i18n.resolvedLanguage]);
 
   useEffect(() => {
+    if (!shouldLoadWorkbenchIndexes) return;
+
     let cancelled = false;
 
     async function loadWorkbenchIndexes(): Promise<void> {
@@ -2760,7 +2771,7 @@ export function AgentFirstInterface() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [shouldLoadWorkbenchIndexes]);
 
   useEffect(() => {
     const triggeredRun = displayedRuntimeRuns.find(shouldOpenBackstageForRun);
@@ -2800,6 +2811,8 @@ export function AgentFirstInterface() {
   }
 
   useEffect(() => {
+    if (!shouldLoadAdminConfig) return;
+
     let cancelled = false;
 
     async function loadAgentConfig(): Promise<void> {
@@ -2839,7 +2852,7 @@ export function AgentFirstInterface() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [shouldLoadAdminConfig]);
 
   function updateConfig(patch: Partial<AgentConfigDraft>): void {
     setAgentConfig((current) => ({ ...current, ...patch }));

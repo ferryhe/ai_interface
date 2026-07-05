@@ -86,8 +86,11 @@ async function rawInspectorGet(
   path: string,
   input: {
     host?: string;
+    forwardedHost?: string;
+    forwardedFor?: string;
     origin?: string;
     secFetchSite?: string;
+    surface?: string;
   } = {},
 ): Promise<{ statusCode: number; text: string }> {
   const url = new URL(path, baseUrl);
@@ -102,9 +105,16 @@ async function rawInspectorGet(
         headers: {
           Host: input.host ?? url.host,
           ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.forwardedHost
+            ? { "X-Forwarded-Host": input.forwardedHost }
+            : {}),
+          ...(input.forwardedFor
+            ? { "X-Forwarded-For": input.forwardedFor }
+            : {}),
           ...(input.secFetchSite
             ? { "Sec-Fetch-Site": input.secFetchSite }
             : {}),
+          ...(input.surface ? { "X-AI-Interface-Surface": input.surface } : {}),
         },
       },
       (res) => {
@@ -463,6 +473,35 @@ test("inspector read routes accept same-origin localhost requests", async () => 
   assert.match(responses[0]!.text, /Allowed inspector data/);
   assert.match(responses[1]!.text, /allowed-message/);
   assert.match(responses[2]!.text, /Allowed artifact data/);
+});
+
+test("inspector read routes accept Vite-proxied localhost reads with forwarded host", async () => {
+  const repository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await createAgentRun(
+    repository,
+    configRepository,
+    {
+      message: "Allowed Vite proxy inspector data",
+      enabledSkillIds: ["doc_to_md"],
+    },
+    { env: {} },
+  );
+
+  const response = await withInspectorApp(repository, (baseUrl) => {
+    const apiHost = new URL(baseUrl).host;
+    const uiHost = "127.0.0.1:5174";
+    return rawInspectorGet(baseUrl, "/runs", {
+      host: apiHost,
+      forwardedHost: uiHost,
+      forwardedFor: "127.0.0.1",
+      origin: `http://${uiHost}`,
+      secFetchSite: "same-origin",
+    });
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.text, /Allowed Vite proxy inspector data/);
 });
 
 test("inspector routes return 400 for invalid generated request parameters", async () => {

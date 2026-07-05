@@ -40,7 +40,14 @@ async function withClimateMonitorApp<T>(
 
 async function rawPost(
   baseUrl: string,
-  input: { host: string; origin?: string },
+  input: {
+    host: string;
+    forwardedHost?: string;
+    forwardedFor?: string;
+    origin?: string;
+    secFetchSite?: string;
+    surface?: string;
+  },
 ): Promise<{ statusCode: number; text: string }> {
   const url = new URL("/climate-monitor/runs", baseUrl);
   const body = JSON.stringify({ dryRun: true });
@@ -58,6 +65,16 @@ async function rawPost(
           "Content-Length": Buffer.byteLength(body),
           "X-AI-Interface-Command-Intent": "climate-monitor-run",
           ...(input.origin ? { Origin: input.origin } : {}),
+          ...(input.forwardedHost
+            ? { "X-Forwarded-Host": input.forwardedHost }
+            : {}),
+          ...(input.forwardedFor
+            ? { "X-Forwarded-For": input.forwardedFor }
+            : {}),
+          ...(input.secFetchSite
+            ? { "Sec-Fetch-Site": input.secFetchSite }
+            : {}),
+          ...(input.surface ? { "X-AI-Interface-Surface": input.surface } : {}),
         },
       },
       (res) => {
@@ -315,6 +332,54 @@ test("/climate-monitor/runs accepts same-origin requests with mixed-case Host he
       return rawPost(baseUrl, {
         host: `LOCALHOST:${port}`,
         origin: `http://localhost:${port}`,
+      });
+    },
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(startRunCalled, true);
+});
+
+test("/climate-monitor/runs accepts Vite-proxied localhost command requests with forwarded host", async () => {
+  const runResult: ClimateMonitorRunResult = {
+    parsed: {
+      report_date: "2026-05-14",
+      report_path: "climate-monitor-2026-05-14.md",
+      items: [],
+    },
+    command: {
+      executable: "python",
+      args: ["scripts/run_climate_monitor.py", "--json"],
+      cwd: "ai_interface_workspace",
+      shell: false,
+      timeoutMs: 120000,
+      maxOutputBytes: 1048576,
+      dryRun: true,
+    },
+    exitCode: 0,
+    stderr: "",
+  };
+  let startRunCalled = false;
+
+  const response = await withClimateMonitorApp(
+    {
+      getStatus: async () => {
+        throw new Error("not used");
+      },
+      startRun: async () => {
+        startRunCalled = true;
+        return runResult;
+      },
+    },
+    async (baseUrl) => {
+      const apiHost = new URL(baseUrl).host;
+      const uiHost = "127.0.0.1:5174";
+      return rawPost(baseUrl, {
+        host: apiHost,
+        forwardedHost: uiHost,
+        forwardedFor: "127.0.0.1",
+        origin: `http://${uiHost}`,
+        secFetchSite: "same-origin",
       });
     },
   );

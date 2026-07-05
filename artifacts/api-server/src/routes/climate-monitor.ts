@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import type { Request } from "express";
-import { isIP } from "node:net";
 import {
   CreateClimateMonitorRunResponse,
   GetClimateMonitorStatusResponse,
@@ -17,6 +16,10 @@ import {
   type ClimateMonitorRunResult,
   type ClimateMonitorStatus,
 } from "../climate-monitor/service";
+import {
+  isLoopbackRemoteAddress,
+  localAdminGuardError,
+} from "./local-admin-guard";
 
 interface ClimateMonitorRouterDependencies {
   getStatus?: () => Promise<ClimateMonitorStatus>;
@@ -61,78 +64,12 @@ function parseRunBody(body: unknown): ClimateMonitorRunInput {
   };
 }
 
-function hostNameFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function normalizedHostFromHeader(host: string): string | null {
-  try {
-    return new URL(`http://${host}`).host;
-  } catch {
-    return null;
-  }
-}
-
-function isLoopbackHost(host: string): boolean {
-  const hostname = hostNameFromHeader(host);
-  const normalizedHostname = hostname?.toLowerCase();
-  return (
-    normalizedHostname === "localhost" ||
-    normalizedHostname === "[::1]" ||
-    normalizedHostname === "::1" ||
-    (normalizedHostname !== undefined &&
-      isIP(normalizedHostname) === 4 &&
-      normalizedHostname.startsWith("127."))
-  );
-}
-
-function isAllowedClimateCommandHost(host: string | undefined): boolean {
-  return Boolean(host && isLoopbackHost(host));
-}
-
-function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
-  if (!remoteAddress) return false;
-  const normalized = remoteAddress.trim().toLowerCase();
-  if (normalized === "::1") return true;
-  if (normalized.startsWith("::ffff:")) {
-    return isLoopbackRemoteAddress(normalized.slice("::ffff:".length));
-  }
-  return isIP(normalized) === 4 && normalized.startsWith("127.");
-}
-
 function climateCommandGuardError(req: Request): string | null {
   if (req.get("x-ai-interface-command-intent") !== "climate-monitor-run") {
     return "Climate monitor run requires explicit command intent";
   }
 
-  if (req.get("sec-fetch-site") === "cross-site") {
-    return "Cross-site climate monitor run requests are not allowed";
-  }
-
-  const host = req.get("host");
-  if (
-    !isAllowedClimateCommandHost(host) ||
-    !isLoopbackRemoteAddress(req.socket.remoteAddress)
-  ) {
-    return "Climate monitor runs are only allowed from localhost";
-  }
-
-  const origin = req.get("origin");
-  if (!origin || !host) return null;
-
-  try {
-    const parsedOrigin = new URL(origin);
-    const normalizedHost = normalizedHostFromHeader(host);
-    return normalizedHost !== null && parsedOrigin.host === normalizedHost
-      ? null
-      : "Origin does not match the ai_interface host";
-  } catch {
-    return "Invalid Origin header";
-  }
+  return localAdminGuardError(req, "climate monitor run");
 }
 
 export const __privateClimateMonitorRouteGuards = {
