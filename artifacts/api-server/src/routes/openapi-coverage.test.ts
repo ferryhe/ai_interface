@@ -54,9 +54,9 @@ describe("OpenAPI contract coverage", () => {
   it("keeps the API surface matrix aligned with the live route inventory", () => {
     const matrix = readFileSync(surfaceMatrixPath, "utf8");
     for (const route of expressRoutes()) {
-      const [, routePath] = route.split(" ");
+      const [method, routePath] = route.split(" ");
       assert.ok(
-        matrix.includes(`\`${routePath}\``),
+        matrix.includes(`| ${method} | \`${routePath}\` |`),
         `${route} is missing from docs/api-surface-matrix.md`,
       );
     }
