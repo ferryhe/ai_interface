@@ -116,6 +116,37 @@ test("memory API router denies Portal access to non-allowlisted admin surfaces",
     assert.equal(agents.status, 403);
     assert.match(String(agents.json["error"]), /Portal runtime is not allowed/);
 
+    const mixedCaseAgents = await requestJson({
+      baseUrl,
+      path: "/api/agents",
+      headers: { "X-AI-Interface-Surface": " Agent-Portal " },
+    });
+    assert.equal(mixedCaseAgents.status, 403);
+    assert.match(
+      String(mixedCaseAgents.json["error"]),
+      /Portal runtime is not allowed/,
+    );
+
+    const metadataOnlyPortal = await requestJson({
+      baseUrl,
+      path: "/api/module-runs",
+      method: "POST",
+      body: { metadata: { source: " Agent-Portal " } },
+    });
+    assert.equal(metadataOnlyPortal.status, 403);
+    assert.match(
+      String(metadataOnlyPortal.json["error"]),
+      /Portal runtime is not allowed/,
+    );
+
+    const nonStringMetadataSource = await requestJson({
+      baseUrl,
+      path: "/api/module-runs",
+      method: "POST",
+      body: { metadata: { source: 123 } },
+    });
+    assert.notEqual(nonStringMetadataSource.status, 403);
+
     const health = await requestJson({
       baseUrl,
       path: "/api/healthz",

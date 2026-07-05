@@ -12,6 +12,10 @@ function firstHeaderValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
+function normalizedPortalSurfaceValue(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 function readPortalToken(req: Request): string {
   const tokenHeader = firstHeaderValue(req.headers["x-portal-token"]).trim();
   if (tokenHeader) return tokenHeader;
@@ -99,10 +103,11 @@ export function isPortalRuntimeRequest(
   req: Request,
   metadata?: JsonObject,
 ): boolean {
-  const surface = firstHeaderValue(
-    req.headers["x-ai-interface-surface"],
-  ).trim();
-  return surface === portalSurface || metadata?.["source"] === portalSurface;
+  const surface = normalizedPortalSurfaceValue(
+    firstHeaderValue(req.headers["x-ai-interface-surface"]),
+  );
+  const metadataSource = normalizedPortalSurfaceValue(metadata?.["source"]);
+  return surface === portalSurface || metadataSource === portalSurface;
 }
 
 export async function requirePortalRuntimeAccess(
