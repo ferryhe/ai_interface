@@ -5,6 +5,427 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface MissionBoardArtifact {
+  artifactId: string;
+  kind: string;
+  title: string;
+}
+
+export type MissionBoardAgentStatus =
+  (typeof MissionBoardAgentStatus)[keyof typeof MissionBoardAgentStatus];
+
+export const MissionBoardAgentStatus = {
+  pending: "pending",
+  running: "running",
+  waiting_approval: "waiting_approval",
+  blocked: "blocked",
+  succeeded: "succeeded",
+  failed: "failed",
+} as const;
+
+export interface MissionBoardAgent {
+  agentId?: string;
+  roleId?: string;
+  displayName: string;
+  status: MissionBoardAgentStatus;
+  currentAction: string;
+  lastEventAt?: string;
+  blockingReason?: string;
+  moduleRunIds: string[];
+  latestArtifacts: MissionBoardArtifact[];
+}
+
+export interface MissionBoardResponse {
+  missionId: string;
+  /** @nullable */
+  revisionId: string | null;
+  board: MissionBoardAgent[];
+}
+
+export type ApprovalRiskLevel =
+  (typeof ApprovalRiskLevel)[keyof typeof ApprovalRiskLevel];
+
+export const ApprovalRiskLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+} as const;
+
+export type ApprovalRequestStatus =
+  (typeof ApprovalRequestStatus)[keyof typeof ApprovalRequestStatus];
+
+export const ApprovalRequestStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+  expired: "expired",
+} as const;
+
+export interface ApprovalRequest {
+  approvalId: string;
+  missionId: string;
+  revisionId: string;
+  moduleRunId: string;
+  interactionId?: string;
+  resumeHandle?: string;
+  stepId?: string;
+  agentId?: string;
+  skillId?: string;
+  toolKind?: string;
+  riskLevel: ApprovalRiskLevel;
+  action: string;
+  reason: string;
+  requestedAt: string;
+  status: ApprovalRequestStatus;
+}
+
+export interface ApprovalListResponse {
+  approvals: ApprovalRequest[];
+}
+
+export interface ApprovalDecisionResponse {
+  approval: ApprovalRequest;
+}
+
+export interface JsonObject {
+  [key: string]: unknown;
+}
+
+export interface CreateAgentManifestRequest {
+  /** @minLength 1 */
+  agentId: string;
+  manifest: JsonObject;
+  overwrite?: boolean;
+}
+
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,63}$
+ */
+export type AgentId = string;
+
+export type AgentSource = (typeof AgentSource)[keyof typeof AgentSource];
+
+export const AgentSource = {
+  builtin: "builtin",
+  community: "community",
+  custom: "custom",
+  external: "external",
+} as const;
+
+/**
+ * @minLength 1
+ */
+export type SkillId = string;
+
+export interface AgentSkillBinding {
+  skillId: SkillId;
+  required: boolean;
+}
+
+export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
+
+export const AgentProvider = {
+  openai: "openai",
+  anthropic: "anthropic",
+  ollama: "ollama",
+  deterministic: "deterministic",
+} as const;
+
+export type AgentReasoningEffort =
+  (typeof AgentReasoningEffort)[keyof typeof AgentReasoningEffort];
+
+export const AgentReasoningEffort = {
+  none: "none",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "xhigh",
+} as const;
+
+export type AgentRuntimePlanMode =
+  (typeof AgentRuntimePlanMode)[keyof typeof AgentRuntimePlanMode];
+
+export const AgentRuntimePlanMode = {
+  linear: "linear",
+  dag: "dag",
+} as const;
+
+export type DagFailureStrategy =
+  (typeof DagFailureStrategy)[keyof typeof DagFailureStrategy];
+
+export const DagFailureStrategy = {
+  fail_fast: "fail_fast",
+  continue_independent: "continue_independent",
+} as const;
+
+export type AgentMemoryPromotionMode =
+  (typeof AgentMemoryPromotionMode)[keyof typeof AgentMemoryPromotionMode];
+
+export const AgentMemoryPromotionMode = {
+  manual: "manual",
+  run_summary: "run_summary",
+  disabled: "disabled",
+} as const;
+
+export interface AgentHandoff {
+  targetAgentId: AgentId;
+  description: string;
+}
+
+export interface AgentManifestTest {
+  name: string;
+  prompt: string;
+  expectedSkillIds: SkillId[];
+}
+
+export type AgentCriticalRuleSeverity =
+  (typeof AgentCriticalRuleSeverity)[keyof typeof AgentCriticalRuleSeverity];
+
+export const AgentCriticalRuleSeverity = {
+  blocker: "blocker",
+  warning: "warning",
+} as const;
+
+export interface AgentCriticalRule {
+  id: string;
+  description: string;
+  severity: AgentCriticalRuleSeverity;
+}
+
+export interface AgentDeliverable {
+  name: string;
+  format: string;
+  description: string;
+  successCriteria: string;
+}
+
+export interface AgentWorkflowPhase {
+  name: string;
+  description: string;
+  approvalRequired: boolean;
+  deliverables: string[];
+}
+
+export interface AgentSuccessMetric {
+  metric: string;
+  target: string;
+  measurement: string;
+}
+
+export type AgentManifestRuntimeStatus =
+  (typeof AgentManifestRuntimeStatus)[keyof typeof AgentManifestRuntimeStatus];
+
+export const AgentManifestRuntimeStatus = {
+  runnable: "runnable",
+  template: "template",
+} as const;
+
+export type AgentManifestProvider = {
+  provider?: AgentProvider;
+  modelId?: string;
+  reasoningEffort?: AgentReasoningEffort;
+};
+
+export type AgentManifestPlanner = {
+  mode: AgentRuntimePlanMode;
+  failureStrategy: DagFailureStrategy;
+};
+
+export type AgentManifestPermissions = {
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+};
+
+export type AgentManifestMemory = {
+  promotionMode: AgentMemoryPromotionMode;
+};
+
+export type AgentManifestIdentity = {
+  persona: string;
+  background: string;
+};
+
+export type AgentManifestCommunicationStyle = {
+  tone: string;
+  outputFormat: string;
+  languagePreference: string;
+};
+
+export interface AgentManifest {
+  agentId: AgentId;
+  name: string;
+  title?: string;
+  description: string;
+  source: AgentSource;
+  instructions: string;
+  skills: AgentSkillBinding[];
+  provider?: AgentManifestProvider;
+  planner: AgentManifestPlanner;
+  permissions: AgentManifestPermissions;
+  memory: AgentManifestMemory;
+  handoffs: AgentHandoff[];
+  tests: AgentManifestTest[];
+  identity?: AgentManifestIdentity;
+  criticalRules?: AgentCriticalRule[];
+  deliverables?: AgentDeliverable[];
+  workflow?: AgentWorkflowPhase[];
+  communicationStyle?: AgentManifestCommunicationStyle;
+  successMetrics?: AgentSuccessMetric[];
+  teamId?: string;
+  runtimeStatus?: AgentManifestRuntimeStatus;
+}
+
+export interface AgentManifestWriteResponse {
+  manifest: AgentManifest;
+  path: string;
+}
+
+export interface CreateSkillManifestRequest {
+  /** @minLength 1 */
+  skillId: string;
+  manifest: JsonObject;
+  overwrite?: boolean;
+}
+
+/**
+ * Arbitrary non-empty runtime module identifier from registered skill manifests.
+ * @minLength 1
+ */
+export type ModuleId = string;
+
+export type ModuleCategory =
+  (typeof ModuleCategory)[keyof typeof ModuleCategory];
+
+export const ModuleCategory = {
+  source: "source",
+  transform: "transform",
+  index: "index",
+  agent: "agent",
+} as const;
+
+export type SkillProjectSource =
+  (typeof SkillProjectSource)[keyof typeof SkillProjectSource];
+
+export const SkillProjectSource = {
+  builtin: "builtin",
+  community: "community",
+  custom: "custom",
+  external: "external",
+} as const;
+
+export interface SkillProjectReadinessMetadata {
+  requiredPaths: string[];
+}
+
+export interface SkillProjectMetadata {
+  source: SkillProjectSource;
+  defaultSiblingPath: string;
+  envPath?: string;
+  repoUrl?: string;
+  packageName?: string;
+  readiness?: SkillProjectReadinessMetadata;
+}
+
+export type SkillExecutionKind =
+  (typeof SkillExecutionKind)[keyof typeof SkillExecutionKind];
+
+export const SkillExecutionKind = {
+  http: "http",
+  cli: "cli",
+  internal: "internal",
+  mcp: "mcp",
+} as const;
+
+export type SkillExecutionWorkingDirectory =
+  (typeof SkillExecutionWorkingDirectory)[keyof typeof SkillExecutionWorkingDirectory];
+
+export const SkillExecutionWorkingDirectory = {
+  workspace: "workspace",
+  project: "project",
+} as const;
+
+export interface SkillExecution {
+  kind: SkillExecutionKind;
+  adapterId: string;
+  requiredEnv: string[];
+  optionalEnv: string[];
+  timeoutMs: number;
+  maxOutputBytes: number;
+  command?: string[];
+  workingDirectory?: SkillExecutionWorkingDirectory;
+  allowedCommands: string[];
+  supportsResume: boolean;
+  readinessHint?: string;
+  mcpServerEnv?: string;
+  mcpToolName?: string;
+}
+
+export type ToolInteractionKind =
+  (typeof ToolInteractionKind)[keyof typeof ToolInteractionKind];
+
+export const ToolInteractionKind = {
+  question: "question",
+  approval: "approval",
+  data_request: "data_request",
+  blocked: "blocked",
+} as const;
+
+export type SkillUiMode = (typeof SkillUiMode)[keyof typeof SkillUiMode];
+
+export const SkillUiMode = {
+  html: "html",
+  renderer: "renderer",
+  auto: "auto",
+} as const;
+
+export type SkillArtifactRenderer =
+  (typeof SkillArtifactRenderer)[keyof typeof SkillArtifactRenderer];
+
+export const SkillArtifactRenderer = {
+  markdown: "markdown",
+  table: "table",
+  json: "json",
+  text: "text",
+  image: "image",
+  file: "file",
+} as const;
+
+export interface SkillUi {
+  mode: SkillUiMode;
+  htmlEntrypoint?: string;
+  openOnTrigger: boolean;
+  preferredRenderer: SkillArtifactRenderer;
+}
+
+export interface SkillPermissionDefaults {
+  approvalRequired: boolean;
+  canUseNetwork: boolean;
+  canWriteDatabase: boolean;
+}
+
+export interface SkillManifest {
+  skillId: SkillId;
+  moduleId: ModuleId;
+  name: string;
+  title?: string;
+  description: string;
+  category: ModuleCategory;
+  project: SkillProjectMetadata;
+  execution: SkillExecution;
+  inputSchema: JsonObject;
+  outputSchema: JsonObject;
+  interactionKinds: ToolInteractionKind[];
+  artifactKinds: string[];
+  ui: SkillUi;
+  permissions: SkillPermissionDefaults;
+}
+
+export interface SkillManifestWriteResponse {
+  manifest: SkillManifest;
+  path: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -78,10 +499,6 @@ export interface MissionStepApproval {
   /** @minLength 1 */
   reason: string;
   riskLevel: MissionRiskLevel;
-}
-
-export interface JsonObject {
-  [key: string]: unknown;
 }
 
 export type MissionPlanStep =
@@ -211,16 +628,6 @@ export interface MissionExecutionReadiness {
   message: string;
   revisionId?: string;
 }
-
-/**
- * @pattern ^[a-z][a-z0-9_]{1,63}$
- */
-export type AgentId = string;
-
-/**
- * @minLength 1
- */
-export type SkillId = string;
 
 export interface CreateMissionRequest {
   /** @minLength 1 */
@@ -398,22 +805,6 @@ export interface ActuarialPipelineRunListItem {
 export interface ActuarialPipelineRunsList {
   runs: ActuarialPipelineRunListItem[];
 }
-
-/**
- * Arbitrary non-empty runtime module identifier from registered skill manifests.
- * @minLength 1
- */
-export type ModuleId = string;
-
-export type ModuleCategory =
-  (typeof ModuleCategory)[keyof typeof ModuleCategory];
-
-export const ModuleCategory = {
-  source: "source",
-  transform: "transform",
-  index: "index",
-  agent: "agent",
-} as const;
 
 export type ModuleRunStatus =
   (typeof ModuleRunStatus)[keyof typeof ModuleRunStatus];
@@ -621,46 +1012,6 @@ export interface ClimateMonitorRunResponse {
   stderr: string;
 }
 
-export type SkillExecutionKind =
-  (typeof SkillExecutionKind)[keyof typeof SkillExecutionKind];
-
-export const SkillExecutionKind = {
-  http: "http",
-  cli: "cli",
-  internal: "internal",
-  mcp: "mcp",
-} as const;
-
-export type SkillArtifactRenderer =
-  (typeof SkillArtifactRenderer)[keyof typeof SkillArtifactRenderer];
-
-export const SkillArtifactRenderer = {
-  markdown: "markdown",
-  table: "table",
-  json: "json",
-  text: "text",
-  image: "image",
-  file: "file",
-} as const;
-
-export type SkillUiMode = (typeof SkillUiMode)[keyof typeof SkillUiMode];
-
-export const SkillUiMode = {
-  html: "html",
-  renderer: "renderer",
-  auto: "auto",
-} as const;
-
-export type SkillProjectSource =
-  (typeof SkillProjectSource)[keyof typeof SkillProjectSource];
-
-export const SkillProjectSource = {
-  builtin: "builtin",
-  community: "community",
-  custom: "custom",
-  external: "external",
-} as const;
-
 export type SkillProjectReadinessStatus =
   (typeof SkillProjectReadinessStatus)[keyof typeof SkillProjectReadinessStatus];
 
@@ -668,83 +1019,6 @@ export const SkillProjectReadinessStatus = {
   ready: "ready",
   not_configured: "not_configured",
 } as const;
-
-export interface SkillProjectReadinessMetadata {
-  requiredPaths: string[];
-}
-
-export interface SkillPermissionDefaults {
-  approvalRequired: boolean;
-  canUseNetwork: boolean;
-  canWriteDatabase: boolean;
-}
-
-export interface SkillProjectMetadata {
-  source: SkillProjectSource;
-  defaultSiblingPath: string;
-  envPath?: string;
-  repoUrl?: string;
-  packageName?: string;
-  readiness?: SkillProjectReadinessMetadata;
-}
-
-export interface SkillUi {
-  mode: SkillUiMode;
-  htmlEntrypoint?: string;
-  openOnTrigger: boolean;
-  preferredRenderer: SkillArtifactRenderer;
-}
-
-export type SkillExecutionWorkingDirectory =
-  (typeof SkillExecutionWorkingDirectory)[keyof typeof SkillExecutionWorkingDirectory];
-
-export const SkillExecutionWorkingDirectory = {
-  workspace: "workspace",
-  project: "project",
-} as const;
-
-export interface SkillExecution {
-  kind: SkillExecutionKind;
-  adapterId: string;
-  requiredEnv: string[];
-  optionalEnv: string[];
-  timeoutMs: number;
-  maxOutputBytes: number;
-  command?: string[];
-  workingDirectory?: SkillExecutionWorkingDirectory;
-  allowedCommands: string[];
-  supportsResume: boolean;
-  readinessHint?: string;
-  mcpServerEnv?: string;
-  mcpToolName?: string;
-}
-
-export type ToolInteractionKind =
-  (typeof ToolInteractionKind)[keyof typeof ToolInteractionKind];
-
-export const ToolInteractionKind = {
-  question: "question",
-  approval: "approval",
-  data_request: "data_request",
-  blocked: "blocked",
-} as const;
-
-export interface SkillManifest {
-  skillId: SkillId;
-  moduleId: ModuleId;
-  name: string;
-  title?: string;
-  description: string;
-  category: ModuleCategory;
-  project: SkillProjectMetadata;
-  execution: SkillExecution;
-  inputSchema: JsonObject;
-  outputSchema: JsonObject;
-  interactionKinds: ToolInteractionKind[];
-  artifactKinds: string[];
-  ui: SkillUi;
-  permissions: SkillPermissionDefaults;
-}
 
 export type SkillReadinessProject = {
   status: SkillProjectReadinessStatus;
@@ -778,174 +1052,6 @@ export interface SkillReadiness {
 export interface SkillListResponse {
   skills: SkillManifest[];
   readiness: SkillReadiness[];
-}
-
-export type AgentSource = (typeof AgentSource)[keyof typeof AgentSource];
-
-export const AgentSource = {
-  builtin: "builtin",
-  community: "community",
-  custom: "custom",
-  external: "external",
-} as const;
-
-export type AgentMemoryPromotionMode =
-  (typeof AgentMemoryPromotionMode)[keyof typeof AgentMemoryPromotionMode];
-
-export const AgentMemoryPromotionMode = {
-  manual: "manual",
-  run_summary: "run_summary",
-  disabled: "disabled",
-} as const;
-
-export interface AgentSkillBinding {
-  skillId: SkillId;
-  required: boolean;
-}
-
-export interface AgentHandoff {
-  targetAgentId: AgentId;
-  description: string;
-}
-
-export interface AgentManifestTest {
-  name: string;
-  prompt: string;
-  expectedSkillIds: SkillId[];
-}
-
-export type AgentCriticalRuleSeverity =
-  (typeof AgentCriticalRuleSeverity)[keyof typeof AgentCriticalRuleSeverity];
-
-export const AgentCriticalRuleSeverity = {
-  blocker: "blocker",
-  warning: "warning",
-} as const;
-
-export interface AgentCriticalRule {
-  id: string;
-  description: string;
-  severity: AgentCriticalRuleSeverity;
-}
-
-export interface AgentDeliverable {
-  name: string;
-  format: string;
-  description: string;
-  successCriteria: string;
-}
-
-export interface AgentWorkflowPhase {
-  name: string;
-  description: string;
-  approvalRequired: boolean;
-  deliverables: string[];
-}
-
-export interface AgentSuccessMetric {
-  metric: string;
-  target: string;
-  measurement: string;
-}
-
-export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
-
-export const AgentProvider = {
-  openai: "openai",
-  anthropic: "anthropic",
-  ollama: "ollama",
-  deterministic: "deterministic",
-} as const;
-
-export type AgentReasoningEffort =
-  (typeof AgentReasoningEffort)[keyof typeof AgentReasoningEffort];
-
-export const AgentReasoningEffort = {
-  none: "none",
-  low: "low",
-  medium: "medium",
-  high: "high",
-  xhigh: "xhigh",
-} as const;
-
-export type AgentManifestProvider = {
-  provider?: AgentProvider;
-  modelId?: string;
-  reasoningEffort?: AgentReasoningEffort;
-};
-
-export type AgentRuntimePlanMode =
-  (typeof AgentRuntimePlanMode)[keyof typeof AgentRuntimePlanMode];
-
-export const AgentRuntimePlanMode = {
-  linear: "linear",
-  dag: "dag",
-} as const;
-
-export type DagFailureStrategy =
-  (typeof DagFailureStrategy)[keyof typeof DagFailureStrategy];
-
-export const DagFailureStrategy = {
-  fail_fast: "fail_fast",
-  continue_independent: "continue_independent",
-} as const;
-
-export type AgentManifestPlanner = {
-  mode: AgentRuntimePlanMode;
-  failureStrategy: DagFailureStrategy;
-};
-
-export type AgentManifestPermissions = {
-  approvalRequired: boolean;
-  canUseNetwork: boolean;
-  canWriteDatabase: boolean;
-};
-
-export type AgentManifestMemory = {
-  promotionMode: AgentMemoryPromotionMode;
-};
-
-export type AgentManifestIdentity = {
-  persona: string;
-  background: string;
-};
-
-export type AgentManifestCommunicationStyle = {
-  tone: string;
-  outputFormat: string;
-  languagePreference: string;
-};
-
-export type AgentManifestRuntimeStatus =
-  (typeof AgentManifestRuntimeStatus)[keyof typeof AgentManifestRuntimeStatus];
-
-export const AgentManifestRuntimeStatus = {
-  runnable: "runnable",
-  template: "template",
-} as const;
-
-export interface AgentManifest {
-  agentId: AgentId;
-  name: string;
-  title?: string;
-  description: string;
-  source: AgentSource;
-  instructions: string;
-  skills: AgentSkillBinding[];
-  provider?: AgentManifestProvider;
-  planner: AgentManifestPlanner;
-  permissions: AgentManifestPermissions;
-  memory: AgentManifestMemory;
-  handoffs: AgentHandoff[];
-  tests: AgentManifestTest[];
-  identity?: AgentManifestIdentity;
-  criticalRules?: AgentCriticalRule[];
-  deliverables?: AgentDeliverable[];
-  workflow?: AgentWorkflowPhase[];
-  communicationStyle?: AgentManifestCommunicationStyle;
-  successMetrics?: AgentSuccessMetric[];
-  teamId?: string;
-  runtimeStatus?: AgentManifestRuntimeStatus;
 }
 
 export type AgentReadinessStatus =

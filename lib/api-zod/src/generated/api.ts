@@ -206,6 +206,17 @@ export const GetSkillsResponse = zod.object({
 });
 
 /**
+ * Writes a custom skill manifest. This is a Backstage/Admin write surface guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote address, and same-origin checks. It must never be exposed from the ordinary frontstage or Portal runtime.
+ * @summary Write a skill manifest
+ */
+
+export const CreateSkillManifestBody = zod.object({
+  skillId: zod.string().min(1),
+  manifest: zod.record(zod.string(), zod.unknown()),
+  overwrite: zod.boolean().optional(),
+});
+
+/**
  * Returns agent manifest metadata and skill-reference readiness without exposing secrets or configured absolute local paths.
  * @summary List agent manifests
  */
@@ -407,6 +418,17 @@ export const ExportAgentMcpToolResponse = zod.object({
     required: zod.array(zod.string()).min(1),
     additionalProperties: zod.boolean(),
   }),
+});
+
+/**
+ * Writes a custom agent manifest. This is a Backstage/Admin write surface guarded by AI_INTERFACE_MANIFEST_WRITE_MODE=custom, localhost remote address, and same-origin checks. It must never be exposed from the ordinary frontstage or Portal runtime.
+ * @summary Write an agent manifest
+ */
+
+export const CreateAgentManifestBody = zod.object({
+  agentId: zod.string().min(1),
+  manifest: zod.record(zod.string(), zod.unknown()),
+  overwrite: zod.boolean().optional(),
 });
 
 /**
@@ -1604,6 +1626,67 @@ export const GetMissionResponse = zod.object({
 });
 
 /**
+ * Returns the mission-scoped board projected from the selected plan revision, related runtime runs, pending approvals, and latest artifacts. Portal-origin reads send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer ***`.
+ * @summary Get a mission execution board
+ */
+
+export const GetMissionBoardParams = zod.object({
+  missionId: zod.coerce.string().min(1),
+});
+
+export const GetMissionBoardHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const GetMissionBoardResponse = zod.object({
+  missionId: zod.string(),
+  revisionId: zod.string().nullable(),
+  board: zod.array(
+    zod.object({
+      agentId: zod.string().optional(),
+      roleId: zod.string().optional(),
+      displayName: zod.string(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "waiting_approval",
+        "blocked",
+        "succeeded",
+        "failed",
+      ]),
+      currentAction: zod.string(),
+      lastEventAt: zod.coerce.date().optional(),
+      blockingReason: zod.string().optional(),
+      moduleRunIds: zod.array(zod.string().uuid()),
+      latestArtifacts: zod.array(
+        zod.object({
+          artifactId: zod.string().uuid(),
+          kind: zod.string(),
+          title: zod.string(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
  * @summary Revise the latest mission draft
  */
 
@@ -2132,6 +2215,153 @@ export const ExecuteMissionResponse = zod.object({
     status: zod.enum(["approved", "stubbed"]),
     message: zod.string(),
     revisionId: zod.string().uuid().optional(),
+  }),
+});
+
+/**
+ * Lists pending approval requests projected from runtime interactions. The current route returns the global pending approval list; frontstage and Portal callers must use the surface/facade boundary to restrict the visible set to mission-scoped or otherwise allowed approvals. Portal-origin requests send `X-AI-Interface-Surface: agent-portal` and require a verified Portal token through `X-Portal-Token` or `Authorization: Bearer ***`.
+ * @summary List pending approval requests
+ */
+export const ListApprovalsHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const ListApprovalsResponse = zod.object({
+  approvals: zod.array(
+    zod.object({
+      approvalId: zod.string(),
+      missionId: zod.string(),
+      revisionId: zod.string(),
+      moduleRunId: zod.string().uuid(),
+      interactionId: zod.string().optional(),
+      resumeHandle: zod.string().optional(),
+      stepId: zod.string().optional(),
+      agentId: zod.string().optional(),
+      skillId: zod.string().optional(),
+      toolKind: zod.string().optional(),
+      riskLevel: zod.enum(["low", "medium", "high"]),
+      action: zod.string(),
+      reason: zod.string(),
+      requestedAt: zod.coerce.date(),
+      status: zod.enum(["pending", "approved", "rejected", "expired"]),
+    }),
+  ),
+});
+
+/**
+ * Approves a projected runtime approval request and attempts to resume the blocked module run. Portal-origin requests require a verified Portal token and are expected to be limited to allowed mission-scoped approvals by the frontstage facade.
+ * @summary Approve a pending approval request
+ */
+
+export const ApproveApprovalParams = zod.object({
+  approvalId: zod.coerce.string().min(1),
+});
+
+export const ApproveApprovalHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const ApproveApprovalResponse = zod.object({
+  approval: zod.object({
+    approvalId: zod.string(),
+    missionId: zod.string(),
+    revisionId: zod.string(),
+    moduleRunId: zod.string().uuid(),
+    interactionId: zod.string().optional(),
+    resumeHandle: zod.string().optional(),
+    stepId: zod.string().optional(),
+    agentId: zod.string().optional(),
+    skillId: zod.string().optional(),
+    toolKind: zod.string().optional(),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    action: zod.string(),
+    reason: zod.string(),
+    requestedAt: zod.coerce.date(),
+    status: zod.enum(["pending", "approved", "rejected", "expired"]),
+  }),
+});
+
+/**
+ * Rejects a projected runtime approval request, cancels the blocked module run, and records an approval-rejected event. Portal-origin requests require a verified Portal token and are expected to be limited to allowed mission-scoped approvals by the frontstage facade.
+ * @summary Reject a pending approval request
+ */
+
+export const RejectApprovalParams = zod.object({
+  approvalId: zod.coerce.string().min(1),
+});
+
+export const RejectApprovalHeader = zod.object({
+  "X-AI-Interface-Surface": zod
+    .enum(["agent-portal"])
+    .optional()
+    .describe(
+      "Optional runtime surface identifier. Use `agent-portal` for frontstage Portal-origin runtime calls.",
+    ),
+  "X-Portal-Token": zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Portal access token for Portal-origin runtime calls. `Authorization: Bearer <token>` is also accepted by the server.",
+    ),
+  Authorization: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional Bearer token alternative to `X-Portal-Token` for Portal-origin runtime calls.",
+    ),
+});
+
+export const RejectApprovalResponse = zod.object({
+  approval: zod.object({
+    approvalId: zod.string(),
+    missionId: zod.string(),
+    revisionId: zod.string(),
+    moduleRunId: zod.string().uuid(),
+    interactionId: zod.string().optional(),
+    resumeHandle: zod.string().optional(),
+    stepId: zod.string().optional(),
+    agentId: zod.string().optional(),
+    skillId: zod.string().optional(),
+    toolKind: zod.string().optional(),
+    riskLevel: zod.enum(["low", "medium", "high"]),
+    action: zod.string(),
+    reason: zod.string(),
+    requestedAt: zod.coerce.date(),
+    status: zod.enum(["pending", "approved", "rejected", "expired"]),
   }),
 });
 
