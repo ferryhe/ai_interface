@@ -23,7 +23,15 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-export function ExecutionBoard({ missionId }: { missionId: string | null }) {
+export function ExecutionBoard({
+  missionId,
+  requestHeaders,
+  onRuntimeAccessDenied,
+}: {
+  missionId: string | null;
+  requestHeaders?: Record<string, string>;
+  onRuntimeAccessDenied?: (response: Response) => void;
+}) {
   const { t } = useTranslation();
   const [board, setBoard] = useState<MissionBoardAgent[]>([]);
   const [revisionId, setRevisionId] = useState<string | null>(null);
@@ -42,9 +50,12 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
     setErrorMessage(null);
     try {
       const response = await fetch(`/api/missions/${encodeURIComponent(missionId)}/board`, {
-        headers: { Accept: "application/json" },
+        headers: { ...requestHeaders, Accept: "application/json" },
       });
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          onRuntimeAccessDenied?.(response);
+        }
         throw new Error(await readError(response));
       }
       const data = await readJson<MissionBoardResponse>(response);
@@ -55,7 +66,7 @@ export function ExecutionBoard({ missionId }: { missionId: string | null }) {
     } finally {
       setLoadState("idle");
     }
-  }, [missionId, t]);
+  }, [missionId, onRuntimeAccessDenied, requestHeaders, t]);
 
   useEffect(() => {
     void loadBoard();
