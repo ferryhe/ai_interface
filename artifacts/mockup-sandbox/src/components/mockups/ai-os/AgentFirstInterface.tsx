@@ -1512,6 +1512,40 @@ function uniqueBackstageApprovalBlockers(
   });
 }
 
+function approvalBlockerUpdatedAtRank(value: string, nowMs = Date.now()): number | null {
+  const trimmed = value.trim();
+  if (/^(now|现在|local|本地)$/i.test(trimmed)) return nowMs;
+
+  const timestamp = Date.parse(trimmed);
+  if (!Number.isNaN(timestamp)) return timestamp;
+
+  const timeOnly = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeOnly) {
+    const [, hours = "0", minutes = "0", seconds = "0"] = timeOnly;
+    const candidate = new Date(nowMs);
+    candidate.setHours(Number(hours), Number(minutes), Number(seconds), 0);
+    const candidateMs = candidate.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    return candidateMs > nowMs ? candidateMs - dayMs : candidateMs;
+  }
+
+  return null;
+}
+
+function latestApprovalBlocker(
+  blockers: BackstageApprovalBlocker[],
+): BackstageApprovalBlocker | undefined {
+  const nowMs = Date.now();
+  return blockers.reduce<BackstageApprovalBlocker | undefined>((latest, blocker) => {
+    if (!latest) return blocker;
+    const blockerRank = approvalBlockerUpdatedAtRank(blocker.updatedAt, nowMs);
+    const latestRank = approvalBlockerUpdatedAtRank(latest.updatedAt, nowMs);
+    if (blockerRank === null) return latest;
+    if (latestRank === null) return blocker;
+    return blockerRank > latestRank ? blocker : latest;
+  }, undefined);
+}
+
 function activeWorkbenchStep<T extends { status: WorkbenchRunStatus }>(
   steps: T[],
 ): T | undefined {
@@ -2473,10 +2507,10 @@ function workbenchStatusFromApiModuleRun(run: AgentRunApiModuleRun): WorkbenchRu
 function workbenchStatusFromIndexedRun(run: Record<string, unknown>): WorkbenchRunStatus {
   const metadata = isJsonObject(run["metadata"]) ? run["metadata"] : null;
   const status = nullableString(run["status"]);
-  const interactionStatus = workbenchStatusFromToolInteraction(parseToolInteraction(metadata));
+  const interaction = parseToolInteraction(metadata);
+  const interactionStatus = workbenchStatusFromToolInteraction(interaction);
   if (interactionStatus) return interactionStatus;
   if (status === "failed" || status === "cancelled") return normalizeWorkbenchRunStatus(status);
-  const interaction = parseToolInteraction(metadata);
   if (interaction?.status === "resumed") return "running";
   const adapterStatus = workbenchStatusFromAdapterExecutionStatus(
     metadata?.["adapterExecutionStatus"],
@@ -4666,7 +4700,7 @@ function ApprovalsBackstagePanel({
   onOpenSkill: (blocker: BackstageApprovalBlocker) => void;
 }) {
   const { t } = useTranslation();
-  const latestBlocker = approvalBlockers[0];
+  const latestBlocker = latestApprovalBlocker(approvalBlockers);
 
   return (
     <section className="backstage-main" aria-label={t("agentFirst.backstage.approvals.title")}>
@@ -4732,7 +4766,6 @@ function ApprovalsBackstagePanel({
           ) : (
             <p className="agent-run-status-text">{t("agentFirst.backstage.approvals.noRuntimeBlockers")}</p>
           )}
-          <pre>{JSON.stringify(approvalBlockers, null, 2)}</pre>
         </div>
         <ApprovalInbox
           titleKey="agentFirst.backstage.approvals.inboxTitle"
