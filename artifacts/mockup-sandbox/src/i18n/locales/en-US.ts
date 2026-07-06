@@ -199,6 +199,7 @@ export const enUS = {
         testRun: "Test Run",
         viewData: "View data",
         viewRun: "View run",
+        discardSettingsDraft: "Discard local draft",
       },
       executionMode: {
         plan_only: "Plan only",
@@ -334,6 +335,7 @@ export const enUS = {
       },
       metrics: {
         adapter: "Adapter",
+        agents: "Agents",
         approval: "Approval",
         artifacts: "Artifacts",
         configNeeded: "Config needed",
@@ -401,7 +403,9 @@ export const enUS = {
           skills: "Skills",
           runs: "Runs",
           artifacts: "Artifacts",
-          operator: "Operator",
+          teams: "Teams",
+          approvals: "Approvals",
+          settings: "Settings",
         },
         skillTabs: {
           io: "Run I/O",
@@ -421,6 +425,52 @@ export const enUS = {
         input: "Input",
         output: "Output",
         interaction: "Interaction",
+        teams: {
+          kicker: "Backstage roster",
+          title: "Teams",
+          description:
+            "Review agent teams, readiness, and recent run ownership from the single Backstage entry.",
+          governanceMetric: "Governance",
+          agentTeam: "Agent team",
+          agentTeamDescription:
+            "Registered agents and their enabled skills are managed here instead of through a second foreground.",
+          governanceTeam: "Governance team",
+          governanceTeamDescription:
+            "Advanced operator controls live under Settings so admin governance has one home.",
+        },
+        approvals: {
+          kicker: "Human gates",
+          title: "Approvals",
+          description:
+            "Review blocking approval, reply, and data-request points without leaving Backstage.",
+          blockingRuns: "Blocking runs",
+          inboxScope: "Inbox scope",
+          allMissions: "All missions",
+          runtimeBlockers: "Runtime blockers",
+          noRuntimeBlockers: "No runtime blockers in the local run summary.",
+          openRun: "Open run",
+          openSkill: "Open skill panel",
+          approvalActionHint: "Resolve approval_required items in the approval inbox below.",
+          blockerActionHint:
+            "Open the owning run or skill panel to answer, provide data, resume, or inspect the blocker.",
+          inboxTitle: "Backstage Approval Inbox",
+          inboxDescription: "All approval points visible to the current operator.",
+          empty: "No approvals are currently waiting for action.",
+        },
+        settings: {
+          kicker: "Advanced governance",
+          title: "Settings",
+          description:
+            "Runtime configuration, publishing, manifest writer, and Operator governance are consolidated here.",
+          localAdminOnly: "local admin guard",
+          configWriter: "Config writer",
+          configWriterHint:
+            "Agent config and publish token writes stay behind the local admin guard and are not reachable from foreground or token mode.",
+          manifestWriter: "Manifest writer",
+          manifestWriterHint:
+            "Custom manifest writes require AI_INTERFACE_MANIFEST_WRITE_MODE=custom plus the same localhost/same-origin guard.",
+          operatorGovernance: "Operator governance",
+        },
       },
       skillUi: {
         genericRenderer: "Generic renderer",
