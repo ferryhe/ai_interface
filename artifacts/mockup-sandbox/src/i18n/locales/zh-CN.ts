@@ -2631,7 +2631,7 @@ export const zhCN = {
       handoffFallback: "当你确认计划后，可切到后台查看运行、产物、Skill UI 与审批箱。",
       resultTitle: "Mission 结果与执行准备",
       resultDescription: "前台只展示当前 Mission 状态、执行准备和 Board，不打开后台治理面。",
-      resultFallback: "确认计划后，这里会显示执行准备摘要。真实 runtime orchestration 属于后续生产化步骤。",
+      resultFallback: "确认并执行计划后，这里会显示实时执行准备、审批阻断点和可追踪产物。",
       portalTokenBadge: "Portal 令牌模式",
       portalTokenTitle: "打开 Mission Portal",
       portalTokenDescription:

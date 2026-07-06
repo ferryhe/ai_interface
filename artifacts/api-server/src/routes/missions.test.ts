@@ -11,6 +11,7 @@ import {
 import {
   getAgentRunTimeline,
   InMemoryAgentRuntimeRepository,
+  type ListPipelineRunsFilters,
 } from "../agent-runtime/agent-runtime-service";
 import { approveApprovalRequest, listApprovalsService } from "../approvals/approval-decision-service";
 import { createModuleRun, getCurrentInteraction } from "../modules/ingest-service";
@@ -18,6 +19,17 @@ import { InMemoryMissionRepository } from "../mission/in-memory-mission-reposito
 import type { SkillManifest } from "../skill-runtime/skill-manifest";
 import { createSkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import { createMissionsRouter } from "./missions";
+
+class CapturingMissionRuntimeRepository extends InMemoryAgentRuntimeRepository {
+  readonly listPipelineRunsInputs: ListPipelineRunsFilters[] = [];
+
+  override async listPipelineRuns(
+    input: ListPipelineRunsFilters = {},
+  ): ReturnType<InMemoryAgentRuntimeRepository["listPipelineRuns"]> {
+    this.listPipelineRunsInputs.push(input);
+    return super.listPipelineRuns(input);
+  }
+}
 
 async function withMissionsApp<T>(
   callback: (baseUrl: string, repositories: {
@@ -466,6 +478,10 @@ test("POST /missions/:missionId/execute treats skipped adapter execution as fail
         (skipped.json["executionReadiness"] as { status: string }).status,
         "failed",
       );
+      assert.match(
+        (skipped.json["executionReadiness"] as { message: string }).message,
+        /adapter configuration is missing/i,
+      );
       const skippedRun = (skipped.json["moduleRuns"] as Array<{ metadata: Record<string, unknown> }>)[0];
       const skippedPipeline = skipped.json["pipelineRun"] as { status: string };
       assert.equal(skippedRun?.metadata["adapterExecutionStatus"], "skipped");
@@ -560,6 +576,7 @@ test("POST /missions/:missionId/execute rejects multi-agent revisions instead of
 
 test("POST /missions/:missionId/execute rejects an approved mission with an existing active runtime run", async () => {
   await withMissionRuntimeEnv(async () => {
+    const runtimeRepository = new CapturingMissionRuntimeRepository();
     await withMissionsApp(async (baseUrl, repositories) => {
       const created = await postJson(baseUrl, "/missions", {
         message: "Do not start a second runtime while a matching run is active.",
@@ -602,6 +619,37 @@ test("POST /missions/:missionId/execute rejects an approved mission with an exis
 
       assert.equal(duplicate.status, 409);
       assert.match(duplicate.text, /already has an active execution run/i);
+      assert.deepEqual(
+        runtimeRepository.listPipelineRunsInputs.slice(-2).map((input) => ({
+          status: input.status,
+          metadata: input.metadata,
+          excludeMetadata: input.excludeMetadata,
+        })),
+        [
+          {
+            status: "pending",
+            metadata: {
+              missionExecutionSource: "mission-execute",
+              missionId,
+              revisionId,
+            },
+            excludeMetadata: { executionMode: "plan_only" },
+          },
+          {
+            status: "running",
+            metadata: {
+              missionExecutionSource: "mission-execute",
+              missionId,
+              revisionId,
+            },
+            excludeMetadata: { executionMode: "plan_only" },
+          },
+        ],
+      );
+    }, {
+      missionRepository: new InMemoryMissionRepository(),
+      configRepository: new InMemoryAgentConfigRepository(),
+      runtimeRepository,
     });
   });
 });

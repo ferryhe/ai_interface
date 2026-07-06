@@ -2813,7 +2813,7 @@ export const enUS = {
       resultDescription:
         "Frontstage shows the current mission status, execution readiness, and board without opening backstage governance surfaces.",
       resultFallback:
-        "Confirm the plan to see execution readiness here. Runtime orchestration remains a later production step.",
+        "Confirm and execute the plan to see live runtime readiness, approval blockers, and traceable artifacts here.",
       portalTokenBadge: "Portal token mode",
       portalTokenTitle: "Open the Mission Portal",
       portalTokenDescription:

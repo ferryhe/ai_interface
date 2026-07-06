@@ -47,6 +47,23 @@ function firstOrThrow<T>(rows: T[], label: string): T {
   return row;
 }
 
+function metadataFilterConditions(
+  input: ListPipelineRunsFilters["metadata"],
+): SQL[] {
+  return Object.entries(input ?? {}).map(
+    ([key, value]) => sql`${pipelineRunsTable.metadata}->>${key} = ${String(value)}`,
+  );
+}
+
+function excludedMetadataFilterConditions(
+  input: ListPipelineRunsFilters["excludeMetadata"],
+): SQL[] {
+  return Object.entries(input ?? {}).map(
+    ([key, value]) =>
+      sql`${pipelineRunsTable.metadata}->>${key} is distinct from ${String(value)}`,
+  );
+}
+
 function mapThread(row: AgentThreadRow): AgentThreadRecord {
   return {
     id: row.id,
@@ -202,6 +219,10 @@ export class DbAgentRuntimeRepository
     if (input.status) {
       conditions.push(eq(pipelineRunsTable.status, input.status));
     }
+    conditions.push(
+      ...metadataFilterConditions(input.metadata),
+      ...excludedMetadataFilterConditions(input.excludeMetadata),
+    );
     if (input.moduleId) {
       conditions.push(sql`exists (
         select 1

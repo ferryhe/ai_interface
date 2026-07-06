@@ -207,6 +207,8 @@ export interface ListAgentRunsFilters {
   skillId?: string;
   moduleId?: string;
   status?: ModuleRunStatus;
+  metadata?: Record<string, string | number | boolean>;
+  excludeMetadata?: Record<string, string | number | boolean>;
   limit?: number;
 }
 
@@ -554,6 +556,20 @@ export class InMemoryAgentRuntimeRepository
         input.agentId ? run.metadata?.["agentId"] === input.agentId : true,
       )
       .filter((run) => (input.status ? run.status === input.status : true))
+      .filter((run) =>
+        input.metadata
+          ? Object.entries(input.metadata).every(
+              ([key, value]) => run.metadata?.[key] === value,
+            )
+          : true,
+      )
+      .filter((run) =>
+        input.excludeMetadata
+          ? Object.entries(input.excludeMetadata).every(
+              ([key, value]) => run.metadata?.[key] !== value,
+            )
+          : true,
+      )
       .filter((run) => {
         const moduleRuns = this.moduleRuns.filter(
           (moduleRun) => moduleRun.pipelineRunId === run.id,
@@ -1103,6 +1119,8 @@ export async function listAgentRuns(
   if (filters.skillId) repositoryFilters.skillId = filters.skillId;
   if (filters.moduleId) repositoryFilters.moduleId = filters.moduleId;
   if (filters.status) repositoryFilters.status = filters.status;
+  if (filters.metadata) repositoryFilters.metadata = filters.metadata;
+  if (filters.excludeMetadata) repositoryFilters.excludeMetadata = filters.excludeMetadata;
   if (filters.limit !== undefined) repositoryFilters.limit = filters.limit;
 
   const pipelineRuns = await repository.listPipelineRuns(repositoryFilters);

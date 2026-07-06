@@ -359,7 +359,7 @@ function missionExecutionReadiness(runtime: AgentRunResponse): {
       message: "Mission runtime plan was created without starting adapter execution.",
     };
   }
-  if (runtime.pipelineRun.status === "pending" && hasSkippedAdapterExecution(runtime)) {
+  if (hasSkippedAdapterExecution(runtime)) {
     return {
       ready: false,
       status: "failed",
@@ -415,9 +415,25 @@ async function findActiveMissionExecutionRun(
   runtimeRepository: AgentRuntimeRepository,
   input: { missionId: string; revisionId: string },
 ): Promise<PipelineRunRecord | undefined> {
-  const matchingRuns = (await runtimeRepository.listPipelineRuns()).filter((run) =>
-    isMissionExecutionPipelineRun(run, input),
-  );
+  const matchingRuns = (
+    await Promise.all(
+      (["pending", "running"] as const).map((status) =>
+        runtimeRepository.listPipelineRuns({
+          status,
+          metadata: {
+            missionExecutionSource: "mission-execute",
+            missionId: input.missionId,
+            revisionId: input.revisionId,
+          },
+          excludeMetadata: {
+            executionMode: "plan_only",
+          },
+        }),
+      ),
+    )
+  )
+    .flat()
+    .filter((run) => isMissionExecutionPipelineRun(run, input));
   for (const run of matchingRuns) {
     const moduleRuns = await runtimeRepository.listModuleRunsByPipelineRunId(run.id);
     const hasActiveModules = moduleRuns.some(
