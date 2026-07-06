@@ -4,8 +4,8 @@ English version: [`userguide.md`](userguide.md)
 
 本文面向两类使用者：
 
-- **前台用户**：在 Mission Center 或 End-user Portal 中提交任务、审核计划、确认审批、查看结果。
-- **后台/运营用户**：在 Backstage 和 Operator Backstage 中检查 Agent、Skill、运行记录、产物、审批、发布配置和 manifest。后台操作必须保留可追溯证据，因为系统事实源来自 runtime、API、数据库和日志，而不是界面文字。
+- **前台用户**：在 Mission Center / Mission Portal 中提交任务、审核计划、确认审批、查看结果；token/public 用户进入同一个 Mission Portal 的 token 模式。
+- **后台/运营用户**：在唯一 Backstage 工作区中检查 Runs、Artifacts、Agents、Skills、Teams、Approvals、Settings、发布控制和 manifest。后台操作必须保留可追溯证据，因为系统事实源来自 runtime、API、数据库和日志，而不是界面文字。
 
 ## 1. 本地启动
 
@@ -120,15 +120,15 @@ Mission Center 是普通用户的默认路径。前台用户不需要理解底�
 | Steps / Execution Board | 看到每个步骤是否完成、卡在哪里 |
 | Data / Sources / Result | 查看资料、来源、结果和可追溯证据 |
 
-如果任务发布到 Portal，可从 AgentFirst 页面点击 **View Portal**，或直接打开：
+如果任务发布到 Portal，可从 AgentFirst 页面点击 **View Portal**，或使用轻量 Mission Portal token URL 直接打开：
 
 ```text
 /preview/ai-os/AgentPortalInterface?token=portal-demo-token
 ```
 
-Portal 适合终端用户查看进度、提交反馈、处理批准或补充资料。
+Portal token 模式让终端用户停留在 Mission Portal 查看进度、提交反馈、处理批准或补充资料；不得暴露 Backstage、manifest、provider/model 设置或 publish token。
 
-## 3. 后台操作：Backstage 和 Operator
+## 3. 后台操作：Backstage
 
 后台用于治理、排错和上线前确认。每一步都要回答两个问题：
 
@@ -139,7 +139,7 @@ Portal 适合终端用户查看进度、提交反馈、处理批准或补充资�
 
 1. 打开 AgentFirst 页面。
 2. 点击 **Backstage**。
-3. 查看 Agents、Skills、Runs、Artifacts 等工作区。
+3. 查看 Runs、Artifacts、Agents、Skills、Teams、Approvals、Settings 等工作区。
 
 为什么要这样做：
 
@@ -148,10 +148,12 @@ Portal 适合终端用户查看进度、提交反馈、处理批准或补充资�
 
 验收点：
 
+- Runs 能显示 runtime I/O、事件、审批状态、活跃 skill、raw JSON 和错误。
+- Artifacts 能按 pipeline / module run 分组显示中间产物和最终产物。
 - Agents 能显示 `runtimeStatus`、`teamId`、九段式定义和绑定 skill。
-- Skills 能显示执行方式、必需环境变量、权限和 readiness。
-- Runs 能显示 runtime I/O、事件、审批状态和错误。
-- Artifacts 能显示中间产物和最终产物。
+- Skills 能显示执行方式、必需环境变量、权限、readiness、事件、产物和按需 Skill UI。
+- Teams 与 Approvals 能展示归属关系和跨 indexed runs 的阻断项。
+- Settings 承载 provider/model 配置、发布状态/token 与受保护 manifest 治理。
 
 ### 3.2 检查 Agent 配置
 
@@ -215,30 +217,31 @@ Portal 适合终端用户查看进度、提交反馈、处理批准或补充资�
 - 如果前台显示“完成”，后台必须能看到完成所依据的事件、产物和状态。
 - 如果步骤失败或跳过，后台需要定位是权限、环境变量、外部服务还是输入数据问题。
 
-### 3.5 使用 Operator Backstage
+### 3.5 在 Settings 中处理治理
 
 操作步骤：
 
-1. 点击 **Operator**。
-2. 查看 manifest 列表和详情。
-3. 对自定义 manifest 做只读审核。
+1. 打开 **Backstage → Settings**。
+2. 查看 provider/model 配置、发布状态/token、manifest 治理面板。
+3. 对自定义 manifest 做只读审核后再进行受保护变更。
 4. 只有在本地受保护模式允许时，才提交自定义 manifest 变更。
-5. 修改后重新运行 manifest 校验和相关测试。
+5. 放弃本地草稿时使用显式 discard/reload 控件；普通切换标签页不得静默清空草稿。
+6. 修改 manifest 或 settings 后重新运行校验和相关测试。
 
 为什么要这样做：
 
-- Operator 是治理入口，不是普通用户入口。
+- Settings 是 Backstage 内的高级治理区，不是第二个后台入口。
 - 内置和社区 manifest 默认应只读，防止把运行时事实源改乱。
-- 自定义 manifest 变更可能改变权限、工具、数据流和审批要求，必须通过校验后才能进入运行路径。
+- 自定义 manifest、provider 或发布设置变更可能改变权限、工具、数据流、token 和审批要求，必须通过校验后才能进入运行路径。
 
-### 3.6 发布 Portal
+### 3.6 从 Settings 发布 Portal
 
 操作步骤：
 
-1. 在 AgentFirst 的发布区域检查 Portal 设置。
+1. 在 **Backstage → Settings** 检查 Portal 设置。
 2. 确认 publish status。
 3. 设置或轮换 Portal token。
-4. 用 Portal URL 打开终端用户视图。
+4. 使用轻量 Mission Portal token URL（`/preview/ai-os/AgentPortalInterface?token=...`）打开终端用户视图。
 5. 在移动端和桌面端都测试语言切换、步骤、数据、来源和结果。
 
 为什么要这样做：
@@ -618,7 +621,7 @@ curl -X POST http://127.0.0.1:3001/api/missions \
 - 计划能显示角色、步骤、审批和风险。
 - 确认计划不会自动执行。
 - 执行后能看到步骤状态和结果。
-- Portal 桌面和移动端都能进入。
+- Portal token 模式桌面和移动端都能通过 `/preview/ai-os/AgentPortalInterface?token=...` 进入，且不暴露 Backstage 控件。
 - 中英文能切换。
 
 后台验收：
@@ -627,5 +630,5 @@ curl -X POST http://127.0.0.1:3001/api/missions \
 - Skills 能显示 adapter、required env、permissions 和 schema。
 - Runs 能显示输入、输出、事件、审批和错误。
 - Artifacts 能追溯来源。
-- Operator 能查看 manifest，并只在受保护场景下修改自定义 manifest。
+- Settings 承载 provider/model 配置、发布控制和受保护 manifest 治理；自定义 manifest 只在受保护本地模式下变更。
 - 寿险模板保持 `runtimeStatus: template`，只有绑定真实 skill 并完成测试后才能改成 `runnable`。

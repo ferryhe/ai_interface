@@ -2,8 +2,8 @@
 
 This guide is for two audiences:
 
-- **Frontend users** use Mission Center or the End-user Portal to submit goals, review plans, approve actions, and inspect results.
-- **Backstage/operators** use Backstage and Operator Backstage to inspect Agents, Skills, runs, artifacts, approvals, publish settings, and manifests. Backstage work must preserve traceable evidence because runtime state, APIs, the database, and logs are the system of record.
+- **Frontend users** use Mission Center / Mission Portal to submit goals, review plans, approve actions, and inspect results. Token/public users enter the same Mission Portal in portal-token mode.
+- **Backstage/operators** use the single Backstage workspace to inspect Runs, Artifacts, Agents, Skills, Teams, Approvals, Settings, publish controls, and manifests. Backstage work must preserve traceable evidence because runtime state, APIs, the database, and logs are the system of record.
 
 Chinese version: [`userguide.zh.md`](userguide.zh.md)
 
@@ -118,15 +118,15 @@ Frontend users mainly inspect:
 | Steps / Execution Board | See step status and blockers |
 | Data / Sources / Result | Inspect sources, records, outputs, and traceability |
 
-If the mission is published to Portal, click **View Portal** in AgentFirst or open:
+If the mission is published to Portal, click **View Portal** in AgentFirst or open the lightweight Mission Portal token URL:
 
 ```text
 /preview/ai-os/AgentPortalInterface?token=portal-demo-token
 ```
 
-Portal is the end-user surface for progress, feedback, approvals, and requested data.
+Portal token mode keeps end users on Mission Portal for progress, feedback, approvals, and requested data; it must not expose Backstage, manifests, provider/model settings, or publish tokens.
 
-## 3. Backstage and Operator Flow
+## 3. Backstage Flow
 
 Backstage is for governance, debugging, and release checks. Every backstage action should answer:
 
@@ -137,7 +137,7 @@ Backstage is for governance, debugging, and release checks. Every backstage acti
 
 1. Open AgentFirst.
 2. Click **Backstage**.
-3. Inspect Agents, Skills, Runs, and Artifacts.
+3. Inspect Runs, Artifacts, Agents, Skills, Teams, Approvals, and Settings.
 
 Why:
 
@@ -146,10 +146,12 @@ Why:
 
 Acceptance checks:
 
+- Runs show runtime I/O, events, approval state, active skill, raw JSON, and errors.
+- Artifacts show intermediate and final outputs grouped by pipeline/module run.
 - Agents show `runtimeStatus`, `teamId`, nine-segment definitions, and bound skills.
-- Skills show execution kind, required env, permissions, and readiness.
-- Runs show runtime I/O, events, approval state, and errors.
-- Artifacts show intermediate and final outputs.
+- Skills show execution kind, required env, permissions, readiness, events, artifacts, and Skill UI where configured.
+- Teams and Approvals show ownership and blocking work across indexed runs.
+- Settings contains provider/model configuration, publish status/token controls, and guarded manifest governance.
 
 ### 3.2 Inspect Agent Configuration
 
@@ -207,26 +209,27 @@ Why:
 - If the frontend says a step is complete, Backstage must show the evidence.
 - If a step fails or is skipped, operators need to identify whether the cause is permissions, env, external service state, or bad input.
 
-### 3.5 Use Operator Backstage
+### 3.5 Use Settings for governance
 
-1. Click **Operator**.
-2. Review manifest lists and details.
-3. Inspect custom manifests in read-only mode.
+1. Open **Backstage → Settings**.
+2. Review provider/model configuration, publish status/token controls, and manifest governance panels.
+3. Inspect custom manifests in read-only mode before making any guarded change.
 4. Mutate custom manifests only when local protected write mode allows it.
-5. After a manifest change, rerun validation and focused tests.
+5. Use the explicit discard/reload control when abandoning dirty local drafts; ordinary tab switching must not silently wipe drafts.
+6. After a manifest or settings change, rerun validation and focused tests.
 
 Why:
 
-- Operator is a governance surface, not a normal user path.
+- Settings is the advanced governance area inside Backstage, not a second backstage entry.
 - Built-in and community manifests should remain read-only by default.
-- Custom manifest changes can alter permissions, tools, data flow, and approval gates.
+- Custom manifest or provider/publish changes can alter permissions, tools, data flow, tokens, and approval gates.
 
-### 3.6 Publish Portal
+### 3.6 Publish Portal from Settings
 
-1. Check Portal settings in AgentFirst publish controls.
+1. Check Portal settings in **Backstage → Settings**.
 2. Confirm publish status.
 3. Set or rotate the Portal token.
-4. Open the Portal URL.
+4. Open the lightweight Mission Portal token URL (`/preview/ai-os/AgentPortalInterface?token=...`).
 5. Test desktop and mobile language switching, steps, data, sources, and results.
 
 Why:
@@ -465,7 +468,7 @@ Frontend:
 - The plan shows roles, steps, approvals, and risk.
 - Plan approval does not automatically execute.
 - Execution shows step status and results.
-- Portal works on desktop and mobile.
+- Portal token mode works on desktop and mobile through `/preview/ai-os/AgentPortalInterface?token=...` without exposing Backstage controls.
 - English/Chinese language switching works.
 
 Backstage:
@@ -474,5 +477,5 @@ Backstage:
 - Skills show adapter, required env, permissions, and schemas.
 - Runs show inputs, outputs, events, approvals, and errors.
 - Artifacts are traceable to sources.
-- Operator can inspect manifests and only mutates custom manifests in protected local mode.
+- Settings contains provider/model configuration, publish controls, and guarded manifest governance; custom manifests mutate only in protected local mode.
 - Life-insurance templates stay `runtimeStatus: template` until real skills and focused tests are added.

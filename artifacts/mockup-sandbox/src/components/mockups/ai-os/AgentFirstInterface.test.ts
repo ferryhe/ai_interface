@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("./AgentFirstInterface.tsx", import.meta.url), "utf8");
+const generatedPreviewSource = readFileSync(
+  new URL("../../../.generated/mockup-components.ts", import.meta.url),
+  "utf8",
+);
+const portalEntrySource = readFileSync(
+  new URL("./AgentPortalInterface.tsx", import.meta.url),
+  "utf8",
+);
 test("agent-first default mission load does not request admin config surfaces", () => {
   assert.match(
     source,
@@ -136,4 +144,35 @@ test("backstage converges governance into one settings entry", () => {
   assert.match(source, /workbenchTab === "settings" && \(/);
   assert.match(source, /function SettingsBackstagePanel/);
   assert.match(source, /<ConfigureView[\s\S]*<PublishView[\s\S]*<OperatorBackstage/);
+});
+
+test("agent-first direct token URLs and publish previews use the final Mission Portal", () => {
+  assert.match(source, /from "@\/components\/mission\/MissionPortal"/);
+  assert.match(source, /readMissionPortalSearchParams/);
+  assert.match(source, /const portalSearch = readMissionPortalSearchParams\(\);/);
+  assert.match(source, /function isLegacyPortalPreviewPath\(pathname\?: string\): boolean/);
+  assert.match(source, /endsWith\("\/preview\/ai-os\/AgentPortalInterface"\)/);
+  assert.match(source, /const shouldUsePortalTokenMode =[\s\S]*Boolean\(portalSearch\.portalToken \|\| portalSearch\.missionId\)[\s\S]*isLegacyPortalPreviewPath\(\);/);
+  assert.match(
+    source,
+    /if \(shouldUsePortalTokenMode\) \{[\s\S]*<MissionPortal[\s\S]*accessMode="portal-token"[\s\S]*initialPortalToken=\{portalSearch\.portalToken\}[\s\S]*initialMissionId=\{portalSearch\.missionId\}/,
+  );
+  assert.match(source, /return <AgentFirstWorkspace \/>;/);
+  assert.match(source, /function AgentFirstWorkspace\(\) \{[\s\S]*const \{ t, i18n \} = useTranslation\(\);/);
+  assert.match(source, /return previewUrl\("ai-os\/AgentPortalInterface", search\);/);
+});
+
+test("preview manifest exposes final AgentFirst and lightweight Mission Portal token routes", () => {
+  assert.match(generatedPreviewSource, /AgentFirstInterface\.tsx/);
+  assert.match(generatedPreviewSource, /AgentPortalInterface\.tsx/);
+  assert.doesNotMatch(generatedPreviewSource, /AIInterface\.tsx/);
+});
+
+test("AgentPortal preview route is only a lightweight Mission Portal token entry", () => {
+  assert.match(portalEntrySource, /from "@\/components\/mission\/MissionPortal"/);
+  assert.match(portalEntrySource, /readMissionPortalSearchParams/);
+  assert.match(portalEntrySource, /accessMode="portal-token"/);
+  assert.match(portalEntrySource, /initialPortalToken=\{portalSearch\.portalToken\}/);
+  assert.match(portalEntrySource, /initialMissionId=\{portalSearch\.missionId\}/);
+  assert.doesNotMatch(portalEntrySource, /AgentCatalog|ArtifactInspector|OperatorBackstage/);
 });

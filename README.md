@@ -2,13 +2,13 @@
 
 [中文文档](README_zh.md)
 
-`ai_interface` is an AI Team Mission Control console. Normal users start in Mission Center, describe a goal, review the generated mission plan, approve high-risk actions, and decide when execution should begin. Advanced users can then move into Backstage and Operator surfaces to inspect manifests, runtime I/O, events, artifacts, readiness, approvals, and guarded configuration changes.
+`ai_interface` is an AI Team Mission Control console. Normal users start in Mission Center, describe a goal, review the generated mission plan, approve high-risk actions, and decide when execution should begin. Public/token users enter the same Mission Portal frontstage in token mode, while operators use a single Backstage workspace for runtime evidence, approvals, settings, and guarded governance.
 
 Mission-first is the product default:
 
-- **Mission Center** is the default normal-user path for intake, plan review, approval, and execution handoff.
-- **Backstage** is the execution and inspection workbench for Agents, Skills, Runs, and Artifacts.
-- **Operator Backstage** is the advanced governance path for manifest review, read-only inspection, and guarded custom-manifest mutation.
+- **Mission Center / Mission Portal** is the only frontstage path for intake, plan review, current-mission approvals, status, and result handoff.
+- **Token Mission Portal** reuses the same frontstage with the portal-runtime guard; it does not expose Backstage, manifests, provider/model settings, or publish tokens.
+- **Backstage** is the single operator workspace for Runs, Artifacts, Agents, Skills, Teams, Approvals, and Settings.
 
 The current runtime wires a generic skill runtime around YAML manifests loaded from
 `skills/builtin`, `skills/community`, and `skills/custom`:
@@ -252,28 +252,24 @@ keep running.
 
 ---
 
-## Mission Center, Backstage, and Operator
+## Mission Portal and Backstage
 
-Mission Center is the default normal-user path:
+Mission Center / Mission Portal is the default normal-user path:
 
 - submit a mission request in product language rather than raw skill terms;
 - review the generated mission plan, dependencies, and approval gates;
 - approve without automatically executing;
-- decide whether to keep the plan staged or call `/api/missions/:missionId/execute`.
+- decide whether to keep the plan staged or call `/api/missions/:missionId/execute`;
+- enter token/public mode through the lightweight Mission Portal token URL, which renders the same Mission Portal and scopes API calls through the portal-runtime guard.
 
-Backstage is the execution and inspection workbench:
+Backstage is the single execution, inspection, and governance workbench:
 
-- browse Agents, Skills, Runs, and Artifacts as first-class tabs;
+- browse Runs, Artifacts, Agents, Skills, Teams, Approvals, and Settings as first-class tabs;
 - inspect agent manifests with full nine-section detail (identity, criticalRules, deliverables, workflow, communicationStyle, successMetrics);
 - view team assignment (`teamId`) and filter agents by team;
 - see runtimeStatus indicators (runnable / template);
-- inspect skill manifests, adapter readiness, run I/O, events, artifacts, and Skill UI handoff.
-
-Operator Backstage is the advanced path:
-
-- review built-in, community, and custom manifests with source labeling;
-- keep secret-like values, local paths, provider URLs, tokens, and MCP-style endpoints redacted in API/UI responses;
-- allow only guarded localhost custom-manifest mutation while built-in/community manifests remain read-only.
+- inspect skill manifests, adapter readiness, run I/O, events, artifacts, and Skill UI handoff;
+- use Settings for provider/model configuration, publish status/token controls, and guarded manifest governance.
 
 ---
 
@@ -548,15 +544,15 @@ git diff --check
 
 Browser smoke should verify:
 
-- Foreground renders and can submit/show a flow;
-- Backstage is switchable from the top bar;
-- the Agents tab renders all 6 agents with nine-section detail and team filtering;
-- the Skills tab still shows the default built-in and community skills;
+- Mission Portal opens as the default frontstage and supports the intake → board/plan review → revise/approve → execute/status flow;
+- token/public URLs use the lightweight Mission Portal token entry (`/preview/ai-os/AgentPortalInterface?token=...`) and stay on the same Mission Portal without Backstage or Settings controls;
+- Backstage is switchable only from the operator shell and its Runs, Artifacts, Agents, Skills, Teams, Approvals, and Settings tabs load without console errors;
 - the Runs tab shows ordered module steps, events, active skill, and raw JSON;
 - the Artifacts tab groups artifacts by pipeline and module run;
-- selected skill detail shows manifest, readiness, I/O, events, artifacts, and raw JSON;
-- skills with `htmlEntrypoint` show a sandboxed Skill UI tab;
-- trigger/approval runs select the corresponding Backstage Skill UI tab.
+- the Agents tab renders all agents with nine-section detail and team filtering;
+- the Skills tab shows built-in/community skills, readiness, I/O, events, artifacts, raw JSON, and sandboxed Skill UI where configured;
+- the Approvals tab aggregates blockers across indexed runs and links back to owning runs/skills;
+- Settings contains provider/model configuration, publish status/token controls, and guarded manifest governance.
 
 ---
 
