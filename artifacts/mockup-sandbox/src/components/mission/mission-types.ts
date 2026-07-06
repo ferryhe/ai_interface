@@ -3,6 +3,7 @@ export type MissionStatus =
   | "draft"
   | "needs_confirmation"
   | "approved"
+  | "executing"
   | "in_progress"
   | "completed"
   | "failed";
@@ -71,7 +72,14 @@ export interface MissionRevisionRecord {
 
 export interface MissionExecutionReadiness {
   ready: boolean;
-  status: "approved" | "stubbed";
+  status:
+    | "approved"
+    | "executing"
+    | "needs_approval"
+    | "completed"
+    | "failed"
+    | "plan_only"
+    | "stubbed";
   message: string;
   revisionId?: string;
 }

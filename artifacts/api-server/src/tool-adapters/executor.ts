@@ -1,4 +1,5 @@
 import {
+  recordModuleRunArtifact,
   recordModuleRunEvent,
   type JsonObject,
   type ModuleRunRecord,
@@ -117,6 +118,63 @@ function copyAdapterDefinition(
   };
 }
 
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readFirstString(value: unknown): string | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.find((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function interactionIdFromMetadata(metadata: JsonObject | null): string | undefined {
+  const interaction = metadata?.["interaction"];
+  if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
+    return undefined;
+  }
+  return readString((interaction as JsonObject)["interactionId"]);
+}
+
+function executionArtifactKind(run: ModuleRunRecord, adapter: ToolAdapterDefinition): string {
+  return readFirstString(run.metadata?.["artifactKinds"]) ?? `${adapter.moduleId}_result`;
+}
+
+function executionArtifactProvenance(
+  run: ModuleRunRecord,
+  adapter: ToolAdapterDefinition,
+): JsonObject {
+  return {
+    source: "tool-adapter-execution",
+    adapterId: adapter.adapterId,
+    moduleId: adapter.moduleId,
+    externalRunId: run.externalRunId,
+    ...(run.pipelineRunId ? { pipelineRunId: run.pipelineRunId } : {}),
+    ...(readString(run.metadata?.["missionId"]) ? { missionId: readString(run.metadata?.["missionId"]) } : {}),
+    ...(readString(run.metadata?.["revisionId"]) ? { revisionId: readString(run.metadata?.["revisionId"]) } : {}),
+    ...(readString(run.metadata?.["dagStepId"]) ?? readString(run.metadata?.["stepId"])
+      ? { stepId: readString(run.metadata?.["dagStepId"]) ?? readString(run.metadata?.["stepId"]) }
+      : {}),
+    ...(readString(run.metadata?.["skillId"]) ? { skillId: readString(run.metadata?.["skillId"]) } : {}),
+    ...(readString(run.metadata?.["agentId"]) ? { agentId: readString(run.metadata?.["agentId"]) } : {}),
+    ...(interactionIdFromMetadata(run.metadata) ? { interactionId: interactionIdFromMetadata(run.metadata) } : {}),
+  };
+}
+
+async function recordExecutionArtifact(
+  repository: ModuleRunRepository,
+  run: ModuleRunRecord,
+  adapter: ToolAdapterDefinition,
+  result: ToolExecutionResult,
+): Promise<void> {
+  if (result.status !== "succeeded" || !result.outputJson) return;
+  await recordModuleRunArtifact(repository, run.id, {
+    artifactKind: executionArtifactKind(run, adapter),
+    title: `${run.title ?? adapter.displayName} result`,
+    contentJson: result.outputJson,
+    provenance: executionArtifactProvenance(run, adapter),
+  });
+}
+
 function failedExecutionResult(
   adapter: ToolAdapterDefinition,
 ): ToolExecutionResult {
@@ -209,6 +267,7 @@ export async function executeModuleRunWithAdapter(
     severity: result.eventSeverity,
     payload: result.eventPayload ?? undefined,
   });
+  await recordExecutionArtifact(repository, run, adapter, result);
 
   return { run, event, adapter, readiness, result };
 }

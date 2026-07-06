@@ -14,6 +14,7 @@ import {
   type CreateMissionRevisionInput,
   type LinkMissionExecutionInput,
   type MissionExecutionLinkRecord,
+  type MissionExecutionStatus,
   type MissionPlanRevisionRecord,
   type MissionRecord,
   type MissionRepository,
@@ -339,9 +340,10 @@ export class DbMissionRepository implements MissionRepository {
         .returning();
 
       const executedAt = input.executedAt ?? new Date();
+      const executionStatus = input.status ?? "executing";
       const revisionPlan = withMissionPlanStatus(
         jsonToMissionPlan(revisionRows[0].planJson),
-        "executing",
+        executionStatus,
       );
 
       await tx
@@ -360,12 +362,90 @@ export class DbMissionRepository implements MissionRepository {
       await tx
         .update(missionsTable)
         .set({
-          status: "executing",
+          status: executionStatus,
           updatedAt: executedAt,
         })
         .where(eq(missionsTable.missionId, input.missionId));
 
       return mapExecutionLink(firstOrThrow(linkRows, "mission execution link"));
+    });
+  }
+
+  async findExecutionLink(
+    missionId: string,
+    revisionId: string,
+  ): Promise<MissionExecutionLinkRecord | null> {
+    const rows = await db
+      .select()
+      .from(missionExecutionLinksTable)
+      .where(
+        and(
+          eq(missionExecutionLinksTable.missionId, missionId),
+          eq(missionExecutionLinksTable.revisionId, revisionId),
+        ),
+      )
+      .limit(1);
+
+    return rows[0] ? mapExecutionLink(rows[0]) : null;
+  }
+
+  async updateExecutionStatus(input: {
+    missionId: string;
+    revisionId: string;
+    status: MissionExecutionStatus;
+    updatedAt?: Date;
+  }): Promise<{
+    mission: MissionRecord;
+    revision: MissionPlanRevisionRecord;
+  }> {
+    return db.transaction(async (tx) => {
+      const revisionRows = await tx
+        .select()
+        .from(missionPlanRevisionsTable)
+        .where(
+          and(
+            eq(missionPlanRevisionsTable.missionId, input.missionId),
+            eq(missionPlanRevisionsTable.revisionId, input.revisionId),
+          ),
+        )
+        .limit(1);
+      if (!revisionRows[0]) {
+        throw new Error(`Mission revision not found: ${input.revisionId}`);
+      }
+
+      const updatedAt = input.updatedAt ?? new Date();
+      const revisionPlan = withMissionPlanStatus(
+        jsonToMissionPlan(revisionRows[0].planJson),
+        input.status,
+      );
+
+      const updatedRevisionRows = await tx
+        .update(missionPlanRevisionsTable)
+        .set({
+          status: "executed",
+          planJson: missionPlanToJson(revisionPlan),
+        })
+        .where(
+          and(
+            eq(missionPlanRevisionsTable.missionId, input.missionId),
+            eq(missionPlanRevisionsTable.revisionId, input.revisionId),
+          ),
+        )
+        .returning();
+
+      const updatedMissionRows = await tx
+        .update(missionsTable)
+        .set({
+          status: input.status,
+          updatedAt,
+        })
+        .where(eq(missionsTable.missionId, input.missionId))
+        .returning();
+
+      return {
+        mission: mapMission(firstOrThrow(updatedMissionRows, "mission execution status")),
+        revision: mapRevision(firstOrThrow(updatedRevisionRows, "mission revision execution status")),
+      };
     });
   }
 

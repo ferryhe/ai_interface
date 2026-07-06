@@ -2147,15 +2147,23 @@ export const ApproveMissionResponse = zod.object({
   }),
   executionReadiness: zod.object({
     ready: zod.boolean(),
-    status: zod.enum(["approved", "stubbed"]),
+    status: zod.enum([
+      "approved",
+      "executing",
+      "needs_approval",
+      "completed",
+      "failed",
+      "plan_only",
+      "stubbed",
+    ]),
     message: zod.string(),
     revisionId: zod.string().uuid().optional(),
   }),
 });
 
 /**
- * Marks an approved mission as executing and returns stubbed execution readiness metadata until runtime orchestration is connected.
- * @summary Mark a mission as executing
+ * Starts a real Agent runtime run from the approved mission revision, preserving mission/revision/step metadata on the thread, pipeline run, module runs, timeline events, approval interactions, and artifacts.
+ * @summary Execute an approved mission through runtime orchestration
  */
 
 export const ExecuteMissionParams = zod.object({
@@ -2207,12 +2215,88 @@ export const ExecuteMissionResponse = zod.object({
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
-  pipelineRun: zod.null(),
-  thread: zod.null(),
-  moduleRuns: zod.array(zod.unknown()),
+  pipelineRun: zod.object({
+    id: zod.string().uuid(),
+    threadId: zod.string().uuid().nullable(),
+    title: zod.string(),
+    status: zod.enum([
+      "pending",
+      "running",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    activeModuleId: zod.union([
+      zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      zod.null(),
+    ]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  thread: zod.object({
+    id: zod.string().uuid(),
+    title: zod.string(),
+    status: zod.enum(["active", "archived"]),
+    metadata: zod.union([zod.record(zod.string(), zod.unknown()), zod.null()]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  moduleRuns: zod.array(
+    zod.object({
+      id: zod.string().uuid(),
+      pipelineRunId: zod.string().uuid().nullable(),
+      moduleId: zod
+        .string()
+        .min(1)
+        .describe(
+          "Arbitrary non-empty runtime module identifier from registered skill manifests.",
+        ),
+      skillId: zod.string().min(1).optional(),
+      externalRunId: zod.string(),
+      title: zod.string().nullable(),
+      status: zod.enum([
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ]),
+      inputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      outputJson: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      summary: zod.string().nullable(),
+      metadata: zod.union([
+        zod.record(zod.string(), zod.unknown()),
+        zod.null(),
+      ]),
+      startedAt: zod.coerce.date().nullable(),
+      completedAt: zod.coerce.date().nullable(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
   executionReadiness: zod.object({
     ready: zod.boolean(),
-    status: zod.enum(["approved", "stubbed"]),
+    status: zod.enum([
+      "approved",
+      "executing",
+      "needs_approval",
+      "completed",
+      "failed",
+      "plan_only",
+      "stubbed",
+    ]),
     message: zod.string(),
     revisionId: zod.string().uuid().optional(),
   }),

@@ -52,7 +52,11 @@ type MissionStatusMessageKey =
   | "missionCenter.approvedStatus"
   | "missionCenter.executeReadyStatus"
   | "missionCenter.planOnlyStatus"
-  | "missionCenter.planOnlySavedStatus";
+  | "missionCenter.planOnlySavedStatus"
+  | "missionCenter.runtimeCompletedStatus"
+  | "missionCenter.runtimeFailedStatus"
+  | "missionCenter.runtimeApprovalApprovedStatus"
+  | "missionCenter.runtimeApprovalRejectedStatus";
 
 type MissionPortalTokenAccessState =
   | "idle"
@@ -189,6 +193,7 @@ export function MissionPortal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessageKey, setStatusMessageKey] = useState<MissionStatusMessageKey | null>(null);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  const [boardRefreshNonce, setBoardRefreshNonce] = useState(0);
 
   const currentRevisionId = bundle?.revision.revisionId ?? null;
   const missionId = bundle?.mission.missionId ?? null;
@@ -322,7 +327,46 @@ export function MissionPortal({
     return true;
   }
 
-  async function refreshMission(targetMissionId: string): Promise<void> {
+  function readinessStatusAfterApprovalDecision(
+    decision: "approve" | "reject",
+    missionStatus?: MissionRecord["status"],
+    hasPendingApprovals = false,
+  ): MissionExecutionReadiness["status"] {
+    if (decision === "reject") return "failed";
+    if (hasPendingApprovals) return "needs_approval";
+    if (missionStatus === "completed") return "completed";
+    if (missionStatus === "failed") return "failed";
+    return "executing";
+  }
+
+  function readinessMessageAfterApprovalDecision(
+    decision: "approve" | "reject",
+    missionStatus: MissionRecord["status"] | undefined,
+    hasPendingApprovals: boolean,
+  ): string {
+    if (decision === "reject") return t("missionCenter.runtimeApprovalRejectedStatus");
+    if (hasPendingApprovals) return t("missionCenter.runtimeApprovalApprovedStatus");
+    if (missionStatus === "completed") return t("missionCenter.runtimeCompletedStatus");
+    if (missionStatus === "failed") return t("missionCenter.runtimeFailedStatus");
+    return t("missionCenter.runtimeApprovalApprovedStatus");
+  }
+
+  async function hasPendingMissionApprovals(targetMissionId: string): Promise<boolean> {
+    const response = await fetch(
+      apiPath(`/api/approvals?missionId=${encodeURIComponent(targetMissionId)}`),
+      {
+        headers: buildRequestHeaders({ Accept: "application/json" }),
+      },
+    );
+    if (!response.ok) {
+      if (handlePortalRuntimeDenied(response)) return false;
+      throw new Error(await readError(response));
+    }
+    const data = await readJson<{ approvals?: unknown[] }>(response);
+    return (data.approvals ?? []).length > 0;
+  }
+
+  async function refreshMission(targetMissionId: string): Promise<MissionBundle> {
     const response = await fetch(apiPath(`/api/missions/${encodeURIComponent(targetMissionId)}`), {
       headers: buildRequestHeaders({ Accept: "application/json" }),
     });
@@ -337,7 +381,9 @@ export function MissionPortal({
       latestRevision: MissionRevisionRecord;
       plan: MissionBundle["plan"];
     }>(response);
-    setBundle({ mission: data.mission, revision: data.latestRevision, plan: data.plan });
+    const refreshed = { mission: data.mission, revision: data.latestRevision, plan: data.plan };
+    setBundle(refreshed);
+    return refreshed;
   }
 
   async function handleCreateMission(): Promise<void> {
@@ -490,6 +536,7 @@ export function MissionPortal({
       const data = await readJson<MissionExecuteResult>(response);
       setExecuteResult(data);
       setExecutionReadiness(data.executionReadiness);
+      setBoardRefreshNonce((value) => value + 1);
       setStatusMessageKey(
         mode === "execute_ready" ? "missionCenter.executeReadyStatus" : "missionCenter.planOnlyStatus",
       );
@@ -498,6 +545,32 @@ export function MissionPortal({
     } finally {
       setActionState("idle");
     }
+  }
+
+  async function handleApprovalDecisionSettled(decision: "approve" | "reject"): Promise<void> {
+    setBoardRefreshNonce((value) => value + 1);
+    const refreshed = missionId ? await refreshMission(missionId) : null;
+    const hasPendingApprovals =
+      decision === "approve" && missionId ? await hasPendingMissionApprovals(missionId) : false;
+    const missionStatus = refreshed?.mission.status ?? bundle?.mission.status;
+    const readinessStatus = readinessStatusAfterApprovalDecision(
+      decision,
+      missionStatus,
+      hasPendingApprovals,
+    );
+    const revisionId = refreshed?.revision.revisionId ?? currentRevisionId;
+    const statusKey =
+      decision === "approve"
+        ? "missionCenter.runtimeApprovalApprovedStatus"
+        : "missionCenter.runtimeApprovalRejectedStatus";
+    setStatusMessageKey(statusKey);
+    setExecuteResult(null);
+    setExecutionReadiness({
+      ready: decision === "approve" && readinessStatus !== "failed",
+      status: readinessStatus,
+      message: readinessMessageAfterApprovalDecision(decision, missionStatus, hasPendingApprovals),
+      ...(revisionId ? { revisionId } : {}),
+    });
   }
 
   if (!isPortalUnlocked) {
@@ -622,6 +695,7 @@ export function MissionPortal({
               missionId={missionId}
               requestHeaders={portalRequestHeaders}
               onRuntimeAccessDenied={handlePortalRuntimeDenied}
+              refreshSignal={boardRefreshNonce}
             />
 
             <ApprovalInbox
@@ -631,7 +705,9 @@ export function MissionPortal({
               descriptionKey="approvalInbox.currentMissionDescription"
               emptyKey="approvalInbox.currentMissionEmpty"
               requestHeaders={portalRequestHeaders}
+              refreshSignal={boardRefreshNonce}
               onRuntimeAccessDenied={handlePortalRuntimeDenied}
+              onDecisionSettled={handleApprovalDecisionSettled}
             />
 
             <Card className="border-border bg-muted/20 shadow-none">

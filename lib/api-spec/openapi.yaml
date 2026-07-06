@@ -954,10 +954,11 @@ paths:
     post:
       operationId: executeMission
       tags: [missions]
-      summary: Mark a mission as executing
+      summary: Execute an approved mission through runtime orchestration
       description: >-
-        Marks an approved mission as executing and returns stubbed execution
-        readiness metadata until runtime orchestration is connected.
+        Starts a real Agent runtime run from the approved mission revision,
+        preserving mission/revision/step metadata on the thread, pipeline run,
+        module runs, timeline events, approval interactions, and artifacts.
       parameters:
         - $ref: "#/components/parameters/MissionId"
         - $ref: "#/components/parameters/PortalSurface"
@@ -2021,6 +2022,11 @@ components:
           type: string
           enum:
             - approved
+            - executing
+            - needs_approval
+            - completed
+            - failed
+            - plan_only
             - stubbed
         message:
           type: string
@@ -2146,12 +2152,13 @@ components:
         mission:
           $ref: "#/components/schemas/MissionRecord"
         pipelineRun:
-          type: "null"
+          $ref: "#/components/schemas/PipelineRun"
         thread:
-          type: "null"
+          $ref: "#/components/schemas/AgentThread"
         moduleRuns:
           type: array
-          items: {}
+          items:
+            $ref: "#/components/schemas/ModuleRun"
         executionReadiness:
           $ref: "#/components/schemas/MissionExecutionReadiness"
       required:

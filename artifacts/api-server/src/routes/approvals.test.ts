@@ -13,6 +13,12 @@ import {
   createModuleRun,
   requestModuleRunInteraction,
 } from "../modules/ingest-service";
+import { InMemoryMissionRepository } from "../mission/in-memory-mission-repository";
+import { builtinSkillManifests, type SkillManifest } from "../skill-runtime/skill-manifest";
+import {
+  createSkillRuntimeRegistry,
+  type SkillRuntimeRegistry,
+} from "../skill-runtime/skill-runtime-registry";
 import { createApprovalsRouter } from "./approvals";
 
 async function withApprovalsApp<T>(
@@ -21,13 +27,16 @@ async function withApprovalsApp<T>(
     repositories: {
       runtimeRepository: InMemoryAgentRuntimeRepository;
       configRepository: InMemoryAgentConfigRepository;
+      missionRepository?: InMemoryMissionRepository;
     },
   ) => Promise<T>,
   options: {
     env?: Record<string, string | undefined>;
+    registry?: SkillRuntimeRegistry;
     repositories?: {
       runtimeRepository: InMemoryAgentRuntimeRepository;
       configRepository: InMemoryAgentConfigRepository;
+      missionRepository?: InMemoryMissionRepository;
     };
   } = {},
 ): Promise<T> {
@@ -43,7 +52,11 @@ async function withApprovalsApp<T>(
     createApprovalsRouter(
       repositories.runtimeRepository,
       repositories.configRepository,
-      { env: options.env },
+      {
+        env: options.env,
+        missionRepository: repositories.missionRepository,
+        registry: options.registry,
+      },
     ),
   );
 
@@ -136,6 +149,45 @@ async function responseJson(response: Response): Promise<Record<string, unknown>
   return (await response.json()) as Record<string, unknown>;
 }
 
+function customReporterManifest(): SkillManifest {
+  return {
+    skillId: "custom_reporter",
+    moduleId: "custom_reporter_module",
+    name: "Custom Reporter",
+    description: "Create custom reports from artifacts.",
+    category: "agent",
+    project: {
+      source: "external",
+      defaultSiblingPath: "../custom_reporter",
+      repoUrl: "https://example.com/custom-reporter",
+    },
+    inputSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    artifactKinds: ["report_markdown"],
+    interactionKinds: ["approval"],
+    execution: {
+      kind: "http",
+      adapterId: "custom_reporter.http.v1",
+      supportsResume: true,
+      timeoutMs: 30000,
+      maxOutputBytes: 65536,
+      requiredEnv: ["CUSTOM_REPORTER_API_BASE_URL"],
+      optionalEnv: [],
+      allowedCommands: [],
+    },
+    ui: {
+      mode: "auto",
+      preferredRenderer: "markdown",
+      openOnTrigger: false,
+    },
+    permissions: {
+      approvalRequired: true,
+      canUseNetwork: false,
+      canWriteDatabase: true,
+    },
+  };
+}
+
 test("GET /approvals lists pending approvals with redaction", async () => {
   await withApprovalsApp(
     async (baseUrl, { runtimeRepository }) => {
@@ -220,6 +272,150 @@ test("POST /approvals/:approvalId/approve allows admin access", async () => {
       );
     },
     { env: { DOC_TO_MD_API_BASE_URL: "https://doc.example.internal" } },
+  );
+});
+
+test("POST /approvals/:approvalId/approve forwards custom registry for downstream mission steps", async () => {
+  const registry = createSkillRuntimeRegistry([
+    ...builtinSkillManifests,
+    customReporterManifest(),
+  ]);
+  await withApprovalsApp(
+    async (baseUrl, { runtimeRepository }) => {
+      const pipelineRun = await runtimeRepository.createPipelineRun({
+        threadId: null,
+        title: "Custom registry approval pipeline",
+        status: "running",
+        activeModuleId: "doc_to_md",
+        metadata: {
+          missionExecutionSource: "mission-execute",
+          missionId: "mission-custom-registry",
+          revisionId: "revision-custom-registry",
+        },
+      });
+
+      const { run: approvalRun } = await createModuleRun(runtimeRepository, {
+        moduleId: "doc_to_md",
+        externalRunId: `${pipelineRun.id}:1:doc_to_md`,
+        pipelineRunId: pipelineRun.id,
+        title: "Approve source conversion",
+        inputJson: { topic: "routes" },
+        metadata: {
+          missionExecutionSource: "mission-execute",
+          missionId: "mission-custom-registry",
+          revisionId: "revision-custom-registry",
+          action: "Approve source conversion",
+          approvalReason: "Custom registry successor waits for this approval.",
+          adapterExecutionStatus: "approval_required",
+          requiresApproval: true,
+          dagStepId: "step-1",
+          dagDependsOn: [],
+          skillId: "doc_to_md",
+          agentId: "knowledge_builder",
+          adapterKind: "http",
+        },
+      });
+      const requested = await requestModuleRunInteraction(runtimeRepository, approvalRun.id, {
+        kind: "approval",
+        title: "Approve source conversion",
+        message: "Custom registry successor waits for this approval.",
+        resumeHandle: `doc_to_md:${approvalRun.externalRunId}:resume`,
+        metadata: {
+          action: "Approve source conversion",
+          reason: "Custom registry successor waits for this approval.",
+          riskLevel: "high",
+          stepId: "step-1",
+          toolKind: "http",
+        },
+      });
+      await runtimeRepository.updateModuleRun(approvalRun.id, {
+        status: "pending",
+        metadata: {
+          ...requested.run.metadata,
+          adapterExecutionStatus: "approval_required",
+        },
+      });
+
+      const { run: customRun } = await createModuleRun(
+        runtimeRepository,
+        {
+          moduleId: "custom_reporter_module",
+          externalRunId: `${pipelineRun.id}:2:custom_reporter_module`,
+          pipelineRunId: pipelineRun.id,
+          title: "Create custom report",
+          inputJson: { topic: "routes" },
+          metadata: {
+            missionExecutionSource: "mission-execute",
+            missionId: "mission-custom-registry",
+            revisionId: "revision-custom-registry",
+            action: "Create custom report",
+            requiresApproval: false,
+            dagStepId: "step-2",
+            dagDependsOn: ["step-1"],
+            dagExecutionStatus: "blocked",
+            dagBlockedReason: "approval_required",
+            dagBlockedByStepIds: ["step-1"],
+            skillId: "custom_reporter",
+            agentId: "knowledge_builder",
+            adapterKind: "http",
+          },
+        },
+        { registry },
+      );
+
+      const response = await fetch(
+        `${baseUrl}/approvals/${encodeURIComponent(requested.interaction.interactionId)}/approve`,
+        { method: "POST" },
+      );
+      const text = await response.text();
+
+      assert.equal(response.status, 200, text);
+      const resumedCustomRun = await runtimeRepository.findModuleRunById(customRun.id);
+      assert.equal(resumedCustomRun?.status, "succeeded");
+      assert.equal(
+        resumedCustomRun?.metadata?.["adapterId"],
+        "custom_reporter.http.v1",
+      );
+    },
+    {
+      registry,
+      env: {
+        DOC_TO_MD_API_BASE_URL: "https://doc.example.internal",
+        CUSTOM_REPORTER_API_BASE_URL: "https://report.example.internal",
+      },
+    },
+  );
+});
+
+test("POST /approvals/:approvalId/approve skips mission reconciliation for non-mission runs", async () => {
+  const repositories = {
+    runtimeRepository: new InMemoryAgentRuntimeRepository(),
+    configRepository: new InMemoryAgentConfigRepository(),
+    missionRepository: new InMemoryMissionRepository(),
+  };
+
+  await withApprovalsApp(
+    async (baseUrl) => {
+      const fixture = await createPendingApproval(repositories.runtimeRepository, {
+        missionId: "agent-run-derived-mission-id",
+        revisionId: "agent-run-derived-revision-id",
+        action: "Approve regular agent run",
+        reason: "This approval is not linked to a Mission execution.",
+      });
+
+      const response = await fetch(
+        `${baseUrl}/approvals/${encodeURIComponent(fixture.approvalId)}/approve`,
+        { method: "POST" },
+      );
+      const json = await responseJson(response);
+
+      assert.equal(response.status, 200);
+      assert.equal((json["approval"] as { status?: string }).status, "approved");
+    },
+    {
+      repositories,
+      env: { DOC_TO_MD_API_BASE_URL: "https://doc.example.internal" },
+    },
   );
 });
 

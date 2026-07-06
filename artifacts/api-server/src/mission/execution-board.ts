@@ -46,7 +46,7 @@ export interface ExecutionBoardResult {
   board: MissionBoardAgent[];
 }
 
-type ExecutionBoardRepository = MissionRepository &
+type ExecutionBoardRepository = Pick<MissionRepository, "findMission" | "listRevisions" | "findExecutionLink"> &
   Pick<
     AgentRuntimeRepository,
     | "listPipelineRuns"
@@ -318,8 +318,11 @@ export async function projectExecutionBoard(
     });
   }
 
+  const executionLink = await repository.findExecutionLink(missionId, revision.revisionId);
+  const currentPipelineRunId = executionLink?.pipelineRunId ?? null;
   const pipelineRuns = await repository.listPipelineRuns();
   for (const pipelineRun of pipelineRuns) {
+    if (currentPipelineRunId && pipelineRun.id !== currentPipelineRunId) continue;
     const moduleRuns = await repository.listModuleRunsByPipelineRunId(pipelineRun.id);
     for (const run of moduleRuns) {
       if (!belongsToRevision(run, pipelineRun, missionId, revision.revisionId)) continue;
@@ -387,6 +390,7 @@ export async function projectExecutionBoard(
   const board = [...groups.values()]
     .map<MissionBoardAgent>((group) => {
       const status = statusFromRuns(group) ?? statusFromPlan(group);
+      const blockingReason = status === "succeeded" ? undefined : blockingReasonForGroup(group);
       return {
         ...(group.agentId ? { agentId: group.agentId } : {}),
         ...(group.roleId ? { roleId: group.roleId } : {}),
@@ -394,7 +398,7 @@ export async function projectExecutionBoard(
         status,
         currentAction: currentActionForGroup(group),
         ...(latestTimestamp(group) ? { lastEventAt: latestTimestamp(group) } : {}),
-        ...(blockingReasonForGroup(group) ? { blockingReason: blockingReasonForGroup(group) } : {}),
+        ...(blockingReason ? { blockingReason } : {}),
         moduleRunIds: Array.from(new Set(group.moduleRuns.map((run) => run.id))),
         latestArtifacts: latestArtifacts(group.artifacts),
       };

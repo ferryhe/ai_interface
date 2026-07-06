@@ -11,5 +11,10 @@ export type MissionExecutionReadinessStatus =
 
 export const MissionExecutionReadinessStatus = {
   approved: "approved",
+  executing: "executing",
+  needs_approval: "needs_approval",
+  completed: "completed",
+  failed: "failed",
+  plan_only: "plan_only",
   stubbed: "stubbed",
 } as const;

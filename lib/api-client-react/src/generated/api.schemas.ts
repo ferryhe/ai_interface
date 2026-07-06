@@ -619,6 +619,11 @@ export type MissionExecutionReadinessStatus =
 
 export const MissionExecutionReadinessStatus = {
   approved: "approved",
+  executing: "executing",
+  needs_approval: "needs_approval",
+  completed: "completed",
+  failed: "failed",
+  plan_only: "plan_only",
   stubbed: "stubbed",
 } as const;
 
@@ -677,13 +682,74 @@ export interface ExecuteMissionRequest {
   executionMode?: MissionExecutionMode;
 }
 
+export type ModuleRunStatus =
+  (typeof ModuleRunStatus)[keyof typeof ModuleRunStatus];
+
+export const ModuleRunStatus = {
+  pending: "pending",
+  running: "running",
+  succeeded: "succeeded",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export interface PipelineRun {
+  id: string;
+  /** @nullable */
+  threadId: string | null;
+  title: string;
+  status: ModuleRunStatus;
+  activeModuleId: ModuleId | null;
+  metadata: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AgentThreadStatus =
+  (typeof AgentThreadStatus)[keyof typeof AgentThreadStatus];
+
+export const AgentThreadStatus = {
+  active: "active",
+  archived: "archived",
+} as const;
+
+export interface AgentThread {
+  id: string;
+  title: string;
+  status: AgentThreadStatus;
+  metadata: JsonObject | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModuleRun {
+  id: string;
+  /** @nullable */
+  pipelineRunId: string | null;
+  moduleId: ModuleId;
+  skillId?: SkillId;
+  externalRunId: string;
+  /** @nullable */
+  title: string | null;
+  status: ModuleRunStatus;
+  inputJson: JsonObject | null;
+  outputJson: JsonObject | null;
+  /** @nullable */
+  summary: string | null;
+  metadata: JsonObject | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ExecuteMissionResult {
   mission: MissionRecord;
-  /** @nullable */
-  pipelineRun: null;
-  /** @nullable */
-  thread: null;
-  moduleRuns: unknown[];
+  pipelineRun: PipelineRun;
+  thread: AgentThread;
+  moduleRuns: ModuleRun[];
   executionReadiness: MissionExecutionReadiness;
 }
 
@@ -805,17 +871,6 @@ export interface ActuarialPipelineRunListItem {
 export interface ActuarialPipelineRunsList {
   runs: ActuarialPipelineRunListItem[];
 }
-
-export type ModuleRunStatus =
-  (typeof ModuleRunStatus)[keyof typeof ModuleRunStatus];
-
-export const ModuleRunStatus = {
-  pending: "pending",
-  running: "running",
-  succeeded: "succeeded",
-  failed: "failed",
-  cancelled: "cancelled",
-} as const;
 
 export type ToolAdapterKind =
   (typeof ToolAdapterKind)[keyof typeof ToolAdapterKind];
@@ -1202,29 +1257,6 @@ export interface SubmitToolFeedbackRequest {
   metadata?: JsonObject;
 }
 
-export interface ModuleRun {
-  id: string;
-  /** @nullable */
-  pipelineRunId: string | null;
-  moduleId: ModuleId;
-  skillId?: SkillId;
-  externalRunId: string;
-  /** @nullable */
-  title: string | null;
-  status: ModuleRunStatus;
-  inputJson: JsonObject | null;
-  outputJson: JsonObject | null;
-  /** @nullable */
-  summary: string | null;
-  metadata: JsonObject | null;
-  /** @nullable */
-  startedAt: string | null;
-  /** @nullable */
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface RunEvent {
   id: string;
   moduleRunId: string;
@@ -1467,23 +1499,6 @@ export interface AgentRuntimeConnection {
   warnings: string[];
 }
 
-export type AgentThreadStatus =
-  (typeof AgentThreadStatus)[keyof typeof AgentThreadStatus];
-
-export const AgentThreadStatus = {
-  active: "active",
-  archived: "archived",
-} as const;
-
-export interface AgentThread {
-  id: string;
-  title: string;
-  status: AgentThreadStatus;
-  metadata: JsonObject | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface AgentMessage {
   id: string;
   threadId: string;
@@ -1491,18 +1506,6 @@ export interface AgentMessage {
   content: string;
   metadata: JsonObject | null;
   createdAt: string;
-}
-
-export interface PipelineRun {
-  id: string;
-  /** @nullable */
-  threadId: string | null;
-  title: string;
-  status: ModuleRunStatus;
-  activeModuleId: ModuleId | null;
-  metadata: JsonObject | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface AgentRuntimePlanStep {

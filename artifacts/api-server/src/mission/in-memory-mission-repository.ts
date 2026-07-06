@@ -8,6 +8,7 @@ import {
   type CreateMissionRevisionInput,
   type LinkMissionExecutionInput,
   type MissionExecutionLinkRecord,
+  type MissionExecutionStatus,
   type MissionPlanRevisionRecord,
   type MissionRecord,
   type MissionRepository,
@@ -233,14 +234,58 @@ export class InMemoryMissionRepository implements MissionRepository {
       sourceAgentRunId: input.sourceAgentRunId ?? null,
       executedAt: input.executedAt ?? null,
     };
+    const executionStatus = input.status ?? "executing";
 
     this.executionLinks.set(`${input.missionId}:${input.revisionId}`, link);
-    revision.status = "executed";
-    revision.plan = missionPlanWithStatus(revision.plan, "executing");
-    mission.status = "executing";
-    mission.updatedAt = input.executedAt ?? new Date();
+    this.applyExecutionStatus(mission, revision, executionStatus, input.executedAt ?? new Date());
 
     return cloneExecutionLink(link);
+  }
+
+  async findExecutionLink(
+    missionId: string,
+    revisionId: string,
+  ): Promise<MissionExecutionLinkRecord | null> {
+    const link = this.executionLinks.get(`${missionId}:${revisionId}`);
+    return link ? cloneExecutionLink(link) : null;
+  }
+
+  async updateExecutionStatus(input: {
+    missionId: string;
+    revisionId: string;
+    status: MissionExecutionStatus;
+    updatedAt?: Date;
+  }): Promise<{
+    mission: MissionRecord;
+    revision: MissionPlanRevisionRecord;
+  }> {
+    const mission = this.missions.get(input.missionId);
+    if (!mission) {
+      throw new Error(`Mission not found: ${input.missionId}`);
+    }
+
+    const revision = this.revisionsById.get(input.revisionId);
+    if (!revision || revision.missionId !== input.missionId) {
+      throw new Error(`Mission revision not found: ${input.revisionId}`);
+    }
+
+    this.applyExecutionStatus(mission, revision, input.status, input.updatedAt ?? new Date());
+    return {
+      mission: cloneMission(mission),
+      revision: cloneRevision(revision),
+    };
+  }
+
+  private applyExecutionStatus(
+    mission: MissionRecord,
+    revision: MissionPlanRevisionRecord,
+    status: MissionExecutionStatus,
+    updatedAt: Date,
+  ): void {
+    revision.status = "executed";
+    revision.plan = missionPlanWithStatus(revision.plan, status);
+    mission.status = status;
+    mission.updatedAt = updatedAt;
   }
 
   async findMission(missionId: string): Promise<MissionRecord | null> {

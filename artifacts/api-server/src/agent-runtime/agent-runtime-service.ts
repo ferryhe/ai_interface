@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   createModuleRun,
   recordModuleRunEvent,
+  requestModuleRunInteraction,
   InMemoryModuleRunRepository,
   type JsonObject,
   type ModuleRunRecord,
@@ -132,6 +133,7 @@ export interface AgentRuntimePlanStep {
   requiresApproval: boolean;
   stepId?: string;
   dependsOn?: string[];
+  metadata?: JsonObject;
 }
 
 export interface AgentRuntimePlannerStep {
@@ -143,6 +145,7 @@ export interface AgentRuntimePlannerStep {
   requiresApproval: boolean;
   stepId?: string;
   dependsOn?: string[];
+  metadata?: JsonObject;
 }
 
 export interface AgentRuntimePlan {
@@ -227,6 +230,11 @@ function trimTitle(value: string): string {
 function normalizeJsonObject(value: unknown): JsonObject {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as JsonObject;
+}
+
+function normalizeOptionalJsonObject(value: unknown): JsonObject | undefined {
+  const normalized = normalizeJsonObject(value);
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 function normalizePlanMode(
@@ -367,6 +375,7 @@ function normalizePlan(
     }
     const stepId = rawStep.stepId?.trim();
     const dependsOn = normalizeStringArray(rawStep.dependsOn);
+    const metadata = normalizeOptionalJsonObject(rawStep.metadata);
     steps.push({
       skillId: definition.skillId,
       moduleId: definition.moduleId,
@@ -376,6 +385,7 @@ function normalizePlan(
       requiresApproval: rawStep.requiresApproval,
       ...(stepId ? { stepId } : {}),
       ...(dependsOn ? { dependsOn } : {}),
+      ...(metadata ? { metadata } : {}),
     });
   }
 
@@ -591,20 +601,50 @@ function dagPlanStepMetadata(
   };
 }
 
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function approvalReasonForStep(step: AgentRuntimePlanStep): string {
+  return (
+    readString(step.metadata?.["approvalReason"]) ??
+    readString(step.metadata?.["reason"]) ??
+    `Approval is required before executing ${step.moduleId}.`
+  );
+}
+
 async function markApprovalRequiredModuleRun(
   repository: AgentRuntimeRepository,
   run: ModuleRunRecord,
   step: AgentRuntimePlanStep,
   definition: BusinessSkillDefinition,
 ): Promise<ModuleRunRecord> {
-  const updatedRun = await repository.updateModuleRun(run.id, {
+  const approvalReason = approvalReasonForStep(step);
+  const requested = await requestModuleRunInteraction(repository, run.id, {
+    kind: "approval",
+    title: step.title,
+    message: approvalReason,
+    resumeHandle: `${step.moduleId}:${run.externalRunId}:resume`,
+    requestedBy: "agent-runtime",
+    metadata: {
+      ...(step.metadata ?? {}),
+      action: readString(step.metadata?.["action"]) ?? step.action,
+      reason: approvalReason,
+      riskLevel: readString(step.metadata?.["approvalRiskLevel"]) ?? "high",
+      stepId: step.stepId ?? readString(step.metadata?.["stepId"]),
+      skillId: step.skillId,
+      moduleId: step.moduleId,
+      toolKind: definition.adapter.adapterKind,
+    },
+  });
+  const updatedRun = await repository.updateModuleRun(requested.run.id, {
     status: "pending",
-    metadata: executionMetadata(run.metadata, "approval_required"),
+    metadata: executionMetadata(requested.run.metadata, "approval_required"),
   });
   await recordModuleRunEvent(repository, updatedRun.id, {
     eventType: "tool.execution.approval_required",
     title: "Adapter execution requires approval",
-    message: `Approval is required before executing ${step.moduleId}.`,
+    message: approvalReason,
     severity: "info",
     payload: {
       adapterId: definition.adapter.adapterId,
@@ -749,6 +789,7 @@ export async function createAgentRun(
     status: "pending",
     activeModuleId: enabledSkills[0]?.moduleId ?? null,
     metadata: {
+      ...(input.metadata ?? {}),
       source: "agent-runtime",
       connectionStatus: connection.status,
       ...currentAgentMetadata,
@@ -836,7 +877,9 @@ export async function createAgentRun(
       inputJson: step.input,
       registeredSkillIds: Array.from(new Set([step.moduleId, stepSkillId])),
       metadata: {
+        ...(input.metadata ?? {}),
         ...(activeAgent ? { agentId: activeAgent.agentId } : {}),
+        ...(step.metadata ?? {}),
         skillId: stepSkillId,
         skillName: definition.displayName,
         action: step.action,
@@ -977,6 +1020,7 @@ export async function createAgentRun(
     status: pipelineStatus,
     activeModuleId: activeModuleIdForPipelineRun(responseModuleRuns),
     metadata: {
+      ...(input.metadata ?? {}),
       source: "agent-runtime",
       runtimeStatus: status,
       connectionStatus: connection.status,
