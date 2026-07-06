@@ -5,15 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentThread } from "./agentThread";
 import type { MissionExecutionReadiness } from "./missionExecutionReadiness";
 import type { MissionRecord } from "./missionRecord";
+import type { ModuleRun } from "./moduleRun";
+import type { PipelineRun } from "./pipelineRun";
 
 export interface ExecuteMissionResult {
   mission: MissionRecord;
-  /** @nullable */
-  pipelineRun: null;
-  /** @nullable */
-  thread: null;
-  moduleRuns: unknown[];
+  pipelineRun: PipelineRun;
+  thread: AgentThread;
+  moduleRuns: ModuleRun[];
   executionReadiness: MissionExecutionReadiness;
 }

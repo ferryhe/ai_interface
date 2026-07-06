@@ -2790,6 +2790,11 @@ export const enUS = {
       executeReadyStatus: "Execution request sent. Review the readiness summary and mission board below.",
       planOnlyStatus: "Kept as a plan. Execution has not started.",
       planOnlySavedStatus: "Kept as a plan. Execution has not started; you can return to the details later.",
+      runtimeApprovalApprovedStatus: "Runtime approval resolved. Mission status and execution board were refreshed.",
+      runtimeApprovalRejectedStatus: "Runtime approval rejected. Mission status and execution board were refreshed.",
+      runtimeCompletedStatus:
+        "Mission runtime execution completed and produced traceable run artifacts.",
+      runtimeFailedStatus: "Mission runtime execution failed. Inspect the run timeline for details.",
       missionApiUnavailable: "Mission API unavailable",
       revisionUpdateFailed: "Revision update failed",
       approveFailed: "Approve failed",
@@ -2808,7 +2813,7 @@ export const enUS = {
       resultDescription:
         "Frontstage shows the current mission status, execution readiness, and board without opening backstage governance surfaces.",
       resultFallback:
-        "Confirm the plan to see execution readiness here. Runtime orchestration remains a later production step.",
+        "Confirm and execute the plan to see live runtime readiness, approval blockers, and traceable artifacts here.",
       portalTokenBadge: "Portal token mode",
       portalTokenTitle: "Open the Mission Portal",
       portalTokenDescription:

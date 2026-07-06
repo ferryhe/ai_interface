@@ -38,6 +38,11 @@ export interface MissionExecutionLinkRecord {
   executedAt: Date | null;
 }
 
+export type MissionExecutionStatus = Extract<
+  MissionPlanStatus,
+  "executing" | "completed" | "failed"
+>;
+
 export interface CreateMissionInput {
   missionId: string;
   title: string;
@@ -66,6 +71,7 @@ export interface LinkMissionExecutionInput {
   pipelineRunId?: string | null;
   sourceAgentRunId?: string | null;
   executedAt?: Date | null;
+  status?: MissionExecutionStatus;
 }
 
 export class MissionRevisionConflictError extends Error {
@@ -97,6 +103,16 @@ export interface MissionRepository {
     revision: MissionPlanRevisionRecord;
   }>;
   linkExecution(input: LinkMissionExecutionInput): Promise<MissionExecutionLinkRecord>;
+  findExecutionLink(missionId: string, revisionId: string): Promise<MissionExecutionLinkRecord | null>;
+  updateExecutionStatus(input: {
+    missionId: string;
+    revisionId: string;
+    status: MissionExecutionStatus;
+    updatedAt?: Date;
+  }): Promise<{
+    mission: MissionRecord;
+    revision: MissionPlanRevisionRecord;
+  }>;
   findMission(missionId: string): Promise<MissionRecord | null>;
   findRevision(revisionId: string): Promise<MissionPlanRevisionRecord | null>;
   findLatestRevision(missionId: string): Promise<MissionPlanRevisionRecord | null>;

@@ -64,7 +64,9 @@ export function createMemoryRouter(): IRouter {
   router.use(agentsRouter);
   router.use(createAgentConfigRouter(configRepository));
   router.use(createAgentRunsRouter(runtimeRepository, configRepository));
-  router.use(createApprovalsRouter(runtimeRepository, configRepository));
+  router.use(createApprovalsRouter(runtimeRepository, configRepository, {
+    missionRepository,
+  }));
   router.use(climateMonitorRouter);
   router.use(healthRouter);
   router.use(

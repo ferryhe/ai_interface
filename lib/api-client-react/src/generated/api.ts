@@ -2584,8 +2584,8 @@ export const useApproveMission = <
 };
 
 /**
- * Marks an approved mission as executing and returns stubbed execution readiness metadata until runtime orchestration is connected.
- * @summary Mark a mission as executing
+ * Starts a real Agent runtime run from the approved mission revision, preserving mission/revision/step metadata on the thread, pipeline run, module runs, timeline events, approval interactions, and artifacts.
+ * @summary Execute an approved mission through runtime orchestration
  */
 export const getExecuteMissionUrl = (missionId: string) => {
   return `/api/missions/${missionId}/execute`;
@@ -2649,7 +2649,7 @@ export type ExecuteMissionMutationBody = BodyType<ExecuteMissionRequest>;
 export type ExecuteMissionMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Mark a mission as executing
+ * @summary Execute an approved mission through runtime orchestration
  */
 export const useExecuteMission = <
   TError = ErrorType<ErrorResponse>,

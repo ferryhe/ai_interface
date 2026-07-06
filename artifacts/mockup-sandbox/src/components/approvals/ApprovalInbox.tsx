@@ -41,7 +41,9 @@ type ApprovalInboxProps = {
   descriptionKey?: string;
   emptyKey?: string;
   requestHeaders?: Record<string, string>;
+  refreshSignal?: number;
   onRuntimeAccessDenied?: (response: Response) => void;
+  onDecisionSettled?: (decision: "approve" | "reject") => void | Promise<void>;
 };
 
 export function ApprovalInbox({
@@ -52,7 +54,9 @@ export function ApprovalInbox({
   descriptionKey = "approvalInbox.description",
   emptyKey = "approvalInbox.empty",
   requestHeaders,
+  refreshSignal,
   onRuntimeAccessDenied,
+  onDecisionSettled,
 }: ApprovalInboxProps) {
   const { t } = useTranslation();
   const [approvals, setApprovals] = useState<ApprovalInboxItem[]>([]);
@@ -91,7 +95,7 @@ export function ApprovalInbox({
 
   useEffect(() => {
     void loadApprovals();
-  }, [loadApprovals]);
+  }, [loadApprovals, refreshSignal]);
 
   async function handleDecision(
     approvalId: string,
@@ -122,6 +126,7 @@ export function ApprovalInbox({
         action: data.approval.action,
       });
       await loadApprovals();
+      await onDecisionSettled?.(decision);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("approvalInbox.decisionFailed"));
     } finally {

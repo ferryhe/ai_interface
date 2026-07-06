@@ -65,6 +65,13 @@ function decisionMetadata(run: ModuleRunRecord): ApprovalDecisionMetadata {
   return isRecord(value) ? value : {};
 }
 
+function isBlockedBehindAnotherDagStep(run: ModuleRunRecord): boolean {
+  return (
+    run.metadata?.["dagExecutionStatus"] === "blocked" ||
+    readString(run.metadata?.["dagBlockedReason"]) !== undefined
+  );
+}
+
 function projectedStatus(
   run: ModuleRunRecord,
   interaction: ToolInteraction | null,
@@ -81,6 +88,7 @@ function projectedStatus(
   if (interaction?.response?.approved === true) return "approved";
   if (interaction?.response?.approved === false) return "rejected";
   if (interaction?.status === "waiting_for_approval") return "pending";
+  if (!interaction && isBlockedBehindAnotherDagStep(run)) return null;
   if (
     run.metadata?.["adapterExecutionStatus"] === "approval_required" ||
     run.metadata?.["requiresApproval"] === true
@@ -130,10 +138,23 @@ function revisionIdFor(
   );
 }
 
+function isPlanOnlyPreviewRun(
+  run: ModuleRunRecord,
+  pipelineRun: PipelineRunRecord | null,
+): boolean {
+  return (
+    pipelineRun?.metadata?.["executionMode"] === "plan_only" ||
+    pipelineRun?.metadata?.["missionPlanPreview"] === true ||
+    run.metadata?.["missionPlanPreview"] === true
+  );
+}
+
 export function projectApprovalRequest(
   run: ModuleRunRecord,
   pipelineRun: PipelineRunRecord | null = null,
 ): ProjectedApprovalRequest | null {
+  if (isPlanOnlyPreviewRun(run, pipelineRun)) return null;
+
   const interaction = getCurrentInteraction(run);
   const status = projectedStatus(run, interaction);
   if (!status) return null;

@@ -27,10 +27,12 @@ export function ExecutionBoard({
   missionId,
   requestHeaders,
   onRuntimeAccessDenied,
+  refreshSignal,
 }: {
   missionId: string | null;
   requestHeaders?: Record<string, string>;
   onRuntimeAccessDenied?: (response: Response) => void;
+  refreshSignal?: number;
 }) {
   const { t } = useTranslation();
   const [board, setBoard] = useState<MissionBoardAgent[]>([]);
@@ -71,7 +73,7 @@ export function ExecutionBoard({
 
   useEffect(() => {
     void loadBoard();
-  }, [loadBoard]);
+  }, [loadBoard, refreshSignal]);
 
   return (
     <Card className="border-border bg-muted/20 shadow-none">

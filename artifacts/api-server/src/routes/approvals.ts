@@ -3,6 +3,8 @@ import { Router, type IRouter } from "express";
 
 import type { AgentConfigRepository } from "../agent-config/agent-config-service";
 import type { AgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
+import type { MissionRepository } from "../mission/mission-repository";
+import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import {
   approveApprovalRequest,
   ApprovalConflictError,
@@ -65,10 +67,19 @@ const lazyConfigRepository = createLazyRepository<AgentConfigRepository>(
   },
 );
 
+const lazyMissionRepository = createLazyRepository<MissionRepository>(async () => {
+  const { DbMissionRepository } = await import("../mission/db-mission-repository");
+  return new DbMissionRepository();
+});
+
 export function createApprovalsRouter(
   repository: AgentRuntimeRepository,
   configRepository: AgentConfigRepository,
-  options: { env?: Record<string, string | undefined> } = {},
+  options: {
+    env?: Record<string, string | undefined>;
+    missionRepository?: MissionRepository;
+    registry?: SkillRuntimeRegistry;
+  } = {},
 ): IRouter {
   const router: IRouter = Router();
 
@@ -115,6 +126,8 @@ export function createApprovalsRouter(
     try {
       const approval = await approveApprovalRequest(repository, approvalId, {
         env: options.env,
+        missionRepository: options.missionRepository,
+        registry: options.registry,
       });
       res.json(redactInspectorResponse({ approval }, options.env));
     } catch (error) {
@@ -139,7 +152,11 @@ export function createApprovalsRouter(
     }
 
     try {
-      const approval = await rejectApprovalRequest(repository, approvalId);
+      const approval = await rejectApprovalRequest(repository, approvalId, {
+        env: options.env,
+        missionRepository: options.missionRepository,
+        registry: options.registry,
+      });
       res.json(redactInspectorResponse({ approval }, options.env));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -150,6 +167,8 @@ export function createApprovalsRouter(
   return router;
 }
 
-const router = createApprovalsRouter(lazyRuntimeRepository, lazyConfigRepository);
+const router = createApprovalsRouter(lazyRuntimeRepository, lazyConfigRepository, {
+  missionRepository: lazyMissionRepository,
+});
 
 export default router;

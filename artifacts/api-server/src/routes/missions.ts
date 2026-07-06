@@ -30,6 +30,7 @@ import {
 import { projectExecutionBoard } from "../mission/execution-board";
 import type { AgentRuntimeRepository } from "../agent-runtime/agent-runtime-service";
 import { createLazyRepository } from "./lazy-repository";
+import type { SkillRuntimeRegistry } from "../skill-runtime/skill-runtime-registry";
 import {
   isPortalRuntimeRequest,
   requirePortalRuntimeAccess,
@@ -76,6 +77,7 @@ export function createMissionsRouter(
   repository: MissionRepository,
   configRepository: AgentConfigRepository,
   runtimeRepository: AgentRuntimeRepository,
+  options: { registry?: SkillRuntimeRegistry } = {},
 ): IRouter {
   const router: IRouter = Router();
 
@@ -146,14 +148,9 @@ export function createMissionsRouter(
     try {
       const board = await projectExecutionBoard(
         {
-          createMission: repository.createMission.bind(repository),
-          createRevision: repository.createRevision.bind(repository),
-          approveRevision: repository.approveRevision.bind(repository),
-          linkExecution: repository.linkExecution.bind(repository),
           findMission: repository.findMission.bind(repository),
-          findRevision: repository.findRevision.bind(repository),
-          findLatestRevision: repository.findLatestRevision.bind(repository),
           listRevisions: repository.listRevisions.bind(repository),
+          findExecutionLink: repository.findExecutionLink.bind(repository),
           listPipelineRuns: runtimeRepository.listPipelineRuns.bind(runtimeRepository),
           listModuleRunsByPipelineRunId:
             runtimeRepository.listModuleRunsByPipelineRunId.bind(runtimeRepository),
@@ -257,18 +254,16 @@ export function createMissionsRouter(
     try {
       const executed = await executeMissionService(
         repository,
+        runtimeRepository,
+        configRepository,
         params.data.missionId,
         body.data,
-      );
-      const data = ExecuteMissionResponse.parse({
-        ...executed,
-        executionReadiness: {
-          ready: false,
-          status: "stubbed",
-          message:
-            "Mission execution has been marked as executing, but runtime orchestration is not connected yet.",
+        {
+          env: process.env,
+          registry: options.registry,
         },
-      });
+      );
+      const data = ExecuteMissionResponse.parse(executed);
       res.json(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

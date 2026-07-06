@@ -56,6 +56,13 @@ class ExecutionBoardTestRepository
     return this.mission.linkExecution(input);
   }
 
+  findExecutionLink(missionId: string, revisionId: string): Promise<MissionExecutionLinkRecord | null> {
+    return this.mission.findExecutionLink(missionId, revisionId);
+  }
+
+  updateExecutionStatus: MissionRepository["updateExecutionStatus"] = (input) =>
+    this.mission.updateExecutionStatus(input);
+
   findMission(missionId: string): Promise<MissionRecord | null> {
     return this.mission.findMission(missionId);
   }
@@ -382,6 +389,180 @@ test("waiting approval state maps from approval projection", async () => {
     projected.board[0]?.blockingReason,
     "Publishing changes production behavior.",
   );
+});
+
+test("succeeded mission rows do not keep stale approval blocking reasons", async () => {
+  const repository = new ExecutionBoardTestRepository();
+  const plan = createPlan({
+    missionId: "mission-board-clears-stale-approval-reason",
+    steps: [
+      {
+        stepId: "publish",
+        title: "Publisher",
+        objective: "Publish the generated agent.",
+        skillId: "rag_to_agent",
+        moduleId: "rag_to_agent",
+        roleId: "publisher",
+        dependsOn: [],
+        status: "waiting_approval",
+        approval: {
+          required: true,
+          reason: "Publishing changes production behavior.",
+          riskLevel: "high",
+        },
+      },
+    ],
+  });
+  const { revision } = await seedMission(repository, plan, { approve: true });
+  const pipelineRun = await createPipelineRun(repository, {
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+  });
+
+  const run = await createMissionRun(repository, {
+    pipelineRun,
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    stepId: "publish",
+    moduleId: "rag_to_agent",
+    skillId: "rag_to_agent",
+    roleId: "publisher",
+    title: "Publisher execution",
+    status: "succeeded",
+    metadata: {
+      approvalReason: "Publishing changes production behavior.",
+      adapterExecutionStatus: "succeeded",
+      interaction: approvalInteraction({
+        interactionId: "approval-publish",
+        status: "resumed",
+        respondedAt: "2026-05-29T12:11:00.000Z",
+        response: { approved: true, artifactIds: [], metadata: {} },
+        metadata: {
+          action: "Publish onboarding agent",
+          reason: "Publishing changes production behavior.",
+          stepId: "publish",
+        },
+      }),
+    },
+  });
+  await recordModuleRunEvent(repository.runtime, run.id, {
+    eventType: "tool.execution.fake_completed",
+    title: "Fake adapter execution completed",
+    message: "Fake rag_to_agent adapter execution completed.",
+  });
+
+  const projected = await projectExecutionBoard(repository, plan.missionId);
+
+  assert.equal(projected.board.length, 1);
+  assert.equal(projected.board[0]?.status, "succeeded");
+  assert.equal(projected.board[0]?.blockingReason, undefined);
+});
+
+test("mission board scopes rerun projection to the latest execution link", async () => {
+  const repository = new ExecutionBoardTestRepository();
+  const plan = createPlan({
+    missionId: "mission-board-rerun-latest-link",
+    steps: [
+      {
+        stepId: "publish",
+        title: "Publisher",
+        objective: "Publish the generated agent.",
+        skillId: "rag_to_agent",
+        moduleId: "rag_to_agent",
+        assignedAgentId: "publisher",
+        dependsOn: [],
+        status: "pending",
+      },
+    ],
+  });
+  const { revision } = await seedMission(repository, plan, { approve: true });
+
+  const failedPipelineRun = await createPipelineRun(repository, {
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+  });
+  const failedRun = await createMissionRun(repository, {
+    pipelineRun: failedPipelineRun,
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    stepId: "publish",
+    moduleId: "rag_to_agent",
+    skillId: "rag_to_agent",
+    agentId: "publisher",
+    title: "Failed publisher execution",
+    status: "failed",
+  });
+  await recordModuleRunEvent(repository.runtime, failedRun.id, {
+    eventType: "tool.execution.failed",
+    title: "Previous adapter failure",
+    message: "The first attempt failed and should not pollute the rerun board.",
+    severity: "error",
+  });
+  await repository.runtime.updatePipelineRun(failedPipelineRun.id, {
+    status: "failed",
+    activeModuleId: "rag_to_agent",
+  });
+  await repository.linkExecution({
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    pipelineRunId: failedPipelineRun.id,
+    executedAt: new Date("2026-05-29T12:05:00.000Z"),
+    status: "failed",
+  });
+
+  const successfulPipelineRun = await createPipelineRun(repository, {
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    missionRerun: true,
+  });
+  const successfulRun = await createMissionRun(repository, {
+    pipelineRun: successfulPipelineRun,
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    stepId: "publish",
+    moduleId: "rag_to_agent",
+    skillId: "rag_to_agent",
+    agentId: "publisher",
+    title: "Successful publisher rerun",
+    status: "succeeded",
+  });
+  await recordModuleRunEvent(repository.runtime, successfulRun.id, {
+    eventType: "tool.execution.fake_completed",
+    title: "Rerun completed",
+    message: "The rerun published the agent package.",
+  });
+  await recordModuleRunArtifact(repository.runtime, successfulRun.id, {
+    artifactKind: "agent_config",
+    title: "agent-config.json",
+    contentJson: { rerun: true },
+  });
+  await repository.runtime.updatePipelineRun(successfulPipelineRun.id, {
+    status: "succeeded",
+    activeModuleId: null,
+  });
+  await repository.linkExecution({
+    missionId: plan.missionId,
+    revisionId: revision.revisionId,
+    pipelineRunId: successfulPipelineRun.id,
+    executedAt: new Date("2026-05-29T12:15:00.000Z"),
+    status: "completed",
+  });
+
+  const projected = await projectExecutionBoard(repository, plan.missionId);
+
+  assert.equal(projected.revisionId, revision.revisionId);
+  assert.equal(projected.board.length, 1);
+  assert.equal(projected.board[0]?.status, "succeeded");
+  assert.deepEqual(projected.board[0]?.moduleRunIds, [successfulRun.id]);
+  assert.equal(projected.board[0]?.currentAction, "The rerun published the agent package.");
+  assert.equal(projected.board[0]?.blockingReason, undefined);
+  assert.deepEqual(projected.board[0]?.latestArtifacts, [
+    {
+      artifactId: projected.board[0]!.latestArtifacts[0]!.artifactId,
+      kind: "agent_config",
+      title: "agent-config.json",
+    },
+  ]);
 });
 
 test("blocked reason prefers approval or blocked interaction over generic error events", async () => {
