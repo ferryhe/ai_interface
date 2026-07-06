@@ -392,7 +392,7 @@ test("end-user portal preview delegates to mission portal token mode", () => {
   assert.doesNotMatch(portalComponentSource, /AgentCatalog|ArtifactInspector|OperatorBackstage/);
 });
 
-test("end-user portal component translation keys resolve in both locale resources", () => {
+test("mission portal component translation keys resolve in both locale resources", () => {
   const literalKeys = Array.from(
     missionPortalComponentSource.matchAll(/["'`]((?:missionCenter|approvalInbox|approvalCard|executionBoard|planStep)\.[A-Za-z0-9_.-]+)["'`]/g),
     (match) => match[1],
