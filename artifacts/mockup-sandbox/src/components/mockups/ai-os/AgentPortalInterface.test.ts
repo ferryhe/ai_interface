@@ -31,6 +31,11 @@ test("portal derives stable fallback display and step ids for open module ids", 
   assert.equal(portalModuleStepPrefix("AI Actuary"), "ai-actuary");
 });
 
+test("portal helper uses repository-compatible own-property checks", () => {
+  assert.match(agentPortalSource, /Object\.prototype\.hasOwnProperty\.call\(modulePortalSpecs, moduleId\)/);
+  assert.doesNotMatch(agentPortalSource, /Object\.hasOwn\(/);
+});
+
 test("agent portal preview delegates token users to the shared mission portal", () => {
   assert.match(agentPortalSource, /from "@\/components\/mission\/MissionPortal"/);
   assert.match(agentPortalSource, /readMissionPortalSearchParams/);

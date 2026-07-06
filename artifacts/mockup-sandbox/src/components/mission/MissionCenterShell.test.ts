@@ -6,6 +6,8 @@ const shellSource = readFileSync(new URL("./MissionCenterShell.tsx", import.meta
 const portalSource = readFileSync(new URL("./MissionPortal.tsx", import.meta.url), "utf8");
 const agentStatusSource = readFileSync(new URL("./AgentStatusCard.tsx", import.meta.url), "utf8");
 const approvalSummarySource = readFileSync(new URL("./ApprovalSummary.tsx", import.meta.url), "utf8");
+const executionBoardSource = readFileSync(new URL("./ExecutionBoard.tsx", import.meta.url), "utf8");
+const approvalInboxSource = readFileSync(new URL("../approvals/ApprovalInbox.tsx", import.meta.url), "utf8");
 
 test("mission center shell delegates to the pure mission portal", () => {
   assert.match(shellSource, /import \{ MissionPortal \} from "\.\/MissionPortal"/);
@@ -42,6 +44,11 @@ test("mission portal token revocation clears cached mission state", () => {
 test("mission board and approval refreshes propagate portal token revocation", () => {
   assert.match(portalSource, /<ExecutionBoard[\s\S]*onRuntimeAccessDenied=\{handlePortalRuntimeDenied\}/);
   assert.match(portalSource, /<ApprovalInbox[\s\S]*onRuntimeAccessDenied=\{handlePortalRuntimeDenied\}/);
+});
+
+test("portal token revocation handlers return before local error state updates", () => {
+  assert.match(executionBoardSource, /onRuntimeAccessDenied\(response\);\s*return;/);
+  assert.match(approvalInboxSource, /onRuntimeAccessDenied\(response\);\s*return;/);
 });
 
 test("mission board approval links stay scoped to actionable current mission approvals", () => {

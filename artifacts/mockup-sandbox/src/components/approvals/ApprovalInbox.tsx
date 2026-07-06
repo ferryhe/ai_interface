@@ -74,8 +74,9 @@ export function ApprovalInbox({
         headers: { ...requestHeaders, Accept: "application/json" },
       });
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          onRuntimeAccessDenied?.(response);
+        if ((response.status === 401 || response.status === 403) && onRuntimeAccessDenied) {
+          onRuntimeAccessDenied(response);
+          return;
         }
         throw new Error(await readError(response));
       }
@@ -109,8 +110,9 @@ export function ApprovalInbox({
         },
       );
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          onRuntimeAccessDenied?.(response);
+        if ((response.status === 401 || response.status === 403) && onRuntimeAccessDenied) {
+          onRuntimeAccessDenied(response);
+          return;
         }
         throw new Error(await readError(response));
       }

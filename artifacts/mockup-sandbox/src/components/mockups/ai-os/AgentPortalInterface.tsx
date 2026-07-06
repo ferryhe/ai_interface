@@ -15,7 +15,7 @@ const modulePortalSpecs = {
 type KnownPortalModuleId = keyof typeof modulePortalSpecs;
 
 function isKnownPortalModuleId(moduleId: ModuleId): moduleId is KnownPortalModuleId {
-  return Object.hasOwn(modulePortalSpecs, moduleId);
+  return Object.prototype.hasOwnProperty.call(modulePortalSpecs, moduleId);
 }
 
 export function formatPortalModuleId(moduleId: ModuleId): string {
