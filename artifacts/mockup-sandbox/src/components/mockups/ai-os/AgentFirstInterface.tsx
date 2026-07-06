@@ -16,6 +16,7 @@ import {
   MessageSquareText,
   Moon,
   Paperclip,
+  PencilLine,
   Search,
   Send,
   Settings2,
@@ -30,12 +31,14 @@ import { AgentDetail } from "./_components/AgentDetail";
 import { AgentManifestWizard } from "./_components/AgentManifestWizard";
 import { ArtifactInspector } from "./_components/ArtifactInspector";
 import { RunInspector } from "./_components/RunInspector";
+import { ApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
 import { OperatorBackstage } from "@/components/operator/OperatorBackstage";
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import {
   createAgentFirstWorkbenchDemoData,
 } from "./_shared/data";
+import { workbenchStatusColor } from "./_shared/theme";
 import type {
   AgentManifestPreview,
   AgentReadiness,
@@ -45,10 +48,10 @@ import type {
   WorkbenchRunStatus,
 } from "./_shared/types";
 
-type AppView = "agent" | "modules" | "progress" | "data" | "publish" | "configure";
+type AppView = "agent" | "modules" | "progress" | "data";
 type WorkspaceMode = "mission" | "foreground" | "backstage";
 type ThemeMode = "dark" | "light";
-type WorkbenchTab = "agents" | "skills" | "runs" | "artifacts" | "operator";
+type WorkbenchTab = "runs" | "artifacts" | "agents" | "skills" | "teams" | "approvals" | "settings";
 type BackstageTab = "io" | "artifacts" | "events" | "ui";
 type ModuleId =
   | "web_listening"
@@ -246,6 +249,19 @@ interface DataRecord {
   moduleId: ModuleId;
   summary: string;
   updatedAt: string;
+}
+
+interface BackstageApprovalBlocker {
+  id: string;
+  pipelineRunId: string;
+  pipelineTitle: string;
+  agentId?: string;
+  moduleId: string;
+  title: string;
+  status: WorkbenchRunStatus;
+  summary: string;
+  updatedAt: string;
+  hasRuntimeContext: boolean;
 }
 
 interface CapabilityGuide {
@@ -1352,8 +1368,6 @@ const navItems: Array<{ id: AppView; labelKey: string; icon: ReactNode }> = [
   { id: "modules", labelKey: "agentFirst.nav.modules", icon: <Boxes size={18} /> },
   { id: "progress", labelKey: "agentFirst.nav.progress", icon: <ListChecks size={18} /> },
   { id: "data", labelKey: "agentFirst.nav.data", icon: <Database size={18} /> },
-  { id: "configure", labelKey: "agentFirst.nav.configure", icon: <Settings2 size={18} /> },
-  { id: "publish", labelKey: "agentFirst.nav.publish", icon: <UploadCloud size={18} /> },
 ];
 
 function previewUrl(componentPath: string, search = ""): string {
@@ -1426,6 +1440,103 @@ function memoryPromotionLabel(
 
 function runtimeStatusClass(status: RuntimeRunStatus): string {
   return `runtime-status ${status}`;
+}
+
+function workbenchRunStatusLabel(status: WorkbenchRunStatus, t: TFunction): string {
+  return t(`agentFirst.status.workbenchRun.${status}`, {
+    defaultValue: status.replace(/_/g, " "),
+  });
+}
+
+function isBlockingWorkbenchStatus(status: WorkbenchRunStatus): boolean {
+  return (
+    status === "approval_required" ||
+    status === "waiting_for_user" ||
+    status === "waiting_for_data" ||
+    status === "blocked"
+  );
+}
+
+function isActiveWorkbenchStatus(status: WorkbenchRunStatus): boolean {
+  return status === "running" || isBlockingWorkbenchStatus(status);
+}
+
+function workbenchStatusFromRuntimeInteraction(
+  interaction: RuntimeModuleRun["interaction"],
+): WorkbenchRunStatus | null {
+  if (!interaction || interaction.status === "resumed") return null;
+  if (interaction.kind === "approval") return "approval_required";
+  if (interaction.kind === "data_request") return "waiting_for_data";
+  if (interaction.kind === "blocked") return "blocked";
+  return "waiting_for_user";
+}
+
+function workbenchStatusFromToolInteraction(
+  interaction: ToolInteractionApi | null,
+): WorkbenchRunStatus | null {
+  if (!interaction || interaction.status === "resumed") return null;
+  if (interaction.kind === "approval" || interaction.status === "waiting_for_approval") {
+    return "approval_required";
+  }
+  if (interaction.kind === "data_request" || interaction.status === "waiting_for_data") {
+    return "waiting_for_data";
+  }
+  if (interaction.kind === "blocked" || interaction.status === "blocked") return "blocked";
+  return "waiting_for_user";
+}
+
+function runtimeRunBlockerStatus(run: RuntimeModuleRun): WorkbenchRunStatus | null {
+  const interactionStatus = workbenchStatusFromRuntimeInteraction(run.interaction);
+  if (interactionStatus) return interactionStatus;
+  if (run.status === "resumable") return "waiting_for_user";
+  if (
+    run.status === "approval_required" ||
+    run.status === "waiting_for_user" ||
+    run.status === "waiting_for_data" ||
+    run.status === "blocked"
+  ) {
+    return run.status;
+  }
+  return null;
+}
+
+function uniqueBackstageApprovalBlockers(
+  blockers: BackstageApprovalBlocker[],
+): BackstageApprovalBlocker[] {
+  const seen = new Set<string>();
+  return blockers.filter((blocker) => {
+    const key = `${blocker.pipelineRunId}:${blocker.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function activeWorkbenchStep<T extends { status: WorkbenchRunStatus }>(
+  steps: T[],
+): T | undefined {
+  return (
+    steps.find((step) => isBlockingWorkbenchStatus(step.status)) ??
+    steps.find((step) => isActiveWorkbenchStatus(step.status))
+  );
+}
+
+function workbenchRunStatusFromSteps<T extends { status: WorkbenchRunStatus }>(
+  fallback: WorkbenchRunStatus,
+  steps: T[],
+): WorkbenchRunStatus {
+  const blockingStep = steps.find((step) => isBlockingWorkbenchStatus(step.status));
+  if (blockingStep) return blockingStep.status;
+
+  const runningStep = steps.find((step) => step.status === "running");
+  if (
+    runningStep &&
+    (fallback === "pending" || fallback === "queued" || fallback === "running")
+  ) {
+    return "running";
+  }
+
+  return fallback;
 }
 
 function moduleById(moduleId: ModuleId): ModuleDefinition {
@@ -1929,6 +2040,19 @@ function parseToolInteraction(metadata: JsonObject | null): ToolInteractionApi |
   };
 }
 
+function runtimeStatusFromAdapterExecutionStatus(value: unknown): RuntimeRunStatus | null {
+  if (value === "approval_required" || value === "waiting_for_approval") {
+    return "approval_required";
+  }
+  if (value === "waiting_for_user") return "waiting_for_user";
+  if (value === "waiting_for_data") return "waiting_for_data";
+  if (value === "blocked") return "blocked";
+  if (value === "resumable") return "resumable";
+  if (value === "resumed") return "running";
+  if (value === "skipped") return "skipped";
+  return null;
+}
+
 function runtimeStatusFromApiRun(run: AgentRunApiModuleRun): RuntimeRunStatus {
   const interaction = parseToolInteraction(run.metadata);
   if (run.status === "succeeded") return "succeeded";
@@ -1939,8 +2063,11 @@ function runtimeStatusFromApiRun(run: AgentRunApiModuleRun): RuntimeRunStatus {
   if (interaction?.status === "waiting_for_data") return "waiting_for_data";
   if (interaction?.status === "waiting_for_user") return "waiting_for_user";
   if (interaction?.status === "blocked") return "blocked";
+  const adapterStatus = runtimeStatusFromAdapterExecutionStatus(
+    run.metadata?.["adapterExecutionStatus"],
+  );
+  if (adapterStatus) return adapterStatus;
   if (run.status === "running") return "running";
-  if (run.metadata?.["adapterExecutionStatus"] === "skipped") return "skipped";
   if (run.metadata?.["requiresApproval"] === true) return "approval_required";
   return "queued";
 }
@@ -2041,6 +2168,135 @@ function toConfigDraft(config: AgentConfigDraft): AgentConfigDraft {
     generalSkillSettings: config.generalSkillSettings.map((skill) => ({ ...skill })),
     memorySettings: { ...config.memorySettings },
     safetySettings: { ...config.safetySettings },
+  };
+}
+
+function draftChanged<T>(baseline: T, current: T): boolean {
+  return JSON.stringify(baseline) !== JSON.stringify(current);
+}
+
+function preserveDraftValue<T>(baseline: T, current: T, server: T): T {
+  return draftChanged(baseline, current) ? current : server;
+}
+
+function mergeDraftObjectByField<T>(baseline: T, current: T, server: T): T {
+  if (!isRecord(baseline) || !isRecord(current) || !isRecord(server)) {
+    return draftChanged(baseline, current) ? current : server;
+  }
+
+  const merged: Record<string, unknown> = { ...server };
+  const keys = new Set([...Object.keys(server), ...Object.keys(current)]);
+  for (const key of keys) {
+    if (draftChanged(baseline[key], current[key])) {
+      merged[key] = current[key];
+    }
+  }
+  return merged as T;
+}
+
+function mergeDraftArrayByKey<T>(
+  baseline: T[],
+  current: T[],
+  server: T[],
+  keyOf: (item: T) => string,
+): T[] {
+  const baselineByKey = new Map(baseline.map((item) => [keyOf(item), item]));
+  const currentByKey = new Map(current.map((item) => [keyOf(item), item]));
+  const merged = server.map((serverItem) => {
+    const key = keyOf(serverItem);
+    const baselineItem = baselineByKey.get(key);
+    const currentItem = currentByKey.get(key);
+    return baselineItem && currentItem
+      ? mergeDraftObjectByField(baselineItem, currentItem, serverItem)
+      : serverItem;
+  });
+
+  const serverKeys = new Set(server.map(keyOf));
+  for (const currentItem of current) {
+    const key = keyOf(currentItem);
+    if (serverKeys.has(key)) continue;
+
+    const baselineItem = baselineByKey.get(key);
+    if (!baselineItem || draftChanged(baselineItem, currentItem)) {
+      merged.push(currentItem);
+    }
+  }
+
+  return merged;
+}
+
+function mergeConfigDraftFromServer(
+  baseline: AgentConfigDraft,
+  current: AgentConfigDraft,
+  server: AgentConfigDraft,
+): AgentConfigDraft {
+  return {
+    provider: preserveDraftValue(baseline.provider, current.provider, server.provider),
+    endpoint: preserveDraftValue(baseline.endpoint, current.endpoint, server.endpoint),
+    modelId: preserveDraftValue(baseline.modelId, current.modelId, server.modelId),
+    reasoningEffort: preserveDraftValue(
+      baseline.reasoningEffort,
+      current.reasoningEffort,
+      server.reasoningEffort,
+    ),
+    systemPrompt: preserveDraftValue(
+      baseline.systemPrompt,
+      current.systemPrompt,
+      server.systemPrompt,
+    ),
+    businessSkillSettings: mergeDraftArrayByKey(
+      baseline.businessSkillSettings,
+      current.businessSkillSettings,
+      server.businessSkillSettings,
+      (skill) => skill.moduleId,
+    ),
+    generalSkillSettings: mergeDraftArrayByKey(
+      baseline.generalSkillSettings,
+      current.generalSkillSettings,
+      server.generalSkillSettings,
+      (skill) => skill.skillId,
+    ),
+    memorySettings: mergeDraftObjectByField(
+      baseline.memorySettings,
+      current.memorySettings,
+      server.memorySettings,
+    ),
+    safetySettings: mergeDraftObjectByField(
+      baseline.safetySettings,
+      current.safetySettings,
+      server.safetySettings,
+    ),
+  };
+}
+
+function mergePublishSettingsFromServer(
+  baseline: PublishSettingsApi,
+  current: PublishSettingsApi,
+  server: PublishSettingsApi,
+): PublishSettingsApi {
+  return {
+    status: preserveDraftValue(baseline.status, current.status, server.status),
+    portalAccessMode: "token",
+    portalTokenLast4: preserveDraftValue(
+      baseline.portalTokenLast4,
+      current.portalTokenLast4,
+      server.portalTokenLast4,
+    ),
+    portalTokenUpdatedAt: preserveDraftValue(
+      baseline.portalTokenUpdatedAt,
+      current.portalTokenUpdatedAt,
+      server.portalTokenUpdatedAt,
+    ),
+    publishedAt: preserveDraftValue(
+      baseline.publishedAt,
+      current.publishedAt,
+      server.publishedAt,
+    ),
+    versionLabel: preserveDraftValue(
+      baseline.versionLabel,
+      current.versionLabel,
+      server.versionLabel,
+    ),
   };
 }
 
@@ -2190,6 +2446,47 @@ function normalizeWorkbenchRunStatus(value: unknown): WorkbenchRunStatus {
   return "queued";
 }
 
+function workbenchStatusFromAdapterExecutionStatus(value: unknown): WorkbenchRunStatus | null {
+  if (value === "approval_required") return "approval_required";
+  if (value === "skipped") return "skipped";
+  if (value === "waiting_for_user") return "waiting_for_user";
+  if (value === "waiting_for_data") return "waiting_for_data";
+  if (value === "blocked") return "blocked";
+  return null;
+}
+
+function workbenchStatusFromApiModuleRun(run: AgentRunApiModuleRun): WorkbenchRunStatus {
+  const interactionStatus = workbenchStatusFromToolInteraction(parseToolInteraction(run.metadata));
+  if (interactionStatus) return interactionStatus;
+  const apiStatus = normalizeWorkbenchRunStatus(run.status);
+  if (apiStatus === "failed" || apiStatus === "cancelled") {
+    return apiStatus;
+  }
+  const adapterStatus = workbenchStatusFromAdapterExecutionStatus(
+    run.metadata?.["adapterExecutionStatus"],
+  );
+  if (adapterStatus) return adapterStatus;
+  if (apiStatus === "succeeded") return apiStatus;
+  return normalizeWorkbenchRunStatus(runtimeStatusFromApiRun(run));
+}
+
+function workbenchStatusFromIndexedRun(run: Record<string, unknown>): WorkbenchRunStatus {
+  const metadata = isJsonObject(run["metadata"]) ? run["metadata"] : null;
+  const status = nullableString(run["status"]);
+  const interactionStatus = workbenchStatusFromToolInteraction(parseToolInteraction(metadata));
+  if (interactionStatus) return interactionStatus;
+  if (status === "failed" || status === "cancelled") return normalizeWorkbenchRunStatus(status);
+  const interaction = parseToolInteraction(metadata);
+  if (interaction?.status === "resumed") return "running";
+  const adapterStatus = workbenchStatusFromAdapterExecutionStatus(
+    metadata?.["adapterExecutionStatus"],
+  );
+  if (adapterStatus) return adapterStatus;
+  if (status === "succeeded") return "succeeded";
+  if (metadata?.["requiresApproval"] === true) return "approval_required";
+  return normalizeWorkbenchRunStatus(status);
+}
+
 function toWorkbenchRunFromAgentRun(
   response: AgentRunApiResponse,
   fallbackAgentId?: string,
@@ -2197,24 +2494,31 @@ function toWorkbenchRunFromAgentRun(
   const metadataAgentId = isJsonObject(response.pipelineRun.metadata)
     ? nullableString(response.pipelineRun.metadata["agentId"])
     : null;
-  const moduleSteps = response.moduleRuns.map((run, index) => ({
-    id: run.id,
-    order: index + 1,
-    moduleId: run.moduleId,
-    title: run.title ?? run.moduleId,
-    status: normalizeWorkbenchRunStatus(run.status),
-    summary: run.summary ?? run.externalRunId,
-    activeSkillId: run.status === "running" ? run.moduleId : undefined,
-    startedAt: run.startedAt,
-    completedAt: run.completedAt,
-  }));
-  const activeStep = moduleSteps.find((step) => step.status === "running");
+  const moduleSteps = response.moduleRuns.map((run, index) => {
+    const status = workbenchStatusFromApiModuleRun(run);
+    return {
+      id: run.id,
+      order: index + 1,
+      moduleId: run.moduleId,
+      title: run.title ?? run.moduleId,
+      status,
+      summary: run.summary ?? run.externalRunId,
+      activeSkillId: isActiveWorkbenchStatus(status) ? run.moduleId : undefined,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+    };
+  });
+  const activeStep = activeWorkbenchStep(moduleSteps);
+  const runStatus = workbenchRunStatusFromSteps(
+    normalizeWorkbenchRunStatus(response.pipelineRun.status),
+    moduleSteps,
+  );
 
   return {
     pipelineRunId: response.pipelineRun.id,
     title: response.pipelineRun.title,
     agentId: metadataAgentId ?? fallbackAgentId,
-    status: normalizeWorkbenchRunStatus(response.pipelineRun.status),
+    status: runStatus,
     activeSkillId: activeStep?.moduleId,
     updatedAt: response.pipelineRun.updatedAt,
     moduleSteps,
@@ -2364,7 +2668,7 @@ function normalizeApiRuns(payload: unknown): WorkbenchRunInspection[] {
     const steps = moduleRuns.flatMap((run, index) => {
       if (!isRecord(run)) return [];
       const moduleId = nullableString(run["moduleId"]) ?? "module";
-      const status = normalizeWorkbenchRunStatus(run["status"]);
+      const status = workbenchStatusFromIndexedRun(run);
       return [
         {
           id: nullableString(run["id"]) ?? `${pipelineRunId}-${index}`,
@@ -2376,20 +2680,24 @@ function normalizeApiRuns(payload: unknown): WorkbenchRunInspection[] {
             nullableString(run["summary"]) ??
             nullableString(run["externalRunId"]) ??
             "Module run",
-          activeSkillId: status === "running" ? moduleId : undefined,
+          activeSkillId: isActiveWorkbenchStatus(status) ? moduleId : undefined,
           startedAt: nullableString(run["startedAt"]),
           completedAt: nullableString(run["completedAt"]),
         },
       ];
     });
-    const activeStep = steps.find((step) => step.status === "running");
+    const activeStep = activeWorkbenchStep(steps);
+    const runStatus = workbenchRunStatusFromSteps(
+      normalizeWorkbenchRunStatus(pipelineRun["status"]),
+      steps,
+    );
 
     return [
       {
         pipelineRunId,
         title: nullableString(pipelineRun["title"]) ?? "Agent run",
         agentId: nullableString(metadata["agentId"]) ?? undefined,
-        status: normalizeWorkbenchRunStatus(pipelineRun["status"]),
+        status: runStatus,
         activeSkillId: activeStep?.moduleId,
         updatedAt: nullableString(pipelineRun["updatedAt"]) ?? "API",
         moduleSteps: steps,
@@ -2478,7 +2786,7 @@ export function AgentFirstInterface() {
   const [activeView, setActiveView] = useState<AppView>("agent");
   const [selectedModuleId, setSelectedModuleId] = useState<ModuleId>("md_to_rag");
   const [selectedSkillId, setSelectedSkillId] = useState<ModuleId>("rag_to_agent");
-  const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>("agents");
+  const [workbenchTab, setWorkbenchTab] = useState<WorkbenchTab>("runs");
   const [selectedAgentId, setSelectedAgentId] = useState("knowledge_builder");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(
     demoWorkbenchData.demoRunInspections[0]?.pipelineRunId ?? null,
@@ -2525,6 +2833,7 @@ export function AgentFirstInterface() {
   const [publishTokenDraft, setPublishTokenDraft] = useState("");
   const [publishPreviewToken, setPublishPreviewToken] =
     useState(PORTAL_DEMO_TOKEN);
+  const [adminConfigReloadNonce, setAdminConfigReloadNonce] = useState(0);
   const [publishSaveState, setPublishSaveState] =
     useState<PublishSaveState>("local");
   const [publishStatusMessage, setPublishStatusMessage] = useState(
@@ -2557,6 +2866,15 @@ export function AgentFirstInterface() {
   const submitCommandInFlightRef = useRef(false);
   const workbenchTestRunInFlightRef = useRef(false);
   const backstageAutoOpenRunIdRef = useRef<string | null>(null);
+  const configDraftDirtyRef = useRef(false);
+  const publishDraftDirtyRef = useRef(false);
+  const hasLoadedAdminConfigRef = useRef(false);
+  const lastLoadedAgentConfigRef = useRef<AgentConfigDraft>(
+    toConfigDraft(defaultAgentConfig),
+  );
+  const lastLoadedPublishSettingsRef = useRef<PublishSettingsApi>({
+    ...defaultPublishSettings,
+  });
 
   const selectedModule = moduleById(selectedModuleId);
   const selectedSkillManifest = skillManifestById(selectedSkillId, skillCatalog);
@@ -2567,14 +2885,8 @@ export function AgentFirstInterface() {
   const displayedRuntimeRuns =
     latestAgentRun?.runtimeRuns ?? localFallbackRuntimeRuns ?? mockRuntimeRuns;
   const shouldLoadAdminConfig =
-    workspaceMode === "foreground" &&
-    (activeView === "configure" || activeView === "publish");
-  const shouldLoadWorkbenchIndexes =
-    workspaceMode === "backstage" ||
-    (workspaceMode === "foreground" &&
-      (activeView === "progress" ||
-        activeView === "configure" ||
-        activeView === "publish"));
+    workspaceMode === "backstage" && workbenchTab === "settings";
+  const shouldLoadWorkbenchIndexes = workspaceMode === "backstage";
   const configStatusText = translateAgentFirstMessage(t, configStatusMessage);
   const publishStatusText = translateAgentFirstMessage(t, publishStatusMessage);
   const agentRunStatusText = translateAgentFirstMessage(t, agentRunStatusMessage);
@@ -2797,6 +3109,11 @@ export function AgentFirstInterface() {
     setWorkspaceMode("backstage");
   }
 
+  function openBackstageSettings(): void {
+    setWorkbenchTab("settings");
+    setWorkspaceMode("backstage");
+  }
+
   function updateRuntimeRun(updatedRun: RuntimeModuleRun): void {
     setLatestAgentRun((current) =>
       current
@@ -2814,6 +3131,8 @@ export function AgentFirstInterface() {
     if (!shouldLoadAdminConfig) return;
 
     let cancelled = false;
+    const baselineConfig = toConfigDraft(lastLoadedAgentConfigRef.current);
+    const baselinePublishSettings = { ...lastLoadedPublishSettingsRef.current };
 
     async function loadAgentConfig(): Promise<void> {
       try {
@@ -2825,15 +3144,49 @@ export function AgentFirstInterface() {
         const data = (await response.json()) as AgentConfigApiResponse;
         if (cancelled) return;
 
-        setAgentConfig(toConfigDraft(data.config));
-        setPublishSettings(toPublishSettingsApi(data.config.publishSettings));
-        setPublishTokenDraft("");
+        const serverConfig = toConfigDraft(data.config);
+        const serverPublishSettings = toPublishSettingsApi(data.config.publishSettings);
+        lastLoadedAgentConfigRef.current = toConfigDraft(serverConfig);
+        lastLoadedPublishSettingsRef.current = { ...serverPublishSettings };
+        hasLoadedAdminConfigRef.current = true;
+        const hasDirtyConfig = configDraftDirtyRef.current;
+        const hasDirtyPublish = publishDraftDirtyRef.current;
+
+        setAgentConfig((current) =>
+          hasDirtyConfig
+            ? mergeConfigDraftFromServer(baselineConfig, current, serverConfig)
+            : serverConfig,
+        );
+        setPublishSettings((current) =>
+          hasDirtyPublish
+            ? mergePublishSettingsFromServer(
+                baselinePublishSettings,
+                current,
+                serverPublishSettings,
+              )
+            : serverPublishSettings,
+        );
+        if (!hasDirtyPublish) {
+          setPublishTokenDraft("");
+        }
+        configDraftDirtyRef.current = hasDirtyConfig;
+        publishDraftDirtyRef.current = hasDirtyPublish;
         setConnectionStatus(data.connection.status);
         setConnectionPayload(data.connection);
-        setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.loadedFromApi"));
-        setPublishSaveState("saved");
+        setConfigStatusMessage(
+          agentFirstMessage(
+            hasDirtyConfig
+              ? "agentFirst.statusMessages.unsavedLocalDraft"
+              : "agentFirst.statusMessages.loadedFromApi",
+          ),
+        );
+        setPublishSaveState(hasDirtyPublish ? "local" : "saved");
         setPublishStatusMessage(
-          agentFirstMessage("agentFirst.statusMessages.loadedPublishSettingsFromApi"),
+          agentFirstMessage(
+            hasDirtyPublish
+              ? "agentFirst.statusMessages.unsavedLocalPublishSettings"
+              : "agentFirst.statusMessages.loadedPublishSettingsFromApi",
+          ),
         );
       } catch {
         if (cancelled) return;
@@ -2852,9 +3205,10 @@ export function AgentFirstInterface() {
     return () => {
       cancelled = true;
     };
-  }, [shouldLoadAdminConfig]);
+  }, [shouldLoadAdminConfig, adminConfigReloadNonce]);
 
   function updateConfig(patch: Partial<AgentConfigDraft>): void {
+    configDraftDirtyRef.current = true;
     setAgentConfig((current) => ({ ...current, ...patch }));
     setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.unsavedLocalDraft"));
   }
@@ -2863,6 +3217,7 @@ export function AgentFirstInterface() {
     moduleId: ModuleId,
     patch: Partial<BusinessSkillSetting>,
   ): void {
+    configDraftDirtyRef.current = true;
     setAgentConfig((current) => ({
       ...current,
       businessSkillSettings: current.businessSkillSettings.map((skill) =>
@@ -2876,6 +3231,7 @@ export function AgentFirstInterface() {
     skillId: GeneralSkillId,
     patch: Partial<GeneralSkillSetting>,
   ): void {
+    configDraftDirtyRef.current = true;
     setAgentConfig((current) => ({
       ...current,
       generalSkillSettings: current.generalSkillSettings.map((skill) =>
@@ -2886,6 +3242,7 @@ export function AgentFirstInterface() {
   }
 
   function updateMemorySettings(patch: Partial<AgentMemorySettings>): void {
+    configDraftDirtyRef.current = true;
     setAgentConfig((current) => ({
       ...current,
       memorySettings: { ...current.memorySettings, ...patch },
@@ -2894,6 +3251,7 @@ export function AgentFirstInterface() {
   }
 
   function updateSafetySettings(patch: Partial<AgentSafetySettings>): void {
+    configDraftDirtyRef.current = true;
     setAgentConfig((current) => ({
       ...current,
       safetySettings: { ...current.safetySettings, ...patch },
@@ -2903,6 +3261,7 @@ export function AgentFirstInterface() {
 
   async function saveAgentConfig(): Promise<void> {
     setIsConfigBusy(true);
+    const baselinePublishSettings = { ...lastLoadedPublishSettingsRef.current };
     try {
       const response = await fetch("/api/agent-config", {
         method: "PUT",
@@ -2914,7 +3273,23 @@ export function AgentFirstInterface() {
       }
 
       const data = (await response.json()) as AgentConfigApiResponse;
-      setAgentConfig(toConfigDraft(data.config));
+      const serverConfig = toConfigDraft(data.config);
+      const serverPublishSettings = toPublishSettingsApi(data.config.publishSettings);
+      const hasDirtyPublish = publishDraftDirtyRef.current;
+      lastLoadedAgentConfigRef.current = toConfigDraft(serverConfig);
+      hasLoadedAdminConfigRef.current = true;
+      configDraftDirtyRef.current = false;
+      setAgentConfig(serverConfig);
+      setPublishSettings((current) =>
+        hasDirtyPublish
+          ? mergePublishSettingsFromServer(
+              baselinePublishSettings,
+              current,
+              serverPublishSettings,
+            )
+          : serverPublishSettings,
+      );
+      lastLoadedPublishSettingsRef.current = { ...serverPublishSettings };
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
       setConfigStatusMessage(agentFirstMessage("agentFirst.statusMessages.savedToApi"));
@@ -2928,6 +3303,7 @@ export function AgentFirstInterface() {
   }
 
   function updatePublishVersionLabel(versionLabel: string): void {
+    publishDraftDirtyRef.current = true;
     setPublishSettings((current) => ({ ...current, versionLabel }));
     setPublishSaveState("local");
     setPublishStatusMessage(
@@ -2935,12 +3311,47 @@ export function AgentFirstInterface() {
     );
   }
 
+  function updatePublishTokenDraft(token: string): void {
+    publishDraftDirtyRef.current = true;
+    setPublishTokenDraft(token);
+    setPublishSaveState("local");
+    setPublishStatusMessage(
+      agentFirstMessage("agentFirst.statusMessages.unsavedLocalPublishSettings"),
+    );
+  }
+
+  function discardSettingsDrafts(): void {
+    configDraftDirtyRef.current = false;
+    publishDraftDirtyRef.current = false;
+    setAgentConfig(toConfigDraft(lastLoadedAgentConfigRef.current));
+    setPublishSettings({ ...lastLoadedPublishSettingsRef.current });
+    setPublishTokenDraft("");
+    setConfigStatusMessage(
+      agentFirstMessage(
+        hasLoadedAdminConfigRef.current
+          ? "agentFirst.statusMessages.loadedFromApi"
+          : "agentFirst.statusMessages.localDraft",
+      ),
+    );
+    setPublishSaveState(hasLoadedAdminConfigRef.current ? "saved" : "local");
+    setPublishStatusMessage(
+      agentFirstMessage(
+        hasLoadedAdminConfigRef.current
+          ? "agentFirst.statusMessages.loadedPublishSettingsFromApi"
+          : "agentFirst.statusMessages.localPublishSettings",
+      ),
+    );
+    setAdminConfigReloadNonce((current) => current + 1);
+  }
+
   async function savePublishSettings(nextStatus: PublishStatus): Promise<void> {
     if (publishSaveState === "saving") return;
 
     const versionLabel = publishSettings.versionLabel.trim() || "draft-0.3";
     const token = publishTokenDraft.trim();
+    const baselineConfig = toConfigDraft(lastLoadedAgentConfigRef.current);
 
+    publishDraftDirtyRef.current = true;
     setPublishSaveState("saving");
     setPublishStatusMessage(
       agentFirstMessage("agentFirst.statusMessages.savingPublishSettings"),
@@ -2973,9 +3384,19 @@ export function AgentFirstInterface() {
       }
 
       const data = (await response.json()) as AgentConfigApiResponse;
+      publishDraftDirtyRef.current = false;
+      const serverConfig = toConfigDraft(data.config);
       const nextSettings = toPublishSettingsApi(data.config.publishSettings);
+      const hasDirtyConfig = configDraftDirtyRef.current;
+      lastLoadedPublishSettingsRef.current = { ...nextSettings };
+      hasLoadedAdminConfigRef.current = true;
       setPublishSettings(nextSettings);
-      setAgentConfig(toConfigDraft(data.config));
+      setAgentConfig((current) =>
+        hasDirtyConfig
+          ? mergeConfigDraftFromServer(baselineConfig, current, serverConfig)
+          : serverConfig,
+      );
+      lastLoadedAgentConfigRef.current = toConfigDraft(serverConfig);
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
       if (token) {
@@ -3081,11 +3502,13 @@ export function AgentFirstInterface() {
 
       const data = (await response.json()) as AgentRunApiResponse;
       const runtimeRuns = toRuntimeRunsFromAgentRun(data);
+      const workbenchRun = toWorkbenchRunFromAgentRun(data);
       setLatestAgentRun({
         response: data,
         runtimeRuns,
       });
       setLocalFallbackRuntimeRuns(null);
+      rememberWorkbenchRun(workbenchRun);
       setConnectionStatus(data.connection.status);
       setConnectionPayload(data.connection);
       setAgentRunState("saved");
@@ -3374,16 +3797,6 @@ export function AgentFirstInterface() {
               >
                 {t("agentFirst.workspace.backstage")}
               </button>
-              <button
-                type="button"
-                className={workspaceMode === "backstage" && workbenchTab === "operator" ? "active" : ""}
-                onClick={() => {
-                  setWorkspaceMode("backstage");
-                  setWorkbenchTab("operator");
-                }}
-              >
-                {t("agentFirst.workspace.operator")}
-              </button>
             </div>
             <LanguageSwitcher className="topbar-mode-switch language-mode-switch" variant="ghost" />
             <button
@@ -3451,6 +3864,16 @@ export function AgentFirstInterface() {
               skillTab={backstageTab}
               runtimeRuns={displayedRuntimeRuns}
               latestAgentRun={latestAgentRun}
+              config={agentConfig}
+              connectionStatus={connectionStatus}
+              connection={connectionPayload}
+              configStatusText={configStatusText}
+              isConfigBusy={isConfigBusy}
+              publishSettings={publishSettings}
+              publishTokenDraft={publishTokenDraft}
+              publishPreviewToken={publishPreviewToken}
+              publishSaveState={publishSaveState}
+              publishStatusText={publishStatusText}
               onSetWorkbenchTab={setWorkbenchTab}
               onSelectAgent={setSelectedAgentId}
               onSelectRun={setSelectedRunId}
@@ -3461,6 +3884,17 @@ export function AgentFirstInterface() {
                 setSelectedModuleId(skillId);
               }}
               onSetSkillTab={setBackstageTab}
+              onUpdateConfig={updateConfig}
+              onUpdateBusinessSkill={updateBusinessSkill}
+              onUpdateGeneralSkill={updateGeneralSkill}
+              onUpdateMemory={updateMemorySettings}
+              onUpdateSafety={updateSafetySettings}
+              onSaveConfig={saveAgentConfig}
+              onTestConnection={testAgentConnection}
+              onUpdateVersionLabel={updatePublishVersionLabel}
+              onUpdateTokenDraft={updatePublishTokenDraft}
+              onSavePublishSettings={savePublishSettings}
+              onDiscardSettingsDrafts={discardSettingsDrafts}
               onOpenForeground={(moduleId) => {
                 setSelectedModuleId(moduleId);
                 setWorkspaceMode("foreground");
@@ -3517,7 +3951,7 @@ export function AgentFirstInterface() {
               runtimeActionNoticeText={runtimeActionNoticeText}
               runtimeActionStatusTexts={runtimeActionStatusTexts}
               latestAgentRun={latestAgentRun}
-              onOpenConfigure={() => setActiveView("configure")}
+              onOpenConfigure={openBackstageSettings}
               onOpenData={() => setActiveView("data")}
               onOpenBackstage={openBackstageSkill}
               onResumeRuntimeRun={resumeRuntimeRun}
@@ -3528,34 +3962,6 @@ export function AgentFirstInterface() {
               records={filteredRecords}
               selectedRecordKind={selectedRecordKind}
               onSelectRecordKind={setSelectedRecordKind}
-            />
-          )}
-          {activeView === "configure" && (
-            <ConfigureView
-              config={agentConfig}
-              connectionStatus={connectionStatus}
-              connection={connectionPayload}
-              statusText={configStatusText}
-              isBusy={isConfigBusy}
-              onUpdateConfig={updateConfig}
-              onUpdateBusinessSkill={updateBusinessSkill}
-              onUpdateGeneralSkill={updateGeneralSkill}
-              onUpdateMemory={updateMemorySettings}
-              onUpdateSafety={updateSafetySettings}
-              onSave={saveAgentConfig}
-              onTestConnection={testAgentConnection}
-            />
-          )}
-          {activeView === "publish" && (
-            <PublishView
-              publishSettings={publishSettings}
-              publishTokenDraft={publishTokenDraft}
-              publishPreviewToken={publishPreviewToken}
-              publishSaveState={publishSaveState}
-              publishStatusText={publishStatusText}
-              onUpdateVersionLabel={updatePublishVersionLabel}
-              onUpdateTokenDraft={setPublishTokenDraft}
-              onSavePublishSettings={savePublishSettings}
             />
           )}
             </>
@@ -3569,7 +3975,7 @@ export function AgentFirstInterface() {
             onChange={setCommand}
             onTogglePlanMode={() => setPlanMode((value) => !value)}
             onSubmit={submitCommand}
-            onOpenConfigure={() => setActiveView("configure")}
+            onOpenConfigure={openBackstageSettings}
             isSubmitting={agentRunState === "submitting"}
           />
         )}
@@ -3770,6 +4176,16 @@ function BackstageView({
   skillTab,
   runtimeRuns,
   latestAgentRun,
+  config,
+  connectionStatus,
+  connection,
+  configStatusText,
+  isConfigBusy,
+  publishSettings,
+  publishTokenDraft,
+  publishPreviewToken,
+  publishSaveState,
+  publishStatusText,
   onSetWorkbenchTab,
   onSelectAgent,
   onSelectRun,
@@ -3777,6 +4193,17 @@ function BackstageView({
   onCreateAgent,
   onSelectSkill,
   onSetSkillTab,
+  onUpdateConfig,
+  onUpdateBusinessSkill,
+  onUpdateGeneralSkill,
+  onUpdateMemory,
+  onUpdateSafety,
+  onSaveConfig,
+  onTestConnection,
+  onUpdateVersionLabel,
+  onUpdateTokenDraft,
+  onSavePublishSettings,
+  onDiscardSettingsDrafts,
   onOpenForeground,
   onOpenSkillFromAgent,
 }: {
@@ -3794,6 +4221,16 @@ function BackstageView({
   skillTab: BackstageTab;
   runtimeRuns: RuntimeModuleRun[];
   latestAgentRun: AgentRunUiState | null;
+  config: AgentConfigDraft;
+  connectionStatus: AgentConnectionStatus;
+  connection: AgentConnectionPayload | null;
+  configStatusText: string;
+  isConfigBusy: boolean;
+  publishSettings: PublishSettingsApi;
+  publishTokenDraft: string;
+  publishPreviewToken: string;
+  publishSaveState: PublishSaveState;
+  publishStatusText: string;
   onSetWorkbenchTab: (tab: WorkbenchTab) => void;
   onSelectAgent: (agentId: string) => void;
   onSelectRun: (pipelineRunId: string) => void;
@@ -3801,6 +4238,23 @@ function BackstageView({
   onCreateAgent: (agent: AgentManifestPreview) => void;
   onSelectSkill: (skillId: ModuleId) => void;
   onSetSkillTab: (tab: BackstageTab) => void;
+  onUpdateConfig: (patch: Partial<AgentConfigDraft>) => void;
+  onUpdateBusinessSkill: (
+    moduleId: ModuleId,
+    patch: Partial<BusinessSkillSetting>,
+  ) => void;
+  onUpdateGeneralSkill: (
+    skillId: GeneralSkillId,
+    patch: Partial<GeneralSkillSetting>,
+  ) => void;
+  onUpdateMemory: (patch: Partial<AgentMemorySettings>) => void;
+  onUpdateSafety: (patch: Partial<AgentSafetySettings>) => void;
+  onSaveConfig: () => void;
+  onTestConnection: () => void;
+  onUpdateVersionLabel: (versionLabel: string) => void;
+  onUpdateTokenDraft: (token: string) => void;
+  onSavePublishSettings: (nextStatus: PublishStatus) => void;
+  onDiscardSettingsDrafts: () => void;
   onOpenForeground: (moduleId: ModuleId) => void;
   onOpenSkillFromAgent: (skillId: string) => void;
 }) {
@@ -3810,13 +4264,84 @@ function BackstageView({
     [t],
   );
   const selectedRun = runtimeRuns.find((run) => run.moduleId === selectedSkill.id);
+  const latestAgentRunAgentId =
+    latestAgentRun && isJsonObject(latestAgentRun.response.pipelineRun.metadata)
+      ? nullableString(latestAgentRun.response.pipelineRun.metadata["agentId"])
+      : null;
+  const workbenchApprovalBlockers = workbenchRuns.flatMap((run): BackstageApprovalBlocker[] => {
+    const stepBlockers = run.moduleSteps
+      .filter((step) => isBlockingWorkbenchStatus(step.status))
+      .map((step) => ({
+        id: step.id,
+        pipelineRunId: run.pipelineRunId,
+        pipelineTitle: run.title,
+        agentId: run.agentId,
+        moduleId: step.moduleId,
+        title: step.title,
+        status: step.status,
+        summary: step.summary,
+        updatedAt: step.startedAt ?? step.completedAt ?? run.updatedAt,
+        hasRuntimeContext: false,
+      }));
+
+    if (stepBlockers.length > 0 || !isBlockingWorkbenchStatus(run.status)) {
+      return stepBlockers;
+    }
+
+    return [
+      {
+        id: `${run.pipelineRunId}:pipeline`,
+        pipelineRunId: run.pipelineRunId,
+        pipelineTitle: run.title,
+        agentId: run.agentId,
+        moduleId: run.activeSkillId ?? "pipeline",
+        title: run.title,
+        status: run.status,
+        summary: workbenchRunStatusLabel(run.status, t),
+        updatedAt: run.updatedAt,
+        hasRuntimeContext: false,
+      },
+    ];
+  });
+  const latestRuntimePipelineRunId = latestAgentRun?.response.pipelineRun.id;
+  const latestRuntimeApprovalBlockers = latestAgentRun
+    ? latestAgentRun.runtimeRuns.flatMap((run): BackstageApprovalBlocker[] => {
+      const status = runtimeRunBlockerStatus(run);
+      if (!status) return [];
+      return [
+        {
+          id: run.id,
+          pipelineRunId: latestAgentRun.response.pipelineRun.id,
+          pipelineTitle: latestAgentRun.response.pipelineRun.title,
+          agentId: latestAgentRunAgentId ?? undefined,
+          moduleId: run.moduleId,
+          title: run.interaction?.title ?? run.title,
+          status,
+          summary: run.interaction?.message ?? run.event,
+          updatedAt: run.updatedAt,
+          hasRuntimeContext: true,
+        },
+      ];
+    })
+    : [];
+  const indexedApprovalBlockers = latestRuntimePipelineRunId
+    ? workbenchApprovalBlockers.filter(
+      (blocker) => blocker.pipelineRunId !== latestRuntimePipelineRunId,
+    )
+    : workbenchApprovalBlockers;
+  const approvalBlockers = uniqueBackstageApprovalBlockers([
+    ...latestRuntimeApprovalBlockers,
+    ...indexedApprovalBlockers,
+  ]);
   const selectedRecords = dataRecords.filter((record) => record.moduleId === selectedSkill.id);
   const workbenchTabs: Array<{ id: WorkbenchTab; labelKey: string }> = [
-    { id: "agents", labelKey: "agentFirst.backstage.tabs.agents" },
-    { id: "skills", labelKey: "agentFirst.backstage.tabs.skills" },
     { id: "runs", labelKey: "agentFirst.backstage.tabs.runs" },
     { id: "artifacts", labelKey: "agentFirst.backstage.tabs.artifacts" },
-    { id: "operator", labelKey: "agentFirst.backstage.tabs.operator" },
+    { id: "agents", labelKey: "agentFirst.backstage.tabs.agents" },
+    { id: "skills", labelKey: "agentFirst.backstage.tabs.skills" },
+    { id: "teams", labelKey: "agentFirst.backstage.tabs.teams" },
+    { id: "approvals", labelKey: "agentFirst.backstage.tabs.approvals" },
+    { id: "settings", labelKey: "agentFirst.backstage.tabs.settings" },
   ];
   const skillTabs: Array<{ id: BackstageTab; labelKey: string; enabled: boolean }> = [
     { id: "io", labelKey: "agentFirst.backstage.skillTabs.io", enabled: true },
@@ -4024,9 +4549,317 @@ function BackstageView({
 
       {workbenchTab === "artifacts" && <ArtifactInspector groups={artifactGroups} />}
 
-      {workbenchTab === "operator" && (
-        <OperatorBackstage agents={agents} skills={skillCatalog} />
+      {workbenchTab === "teams" && (
+        <TeamsBackstagePanel
+          agents={agents}
+          readiness={agentReadiness}
+          runs={workbenchRuns}
+        />
       )}
+
+      {workbenchTab === "approvals" && (
+        <ApprovalsBackstagePanel
+          approvalBlockers={approvalBlockers}
+          onOpenRun={(pipelineRunId) => {
+            onSelectRun(pipelineRunId);
+            onSetWorkbenchTab("runs");
+          }}
+          onOpenSkill={(blocker) => {
+            onSelectRun(blocker.pipelineRunId);
+            if (!isModuleId(blocker.moduleId)) return;
+            const skill = skillManifestById(blocker.moduleId, skillCatalog);
+            onSelectSkill(blocker.moduleId);
+            onSetSkillTab(hasBackstageSkillUi(skill) ? "ui" : "io");
+            onSetWorkbenchTab("skills");
+          }}
+        />
+      )}
+
+      {workbenchTab === "settings" && (
+        <SettingsBackstagePanel
+          config={config}
+          connectionStatus={connectionStatus}
+          connection={connection}
+          configStatusText={configStatusText}
+          isConfigBusy={isConfigBusy}
+          publishSettings={publishSettings}
+          publishTokenDraft={publishTokenDraft}
+          publishPreviewToken={publishPreviewToken}
+          publishSaveState={publishSaveState}
+          publishStatusText={publishStatusText}
+          agents={agents}
+          skills={skillCatalog}
+          onUpdateConfig={onUpdateConfig}
+          onUpdateBusinessSkill={onUpdateBusinessSkill}
+          onUpdateGeneralSkill={onUpdateGeneralSkill}
+          onUpdateMemory={onUpdateMemory}
+          onUpdateSafety={onUpdateSafety}
+          onSaveConfig={onSaveConfig}
+          onTestConnection={onTestConnection}
+          onUpdateVersionLabel={onUpdateVersionLabel}
+          onUpdateTokenDraft={onUpdateTokenDraft}
+          onSavePublishSettings={onSavePublishSettings}
+          onDiscardSettingsDrafts={onDiscardSettingsDrafts}
+        />
+      )}
+    </section>
+  );
+}
+
+function TeamsBackstagePanel({
+  agents,
+  readiness,
+  runs,
+}: {
+  agents: AgentManifestPreview[];
+  readiness: AgentReadiness[];
+  runs: WorkbenchRunInspection[];
+}) {
+  const { t } = useTranslation();
+  const readyAgents = readiness.filter((item) => item.status === "ready").length;
+  const recentRunCount = runs.length;
+
+  return (
+    <section className="backstage-main" aria-label={t("agentFirst.backstage.teams.title")}>
+      <div className="backstage-header">
+        <div>
+          <span className="soft-label">{t("agentFirst.backstage.teams.kicker")}</span>
+          <h1>{t("agentFirst.backstage.teams.title")}</h1>
+          <p>{t("agentFirst.backstage.teams.description")}</p>
+        </div>
+      </div>
+      <div className="backstage-metrics">
+        <Metric label={t("agentFirst.metrics.agents")} value={String(agents.length)} />
+        <Metric label={t("agentFirst.metrics.readiness")} value={String(readyAgents)} />
+        <Metric label={t("agentFirst.metrics.runs")} value={String(recentRunCount)} />
+        <Metric label={t("agentFirst.backstage.teams.governanceMetric")} value={t("agentFirst.backstage.tabs.settings")} />
+      </div>
+      <div className="artifact-grid">
+        <div className="artifact-card">
+          <div className="artifact-title">
+            <Bot size={15} />
+            <span>{t("agentFirst.backstage.teams.agentTeam")}</span>
+          </div>
+          <p>{t("agentFirst.backstage.teams.agentTeamDescription")}</p>
+          <code>{agents.map((agent) => agent.agentId).join(", ")}</code>
+        </div>
+        <div className="artifact-card">
+          <div className="artifact-title">
+            <ShieldCheck size={15} />
+            <span>{t("agentFirst.backstage.teams.governanceTeam")}</span>
+          </div>
+          <p>{t("agentFirst.backstage.teams.governanceTeamDescription")}</p>
+          <code>{t("agentFirst.backstage.settings.operatorGovernance")}</code>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ApprovalsBackstagePanel({
+  approvalBlockers,
+  onOpenRun,
+  onOpenSkill,
+}: {
+  approvalBlockers: BackstageApprovalBlocker[];
+  onOpenRun: (pipelineRunId: string) => void;
+  onOpenSkill: (blocker: BackstageApprovalBlocker) => void;
+}) {
+  const { t } = useTranslation();
+  const latestBlocker = approvalBlockers[0];
+
+  return (
+    <section className="backstage-main" aria-label={t("agentFirst.backstage.approvals.title")}>
+      <div className="backstage-header">
+        <div>
+          <span className="soft-label">{t("agentFirst.backstage.approvals.kicker")}</span>
+          <h1>{t("agentFirst.backstage.approvals.title")}</h1>
+          <p>{t("agentFirst.backstage.approvals.description")}</p>
+        </div>
+      </div>
+      <div className="backstage-metrics">
+        <Metric label={t("agentFirst.backstage.approvals.blockingRuns")} value={String(approvalBlockers.length)} />
+        <Metric label={t("agentFirst.backstage.approvals.inboxScope")} value={t("agentFirst.backstage.approvals.allMissions")} />
+        <Metric label={t("agentFirst.metrics.updated")} value={latestBlocker?.updatedAt ?? "--"} />
+        <Metric label={t("agentFirst.metrics.adapter")} value={latestBlocker?.moduleId ?? "--"} />
+      </div>
+      <div className="backstage-grid two">
+        <div className="json-inspector">
+          <div className="artifact-title">
+            <CircleAlert size={15} />
+            <span>{t("agentFirst.backstage.approvals.runtimeBlockers")}</span>
+          </div>
+          {approvalBlockers.length > 0 ? (
+            <div className="runtime-blocker-list">
+              {approvalBlockers.map((blocker) => (
+                <article key={`${blocker.pipelineRunId}:${blocker.id}`} className="runtime-blocker-card">
+                  <strong>{blocker.title}</strong>
+                  <p>{blocker.summary}</p>
+                  <div className="runtime-blocker-meta">
+                    <span>{blocker.pipelineTitle}</span>
+                    <code>{blocker.moduleId}</code>
+                    <b style={{ color: workbenchStatusColor(blocker.status) }}>
+                      {workbenchRunStatusLabel(blocker.status, t)}
+                    </b>
+                  </div>
+                  <div className="runtime-action-row">
+                    <button
+                      type="button"
+                      className="small-action"
+                      onClick={() => onOpenRun(blocker.pipelineRunId)}
+                    >
+                      {t("agentFirst.backstage.approvals.openRun")}
+                    </button>
+                    <button
+                      type="button"
+                      className="small-action"
+                      disabled={!isModuleId(blocker.moduleId)}
+                      onClick={() => onOpenSkill(blocker)}
+                    >
+                      {t("agentFirst.backstage.approvals.openSkill")}
+                    </button>
+                  </div>
+                  <em>
+                    {t(
+                      blocker.status === "approval_required"
+                        ? "agentFirst.backstage.approvals.approvalActionHint"
+                        : "agentFirst.backstage.approvals.blockerActionHint",
+                    )}
+                  </em>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="agent-run-status-text">{t("agentFirst.backstage.approvals.noRuntimeBlockers")}</p>
+          )}
+          <pre>{JSON.stringify(approvalBlockers, null, 2)}</pre>
+        </div>
+        <ApprovalInbox
+          titleKey="agentFirst.backstage.approvals.inboxTitle"
+          descriptionKey="agentFirst.backstage.approvals.inboxDescription"
+          emptyKey="agentFirst.backstage.approvals.empty"
+        />
+      </div>
+    </section>
+  );
+}
+
+function SettingsBackstagePanel({
+  config,
+  connectionStatus,
+  connection,
+  configStatusText,
+  isConfigBusy,
+  publishSettings,
+  publishTokenDraft,
+  publishPreviewToken,
+  publishSaveState,
+  publishStatusText,
+  agents,
+  skills,
+  onUpdateConfig,
+  onUpdateBusinessSkill,
+  onUpdateGeneralSkill,
+  onUpdateMemory,
+  onUpdateSafety,
+  onSaveConfig,
+  onTestConnection,
+  onUpdateVersionLabel,
+  onUpdateTokenDraft,
+  onSavePublishSettings,
+  onDiscardSettingsDrafts,
+}: {
+  config: AgentConfigDraft;
+  connectionStatus: AgentConnectionStatus;
+  connection: AgentConnectionPayload | null;
+  configStatusText: string;
+  isConfigBusy: boolean;
+  publishSettings: PublishSettingsApi;
+  publishTokenDraft: string;
+  publishPreviewToken: string;
+  publishSaveState: PublishSaveState;
+  publishStatusText: string;
+  agents: AgentManifestPreview[];
+  skills: SkillManifestPreview[];
+  onUpdateConfig: (patch: Partial<AgentConfigDraft>) => void;
+  onUpdateBusinessSkill: (
+    moduleId: ModuleId,
+    patch: Partial<BusinessSkillSetting>,
+  ) => void;
+  onUpdateGeneralSkill: (
+    skillId: GeneralSkillId,
+    patch: Partial<GeneralSkillSetting>,
+  ) => void;
+  onUpdateMemory: (patch: Partial<AgentMemorySettings>) => void;
+  onUpdateSafety: (patch: Partial<AgentSafetySettings>) => void;
+  onSaveConfig: () => void;
+  onTestConnection: () => void;
+  onUpdateVersionLabel: (versionLabel: string) => void;
+  onUpdateTokenDraft: (token: string) => void;
+  onSavePublishSettings: (nextStatus: PublishStatus) => void;
+  onDiscardSettingsDrafts: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <section className="backstage-main settings-backstage-panel" aria-label={t("agentFirst.backstage.settings.title")}>
+      <div className="backstage-header">
+        <div>
+          <span className="soft-label">{t("agentFirst.backstage.settings.kicker")}</span>
+          <h1>{t("agentFirst.backstage.settings.title")}</h1>
+          <p>{t("agentFirst.backstage.settings.description")}</p>
+        </div>
+        <div className="runtime-action-row">
+          <button type="button" className="small-action" onClick={onDiscardSettingsDrafts}>
+            {t("agentFirst.actions.discardSettingsDraft")}
+          </button>
+          <span className="connection-pill">
+            <ShieldCheck size={14} />
+            {t("agentFirst.backstage.settings.localAdminOnly")}
+          </span>
+        </div>
+      </div>
+      <div className="backstage-grid two">
+        <div className="json-inspector">
+          <div className="artifact-title">
+            <Settings2 size={15} />
+            <span>{t("agentFirst.backstage.settings.configWriter")}</span>
+          </div>
+          <p>{t("agentFirst.backstage.settings.configWriterHint")}</p>
+        </div>
+        <div className="json-inspector">
+          <div className="artifact-title">
+            <PencilLine size={15} />
+            <span>{t("agentFirst.backstage.settings.manifestWriter")}</span>
+          </div>
+          <p>{t("agentFirst.backstage.settings.manifestWriterHint")}</p>
+        </div>
+      </div>
+      <ConfigureView
+        config={config}
+        connectionStatus={connectionStatus}
+        connection={connection}
+        statusText={configStatusText}
+        isBusy={isConfigBusy}
+        onUpdateConfig={onUpdateConfig}
+        onUpdateBusinessSkill={onUpdateBusinessSkill}
+        onUpdateGeneralSkill={onUpdateGeneralSkill}
+        onUpdateMemory={onUpdateMemory}
+        onUpdateSafety={onUpdateSafety}
+        onSave={onSaveConfig}
+        onTestConnection={onTestConnection}
+      />
+      <PublishView
+        publishSettings={publishSettings}
+        publishTokenDraft={publishTokenDraft}
+        publishPreviewToken={publishPreviewToken}
+        publishSaveState={publishSaveState}
+        publishStatusText={publishStatusText}
+        onUpdateVersionLabel={onUpdateVersionLabel}
+        onUpdateTokenDraft={onUpdateTokenDraft}
+        onSavePublishSettings={onSavePublishSettings}
+      />
+      <OperatorBackstage agents={agents} skills={skills} />
     </section>
   );
 }
