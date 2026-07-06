@@ -181,6 +181,23 @@ test("locale resources include all visible mission and approval labels", () => {
     "missionCenter.resultTitle",
     "missionCenter.resultDescription",
     "missionCenter.resultFallback",
+    "missionCenter.portalTokenBadge",
+    "missionCenter.portalTokenTitle",
+    "missionCenter.portalTokenDescription",
+    "missionCenter.portalTokenLabel",
+    "missionCenter.portalTokenPlaceholder",
+    "missionCenter.portalTokenSubmit",
+    "missionCenter.portalTokenCheckingShort",
+    "missionCenter.portalTokenChecking",
+    "missionCenter.portalTokenRequired",
+    "missionCenter.portalTokenAuthorized",
+    "missionCenter.portalTokenVerifyFailed",
+    "missionCenter.portalTokenUnexpectedPayload",
+    "missionCenter.portalTokenNotPublished",
+    "missionCenter.portalTokenRejected",
+    "missionCenter.portalTokenApiUnavailable",
+    "missionCenter.portalRuntimeAccessRejected",
+    "missionCenter.portalTokenState",
     "common.riskLevel.low",
     "common.riskLevel.medium",
     "common.riskLevel.high",
@@ -362,17 +379,12 @@ test("locale resources include visible end-user portal labels", () => {
   }
 });
 
-test("end-user portal component uses portal-owned translation keys", () => {
-  assert.match(portalComponentSource, /portal\.topbar\.openAdmin/);
+test("end-user portal preview delegates to mission portal token mode", () => {
+  assert.match(portalComponentSource, /from "@\/components\/mission\/MissionPortal"/);
+  assert.match(portalComponentSource, /readMissionPortalSearchParams/);
+  assert.match(portalComponentSource, /accessMode="portal-token"/);
   assert.doesNotMatch(portalComponentSource, /topbar\.adminConsole/);
-  assert.match(
-    portalComponentSource,
-    /portal\.demo\.sources\.watchedUrl\.label/,
-  );
-  assert.doesNotMatch(
-    portalComponentSource,
-    /label:\s*"docs\.example\.com\/start"/,
-  );
+  assert.doesNotMatch(portalComponentSource, /window\.location\.assign\([\s\S]*AgentFirstInterface/);
 });
 
 test("end-user portal component translation keys resolve in both locale resources", () => {

@@ -40,6 +40,8 @@ type ApprovalInboxProps = {
   titleKey?: string;
   descriptionKey?: string;
   emptyKey?: string;
+  requestHeaders?: Record<string, string>;
+  onRuntimeAccessDenied?: (response: Response) => void;
 };
 
 export function ApprovalInbox({
@@ -49,6 +51,8 @@ export function ApprovalInbox({
   titleKey = "approvalInbox.title",
   descriptionKey = "approvalInbox.description",
   emptyKey = "approvalInbox.empty",
+  requestHeaders,
+  onRuntimeAccessDenied,
 }: ApprovalInboxProps) {
   const { t } = useTranslation();
   const [approvals, setApprovals] = useState<ApprovalInboxItem[]>([]);
@@ -67,9 +71,13 @@ export function ApprovalInbox({
     setErrorMessage(null);
     try {
       const response = await fetch(scopedEndpoint(endpoint, missionId), {
-        headers: { Accept: "application/json" },
+        headers: { ...requestHeaders, Accept: "application/json" },
       });
       if (!response.ok) {
+        if ((response.status === 401 || response.status === 403) && onRuntimeAccessDenied) {
+          onRuntimeAccessDenied(response);
+          return;
+        }
         throw new Error(await readError(response));
       }
       const data = await readJson<{ approvals: ApprovalInboxItem[] }>(response);
@@ -79,7 +87,7 @@ export function ApprovalInbox({
     } finally {
       setLoadState("idle");
     }
-  }, [endpoint, missionId, t]);
+  }, [endpoint, missionId, onRuntimeAccessDenied, requestHeaders, t]);
 
   useEffect(() => {
     void loadApprovals();
@@ -98,10 +106,14 @@ export function ApprovalInbox({
         `${endpoint}/${encodeURIComponent(approvalId)}/${decision}`,
         {
           method: "POST",
-          headers: { Accept: "application/json" },
+          headers: { ...requestHeaders, Accept: "application/json" },
         },
       );
       if (!response.ok) {
+        if ((response.status === 401 || response.status === 403) && onRuntimeAccessDenied) {
+          onRuntimeAccessDenied(response);
+          return;
+        }
         throw new Error(await readError(response));
       }
       const data = await readJson<{ approval: ApprovalInboxItem }>(response);
