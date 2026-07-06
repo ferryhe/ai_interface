@@ -24,6 +24,10 @@ const portalComponentSource = readFileSync(
   ),
   "utf8",
 );
+const missionPortalComponentSource = readFileSync(
+  new URL("../components/mission/MissionPortal.tsx", import.meta.url),
+  "utf8",
+);
 const operatorComponentSources = [
   "../components/operator/OperatorBackstage.tsx",
   "../components/operator/ManifestViewer.tsx",
@@ -54,7 +58,7 @@ const legacyAiDataSource = readFileSync(
   "utf8",
 );
 const legacyAiMonolithSource = readFileSync(
-  new URL("../components/mockups/ai-os/AIInterface.tsx", import.meta.url),
+  new URL("../../archive/ai-os/AIInterface.tsx", import.meta.url),
   "utf8",
 );
 
@@ -383,13 +387,14 @@ test("end-user portal preview delegates to mission portal token mode", () => {
   assert.match(portalComponentSource, /from "@\/components\/mission\/MissionPortal"/);
   assert.match(portalComponentSource, /readMissionPortalSearchParams/);
   assert.match(portalComponentSource, /accessMode="portal-token"/);
-  assert.doesNotMatch(portalComponentSource, /topbar\.adminConsole/);
-  assert.doesNotMatch(portalComponentSource, /window\.location\.assign\([\s\S]*AgentFirstInterface/);
+  assert.match(portalComponentSource, /initialPortalToken=\{portalSearch\.portalToken\}/);
+  assert.match(portalComponentSource, /initialMissionId=\{portalSearch\.missionId\}/);
+  assert.doesNotMatch(portalComponentSource, /AgentCatalog|ArtifactInspector|OperatorBackstage/);
 });
 
-test("end-user portal component translation keys resolve in both locale resources", () => {
+test("mission portal component translation keys resolve in both locale resources", () => {
   const literalKeys = Array.from(
-    portalComponentSource.matchAll(/["'`]((?:portal)\.[A-Za-z0-9_.-]+)["'`]/g),
+    missionPortalComponentSource.matchAll(/["'`]((?:missionCenter|approvalInbox|approvalCard|executionBoard|planStep)\.[A-Za-z0-9_.-]+)["'`]/g),
     (match) => match[1],
   ).filter((key) => !key.endsWith("."));
 

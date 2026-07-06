@@ -33,6 +33,8 @@ import { ArtifactInspector } from "./_components/ArtifactInspector";
 import { RunInspector } from "./_components/RunInspector";
 import { ApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import { MissionCenterShell } from "@/components/mission/MissionCenterShell";
+import { MissionPortal } from "@/components/mission/MissionPortal";
+import { readMissionPortalSearchParams } from "@/components/mission/MissionPortalAccess";
 import { OperatorBackstage } from "@/components/operator/OperatorBackstage";
 import { LanguageSwitcher } from "@/i18n/LanguageSwitcher";
 import {
@@ -2809,7 +2811,32 @@ function normalizeApiArtifacts(
   return Array.from(groups.values());
 }
 
+function isLegacyPortalPreviewPath(pathname?: string): boolean {
+  const rawPathname =
+    pathname ?? (typeof window === "undefined" ? "" : window.location.pathname);
+  return rawPathname.replace(/\/+$/, "").endsWith("/preview/ai-os/AgentPortalInterface");
+}
+
 export function AgentFirstInterface() {
+  const portalSearch = readMissionPortalSearchParams();
+  const shouldUsePortalTokenMode =
+    Boolean(portalSearch.portalToken || portalSearch.missionId) ||
+    isLegacyPortalPreviewPath();
+
+  if (shouldUsePortalTokenMode) {
+    return (
+      <MissionPortal
+        accessMode="portal-token"
+        initialPortalToken={portalSearch.portalToken}
+        initialMissionId={portalSearch.missionId}
+      />
+    );
+  }
+
+  return <AgentFirstWorkspace />;
+}
+
+function AgentFirstWorkspace() {
   const { t, i18n } = useTranslation();
   const demoWorkbenchData = useMemo(
     () => createAgentFirstWorkbenchDemoData(t),

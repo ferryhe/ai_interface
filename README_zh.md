@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-`ai_interface` 是一个 AI Team 任务控制台（Mission Control）。普通用户在 Mission Center 中提交任务目标、审核生成的执行计划、确认高风险动作，并自主决定何时开始执行。高级用户可以进入 Backstage 和 Operator 界面查看 manifest、运行时 I/O、事件、产物、就绪状态、审批和受保护的配置变更。
+`ai_interface` 是一个 AI Team 任务控制台（Mission Control）。普通用户在 Mission Center 中提交任务目标、审核生成的执行计划、确认高风险动作，并自主决定何时开始执行。公开/token 用户进入同一个 Mission Portal 前台的 token 模式；运营人员使用唯一的 Backstage 工作区查看运行证据、审批、设置和受保护治理能力。
 
 **产品默认以 Mission 为先：**
 
-- **Mission Center** — 普通用户的默认入口，用于任务提交、计划审核、审批和执行交接。
-- **Backstage** — 执行与观测工作台，提供 Agents、Skills、Runs、Artifacts 四大标签页。
-- **Operator Backstage** — 高级治理入口，用于 manifest 审核、只读检查以及受保护的自定义 manifest 变更。
+- **Mission Center / Mission Portal** — 唯一前台路径，用于任务提交、计划审核、当前 Mission 审批、状态和结果交接。
+- **Token Mission Portal** — 复用同一前台并走 portal-runtime guard；不暴露 Backstage、manifest、provider/model 设置或 publish token。
+- **Backstage** — 唯一后台工作区，承载 Runs、Artifacts、Agents、Skills、Teams、Approvals、Settings。
 
 ---
 
@@ -232,28 +232,24 @@ DAG 模式下，无审批要求的就绪步骤并行执行（默认最大并发 
 
 ---
 
-## 三条路径
+## Mission Portal 与 Backstage
 
-### Mission Center（普通用户默认路径）
+### Mission Center / Mission Portal（普通用户默认路径）
 
 - 以产品语言提交任务需求（而非底层技能术语）
 - 审核生成的执行计划、依赖与审批关卡
 - 批准后不自动执行
 - 自主决定保留待执行或调用 `/api/missions/:missionId/execute`
+- token/public 模式使用轻量 Mission Portal 令牌 URL，渲染同一个 Mission Portal，API 调用由 portal-runtime guard 限定范围
 
-### Backstage（执行与观测工作台）
+### Backstage（唯一执行、观测与治理工作台）
 
-- 浏览 Agents、Skills、Runs、Artifacts 四大一级标签页
+- 浏览 Runs、Artifacts、Agents、Skills、Teams、Approvals、Settings 七个一级标签页
 - 查看 Agent 完整九段信息（identity、criticalRules、deliverables、workflow、communicationStyle、successMetrics）
 - 查看 Agent 所属团队（`teamId`）并按团队过滤
 - 查看 runtimeStatus 标识（runnable / template）
 - 检查技能 manifest、适配器就绪状态、运行 I/O、事件、产物和 Skill UI 交接
-
-### Operator Backstage（高级治理路径）
-
-- 审核带来源标签的内置/社区/自定义 manifest
-- API/UI 响应脱敏处理密钥值、本地路径、provider/MCP URL 和 token
-- 仅允许受保护的 localhost 自定义 manifest 变更，内置和社区 manifest 保持只读
+- 在 Settings 中处理 provider/model 配置、发布状态/token、受保护 manifest 治理
 
 ---
 
@@ -340,15 +336,15 @@ git diff --check
 
 浏览器验证要点：
 
-- 前台可渲染并提交/展示流程
-- 可从顶栏切换至 Backstage
-- Agents 标签页完整渲染全部 6 个 Agent，展示九段详情，支持按团队过滤
-- Skills 标签页显示默认内置和社区技能
-- Runs 标签页显示有序的模块步骤、事件和活跃技能
+- Mission Portal 作为默认前台打开，并走通 intake → board/plan review → revise/approve → execute/status
+- token/public URL 使用轻量 Mission Portal 令牌入口（`/preview/ai-os/AgentPortalInterface?token=...`），停留在同一个 Mission Portal，不出现 Backstage 或 Settings 控件
+- Backstage 仅从运营 shell 切换，Runs、Artifacts、Agents、Skills、Teams、Approvals、Settings 标签页无 console 错误
+- Runs 标签页显示有序模块步骤、事件、活跃技能和 raw JSON
 - Artifacts 标签页按 pipeline 和 module 运行分组
-- 选中技能详情显示 manifest、就绪状态、I/O、事件、产物
-- 带 `htmlEntrypoint` 的技能显示沙箱化 Skill UI 标签页
-- 触发/审批运行选中对应的 Backstage Skill UI 标签页
+- Agents 标签页展示所有 Agent 的九段详情并支持团队过滤
+- Skills 标签页显示内置/社区技能、就绪状态、I/O、事件、产物、raw JSON 和按需沙箱化 Skill UI
+- Approvals 标签页跨 indexed runs 聚合阻断项并链接回所属 run/skill
+- Settings 承载 provider/model 配置、发布状态/token 和受保护 manifest 治理
 
 ---
 

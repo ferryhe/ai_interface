@@ -21,6 +21,10 @@ test("mission portal token mode reads token and mission id from public URL param
     portalToken: "fallback-secret",
     missionId: null,
   });
+  assert.deepEqual(readMissionPortalSearchParams("?missionId= mission-456 "), {
+    portalToken: "",
+    missionId: "mission-456",
+  });
 });
 
 test("mission portal runtime headers scope token users to the portal runtime guard", () => {
