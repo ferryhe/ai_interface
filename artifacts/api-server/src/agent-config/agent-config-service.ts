@@ -393,9 +393,13 @@ export async function updateAgentConfig(
     : null;
   const activeProviderDefinition =
     providerDefinition ?? getPlannerProviderDefinition(provider);
+  const currentEndpointSupported =
+    activeProviderDefinition.supportedEndpoints.includes(current.endpoint);
   const endpoint =
     input.endpoint ??
-    (providerChanged ? activeProviderDefinition.defaultEndpoint : current.endpoint);
+    (providerChanged || !currentEndpointSupported
+      ? activeProviderDefinition.defaultEndpoint
+      : current.endpoint);
   if (!activeProviderDefinition.supportedEndpoints.includes(endpoint)) {
     throw new Error(
       `${activeProviderDefinition.displayName} does not support endpoint ${endpoint}.`,

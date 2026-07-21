@@ -137,6 +137,24 @@ test("explicit deterministic provider does not report fallback warning", async (
   );
 });
 
+test("legacy endpoint keeps its configured provider and uses its default endpoint", () => {
+  const legacyConfig = configuredConfig("deterministic");
+  legacyConfig.endpoint = "responses";
+
+  const selection = selectPlannerProvider(legacyConfig, {
+    OPENAI_API_KEY: "sk-test-secret",
+  });
+
+  assert.equal(selection.definition.provider, "deterministic");
+  assert.equal(selection.endpoint, "deterministic");
+  assert.equal(selection.connection.activeProvider, "deterministic");
+  assert.equal(selection.connection.activeEndpoint, "deterministic");
+  assert.equal(
+    selection.warnings.some((warning) => warning.includes("using deterministic")),
+    true,
+  );
+});
+
 test("Anthropic mocked HTTP planner returns valid normalized steps", async () => {
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {

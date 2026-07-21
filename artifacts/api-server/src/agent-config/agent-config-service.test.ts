@@ -283,6 +283,24 @@ test("configures API protocol and arbitrary model independently", async () => {
   );
 });
 
+test("normalizes a legacy stored endpoint when the update omits endpoint", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+  const legacy = await getAgentConfig(repository);
+  repository.configs[0] = {
+    ...legacy,
+    provider: "deterministic",
+    endpoint: "responses",
+  };
+
+  const updated = await updateAgentConfig(repository, {
+    systemPrompt: "Updated without an endpoint migration.",
+  });
+
+  assert.equal(updated.provider, "deterministic");
+  assert.equal(updated.endpoint, "deterministic");
+  assert.equal(updated.systemPrompt, "Updated without an endpoint migration.");
+});
+
 test("updates publish settings and hashes portal token without returning plaintext", async () => {
   const repository = new InMemoryAgentConfigRepository();
 

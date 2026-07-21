@@ -195,17 +195,19 @@ export function selectPlannerProvider(
   const warnings: string[] = [];
 
   let activeDefinition = configuredDefinition;
-  let activeEndpoint = configuredEndpoint;
   const endpointSupported = configuredDefinition.supportedEndpoints.includes(
     configuredEndpoint,
   );
+  let activeEndpoint = endpointSupported
+    ? configuredEndpoint
+    : configuredDefinition.defaultEndpoint;
   if (!endpointSupported) {
     warnings.push(
-      `Configured endpoint ${configuredEndpoint} is not supported by ${configuredDefinition.displayName}.`,
+      `Configured endpoint ${configuredEndpoint} is not supported by ${configuredDefinition.displayName}; using ${activeEndpoint}.`,
     );
   }
 
-  if (!hasRequiredEnv(configuredDefinition, env) || !endpointSupported) {
+  if (!hasRequiredEnv(configuredDefinition, env)) {
     const missing = missingEnv(configuredDefinition, env);
     if (missing.length > 0) {
       warnings.push(
