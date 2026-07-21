@@ -36,7 +36,8 @@ import {
 } from "../skill-runtime/skill-runtime-registry";
 import {
   createDeterministicPlannerPlan,
-  createPlannerForProvider,
+  createPlannerForConfig,
+  getPlannerProviderDefinition,
   selectPlannerProvider,
 } from "./planner-providers";
 import {
@@ -422,6 +423,7 @@ function plannerConfigForActiveProvider(
   return {
     ...config,
     provider: activeProvider,
+    endpoint: selection.endpoint,
     modelId: selection.definition.defaultModelId,
     reasoningEffort: selection.definition.supportsReasoningEffort
       ? config.reasoningEffort
@@ -434,9 +436,14 @@ function configWithAgentProviderOverrides(
   activeAgent: AgentManifest | null,
 ): AgentConfigRecord {
   if (!activeAgent?.provider) return config;
+  const provider = activeAgent.provider.provider ?? config.provider;
   return {
     ...config,
-    provider: activeAgent.provider.provider ?? config.provider,
+    provider,
+    endpoint:
+      provider === config.provider
+        ? config.endpoint
+        : getPlannerProviderDefinition(provider).defaultEndpoint,
     modelId: activeAgent.provider.modelId ?? config.modelId,
     reasoningEffort:
       activeAgent.provider.reasoningEffort ?? config.reasoningEffort,
@@ -737,7 +744,7 @@ export async function createAgentRun(
   const config = await getAgentConfig(configRepository, skillRegistry);
   const runConfig = configWithAgentProviderOverrides(config, activeAgent);
   const plannerSelection = selectPlannerProvider(runConfig, env);
-  const connection = getConnectionStatus(env, runConfig.provider);
+  const connection = getConnectionStatus(env, runConfig);
   const agentSkillIds = activeAgent
     ? activeAgent.skills.map((binding) => binding.skillId)
     : undefined;
@@ -814,8 +821,11 @@ export async function createAgentRun(
 
   const planner =
     options.planner ??
-    createPlannerForProvider(
-      plannerSelection.definition.provider,
+    createPlannerForConfig(
+      {
+        provider: plannerSelection.definition.provider,
+        endpoint: plannerSelection.endpoint,
+      },
       env,
       options.fetchFn,
       plannerSelection.connection.status === "missing_key"

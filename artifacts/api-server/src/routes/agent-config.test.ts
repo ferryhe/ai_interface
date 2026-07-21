@@ -182,7 +182,7 @@ test("agent config routes accept Vite-proxied localhost admin writes with forwar
       origin: `http://${uiHost}`,
       body: {
         provider: "deterministic",
-        endpoint: "responses",
+        endpoint: "deterministic",
         modelId: "deterministic-v1",
         reasoningEffort: "none",
       },
@@ -212,7 +212,7 @@ test("agent config routes accept same-origin localhost admin requests", async ()
       origin: `http://${host}`,
       body: {
         provider: "deterministic",
-        endpoint: "responses",
+        endpoint: "deterministic",
         modelId: "deterministic-v1",
         reasoningEffort: "none",
       },

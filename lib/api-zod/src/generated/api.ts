@@ -258,7 +258,13 @@ export const GetAgentsResponse = zod.object({
       provider: zod
         .object({
           provider: zod
-            .enum(["openai", "anthropic", "ollama", "deterministic"])
+            .enum([
+              "openai",
+              "openai_compatible",
+              "anthropic",
+              "ollama",
+              "deterministic",
+            ])
             .optional(),
           modelId: zod.string().optional(),
           reasoningEffort: zod
@@ -2494,21 +2500,40 @@ export const CreateAgentRunResponse = zod.object({
     status: zod.enum(["configured", "missing_key"]),
     configuredProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
     ]),
     activeProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
+    ]),
+    configuredEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ]),
+    activeEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
     ]),
     providers: zod.array(
       zod
         .object({
           provider: zod.enum([
             "openai",
+            "openai_compatible",
             "anthropic",
             "ollama",
             "deterministic",
@@ -2516,6 +2541,26 @@ export const CreateAgentRunResponse = zod.object({
           displayName: zod.string(),
           requiredEnv: zod.array(zod.string()),
           defaultModelId: zod.string(),
+          defaultEndpoint: zod.enum([
+            "responses",
+            "chat_completions",
+            "anthropic_messages",
+            "ollama_chat",
+            "deterministic",
+            "agents_sdk",
+          ]),
+          supportedEndpoints: zod.array(
+            zod.enum([
+              "responses",
+              "chat_completions",
+              "anthropic_messages",
+              "ollama_chat",
+              "deterministic",
+              "agents_sdk",
+            ]),
+          ),
+          apiKeyEnv: zod.string().nullable(),
+          baseUrlEnv: zod.string().nullable(),
           supportsReasoningEffort: zod.boolean(),
         })
         .and(
@@ -2891,8 +2936,21 @@ export const GetAgentConfigResponse = zod.object({
   config: zod.object({
     id: zod.string().uuid(),
     configKey: zod.string(),
-    provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
-    endpoint: zod.enum(["responses", "agents_sdk"]),
+    provider: zod.enum([
+      "openai",
+      "openai_compatible",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    endpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ]),
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
     systemPrompt: zod.string(),
@@ -2957,21 +3015,40 @@ export const GetAgentConfigResponse = zod.object({
     status: zod.enum(["configured", "missing_key"]),
     configuredProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
     ]),
     activeProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
+    ]),
+    configuredEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ]),
+    activeEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
     ]),
     providers: zod.array(
       zod
         .object({
           provider: zod.enum([
             "openai",
+            "openai_compatible",
             "anthropic",
             "ollama",
             "deterministic",
@@ -2979,6 +3056,26 @@ export const GetAgentConfigResponse = zod.object({
           displayName: zod.string(),
           requiredEnv: zod.array(zod.string()),
           defaultModelId: zod.string(),
+          defaultEndpoint: zod.enum([
+            "responses",
+            "chat_completions",
+            "anthropic_messages",
+            "ollama_chat",
+            "deterministic",
+            "agents_sdk",
+          ]),
+          supportedEndpoints: zod.array(
+            zod.enum([
+              "responses",
+              "chat_completions",
+              "anthropic_messages",
+              "ollama_chat",
+              "deterministic",
+              "agents_sdk",
+            ]),
+          ),
+          apiKeyEnv: zod.string().nullable(),
+          baseUrlEnv: zod.string().nullable(),
           supportsReasoningEffort: zod.boolean(),
         })
         .and(
@@ -2999,9 +3096,24 @@ export const GetAgentConfigResponse = zod.object({
 
 export const UpdateAgentConfigBody = zod.object({
   provider: zod
-    .enum(["openai", "anthropic", "ollama", "deterministic"])
+    .enum([
+      "openai",
+      "openai_compatible",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ])
     .optional(),
-  endpoint: zod.enum(["responses", "agents_sdk"]).optional(),
+  endpoint: zod
+    .enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ])
+    .optional(),
   modelId: zod.string().optional(),
   reasoningEffort: zod
     .enum(["none", "low", "medium", "high", "xhigh"])
@@ -3075,8 +3187,21 @@ export const UpdateAgentConfigResponse = zod.object({
   config: zod.object({
     id: zod.string().uuid(),
     configKey: zod.string(),
-    provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
-    endpoint: zod.enum(["responses", "agents_sdk"]),
+    provider: zod.enum([
+      "openai",
+      "openai_compatible",
+      "anthropic",
+      "ollama",
+      "deterministic",
+    ]),
+    endpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ]),
     modelId: zod.string(),
     reasoningEffort: zod.enum(["none", "low", "medium", "high", "xhigh"]),
     systemPrompt: zod.string(),
@@ -3141,21 +3266,40 @@ export const UpdateAgentConfigResponse = zod.object({
     status: zod.enum(["configured", "missing_key"]),
     configuredProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
     ]),
     activeProvider: zod.enum([
       "openai",
+      "openai_compatible",
       "anthropic",
       "ollama",
       "deterministic",
+    ]),
+    configuredEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
+    ]),
+    activeEndpoint: zod.enum([
+      "responses",
+      "chat_completions",
+      "anthropic_messages",
+      "ollama_chat",
+      "deterministic",
+      "agents_sdk",
     ]),
     providers: zod.array(
       zod
         .object({
           provider: zod.enum([
             "openai",
+            "openai_compatible",
             "anthropic",
             "ollama",
             "deterministic",
@@ -3163,6 +3307,26 @@ export const UpdateAgentConfigResponse = zod.object({
           displayName: zod.string(),
           requiredEnv: zod.array(zod.string()),
           defaultModelId: zod.string(),
+          defaultEndpoint: zod.enum([
+            "responses",
+            "chat_completions",
+            "anthropic_messages",
+            "ollama_chat",
+            "deterministic",
+            "agents_sdk",
+          ]),
+          supportedEndpoints: zod.array(
+            zod.enum([
+              "responses",
+              "chat_completions",
+              "anthropic_messages",
+              "ollama_chat",
+              "deterministic",
+              "agents_sdk",
+            ]),
+          ),
+          apiKeyEnv: zod.string().nullable(),
+          baseUrlEnv: zod.string().nullable(),
           supportsReasoningEffort: zod.boolean(),
         })
         .and(
@@ -3184,18 +3348,67 @@ export const TestAgentConfigConnectionResponse = zod.object({
   status: zod.enum(["configured", "missing_key"]),
   configuredProvider: zod.enum([
     "openai",
+    "openai_compatible",
     "anthropic",
     "ollama",
     "deterministic",
   ]),
-  activeProvider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
+  activeProvider: zod.enum([
+    "openai",
+    "openai_compatible",
+    "anthropic",
+    "ollama",
+    "deterministic",
+  ]),
+  configuredEndpoint: zod.enum([
+    "responses",
+    "chat_completions",
+    "anthropic_messages",
+    "ollama_chat",
+    "deterministic",
+    "agents_sdk",
+  ]),
+  activeEndpoint: zod.enum([
+    "responses",
+    "chat_completions",
+    "anthropic_messages",
+    "ollama_chat",
+    "deterministic",
+    "agents_sdk",
+  ]),
   providers: zod.array(
     zod
       .object({
-        provider: zod.enum(["openai", "anthropic", "ollama", "deterministic"]),
+        provider: zod.enum([
+          "openai",
+          "openai_compatible",
+          "anthropic",
+          "ollama",
+          "deterministic",
+        ]),
         displayName: zod.string(),
         requiredEnv: zod.array(zod.string()),
         defaultModelId: zod.string(),
+        defaultEndpoint: zod.enum([
+          "responses",
+          "chat_completions",
+          "anthropic_messages",
+          "ollama_chat",
+          "deterministic",
+          "agents_sdk",
+        ]),
+        supportedEndpoints: zod.array(
+          zod.enum([
+            "responses",
+            "chat_completions",
+            "anthropic_messages",
+            "ollama_chat",
+            "deterministic",
+            "agents_sdk",
+          ]),
+        ),
+        apiKeyEnv: zod.string().nullable(),
+        baseUrlEnv: zod.string().nullable(),
         supportsReasoningEffort: zod.boolean(),
       })
       .and(

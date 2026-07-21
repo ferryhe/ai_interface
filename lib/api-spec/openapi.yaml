@@ -3611,6 +3611,7 @@ components:
       type: string
       enum:
         - openai
+        - openai_compatible
         - anthropic
         - ollama
         - deterministic
@@ -3618,6 +3619,10 @@ components:
       type: string
       enum:
         - responses
+        - chat_completions
+        - anthropic_messages
+        - ollama_chat
+        - deterministic
         - agents_sdk
     AgentReasoningEffort:
       type: string
@@ -3645,6 +3650,18 @@ components:
             type: string
         defaultModelId:
           type: string
+        defaultEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        supportedEndpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentEndpoint"
+        apiKeyEnv:
+          type: string
+          nullable: true
+        baseUrlEnv:
+          type: string
+          nullable: true
         supportsReasoningEffort:
           type: boolean
       required:
@@ -3652,6 +3669,10 @@ components:
         - displayName
         - requiredEnv
         - defaultModelId
+        - defaultEndpoint
+        - supportedEndpoints
+        - apiKeyEnv
+        - baseUrlEnv
         - supportsReasoningEffort
     PlannerProviderReadiness:
       allOf:
@@ -3909,6 +3930,10 @@ components:
           $ref: "#/components/schemas/AgentProvider"
         activeProvider:
           $ref: "#/components/schemas/AgentProvider"
+        configuredEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        activeEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
         providers:
           type: array
           items:
@@ -3921,6 +3946,8 @@ components:
         - status
         - configuredProvider
         - activeProvider
+        - configuredEndpoint
+        - activeEndpoint
         - providers
         - warnings
     AgentConfigResponse:
@@ -3969,6 +3996,10 @@ components:
           $ref: "#/components/schemas/AgentProvider"
         activeProvider:
           $ref: "#/components/schemas/AgentProvider"
+        configuredEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        activeEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
         providers:
           type: array
           items:
@@ -3984,6 +4015,8 @@ components:
         - status
         - configuredProvider
         - activeProvider
+        - configuredEndpoint
+        - activeEndpoint
         - providers
         - warnings
         - checkedAt
@@ -4025,6 +4058,10 @@ components:
           $ref: "#/components/schemas/AgentProvider"
         activeProvider:
           $ref: "#/components/schemas/AgentProvider"
+        configuredEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
+        activeEndpoint:
+          $ref: "#/components/schemas/AgentEndpoint"
         providers:
           type: array
           items:
@@ -4037,6 +4074,8 @@ components:
         - status
         - configuredProvider
         - activeProvider
+        - configuredEndpoint
+        - activeEndpoint
         - providers
         - warnings
     AgentThread:

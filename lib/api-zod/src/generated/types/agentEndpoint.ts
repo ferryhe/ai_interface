@@ -10,5 +10,9 @@ export type AgentEndpoint = (typeof AgentEndpoint)[keyof typeof AgentEndpoint];
 
 export const AgentEndpoint = {
   responses: "responses",
+  chat_completions: "chat_completions",
+  anthropic_messages: "anthropic_messages",
+  ollama_chat: "ollama_chat",
+  deterministic: "deterministic",
   agents_sdk: "agents_sdk",
 } as const;

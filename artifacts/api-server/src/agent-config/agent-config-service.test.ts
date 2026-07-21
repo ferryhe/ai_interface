@@ -84,7 +84,7 @@ test("creates the default agent config with business and general skills", async 
 
   assert.equal(config.provider, "openai");
   assert.equal(config.endpoint, "responses");
-  assert.equal(config.modelId, "gpt-5.5");
+  assert.equal(config.modelId, "gpt-5.6-luna");
   assert.equal(config.reasoningEffort, "medium");
   assert.deepEqual(
     config.businessSkillSettings.map((skill) => skill.moduleId),
@@ -238,6 +238,7 @@ test("provider-only updates use provider defaults for model and reasoning", asyn
   });
 
   assert.equal(anthropic.provider, "anthropic");
+  assert.equal(anthropic.endpoint, "anthropic_messages");
   assert.equal(anthropic.modelId, "claude-3-5-sonnet-latest");
   assert.equal(anthropic.reasoningEffort, "none");
 
@@ -246,6 +247,7 @@ test("provider-only updates use provider defaults for model and reasoning", asyn
   });
 
   assert.equal(ollama.provider, "ollama");
+  assert.equal(ollama.endpoint, "ollama_chat");
   assert.equal(ollama.modelId, "llama3.1");
   assert.equal(ollama.reasoningEffort, "none");
 
@@ -254,8 +256,31 @@ test("provider-only updates use provider defaults for model and reasoning", asyn
   });
 
   assert.equal(openai.provider, "openai");
-  assert.equal(openai.modelId, "gpt-5.5");
+  assert.equal(openai.endpoint, "responses");
+  assert.equal(openai.modelId, "gpt-5.6-luna");
   assert.equal(openai.reasoningEffort, "medium");
+});
+
+test("configures API protocol and arbitrary model independently", async () => {
+  const repository = new InMemoryAgentConfigRepository();
+
+  const updated = await updateAgentConfig(repository, {
+    provider: "openai_compatible",
+    endpoint: "chat_completions",
+    modelId: "local-model:latest",
+  });
+
+  assert.equal(updated.provider, "openai_compatible");
+  assert.equal(updated.endpoint, "chat_completions");
+  assert.equal(updated.modelId, "local-model:latest");
+
+  await assert.rejects(
+    () =>
+      updateAgentConfig(repository, {
+        endpoint: "anthropic_messages",
+      }),
+    /does not support endpoint anthropic_messages/,
+  );
 });
 
 test("updates publish settings and hashes portal token without returning plaintext", async () => {

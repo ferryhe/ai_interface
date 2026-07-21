@@ -76,8 +76,19 @@ type RuntimeRunStatus =
   | "skipped"
   | "queued";
 type RuntimeActionState = "idle" | "submitting" | "succeeded" | "failed";
-type AgentProvider = "openai" | "anthropic" | "ollama" | "deterministic";
-type AgentEndpoint = "responses" | "agents_sdk";
+type AgentProvider =
+  | "openai"
+  | "openai_compatible"
+  | "anthropic"
+  | "ollama"
+  | "deterministic";
+type AgentEndpoint =
+  | "responses"
+  | "chat_completions"
+  | "anthropic_messages"
+  | "ollama_chat"
+  | "deterministic"
+  | "agents_sdk";
 type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 type MemoryPromotionMode = "manual" | "agent_suggested";
 type AgentConnectionStatus = "configured" | "missing_key" | "offline";
@@ -381,6 +392,10 @@ interface PlannerProviderReadiness {
   displayName: string;
   requiredEnv: string[];
   defaultModelId: string;
+  defaultEndpoint: AgentEndpoint;
+  supportedEndpoints: AgentEndpoint[];
+  apiKeyEnv: string | null;
+  baseUrlEnv: string | null;
   supportsReasoningEffort: boolean;
   configured: boolean;
   missingEnv: string[];
@@ -390,6 +405,8 @@ interface AgentConnectionPayload {
   status: Exclude<AgentConnectionStatus, "offline">;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
   checkedAt?: string;
@@ -1017,22 +1034,48 @@ const plannerProviderOptions: Array<{
   provider: AgentProvider;
   label: string;
   defaultModelId: string;
+  defaultEndpoint: AgentEndpoint;
+  supportedEndpoints: AgentEndpoint[];
 }> = [
-  { provider: "openai", label: "OpenAI", defaultModelId: "gpt-5.5" },
+  {
+    provider: "openai",
+    label: "OpenAI",
+    defaultModelId: "gpt-5.6-luna",
+    defaultEndpoint: "responses",
+    supportedEndpoints: ["responses", "chat_completions"],
+  },
+  {
+    provider: "openai_compatible",
+    label: "OpenAI Compatible",
+    defaultModelId: "gpt-5.6-luna",
+    defaultEndpoint: "chat_completions",
+    supportedEndpoints: ["responses", "chat_completions"],
+  },
   {
     provider: "anthropic",
     label: "Anthropic",
     defaultModelId: "claude-3-5-sonnet-latest",
+    defaultEndpoint: "anthropic_messages",
+    supportedEndpoints: ["anthropic_messages"],
   },
-  { provider: "ollama", label: "Ollama", defaultModelId: "llama3.1" },
+  {
+    provider: "ollama",
+    label: "Ollama",
+    defaultModelId: "llama3.1",
+    defaultEndpoint: "ollama_chat",
+    supportedEndpoints: ["ollama_chat"],
+  },
   {
     provider: "deterministic",
     label: "Deterministic",
     defaultModelId: "deterministic-v1",
+    defaultEndpoint: "deterministic",
+    supportedEndpoints: ["deterministic"],
   },
 ];
 
 const plannerModelOptions = [
+  "gpt-5.6-luna",
   "gpt-5.5",
   "gpt-5.4",
   "gpt-5.4-mini",
@@ -1045,8 +1088,24 @@ const plannerModelOptions = [
 function defaultModelForProvider(provider: AgentProvider): string {
   return (
     plannerProviderOptions.find((option) => option.provider === provider)
-      ?.defaultModelId ?? "gpt-5.5"
+      ?.defaultModelId ?? "gpt-5.6-luna"
   );
+}
+
+function providerOption(provider: AgentProvider) {
+  return plannerProviderOptions.find((option) => option.provider === provider)!;
+}
+
+function endpointLabel(endpoint: AgentEndpoint): string {
+  const labels: Record<AgentEndpoint, string> = {
+    responses: "OpenAI Responses",
+    chat_completions: "OpenAI Chat Completions",
+    anthropic_messages: "Anthropic Messages",
+    ollama_chat: "Ollama Chat",
+    deterministic: "Deterministic",
+    agents_sdk: "Agents SDK (legacy)",
+  };
+  return labels[endpoint];
 }
 
 function plannerProviderLabel(provider: AgentProvider): string {
@@ -1063,7 +1122,7 @@ const generalSwitchGuides = ["enabled", "onDemand", "approval", "network"] as co
 const defaultAgentConfig: AgentConfigDraft = {
   provider: "openai",
   endpoint: "responses",
-  modelId: "gpt-5.5",
+  modelId: "gpt-5.6-luna",
   reasoningEffort: "medium",
   systemPrompt:
     "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
@@ -5930,6 +5989,7 @@ function ConfigureView({
   const memoryMode = t(`agentFirst.configure.memoryMode.${memoryModeKey}`);
   const activeProvider = connection?.activeProvider ?? config.provider;
   const configuredProvider = connection?.configuredProvider ?? config.provider;
+  const activeEndpoint = connection?.activeEndpoint ?? config.endpoint;
   const providerWarnings = connection?.warnings ?? [];
   const activeProviderText =
     connection && activeProvider !== configuredProvider
@@ -6001,9 +6061,11 @@ function ConfigureView({
                   onClick={() =>
                     onUpdateConfig({
                       provider: option.provider,
+                      endpoint: option.defaultEndpoint,
                       modelId: defaultModelForProvider(option.provider),
                       reasoningEffort:
-                        option.provider === "openai"
+                        option.provider === "openai" ||
+                        option.provider === "openai_compatible"
                           ? config.reasoningEffort === "none"
                             ? "medium"
                             : config.reasoningEffort
@@ -6021,6 +6083,9 @@ function ConfigureView({
               <span>
                 {t("agentFirst.configure.activePlanner")}: <strong>{activeProviderText}</strong>
               </span>
+              <span>
+                API: <strong>{endpointLabel(activeEndpoint)}</strong>
+              </span>
               {providerWarnings.slice(0, 2).map((warning) => (
                 <em key={warning}>{warning}</em>
               ))}
@@ -6035,14 +6100,14 @@ function ConfigureView({
               role="group"
               aria-labelledby="agent-endpoint-label"
             >
-              {(["responses", "agents_sdk"] as AgentEndpoint[]).map((endpoint) => (
+              {providerOption(config.provider).supportedEndpoints.map((endpoint) => (
                 <button
                   key={endpoint}
                   type="button"
                   className={config.endpoint === endpoint ? "segmented-button active" : "segmented-button"}
                   onClick={() => onUpdateConfig({ endpoint })}
                 >
-                  {endpoint === "responses" ? "Responses" : "Agents SDK"}
+                  {endpointLabel(endpoint)}
                 </button>
               ))}
             </div>
@@ -6072,17 +6137,19 @@ function ConfigureView({
           <p className="config-explainer">{t("agentFirst.configure.guides.model")}</p>
           <div className="config-field">
             <label htmlFor="agent-model-select">{t("agentFirst.configure.model")}</label>
-            <select
+            <input
               id="agent-model-select"
+              list="agent-model-options"
               value={config.modelId}
               onChange={(event) => onUpdateConfig({ modelId: event.target.value })}
-            >
+            />
+            <datalist id="agent-model-options">
               {plannerModelOptions.map((modelId) => (
                 <option key={modelId} value={modelId}>
                   {modelId}
                 </option>
               ))}
-            </select>
+            </datalist>
           </div>
           <div className="config-field">
             <span className="config-field-label" id="agent-reasoning-label">
@@ -6098,7 +6165,11 @@ function ConfigureView({
                   key={effort}
                   type="button"
                   className={config.reasoningEffort === effort ? "segmented-button active" : "segmented-button"}
-                  disabled={config.provider !== "openai" && effort !== "none"}
+                  disabled={
+                    config.provider !== "openai" &&
+                    config.provider !== "openai_compatible" &&
+                    effort !== "none"
+                  }
                   onClick={() => onUpdateConfig({ reasoningEffort: effort })}
                 >
                   {reasoningEffortLabel(effort, t)}
@@ -6404,7 +6475,9 @@ function ConfigureView({
           <div className="runtime-lines">
             <span>
               <strong>{t("agentFirst.metrics.configured")}</strong>
-              <em>{plannerProviderLabel(config.provider)} / {config.modelId}</em>
+              <em>
+                {plannerProviderLabel(config.provider)} / {endpointLabel(config.endpoint)} / {config.modelId}
+              </em>
             </span>
             <span>
               <strong>{t("agentFirst.configure.active")}</strong>

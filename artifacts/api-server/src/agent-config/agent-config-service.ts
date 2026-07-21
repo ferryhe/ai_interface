@@ -15,7 +15,13 @@ import {
 
 export type { AgentProvider } from "../agent-runtime/planner-providers";
 
-export type AgentEndpoint = "responses" | "agents_sdk";
+export type AgentEndpoint =
+  | "responses"
+  | "chat_completions"
+  | "anthropic_messages"
+  | "ollama_chat"
+  | "deterministic"
+  | "agents_sdk";
 export type AgentReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type MemoryPromotionMode = "manual" | "agent_suggested";
 export type AgentPublishStatus = "draft" | "published" | "paused";
@@ -306,7 +312,7 @@ export function createDefaultAgentConfig(
     configKey: defaultAgentConfigKey,
     provider: "openai",
     endpoint: "responses",
-    modelId: "gpt-5.5",
+    modelId: "gpt-5.6-luna",
     reasoningEffort: "medium",
     systemPrompt:
       "You are the Agent Module OS orchestrator. Plan carefully, call registered modules through approved tools, store canonical results in Postgres memory, and explain progress with links to module results.",
@@ -385,14 +391,27 @@ export async function updateAgentConfig(
   const providerDefinition = providerChanged
     ? getPlannerProviderDefinition(provider)
     : null;
+  const activeProviderDefinition =
+    providerDefinition ?? getPlannerProviderDefinition(provider);
+  const endpoint =
+    input.endpoint ??
+    (providerChanged ? activeProviderDefinition.defaultEndpoint : current.endpoint);
+  if (!activeProviderDefinition.supportedEndpoints.includes(endpoint)) {
+    throw new Error(
+      `${activeProviderDefinition.displayName} does not support endpoint ${endpoint}.`,
+    );
+  }
+  const modelId = (input.modelId ?? current.modelId).trim();
+  if (!modelId) throw new Error("modelId must not be empty.");
 
   return repository.upsertConfig({
     configKey: current.configKey,
     provider,
-    endpoint: input.endpoint ?? current.endpoint,
+    endpoint,
     modelId:
-      input.modelId ??
-      (providerChanged ? providerDefinition!.defaultModelId : current.modelId),
+      input.modelId === undefined && providerChanged
+        ? activeProviderDefinition.defaultModelId
+        : modelId,
     reasoningEffort:
       input.reasoningEffort ??
       (providerChanged
@@ -440,7 +459,17 @@ export async function verifyPortalAccess(
 
 export function getConnectionStatus(
   env: Record<string, string | undefined>,
-  configuredProvider: AgentProvider = "openai",
+  config: Pick<AgentConfigRecord, "provider" | "endpoint"> | AgentProvider = {
+    provider: "openai",
+    endpoint: "responses",
+  },
 ): AgentProviderConnectionStatus {
-  return selectPlannerProvider({ provider: configuredProvider }, env).connection;
+  const normalizedConfig =
+    typeof config === "string"
+      ? {
+          provider: config,
+          endpoint: getPlannerProviderDefinition(config).defaultEndpoint,
+        }
+      : config;
+  return selectPlannerProvider(normalizedConfig, env).connection;
 }

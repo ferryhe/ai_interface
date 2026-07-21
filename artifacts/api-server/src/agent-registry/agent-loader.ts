@@ -40,7 +40,13 @@ const rootSourceOrder = new Map<AgentSource, number>(
 const plannerModes = ["linear", "dag"] as const;
 const failureStrategies = ["fail_fast", "continue_independent"] as const;
 const memoryPromotionModes = ["manual", "run_summary", "disabled"] as const;
-const providers = ["openai", "anthropic", "ollama", "deterministic"] as const;
+const providers = [
+  "openai",
+  "openai_compatible",
+  "anthropic",
+  "ollama",
+  "deterministic",
+] as const;
 const reasoningEfforts = ["none", "low", "medium", "high", "xhigh"] as const;
 
 interface LoadedManifest {

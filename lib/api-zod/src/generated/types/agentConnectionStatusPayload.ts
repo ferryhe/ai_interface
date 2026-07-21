@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AgentConnectionStatus } from "./agentConnectionStatus";
+import type { AgentEndpoint } from "./agentEndpoint";
 import type { AgentProvider } from "./agentProvider";
 import type { PlannerProviderReadiness } from "./plannerProviderReadiness";
 
@@ -13,6 +14,8 @@ export interface AgentConnectionStatusPayload {
   status: AgentConnectionStatus;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
 }

@@ -210,14 +210,15 @@ flowchart LR
 
 ## Planner 供应者
 
-Agent 规划通过供应者注册表进行。OpenAI 是默认配置的 planner，使用 `OPENAI_API_KEY` 和 Responses API。Anthropic 使用 `ANTHROPIC_API_KEY`，Ollama 使用 `OLLAMA_API_BASE_URL`，确定性 planner 是显式的无环境变量回退方案。
+Agent 规划通过供应者注册表和统一的 `ModelApi` 接口进行。供应者、API 协议和模型 ID 可以分别配置。OpenAI 使用 `OPENAI_API_KEY`，并可通过 `OPENAI_API_BASE_URL` 改写地址；OpenAI-compatible API 使用 `OPENAI_COMPATIBLE_API_BASE_URL` 和可选的 `OPENAI_COMPATIBLE_API_KEY`；Anthropic 使用 `ANTHROPIC_API_KEY` 和可选的 `ANTHROPIC_API_BASE_URL`；Ollama 使用 `OLLAMA_API_BASE_URL`。本地环境变量模板见 `.env.example`。
 
-就绪状态仅以元数据形式报告：供应者名称、所需环境变量名、缺失的环境变量名、默认模型 ID、是否支持推理强度。API 不返回 API 密钥值或本地 Ollama 基础 URL。若选定供应者不可用，运行时按回退顺序（`openai` → `anthropic` → `ollama`）选择第一个可用供应者，否则使用确定性 planner 并发出警告。
+就绪状态仅以元数据形式报告：供应者名称、所需环境变量名、支持的 API 协议、默认模型 ID、是否支持推理强度。API 不返回 API 密钥值或已配置的基础 URL。若选定供应者不可用，运行时按回退顺序（`openai` → `openai_compatible` → `anthropic` → `ollama`）选择第一个可用供应者，否则使用确定性 planner 并发出警告。
 
 在已有 Postgres 数据库中保存非 OpenAI 供应者前，需执行迁移：
 
 ```bash
 psql "$DATABASE_URL" -f lib/db/migrations/20260520_add_agent_provider_values.sql
+psql "$DATABASE_URL" -f lib/db/migrations/20260721_add_model_api_profiles.sql
 ```
 
 ---

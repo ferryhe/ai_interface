@@ -1,5 +1,14 @@
-import type { AgentConfigRecord } from "../agent-config/agent-config-service";
+import type {
+  AgentConfigRecord,
+  AgentEndpoint,
+} from "../agent-config/agent-config-service";
 import type { BusinessSkillDefinition } from "./skill-registry";
+import {
+  AnthropicModelApi,
+  OllamaModelApi,
+  OpenAICompatibleModelApi,
+  type ModelApi,
+} from "./model-api";
 import type {
   AgentRuntimePlanMode,
   DagFailureStrategy,
@@ -7,7 +16,12 @@ import type {
 
 export type { AgentRuntimePlanMode, DagFailureStrategy } from "./dag-executor";
 
-export type AgentProvider = "openai" | "anthropic" | "ollama" | "deterministic";
+export type AgentProvider =
+  | "openai"
+  | "openai_compatible"
+  | "anthropic"
+  | "ollama"
+  | "deterministic";
 export type AgentConnectionStatus = "configured" | "missing_key";
 
 export interface PlannerProviderDefinition {
@@ -15,6 +29,10 @@ export interface PlannerProviderDefinition {
   displayName: string;
   requiredEnv: string[];
   defaultModelId: string;
+  defaultEndpoint: AgentEndpoint;
+  supportedEndpoints: AgentEndpoint[];
+  apiKeyEnv: string | null;
+  baseUrlEnv: string | null;
   supportsReasoningEffort: boolean;
 }
 
@@ -27,6 +45,8 @@ export interface AgentProviderConnectionStatus {
   status: AgentConnectionStatus;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
 }
@@ -65,7 +85,22 @@ export const plannerProviderDefinitions: PlannerProviderDefinition[] = [
     provider: "openai",
     displayName: "OpenAI",
     requiredEnv: ["OPENAI_API_KEY"],
-    defaultModelId: "gpt-5.5",
+    defaultModelId: "gpt-5.6-luna",
+    defaultEndpoint: "responses",
+    supportedEndpoints: ["responses", "chat_completions"],
+    apiKeyEnv: "OPENAI_API_KEY",
+    baseUrlEnv: "OPENAI_API_BASE_URL",
+    supportsReasoningEffort: true,
+  },
+  {
+    provider: "openai_compatible",
+    displayName: "OpenAI Compatible",
+    requiredEnv: ["OPENAI_COMPATIBLE_API_BASE_URL"],
+    defaultModelId: "gpt-5.6-luna",
+    defaultEndpoint: "chat_completions",
+    supportedEndpoints: ["responses", "chat_completions"],
+    apiKeyEnv: "OPENAI_COMPATIBLE_API_KEY",
+    baseUrlEnv: "OPENAI_COMPATIBLE_API_BASE_URL",
     supportsReasoningEffort: true,
   },
   {
@@ -73,6 +108,10 @@ export const plannerProviderDefinitions: PlannerProviderDefinition[] = [
     displayName: "Anthropic",
     requiredEnv: ["ANTHROPIC_API_KEY"],
     defaultModelId: "claude-3-5-sonnet-latest",
+    defaultEndpoint: "anthropic_messages",
+    supportedEndpoints: ["anthropic_messages"],
+    apiKeyEnv: "ANTHROPIC_API_KEY",
+    baseUrlEnv: "ANTHROPIC_API_BASE_URL",
     supportsReasoningEffort: false,
   },
   {
@@ -80,6 +119,10 @@ export const plannerProviderDefinitions: PlannerProviderDefinition[] = [
     displayName: "Ollama",
     requiredEnv: ["OLLAMA_API_BASE_URL"],
     defaultModelId: "llama3.1",
+    defaultEndpoint: "ollama_chat",
+    supportedEndpoints: ["ollama_chat"],
+    apiKeyEnv: null,
+    baseUrlEnv: "OLLAMA_API_BASE_URL",
     supportsReasoningEffort: false,
   },
   {
@@ -87,11 +130,20 @@ export const plannerProviderDefinitions: PlannerProviderDefinition[] = [
     displayName: "Deterministic",
     requiredEnv: [],
     defaultModelId: "deterministic-v1",
+    defaultEndpoint: "deterministic",
+    supportedEndpoints: ["deterministic"],
+    apiKeyEnv: null,
+    baseUrlEnv: null,
     supportsReasoningEffort: false,
   },
 ];
 
-const plannerFallbackOrder: AgentProvider[] = ["openai", "anthropic", "ollama"];
+const plannerFallbackOrder: AgentProvider[] = [
+  "openai",
+  "openai_compatible",
+  "anthropic",
+  "ollama",
+];
 
 export function getPlannerProviderDefinition(
   provider: AgentProvider,
@@ -128,20 +180,32 @@ export function getPlannerProviderReadiness(
 }
 
 export function selectPlannerProvider(
-  config: Pick<AgentConfigRecord, "provider">,
+  config: Pick<AgentConfigRecord, "provider" | "endpoint">,
   env: Record<string, string | undefined>,
 ): {
   definition: PlannerProviderDefinition;
+  endpoint: AgentEndpoint;
   connection: AgentProviderConnectionStatus;
   warnings: string[];
 } {
   const configuredProvider = config.provider;
+  const configuredEndpoint = config.endpoint;
   const readiness = getPlannerProviderReadiness(env);
   const configuredDefinition = getPlannerProviderDefinition(configuredProvider);
   const warnings: string[] = [];
 
   let activeDefinition = configuredDefinition;
-  if (!hasRequiredEnv(configuredDefinition, env)) {
+  let activeEndpoint = configuredEndpoint;
+  const endpointSupported = configuredDefinition.supportedEndpoints.includes(
+    configuredEndpoint,
+  );
+  if (!endpointSupported) {
+    warnings.push(
+      `Configured endpoint ${configuredEndpoint} is not supported by ${configuredDefinition.displayName}.`,
+    );
+  }
+
+  if (!hasRequiredEnv(configuredDefinition, env) || !endpointSupported) {
     const missing = missingEnv(configuredDefinition, env);
     if (missing.length > 0) {
       warnings.push(
@@ -154,6 +218,7 @@ export function selectPlannerProvider(
         .map((provider) => getPlannerProviderDefinition(provider))
         .find((definition) => hasRequiredEnv(definition, env)) ??
       getPlannerProviderDefinition("deterministic");
+    activeEndpoint = activeDefinition.defaultEndpoint;
 
     if (activeDefinition.provider !== configuredProvider) {
       warnings.push(
@@ -164,6 +229,7 @@ export function selectPlannerProvider(
 
   return {
     definition: activeDefinition,
+    endpoint: activeEndpoint,
     warnings,
     connection: {
       status:
@@ -173,6 +239,8 @@ export function selectPlannerProvider(
           : "configured",
       configuredProvider,
       activeProvider: activeDefinition.provider,
+      configuredEndpoint,
+      activeEndpoint,
       providers: readiness,
       warnings,
     },
@@ -183,11 +251,6 @@ function trimTitle(value: string): string {
   const compact = value.replace(/\s+/g, " ").trim();
   if (!compact) return "Agent run";
   return compact.length > 72 ? `${compact.slice(0, 69)}...` : compact;
-}
-
-function normalizeJsonObject(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
 }
 
 function moduleDescriptions(enabledSkills: BusinessSkillDefinition[]) {
@@ -231,50 +294,44 @@ export function createDeterministicPlannerPlan(
   };
 }
 
-function extractOpenAIResponseText(payload: unknown): string {
-  const asRecord = normalizeJsonObject(payload);
-  if (typeof asRecord["output_text"] === "string") {
-    return asRecord["output_text"];
-  }
-
-  const output = asRecord["output"];
-  if (!Array.isArray(output)) return "";
-
-  const fragments: string[] = [];
-  for (const item of output) {
-    const content = normalizeJsonObject(item)["content"];
-    if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      const partRecord = normalizeJsonObject(part);
-      if (typeof partRecord["text"] === "string") {
-        fragments.push(partRecord["text"]);
-      }
-    }
-  }
-  return fragments.join("\n");
-}
-
-function extractAnthropicResponseText(payload: unknown): string {
-  const content = normalizeJsonObject(payload)["content"];
-  if (!Array.isArray(content)) return "";
-
-  const fragments: string[] = [];
-  for (const part of content) {
-    const partRecord = normalizeJsonObject(part);
-    if (typeof partRecord["text"] === "string") {
-      fragments.push(partRecord["text"]);
-    }
-  }
-  return fragments.join("\n");
-}
-
-function extractOllamaResponseText(payload: unknown): string {
-  const asRecord = normalizeJsonObject(payload);
-  const message = normalizeJsonObject(asRecord["message"]);
-  if (typeof message["content"] === "string") return message["content"];
-  if (typeof asRecord["response"] === "string") return asRecord["response"];
-  return "";
-}
+const plannerJsonSchema: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string" },
+    mode: { type: "string", enum: ["linear", "dag"] },
+    failureStrategy: {
+      type: "string",
+      enum: ["fail_fast", "continue_independent"],
+    },
+    warnings: { type: "array", items: { type: "string" } },
+    steps: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          moduleId: { type: "string" },
+          skillId: { type: "string" },
+          title: { type: "string" },
+          action: { type: "string" },
+          input: { type: "object", additionalProperties: true },
+          requiresApproval: { type: "boolean" },
+          stepId: { type: "string" },
+          dependsOn: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "moduleId",
+          "title",
+          "action",
+          "input",
+          "requiresApproval",
+        ],
+      },
+    },
+  },
+  required: ["summary", "steps", "warnings"],
+};
 
 function parsePlannerText(
   text: string,
@@ -334,98 +391,20 @@ export class OpenAIResponsesPlanner implements AgentPlanner {
         "OPENAI_API_KEY is missing.",
       );
     }
-
-    const response = await this.fetchFn("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: request.config.modelId,
-        reasoning:
-          request.config.reasoningEffort === "none"
-            ? undefined
-            : { effort: request.config.reasoningEffort },
-        input: [
-          {
-            role: "system",
-            content:
-              `${request.config.systemPrompt}\n\n` +
-              "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
-              "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
-              "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              userRequest: request.message,
-              enabledBusinessSkills: moduleDescriptions(request.enabledSkills),
-              safetySettings: request.config.safetySettings,
-              memorySettings: request.config.memorySettings,
-            }),
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "agent_runtime_plan",
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                summary: { type: "string" },
-                mode: { type: "string", enum: ["linear", "dag"] },
-                failureStrategy: {
-                  type: "string",
-                  enum: ["fail_fast", "continue_independent"],
-                },
-                warnings: { type: "array", items: { type: "string" } },
-                steps: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      moduleId: { type: "string" },
-                      skillId: { type: "string" },
-                      title: { type: "string" },
-                      action: { type: "string" },
-                      input: { type: "object", additionalProperties: true },
-                      requiresApproval: { type: "boolean" },
-                      stepId: { type: "string" },
-                      dependsOn: {
-                        type: "array",
-                        items: { type: "string" },
-                      },
-                    },
-                    required: [
-                      "moduleId",
-                      "title",
-                      "action",
-                      "input",
-                      "requiresApproval",
-                    ],
-                  },
-                },
-              },
-              required: ["summary", "steps", "warnings"],
-            },
-          },
+    return createModelApiPlanner(
+      new OpenAICompatibleModelApi(
+        {
+          baseUrl:
+            this.env["OPENAI_API_BASE_URL"]?.trim() ||
+            "https://api.openai.com/v1/",
+          apiKey,
+          endpoint: "responses",
+          supportsReasoningEffort: true,
         },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `OpenAI planner request failed with status ${response.status}`,
-      );
-    }
-
-    return parsePlannerText(
-      extractOpenAIResponseText(await response.json()),
+        this.fetchFn,
+      ),
       "OpenAI",
-    );
+    ).createPlan(request);
   }
 }
 
@@ -445,45 +424,15 @@ export class AnthropicMessagesPlanner implements AgentPlanner {
       );
     }
 
-    const response = await this.fetchFn("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: request.config.modelId,
-        max_tokens: 4096,
-        system:
-          `${request.config.systemPrompt}\n\n` +
-          "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
-          "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
-          "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
-        messages: [
-          {
-            role: "user",
-            content: JSON.stringify({
-              userRequest: request.message,
-              enabledBusinessSkills: moduleDescriptions(request.enabledSkills),
-              safetySettings: request.config.safetySettings,
-              memorySettings: request.config.memorySettings,
-            }),
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Anthropic planner request failed with status ${response.status}`,
-      );
-    }
-
-    return parsePlannerText(
-      extractAnthropicResponseText(await response.json()),
+    return createModelApiPlanner(
+      new AnthropicModelApi(
+        this.env["ANTHROPIC_API_BASE_URL"]?.trim() ||
+          "https://api.anthropic.com/v1/",
+        apiKey,
+        this.fetchFn,
+      ),
       "Anthropic",
-    );
+    ).createPlan(request);
   }
 }
 
@@ -502,58 +451,114 @@ export class OllamaChatPlanner implements AgentPlanner {
         "OLLAMA_API_BASE_URL is missing.",
       );
     }
-    const url = new URL("/api/chat", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
-
-    const response = await this.fetchFn(url.toString(), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: request.config.modelId,
-        stream: false,
-        format: "json",
-        messages: [
-          {
-            role: "system",
-            content:
-              `${request.config.systemPrompt}\n\n` +
-              "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
-              "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
-              "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              userRequest: request.message,
-              enabledBusinessSkills: moduleDescriptions(request.enabledSkills),
-              safetySettings: request.config.safetySettings,
-              memorySettings: request.config.memorySettings,
-            }),
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Ollama planner request failed with status ${response.status}`,
-      );
-    }
-
-    return parsePlannerText(
-      extractOllamaResponseText(await response.json()),
+    return createModelApiPlanner(
+      new OllamaModelApi(baseUrl, this.fetchFn),
       "Ollama",
-    );
+    ).createPlan(request);
   }
 }
 
+function plannerSystemPrompt(config: AgentConfigRecord): string {
+  return (
+    `${config.systemPrompt}\n\n` +
+    "Return only JSON with {summary, mode, failureStrategy, steps, warnings}. " +
+    "Use mode \"linear\" unless dependency-aware DAG execution is needed. " +
+    "Each step must use one enabled skillId/moduleId and must not claim external execution has already happened."
+  );
+}
+
+function createModelApiPlanner(
+  modelApi: ModelApi,
+  displayName: string,
+): AgentPlanner {
+  return {
+    async createPlan(request) {
+      const text = await modelApi.generateJson({
+        modelId: request.config.modelId,
+        reasoningEffort: request.config.reasoningEffort,
+        systemPrompt: plannerSystemPrompt(request.config),
+        userPrompt: JSON.stringify({
+          userRequest: request.message,
+          enabledBusinessSkills: moduleDescriptions(request.enabledSkills),
+          safetySettings: request.config.safetySettings,
+          memorySettings: request.config.memorySettings,
+        }),
+        jsonSchema: plannerJsonSchema,
+      });
+      return parsePlannerText(text, displayName);
+    },
+  };
+}
+
+function createModelApiForConfig(
+  config: Pick<AgentConfigRecord, "provider" | "endpoint">,
+  env: Record<string, string | undefined>,
+  fetchFn: typeof fetch = fetch,
+): ModelApi {
+  if (config.provider === "openai" || config.provider === "openai_compatible") {
+    if (config.endpoint !== "responses" && config.endpoint !== "chat_completions") {
+      throw new Error(`${config.provider} does not support ${config.endpoint}.`);
+    }
+    const isOfficialOpenAI = config.provider === "openai";
+    const baseUrlEnv = isOfficialOpenAI
+      ? "OPENAI_API_BASE_URL"
+      : "OPENAI_COMPATIBLE_API_BASE_URL";
+    const apiKeyEnv = isOfficialOpenAI
+      ? "OPENAI_API_KEY"
+      : "OPENAI_COMPATIBLE_API_KEY";
+    const baseUrl =
+      env[baseUrlEnv]?.trim() ||
+      (isOfficialOpenAI ? "https://api.openai.com/v1/" : "");
+    return new OpenAICompatibleModelApi(
+      {
+        baseUrl,
+        apiKey: env[apiKeyEnv]?.trim(),
+        endpoint: config.endpoint,
+        supportsReasoningEffort: true,
+      },
+      fetchFn,
+    );
+  }
+
+  if (config.provider === "anthropic") {
+    return new AnthropicModelApi(
+      env["ANTHROPIC_API_BASE_URL"]?.trim() ||
+        "https://api.anthropic.com/v1/",
+      env["ANTHROPIC_API_KEY"]?.trim() ?? "",
+      fetchFn,
+    );
+  }
+
+  return new OllamaModelApi(env["OLLAMA_API_BASE_URL"]?.trim() ?? "", fetchFn);
+}
+
+export function createPlannerForConfig(
+  config: Pick<AgentConfigRecord, "provider" | "endpoint">,
+  env: Record<string, string | undefined>,
+  fetchFn: typeof fetch = fetch,
+  fallbackReason = "Planner provider is not configured.",
+): AgentPlanner {
+  if (config.provider === "deterministic") {
+    return new DeterministicPlanner(fallbackReason);
+  }
+  return createModelApiPlanner(
+    createModelApiForConfig(config, env, fetchFn),
+    getPlannerProviderDefinition(config.provider).displayName,
+  );
+}
+
+/** @deprecated Use createPlannerForConfig so API protocol and provider are selected independently. */
 export function createPlannerForProvider(
   provider: AgentProvider,
   env: Record<string, string | undefined>,
   fetchFn: typeof fetch = fetch,
   fallbackReason = "Planner provider is not configured.",
 ): AgentPlanner {
-  if (provider === "openai") return new OpenAIResponsesPlanner(env, fetchFn);
-  if (provider === "anthropic") return new AnthropicMessagesPlanner(env, fetchFn);
-  if (provider === "ollama") return new OllamaChatPlanner(env, fetchFn);
-  return new DeterministicPlanner(fallbackReason);
+  const definition = getPlannerProviderDefinition(provider);
+  return createPlannerForConfig(
+    { provider, endpoint: definition.defaultEndpoint },
+    env,
+    fetchFn,
+    fallbackReason,
+  );
 }

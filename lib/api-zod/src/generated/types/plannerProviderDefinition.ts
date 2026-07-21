@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentEndpoint } from "./agentEndpoint";
 import type { AgentProvider } from "./agentProvider";
 
 export interface PlannerProviderDefinition {
@@ -12,5 +13,9 @@ export interface PlannerProviderDefinition {
   displayName: string;
   requiredEnv: string[];
   defaultModelId: string;
+  defaultEndpoint: AgentEndpoint;
+  supportedEndpoints: AgentEndpoint[];
+  apiKeyEnv: string | null;
+  baseUrlEnv: string | null;
   supportsReasoningEffort: boolean;
 }
