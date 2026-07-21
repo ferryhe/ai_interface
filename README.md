@@ -228,8 +228,9 @@ psql "$DATABASE_URL" -f lib/db/migrations/20260520_add_agent_provider_values.sql
 psql "$DATABASE_URL" -f lib/db/migrations/20260721_add_model_api_profiles.sql
 ```
 
-The migration is idempotent and only adds `anthropic`, `ollama`, and
-`deterministic` to the existing `agent_provider` enum.
+Both migrations are idempotent. The first adds `anthropic`, `ollama`, and
+`deterministic` to `agent_provider`; the second adds `openai_compatible` plus
+the new protocol values to `agent_endpoint`.
 
 ---
 

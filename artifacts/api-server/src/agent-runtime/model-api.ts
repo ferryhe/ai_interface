@@ -28,8 +28,23 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function apiUrl(baseUrl: string, path: string): string {
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  return new URL(path.replace(/^\//, ""), normalizedBaseUrl).toString();
+  const trimmedBaseUrl = baseUrl.trim();
+  const normalizedBaseUrl = trimmedBaseUrl.endsWith("/")
+    ? trimmedBaseUrl
+    : `${trimmedBaseUrl}/`;
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(normalizedBaseUrl);
+  } catch {
+    throw new Error("Model API base URL must be an absolute HTTP(S) URL.");
+  }
+  if (
+    parsedBaseUrl.protocol !== "http:" &&
+    parsedBaseUrl.protocol !== "https:"
+  ) {
+    throw new Error("Model API base URL must be an absolute HTTP(S) URL.");
+  }
+  return new URL(path.replace(/^\//, ""), parsedBaseUrl).toString();
 }
 
 function extractOpenAIResponsesText(payload: unknown): string {

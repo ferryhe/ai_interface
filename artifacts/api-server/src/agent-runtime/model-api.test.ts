@@ -84,3 +84,29 @@ test("Responses model API uses configured credentials without exposing them", as
   assert.equal(calls[0]?.url, "https://models.example.test/v1/responses");
   assert.equal(calls[0]?.headers["authorization"], "Bearer test-secret");
 });
+
+test("model API rejects invalid base URLs before fetch", async () => {
+  let fetchCalls = 0;
+  const fetchFn = (async () => {
+    fetchCalls += 1;
+    return new Response(null, { status: 200 });
+  }) as typeof fetch;
+
+  for (const baseUrl of ["", "relative/v1", "file:///tmp/models/"]) {
+    const api = new OpenAICompatibleModelApi(
+      {
+        baseUrl,
+        endpoint: "responses",
+        supportsReasoningEffort: false,
+      },
+      fetchFn,
+    );
+
+    await assert.rejects(
+      () => api.generateJson(request),
+      /Model API base URL must be an absolute HTTP\(S\) URL/,
+    );
+  }
+
+  assert.equal(fetchCalls, 0);
+});
