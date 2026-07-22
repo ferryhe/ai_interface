@@ -73,14 +73,13 @@ test("loads built-in knowledge_builder with normalized defaults", async () => {
       ["web_listening", false],
       ["doc_to_md", false],
       ["md_to_rag", true],
-      ["rag_to_agent", true],
     ],
   );
   assert.deepEqual(manifest?.tests, [
     {
       name: "build_from_markdown",
       prompt: "Build an agent from approved Markdown source material.",
-      expectedSkillIds: ["md_to_rag", "rag_to_agent"],
+      expectedSkillIds: ["md_to_rag"],
     },
   ]);
 });

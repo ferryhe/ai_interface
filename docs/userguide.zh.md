@@ -76,7 +76,7 @@ Mission Center 是普通用户的默认路径。前台用户不需要理解底�
 
 - 页面生成 Mission Plan。
 - 计划展示角色、步骤、依赖、风险和需要人工确认的动作。
-- 如果使用 `knowledge_builder`，计划通常会涉及 `web_listening`、`doc_to_md`、`md_to_rag`、`rag_to_agent`。
+- 如果使用 `knowledge_builder`，计划通常会涉及 `web_listening`、`doc_to_md`、`md_to_rag`。
 
 ### 2.2 审核计划
 
@@ -384,8 +384,7 @@ docs/contracts/fixtures/knowledge-builder-mission.json
 |---|---|---|---|
 | 收集网页资料 | `web_listening` | 抓取批准的网页和变更内容 | 是，涉及网络 |
 | 转换资料 | `doc_to_md` | 把文档转成 Markdown | 视输入资料而定 |
-| 建知识库 | `md_to_rag` | 写入可检索 corpus | 是，涉及 DB / retrieval 写入 |
-| 生成 Agent | `rag_to_agent` | 生成知识库问答 Agent 配置 | 是，影响交付 |
+| 建/查知识库 | `md_to_rag` | 写入可检索 corpus 并校验查询 artifacts | 是，涉及 DB / retrieval 写入 |
 | QA 复核 | mission QA | 检查产物完整性和来源追溯 | 是，影响上线判断 |
 
 前台用户看到的是业务目标、计划和结果。后台用户需要确认每一步都有输入、输出、事件和产物。
@@ -608,7 +607,7 @@ curl -X POST http://127.0.0.1:3001/api/missions \
   -d '{
     "message": "把我批准的网页和文档资料做成一个可问答的知识库 Agent。",
     "agentId": "knowledge_builder",
-    "enabledSkillIds": ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    "enabledSkillIds": ["web_listening", "doc_to_md", "md_to_rag"],
     "reviewMode": "draft_for_review"
   }'
 ```

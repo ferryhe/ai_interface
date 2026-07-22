@@ -74,7 +74,7 @@ Expected result:
 
 - The page generates a Mission Plan.
 - The plan shows roles, steps, dependencies, risk, and approval gates.
-- For `knowledge_builder`, the plan typically uses `web_listening`, `doc_to_md`, `md_to_rag`, and `rag_to_agent`.
+- For `knowledge_builder`, the plan typically uses `web_listening`, `doc_to_md`, and `md_to_rag`.
 
 ### 2.2 Review the Plan
 
@@ -366,8 +366,7 @@ Typical flow:
 |---|---|---|---|
 | Collect web sources | `web_listening` | Fetch approved pages and changes | Yes, network |
 | Convert documents | `doc_to_md` | Convert documents to Markdown | Depends on input |
-| Build knowledge base | `md_to_rag` | Write retrievable corpus | Yes, DB/retrieval write |
-| Generate Agent | `rag_to_agent` | Generate QA Agent config | Yes, affects delivery |
+| Build/query knowledge base | `md_to_rag` | Write retrievable corpus and validate query artifacts | Yes, DB/retrieval write |
 | QA review | mission QA | Verify completeness and source traceability | Yes, affects release |
 
 Frontend users see the business goal, plan, and result. Backstage users verify input, output, events, and artifacts for every step.
@@ -455,7 +454,7 @@ curl -X POST http://127.0.0.1:3001/api/missions \
   -d '{
     "message": "Build a question-answering knowledge-base Agent from my approved web pages and documents.",
     "agentId": "knowledge_builder",
-    "enabledSkillIds": ["web_listening", "doc_to_md", "md_to_rag", "rag_to_agent"],
+    "enabledSkillIds": ["web_listening", "doc_to_md", "md_to_rag"],
     "reviewMode": "draft_for_review"
   }'
 ```

@@ -43,7 +43,7 @@ test("knowledge builder demo fixture is a valid mission plan", async () => {
   assert.equal(validated.missionId, "knowledge-builder-demo-001");
   assert.equal(validated.status, "needs_confirmation");
   assert.equal(validated.riskLevel, "high");
-  assert.equal(validated.steps.length, 5);
+  assert.equal(validated.steps.length, 4);
 });
 
 test("knowledge builder demo fixture contains the expected roles, skills, and approvals", async () => {
@@ -59,7 +59,7 @@ test("knowledge builder demo fixture contains the expected roles, skills, and ap
   );
   assert.deepEqual(
     knowledgeBuilderSteps.map((step) => step.skillId),
-    ["md_to_rag", "rag_to_agent"],
+    ["md_to_rag"],
   );
   assert.equal(qaReviewerSteps.length, 1);
   assert.equal(qaReviewerSteps[0]?.skillId, undefined);
@@ -75,17 +75,16 @@ test("knowledge builder demo fixture contains the expected roles, skills, and ap
   assert.match(dbApprovalStep?.approval?.reason ?? "", /retrieval database|database/i);
 
   const deliveryStep = fixture.steps.find((step) => step.stepId === "generate-agent-config");
-  assert.equal(deliveryStep?.skillId, "rag_to_agent");
-  assert.deepEqual(deliveryStep?.dependsOn, ["build-rag-corpus"]);
+  assert.equal(deliveryStep, undefined);
 
   const qaStep = qaReviewerSteps[0];
   assert.equal(qaStep?.role, "qa_reviewer");
-  assert.deepEqual(qaStep?.dependsOn, ["build-rag-corpus", "generate-agent-config"]);
+  assert.deepEqual(qaStep?.dependsOn, ["build-rag-corpus"]);
   assert.deepEqual(qaStep?.evidenceContract, {
     requiredArtifacts: [
       "approved-source-snapshots",
       "rag-corpus-records",
-      "generated-agent-config",
+      "query-results",
     ],
     assertionType: "presence",
     assertionConfig: {},
@@ -105,7 +104,7 @@ test("knowledge builder agent manifest matches the demo mission assumptions", as
   assert.equal(skillRequirements.get("web_listening"), false);
   assert.equal(skillRequirements.get("doc_to_md"), false);
   assert.equal(skillRequirements.get("md_to_rag"), true);
-  assert.equal(skillRequirements.get("rag_to_agent"), true);
+  assert.equal(skillRequirements.has("rag_to_agent"), false);
 
   assert.equal(agent.permissions.approvalRequired, true);
   assert.equal(agent.permissions.canUseNetwork, true);

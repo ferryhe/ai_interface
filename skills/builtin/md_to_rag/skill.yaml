@@ -1,60 +1,98 @@
 skillId: md_to_rag
 moduleId: md_to_rag
 name: Markdown to RAG
-description: Chunk Markdown, prepare embeddings, and build RAG index records.
+description: Build portable Markdown-to-RAG artifacts, indexes, query results, and drift reports.
 category: index
 project:
   source: builtin
-  defaultSiblingPath: ../c-ross-2
-  envPath: CROSS2_PROJECT_PATH
-  repoUrl: https://github.com/ferryhe/c-ross-2
-  packageName: c-ross-2
+  defaultSiblingPath: ../md_to_rag
+  envPath: MD_TO_RAG_PROJECT_PATH
+  packageName: md-to-rag
+  readiness:
+    requiredPaths:
+      - pyproject.toml
+      - src/md_to_rag/cli.py
 execution:
   kind: cli
   adapterId: md_to_rag.cli.v1
   requiredEnv:
-    - CROSS2_CLI_PATH
+    - MD_TO_RAG_PROJECT_PATH
   optionalEnv:
-    - CROSS2_WORKDIR
-    - CROSS2_API_BASE_URL
+    - MD_TO_RAG_WORKDIR
   timeoutMs: 180000
+  command:
+    - python
+    - -m
+    - md_to_rag
+  workingDirectory: project
   allowedCommands:
-    - build-ready-data
-    - validate-ready-data
-    - search sections
-    - evidence
-  readinessHint: Set CROSS2_CLI_PATH to enable CLI handoffs.
+    - python -m md_to_rag init
+    - python -m md_to_rag ingest
+    - python -m md_to_rag chunk
+    - python -m md_to_rag embed
+    - python -m md_to_rag index
+    - python -m md_to_rag query
+    - python -m md_to_rag inspect
+    - python -m md_to_rag diff
+    - python -m md_to_rag rebuild
+  readinessHint: Set MD_TO_RAG_PROJECT_PATH or keep ../md_to_rag available to enable CLI handoffs.
 inputSchema:
   type: object
   properties:
-    markdownArtifactIds:
+    args:
       type: array
+      minItems: 1
       items:
         type: string
-    collection:
+    project:
       type: string
-    chunkingStrategy:
+    source:
+      type: string
+    manifest:
+      type: string
+    chunks:
+      type: string
+    embeddings:
+      type: string
+    question:
+      type: string
+    artifact:
       type: string
   required:
-    - markdownArtifactIds
-    - collection
+    - args
 outputSchema:
   type: object
   properties:
-    manifest:
+    command:
+      type: string
+    status:
+      type: string
+    message:
+      type: string
+    artifact_path:
+      type: string
+    error:
       type: object
-    chunks:
-      type: array
-    embeddings:
-      type: array
+    data:
+      type: object
+  required:
+    - command
+    - status
+    - message
 interactionKinds:
   - question
   - data_request
   - blocked
 artifactKinds:
+  - corpus_manifest
+  - source_manifest
+  - document_manifest
   - rag_chunk
   - embedding_metadata
   - rag_index
+  - query_results
+  - drift_report
+  - rebuild_report
 ui:
   mode: renderer
-  preferredRenderer: table
+  preferredRenderer: json

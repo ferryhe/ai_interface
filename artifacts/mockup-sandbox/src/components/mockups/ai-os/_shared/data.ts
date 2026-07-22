@@ -389,7 +389,6 @@ export function createAgentFirstWorkbenchDemoData(
           "web_listening",
           "doc_to_md",
           "md_to_rag",
-          "rag_to_agent",
         ],
       },
       {
@@ -414,7 +413,6 @@ export function createAgentFirstWorkbenchDemoData(
           { skillId: "web_listening", required: false },
           { skillId: "doc_to_md", required: false },
           { skillId: "md_to_rag", required: true },
-          { skillId: "rag_to_agent", required: true },
         ],
         planner: {
           mode: "dag",
@@ -435,7 +433,7 @@ export function createAgentFirstWorkbenchDemoData(
             prompt: t(
               "agentFirst.workbenchDemo.agents.knowledgeBuilder.tests.buildFromMarkdown",
             ),
-            expectedSkillIds: ["md_to_rag", "rag_to_agent"],
+            expectedSkillIds: ["md_to_rag"],
           },
         ],
       },
@@ -516,14 +514,6 @@ export function createAgentFirstWorkbenchDemoData(
             summary: t("agentFirst.workbenchDemo.runSteps.prepareRag.summary"),
             activeSkillId: "md_to_rag",
             startedAt: "09:46",
-          },
-          {
-            id: "run_rag_to_agent_demo",
-            order: 4,
-            moduleId: "rag_to_agent",
-            title: t("agentFirst.workbenchDemo.runSteps.draftAgent.title"),
-            status: "queued",
-            summary: t("agentFirst.workbenchDemo.runSteps.draftAgent.summary"),
           },
         ],
         events: [

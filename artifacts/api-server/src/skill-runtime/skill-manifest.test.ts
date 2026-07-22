@@ -64,13 +64,59 @@ test("default skill manifests map built-in and community project skills", () => 
     [
       ["web_listening", "../web_listening"],
       ["doc_to_md", "../doc_to_md"],
-      ["md_to_rag", "../c-ross-2"],
+      ["md_to_rag", "../md_to_rag"],
       ["rag_to_agent", "../c-ross-2"],
       ["climate_monitor", "../climate_monitor_wiki"],
       ["ai_actuary", "../ai_actuary"],
       ["example_reporter", "skills/community/example_reporter"],
     ],
   );
+
+  const mdToRag = builtinSkillManifests.find(
+    (skill) => skill.skillId === "md_to_rag",
+  );
+  assert.equal(mdToRag?.project.envPath, "MD_TO_RAG_PROJECT_PATH");
+  assert.deepEqual(mdToRag?.project.readiness?.requiredPaths, [
+    "pyproject.toml",
+    "src/md_to_rag/cli.py",
+  ]);
+  assert.deepEqual(mdToRag?.execution.command, [
+    "python",
+    "-m",
+    "md_to_rag",
+  ]);
+  assert.equal(mdToRag?.execution.workingDirectory, "project");
+  assert.deepEqual(mdToRag?.execution.allowedCommands, [
+    "python -m md_to_rag init",
+    "python -m md_to_rag ingest",
+    "python -m md_to_rag chunk",
+    "python -m md_to_rag embed",
+    "python -m md_to_rag index",
+    "python -m md_to_rag query",
+    "python -m md_to_rag inspect",
+    "python -m md_to_rag diff",
+    "python -m md_to_rag rebuild",
+  ]);
+  assert.deepEqual(mdToRag?.inputSchema["required"], ["args"]);
+  assert.equal(
+    (
+      mdToRag?.inputSchema["properties"] as
+        | { args?: { minItems?: number } }
+        | undefined
+    )?.args?.minItems,
+    1,
+  );
+  assert.deepEqual(mdToRag?.artifactKinds, [
+    "corpus_manifest",
+    "source_manifest",
+    "document_manifest",
+    "rag_chunk",
+    "embedding_metadata",
+    "rag_index",
+    "query_results",
+    "drift_report",
+    "rebuild_report",
+  ]);
 
   const docToMd = builtinSkillManifests.find(
     (skill) => skill.skillId === "doc_to_md",
