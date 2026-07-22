@@ -203,27 +203,34 @@ flowchart LR
 
 ## Planner Providers
 
-Agent planning goes through a provider registry. OpenAI remains the default
-configured planner and uses `OPENAI_API_KEY` with the Responses API. Anthropic
-uses `ANTHROPIC_API_KEY`, Ollama uses `OLLAMA_API_BASE_URL`, and the
-deterministic planner is an explicit no-env fallback.
+Agent planning goes through a provider registry and a protocol-neutral
+`ModelApi` interface. Provider, API protocol, and model ID are configured
+separately. OpenAI uses `OPENAI_API_KEY` and optionally
+`OPENAI_API_BASE_URL`; OpenAI-compatible APIs use
+`OPENAI_COMPATIBLE_API_BASE_URL` plus the optional
+`OPENAI_COMPATIBLE_API_KEY`; Anthropic uses `ANTHROPIC_API_KEY` and optionally
+`ANTHROPIC_API_BASE_URL`; Ollama uses `OLLAMA_API_BASE_URL`. See
+`.env.example` for the local environment template.
 
 Provider readiness is reported as metadata only: provider names, required env
-var names, missing env var names, default model IDs, and whether reasoning
-effort is supported. The API does not return API key values or local Ollama
-base URLs. If the selected provider is not ready, the runtime chooses the first
-ready provider in fallback order (`openai`, `anthropic`, `ollama`) and otherwise
-uses the deterministic planner with a warning.
+var names, missing env var names, supported API protocols, default model IDs,
+and whether reasoning effort is supported. The API does not return API key
+values or configured base URLs. If the selected provider is not ready, the
+runtime chooses the first ready provider in fallback order (`openai`,
+`openai_compatible`, `anthropic`, `ollama`) and otherwise uses the deterministic
+planner with a warning.
 
 Before saving non-OpenAI providers in an existing Postgres database, apply the
 checked-in enum migration:
 
 ```bash
 psql "$DATABASE_URL" -f lib/db/migrations/20260520_add_agent_provider_values.sql
+psql "$DATABASE_URL" -f lib/db/migrations/20260721_add_model_api_profiles.sql
 ```
 
-The migration is idempotent and only adds `anthropic`, `ollama`, and
-`deterministic` to the existing `agent_provider` enum.
+Both migrations are idempotent. The first adds `anthropic`, `ollama`, and
+`deterministic` to `agent_provider`; the second adds `openai_compatible` plus
+the new protocol values to `agent_endpoint`.
 
 ---
 

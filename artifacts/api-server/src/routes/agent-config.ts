@@ -28,7 +28,7 @@ function errorResponse(message: string): { error: string } {
 function configResponse(config: AgentConfigRecord) {
   return {
     config: toPublicAgentConfig(config),
-    connection: getConnectionStatus(process.env, config.provider),
+    connection: getConnectionStatus(process.env, config),
   };
 }
 
@@ -99,7 +99,7 @@ export function createAgentConfigRouter(
     try {
       const config = await getAgentConfig(repository);
       const data = TestAgentConfigConnectionResponse.parse({
-        ...getConnectionStatus(process.env, config.provider),
+        ...getConnectionStatus(process.env, config),
         checkedAt: new Date(),
       });
       res.json(data);

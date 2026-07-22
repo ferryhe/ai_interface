@@ -65,7 +65,7 @@ test("memory API router serves config, agent runs, and missions without DATABASE
       method: "PUT",
       body: {
         provider: "deterministic",
-        endpoint: "responses",
+        endpoint: "deterministic",
         modelId: "deterministic-v1",
         reasoningEffort: "none",
       },

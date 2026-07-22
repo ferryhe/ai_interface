@@ -137,6 +137,24 @@ test("explicit deterministic provider does not report fallback warning", async (
   );
 });
 
+test("legacy endpoint keeps its configured provider and uses its default endpoint", () => {
+  const legacyConfig = configuredConfig("deterministic");
+  legacyConfig.endpoint = "responses";
+
+  const selection = selectPlannerProvider(legacyConfig, {
+    OPENAI_API_KEY: "sk-test-secret",
+  });
+
+  assert.equal(selection.definition.provider, "deterministic");
+  assert.equal(selection.endpoint, "deterministic");
+  assert.equal(selection.connection.activeProvider, "deterministic");
+  assert.equal(selection.connection.activeEndpoint, "deterministic");
+  assert.equal(
+    selection.warnings.some((warning) => warning.includes("using deterministic")),
+    true,
+  );
+});
+
 test("Anthropic mocked HTTP planner returns valid normalized steps", async () => {
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -242,6 +260,106 @@ test("Ollama mocked HTTP planner returns valid normalized steps", async () => {
   );
 });
 
+test("OpenAI-compatible config selects custom API protocol and model", async () => {
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({
+      url: String(url),
+      body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+    });
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: JSON.stringify(plannerJson()) } }],
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, {
+    provider: "openai_compatible",
+    endpoint: "chat_completions",
+    modelId: "local-model:latest",
+    reasoningEffort: "none",
+  });
+
+  const result = await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    { message: "Convert these documents." },
+    {
+      env: {
+        OPENAI_COMPATIBLE_API_BASE_URL: "http://127.0.0.1:9000/v1/",
+      },
+      fetchFn,
+    },
+  );
+
+  assert.equal(result.connection.activeProvider, "openai_compatible");
+  assert.equal(result.connection.activeEndpoint, "chat_completions");
+  assert.equal(requests[0]?.url, "http://127.0.0.1:9000/v1/chat/completions");
+  assert.equal(requests[0]?.body["model"], "local-model:latest");
+});
+
+test("OpenAI blank base URL falls back to the official API URL", async () => {
+  const requests: string[] = [];
+  const fetchFn = (async (url: string | URL | Request) => {
+    requests.push(String(url));
+    return new Response(
+      JSON.stringify({ output_text: JSON.stringify(plannerJson()) }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+
+  await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    { message: "Convert these documents." },
+    {
+      env: {
+        OPENAI_API_KEY: "sk-test-secret",
+        OPENAI_API_BASE_URL: "   ",
+      },
+      fetchFn,
+    },
+  );
+
+  assert.equal(requests[0], "https://api.openai.com/v1/responses");
+});
+
+test("Anthropic blank base URL falls back to the official API URL", async () => {
+  const requests: string[] = [];
+  const fetchFn = (async (url: string | URL | Request) => {
+    requests.push(String(url));
+    return new Response(
+      JSON.stringify({
+        content: [{ type: "text", text: JSON.stringify(plannerJson()) }],
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  const runtimeRepository = new InMemoryAgentRuntimeRepository();
+  const configRepository = new InMemoryAgentConfigRepository();
+  await updateAgentConfig(configRepository, { provider: "anthropic" });
+
+  await createAgentRun(
+    runtimeRepository,
+    configRepository,
+    { message: "Convert these documents." },
+    {
+      env: {
+        ANTHROPIC_API_KEY: "anthropic-secret",
+        ANTHROPIC_API_BASE_URL: "",
+      },
+      fetchFn,
+    },
+  );
+
+  assert.equal(requests[0], "https://api.anthropic.com/v1/messages");
+});
+
 test("Anthropic configured with missing env falls back to OpenAI default model", async () => {
   const requests: Array<{ body: Record<string, unknown> }> = [];
   const fetchFn = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -270,7 +388,7 @@ test("Anthropic configured with missing env falls back to OpenAI default model",
 
   assert.equal(result.connection.configuredProvider, "anthropic");
   assert.equal(result.connection.activeProvider, "openai");
-  assert.equal(requests[0]?.body["model"], "gpt-5.5");
+  assert.equal(requests[0]?.body["model"], "gpt-5.6-luna");
 });
 
 test("OpenAI configured with missing env falls back to Anthropic default model", async () => {

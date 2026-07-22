@@ -126,6 +126,7 @@ export type AgentProvider = (typeof AgentProvider)[keyof typeof AgentProvider];
 
 export const AgentProvider = {
   openai: "openai",
+  openai_compatible: "openai_compatible",
   anthropic: "anthropic",
   ollama: "ollama",
   deterministic: "deterministic",
@@ -1280,6 +1281,10 @@ export type AgentEndpoint = (typeof AgentEndpoint)[keyof typeof AgentEndpoint];
 
 export const AgentEndpoint = {
   responses: "responses",
+  chat_completions: "chat_completions",
+  anthropic_messages: "anthropic_messages",
+  ollama_chat: "ollama_chat",
+  deterministic: "deterministic",
   agents_sdk: "agents_sdk",
 } as const;
 
@@ -1296,6 +1301,10 @@ export interface PlannerProviderDefinition {
   displayName: string;
   requiredEnv: string[];
   defaultModelId: string;
+  defaultEndpoint: AgentEndpoint;
+  supportedEndpoints: AgentEndpoint[];
+  apiKeyEnv: string | null;
+  baseUrlEnv: string | null;
   supportsReasoningEffort: boolean;
 }
 
@@ -1440,6 +1449,8 @@ export interface AgentConnectionStatusPayload {
   status: AgentConnectionStatus;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
 }
@@ -1466,6 +1477,8 @@ export interface AgentConnectionTestResponse {
   status: AgentConnectionStatus;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
   checkedAt: string;
@@ -1495,6 +1508,8 @@ export interface AgentRuntimeConnection {
   status: AgentConnectionStatus;
   configuredProvider: AgentProvider;
   activeProvider: AgentProvider;
+  configuredEndpoint: AgentEndpoint;
+  activeEndpoint: AgentEndpoint;
   providers: PlannerProviderReadiness[];
   warnings: string[];
 }

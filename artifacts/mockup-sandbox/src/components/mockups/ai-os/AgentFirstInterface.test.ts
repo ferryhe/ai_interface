@@ -65,6 +65,14 @@ test("agent-first default mission load does not request admin config surfaces", 
   assert.match(source, /fetch\("\/api\/agent-config"\)/);
 });
 
+test("settings configures model API, protocol, and model independently", () => {
+  assert.match(source, /provider: "openai_compatible"/);
+  assert.match(source, /supportedEndpoints: \["responses", "chat_completions"\]/);
+  assert.match(source, /providerOption\(config\.provider\)\.supportedEndpoints\.map/);
+  assert.match(source, /list="agent-model-options"/);
+  assert.match(source, /onUpdateConfig\(\{ modelId: event\.target\.value \}\)/);
+});
+
 test("backstage converges governance into one settings entry", () => {
   assert.match(
     source,

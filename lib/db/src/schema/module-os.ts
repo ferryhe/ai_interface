@@ -61,6 +61,7 @@ export const runEventSeverityEnum = pgEnum("run_event_severity", [
 
 export const agentProviderEnum = pgEnum("agent_provider", [
   "openai",
+  "openai_compatible",
   "anthropic",
   "ollama",
   "deterministic",
@@ -68,6 +69,10 @@ export const agentProviderEnum = pgEnum("agent_provider", [
 
 export const agentEndpointEnum = pgEnum("agent_endpoint", [
   "responses",
+  "chat_completions",
+  "anthropic_messages",
+  "ollama_chat",
+  "deterministic",
   "agents_sdk",
 ]);
 
@@ -345,7 +350,7 @@ export const agentConfigsTable = pgTable("agent_configs", {
   configKey: text("config_key").notNull().unique().default("default"),
   provider: agentProviderEnum("provider").notNull().default("openai"),
   endpoint: agentEndpointEnum("endpoint").notNull().default("responses"),
-  modelId: text("model_id").notNull().default("gpt-5.5"),
+  modelId: text("model_id").notNull().default("gpt-5.6-luna"),
   reasoningEffort: agentReasoningEffortEnum("reasoning_effort")
     .notNull()
     .default("medium"),
